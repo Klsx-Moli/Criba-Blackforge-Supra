@@ -1,4 +1,4 @@
-"""Tests for SUPRA FastAPI Service and Endpoints."""
+"""Tests for SUPRA FastAPI Service, WebMCP Protocol, and Endpoints."""
 import tempfile
 from fastapi.testclient import TestClient
 from supra_agentic.service import app
@@ -14,6 +14,7 @@ def test_healthcheck():
     assert data["status"] == "healthy"
     assert data["google_stack"]["model"] == "gemini-3.7-flash"
     assert data["google_stack"]["framework"] == "google-adk"
+    assert data["google_stack"]["webmcp_enabled"] is True
 
 
 def test_serve_ui():
@@ -34,9 +35,38 @@ def test_quick_run_judge_demo():
         assert data["google_stack_verified"] is True
         assert data["stage"] == "COMPLETED"
         assert "audit_sha256" in data["deliverable"]
+        assert "null_hypothesis_h0" in data["deliverable"]
 
 
-def test_create_and_run_project():
+def test_webmcp_jsonrpc_protocol():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        state_manager.storage_dir = type(state_manager.storage_dir)(tmpdir)
+
+        # 1. initialize
+        init_res = client.post("/api/v1/mcp", json={"jsonrpc": "2.0", "id": 1, "method": "initialize"})
+        assert init_res.status_code == 200
+        assert init_res.json()["result"]["serverInfo"]["name"] == "supra-agentic-taskmaster"
+
+        # 2. tools/list
+        tools_res = client.post("/api/v1/mcp", json={"jsonrpc": "2.0", "id": 2, "method": "tools/list"})
+        assert tools_res.status_code == 200
+        assert len(tools_res.json()["result"]["tools"]) >= 5
+
+        # 3. tools/call supra_quick_run
+        call_res = client.post("/api/v1/mcp", json={
+            "jsonrpc": "2.0",
+            "id": 3,
+            "method": "tools/call",
+            "params": {
+                "name": "supra_quick_run",
+                "arguments": {"objective": "Test WebMCP autonomous task run", "domain": "general"}
+            }
+        })
+        assert call_res.status_code == 200
+        assert "COMPLETED" in call_res.json()["result"]["content"][0]["text"]
+
+
+def test_create_and_run_project_and_html_export():
     with tempfile.TemporaryDirectory() as tmpdir:
         state_manager.storage_dir = type(state_manager.storage_dir)(tmpdir)
 
@@ -57,7 +87,13 @@ def test_create_and_run_project():
         assert get_res.status_code == 200
         assert get_res.json()["posture"]["stage"] == "COMPLETED"
 
-        # Export dossier
+        # Export markdown dossier
         exp_res = client.get(f"/api/v1/export/dossier/{pid}")
         assert exp_res.status_code == 200
         assert "TECHNICAL DOSSIER" in exp_res.json()["markdown_dossier"]
+
+        # Export HTML dossier
+        html_res = client.get(f"/api/v1/export/dossier/html/{pid}")
+        assert html_res.status_code == 200
+        assert "<svg" in html_res.text
+        assert "SUPRA Autonomous Taskmaster Dossier" in html_res.text

@@ -1,16 +1,22 @@
-"""FastAPI Production Backend for SUPRA Agentic Taskmaster."""
+"""FastAPI Production Backend for SUPRA Agentic Taskmaster.
+
+Integrates REST, WebMCP JSON-RPC 2.0, HTML/SVG technical dossier export, and 1-Click Judge Demo.
+"""
 from __future__ import annotations
 
+import json
 import logging
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI, HTTPException, status
+from fastapi import FastAPI, HTTPException, Request, Response, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict, Field
 
+from .dossier import export_full_html_dossier
+from .mcp_handler import handle_mcp_jsonrpc_request
 from .models import ProjectPosture, TaskmasterStage
 from .runner import taskmaster_runner
 from .state import state_manager
@@ -20,7 +26,7 @@ logger = logging.getLogger("supra_agentic.service")
 app = FastAPI(
     title="SUPRA Agentic Taskmaster",
     version="1.0.0",
-    description="Autonomous Multi-Stage Innovation & Taskmaster Agent powered by Google Gemini 3.7 Flash, Google ADK, and Google Cloud Run.",
+    description="Autonomous Multi-Stage Innovation & Taskmaster Agent powered by Google Gemini 3.7 Flash, Google ADK, WebMCP, and Google Cloud Run.",
 )
 
 # Enable CORS
@@ -58,6 +64,7 @@ def healthcheck() -> dict[str, Any]:
             "framework": "google-adk",
             "cloud": "google-cloud-run",
             "region": "us-central1",
+            "webmcp_enabled": True,
         },
     }
 
@@ -146,6 +153,16 @@ def judge_demo_quick_run() -> dict[str, Any]:
     }
 
 
+@app.post("/api/v1/mcp", tags=["WebMCP"])
+async def mcp_jsonrpc_endpoint(request: Request) -> dict[str, Any]:
+    """Native WebMCP JSON-RPC 2.0 Protocol Handler."""
+    try:
+        payload = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid JSON payload.")
+    return handle_mcp_jsonrpc_request(payload)
+
+
 @app.get("/api/v1/export/dossier/{project_id}", tags=["Export"])
 def export_technical_dossier(project_id: str) -> dict[str, Any]:
     """Export a markdown technical dossier of the completed project."""
@@ -191,7 +208,10 @@ def export_technical_dossier(project_id: str) -> dict[str, Any]:
         f"- **Verdict:** `{ver.verdict if ver else 'N/A'}` (Confidence: {ver.confidence_score if ver else 0.0:.2f})",
         f"- **Rationale:** {ver.rationale if ver else 'N/A'}",
         "",
-        "## 4. Checkpoints Timeline",
+        "## 4. Empirical Falsification (H0)",
+        f"- **Null Hypothesis:** `{out.get('null_hypothesis_h0', 'N/A') if out else 'N/A'}`",
+        "",
+        "## 5. Checkpoints Timeline",
     ])
     for chk in posture.checkpoints:
         md_lines.append(f"- **[{chk.stage.value}]** `{chk.actor}`: {chk.title} — *{chk.evidence_summary}*")
@@ -201,3 +221,13 @@ def export_technical_dossier(project_id: str) -> dict[str, Any]:
         "project_id": project_id,
         "markdown_dossier": "\n".join(md_lines),
     }
+
+
+@app.get("/api/v1/export/dossier/html/{project_id}", response_class=HTMLResponse, tags=["Export"])
+def export_html_dossier_route(project_id: str) -> HTMLResponse:
+    """Export a self-contained HTML specification with embedded SVG architecture."""
+    posture = state_manager.get_project(project_id)
+    if not posture:
+        raise HTTPException(status_code=404, detail=f"Project '{project_id}' not found.")
+    html_content = export_full_html_dossier(posture)
+    return HTMLResponse(html_content)
