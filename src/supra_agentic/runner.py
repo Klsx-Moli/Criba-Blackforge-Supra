@@ -1,4 +1,4 @@
-"""SUPRA Taskmaster Autonomous Golden Path Runner."""
+"""SUPRA Taskmaster Autonomous Golden Path Runner with Dynamic Self-Correction."""
 from __future__ import annotations
 
 import logging
@@ -20,7 +20,7 @@ logger = logging.getLogger("supra_agentic.runner")
 
 
 class TaskmasterRunner:
-    """Executes the full 5-stage Taskmaster workflow autonomously."""
+    """Executes the full 5-stage Taskmaster workflow autonomously with self-correction."""
 
     def __init__(self, model_name: str = "gemini-3.7-flash") -> None:
         self.model_name = model_name
@@ -32,8 +32,9 @@ class TaskmasterRunner:
         project_id: str | None = None,
         domain: str = "general",
         allow_disruptive: bool = True,
+        max_retries: int = 2,
     ) -> ProjectPosture:
-        """Execute the 5-stage autonomous cycle deterministically with full telemetry."""
+        """Execute the 5-stage autonomous cycle with dynamic self-correction loops."""
         start_time = time.monotonic()
         clean_obj = objective.strip()
         if not clean_obj:
@@ -61,13 +62,32 @@ class TaskmasterRunner:
                 allow_disruptive=allow_disruptive,
             )
 
-            # Stage 4: Verify Invariants
+            # Stage 4: Verify Invariants & Sandbox with Self-Correction
             logger.info(f"[{pid}] Executing Tool 3: verify_solution")
             verify_solution(project_id=pid)
 
             # Stage 4b: Sandbox Execution (SANDBOX_VERIFIED)
             logger.info(f"[{pid}] Executing Tool 4: execute_sandbox_action")
-            execute_sandbox_action(project_id=pid)
+            sb_res = execute_sandbox_action(project_id=pid, fuzz_iterations=5)
+
+            # Self-Correction Loop: If sandbox fails, re-synthesize with error feedback
+            retries = 0
+            while not sb_res["sandbox_result"]["passed"] and retries < max_retries:
+                retries += 1
+                err_log = sb_res["sandbox_result"]["output_log"]
+                logger.warning(f"[{pid}] Sandbox check failed: '{err_log}'. Initiating self-correction loop #{retries}...")
+                
+                # Re-synthesize strategy with feedback
+                synthesize_strategy(
+                    project_id=pid,
+                    pathways_count=3,
+                    allow_disruptive=True,
+                    error_feedback=err_log,
+                )
+                
+                # Re-verify and re-execute sandbox
+                verify_solution(project_id=pid)
+                sb_res = execute_sandbox_action(project_id=pid, fuzz_iterations=5)
 
             # Stage 5: Final Checkpoint & Deliverable Ledger (COMPLETED)
             logger.info(f"[{pid}] Executing Tool 5: record_checkpoint")
@@ -75,7 +95,7 @@ class TaskmasterRunner:
             record_checkpoint(
                 project_id=pid,
                 deliverable_title=f"Autonomous Solution: {clean_obj[:50]}",
-                summary=f"Taskmaster completed all 5 stages in {elapsed:.2f}s with full verification and sandbox execution.",
+                summary=f"Taskmaster completed all 5 stages in {elapsed:.2f}s (Self-Corrections: {retries}).",
             )
 
             final_posture = state_manager.get_project(pid)
