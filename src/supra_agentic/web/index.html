@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SUPRA — Autonomous Taskmaster Agent</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body class="dark-theme">
+    <!-- Top Header Bar -->
+    <header class="top-bar">
+        <div class="brand">
+            <div class="brand-badge">TASKMASTER</div>
+            <div class="brand-titles">
+                <h1>SUPRA <span class="accent-text">AGENTIC OS</span></h1>
+                <span class="sub-brand">Autonomous Multi-Stage Innovation Engine &bull; Google ADK &bull; Gemini 3.7 Flash</span>
+            </div>
+        </div>
+        <div class="system-status">
+            <div class="status-chip">
+                <span class="indicator active"></span>
+                <span class="mono-text">GEMINI 3.7 FLASH</span>
+            </div>
+            <div class="status-chip">
+                <span class="indicator active"></span>
+                <span class="mono-text">GOOGLE ADK</span>
+            </div>
+            <div class="status-chip">
+                <span class="indicator active"></span>
+                <span class="mono-text">CLOUD RUN</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="app-layout">
+        <!-- Left Column: Input & Controls -->
+        <section class="control-panel card">
+            <div class="card-header">
+                <h2>What do you want to solve?</h2>
+                <span class="badge badge-primary">Taskmaster</span>
+            </div>
+            
+            <p class="section-desc">
+                State any complex engineering, architecture, or cybersecurity challenge. 
+                SUPRA autonomously decomposes, formulates orthogonal strategies, runs sandbox verification, and produces verifiable deliverables.
+            </p>
+
+            <form id="task-form" onsubmit="handleRunTask(event)">
+                <div class="form-group">
+                    <label for="objective-input">Objective / Question:</label>
+                    <textarea 
+                        id="objective-input" 
+                        rows="4" 
+                        placeholder="e.g. Design an autonomous secretless service mesh with continuous invariant verification and automated rollback."
+                        required
+                    ></textarea>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group half">
+                        <label for="domain-select">Problem Domain:</label>
+                        <select id="domain-select">
+                            <option value="cloud_security">Cloud Security & Zero-Trust</option>
+                            <option value="data_pipeline">Self-Healing Data Pipelines</option>
+                            <option value="distributed_systems">Distributed Consensus</option>
+                            <option value="general">General Innovation</option>
+                        </select>
+                    </div>
+                    <div class="form-group half checkbox-group">
+                        <label>
+                            <input type="checkbox" id="disruptive-toggle" checked>
+                            Allow Disruptive Pathways
+                        </label>
+                    </div>
+                </div>
+
+                <div class="action-buttons">
+                    <button type="submit" class="btn btn-primary" id="run-btn">
+                        <span class="btn-icon">⚡</span>
+                        <span>RUN TASKMASTER</span>
+                    </button>
+                    <button type="button" class="btn btn-accent" onclick="handleQuickDemo()">
+                        <span class="btn-icon">✨</span>
+                        <span>1-CLICK JUDGE DEMO (&lt;0.5s)</span>
+                    </button>
+                </div>
+            </form>
+
+            <div class="recent-projects-box">
+                <h3>Recent Executions</h3>
+                <div id="recent-list" class="recent-list">
+                    <div class="placeholder-text">No prior executions loaded.</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Right Column: Live 5-Stage Visualizer & Deliverables -->
+        <section class="output-panel card">
+            <div class="card-header">
+                <h2>Autonomous 5-Stage Execution Stream</h2>
+                <span class="stage-tag" id="current-stage-tag">STANDBY</span>
+            </div>
+
+            <!-- Stage Progress Bar -->
+            <div class="stage-stepper">
+                <div class="step" id="step-received">
+                    <div class="step-num">01</div>
+                    <div class="step-label">Received</div>
+                </div>
+                <div class="step-connector"></div>
+                <div class="step" id="step-structured">
+                    <div class="step-num">02</div>
+                    <div class="step-label">Structured</div>
+                </div>
+                <div class="step-connector"></div>
+                <div class="step" id="step-stratified">
+                    <div class="step-num">03</div>
+                    <div class="step-label">Stratified</div>
+                </div>
+                <div class="step-connector"></div>
+                <div class="step" id="step-sandbox">
+                    <div class="step-num">04</div>
+                    <div class="step-label">Sandbox</div>
+                </div>
+                <div class="step-connector"></div>
+                <div class="step" id="step-completed">
+                    <div class="step-num">05</div>
+                    <div class="step-label">Completed</div>
+                </div>
+            </div>
+
+            <!-- Live Output Display -->
+            <div class="output-container" id="output-container">
+                <div class="empty-state">
+                    <div class="empty-icon">🎯</div>
+                    <h3>Ready for Autonomous Execution</h3>
+                    <p>Enter an objective on the left or click <strong>1-CLICK JUDGE DEMO</strong> to watch SUPRA decompose, synthesize, verify, and complete a multi-stage cycle.</p>
+                </div>
+            </div>
+
+            <!-- Action Bar (Export) -->
+            <div class="export-bar" id="export-bar" style="display: none;">
+                <button class="btn btn-secondary" onclick="handleExportDossier()">
+                    <span>📄 EXPORT TECHNICAL DOSSIER</span>
+                </button>
+                <div class="audit-hash-chip">
+                    <span class="label">SHA-256:</span>
+                    <span class="hash mono-text" id="final-audit-hash"></span>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>
