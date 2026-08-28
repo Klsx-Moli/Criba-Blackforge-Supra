@@ -1,5 +1,5 @@
 /**
- * SUPRA Agentic Taskmaster - Frontend Orchestrator
+ * SUPRA Agentic Taskmaster - Frontend Orchestrator v2.0
  */
 
 let currentProjectId = null;
@@ -92,7 +92,7 @@ function renderProjectPosture(posture) {
     const decomp = posture.decomposition;
     const cand = posture.selected_candidate;
     const ver = posture.verification;
-    const sb = posture.sandbox_results && posture.sandbox_results[0];
+    const sb = posture.sandbox_results && posture.sandbox_results[posture.sandbox_results.length - 1];
     const out = posture.final_output;
 
     let html = `
@@ -107,7 +107,7 @@ function renderProjectPosture(posture) {
                     <div style="font-size: 0.8rem; color: #10B981;">&check; [INVARIANT] ${inv}</div>
                 `).join('') : ''}
                 ${decomp ? decomp.mutable_assumptions.map(mut => `
-                    <div style="font-size: 0.8rem; color: #94A3B8;">&bull; [MUTABLE ASSUMPTION CHALLENGED] ~${mut}~</div>
+                    <div style="font-size: 0.8rem; color: #94A3B8;">&bull; [MUTABLE ASSUMPTION CHALLENGED] <span style="text-decoration: line-through;">${mut}</span></div>
                 `).join('') : ''}
             </div>
         </div>
@@ -141,16 +141,23 @@ function renderProjectPosture(posture) {
             </div>
             ${sb ? `
                 <div style="background: #000; padding: 0.5rem; border-radius: 4px; font-family: monospace; font-size: 0.75rem; color: #00FFCC; margin-top: 0.5rem;">
-                    [SANDBOX] ${sb.output_log} (${sb.duration_ms}ms)
+                    [SANDBOX PASS] ${sb.output_log} (${sb.duration_ms}ms)
                 </div>
             ` : ''}
         </div>
 
+        <div class="result-section">
+            <h4>04. Empirical Falsification Hypothesis (H0)</h4>
+            <div style="font-size: 0.8rem; color: #F59E0B; background: rgba(245, 158, 11, 0.08); padding: 0.6rem; border-radius: 6px; border: 1px solid rgba(245, 158, 11, 0.2);">
+                <strong>Falsifiable Null Hypothesis:</strong> ${out && out.null_hypothesis_h0 ? out.null_hypothesis_h0 : 'H0 verified against baseline.'}
+            </div>
+        </div>
+
         <div class="result-section" style="border-bottom: none;">
-            <h4>04. Checkpoint Ledger</h4>
+            <h4>05. Checkpoint Audit Ledger</h4>
             <div style="font-size: 0.75rem; color: #94A3B8;">
                 ${posture.checkpoints.map(chk => `
-                    <div>&bull; <strong>[${chk.stage}]</strong> ${chk.title}: <em>${chk.evidence_summary}</em></div>
+                    <div>&bull; <strong>[${chk.stage}]</strong> <code>${chk.actor}</code>: ${chk.title} — <em>${chk.evidence_summary}</em></div>
                 `).join('')}
             </div>
         </div>
