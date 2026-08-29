@@ -7,7 +7,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/static/style.css?v=2.0">
+    <link rel="stylesheet" href="/static/style.css?v=2.5">
 </head>
 <body class="dark-theme">
     <!-- Top Header Bar -->
@@ -98,11 +98,16 @@
             </div>
         </section>
 
-        <!-- Right Column: Live 5-Stage Visualizer & Deliverables -->
+        <!-- Right Column: Live 5-Stage Visualizer, Causal Canvas & Deliverables -->
         <section class="output-panel card">
             <div class="card-header">
-                <h2>Autonomous 5-Stage Execution Stream</h2>
+                <h2>Autonomous 5-Stage Execution Stream & Causal DAG</h2>
                 <span class="stage-tag" id="current-stage-tag">STANDBY</span>
+            </div>
+
+            <!-- Interactive 2D Vector Causal Canvas -->
+            <div style="background: #04060A; border-radius: 8px; border: 1px solid var(--border-subtle); margin-bottom: 1rem; overflow: hidden; height: 160px; position: relative;">
+                <canvas id="causal-dag-canvas" style="width: 100%; height: 100%; display: block;"></canvas>
             </div>
 
             <!-- Stage Progress Bar -->
@@ -144,9 +149,14 @@
 
             <!-- Action Bar (Export) -->
             <div class="export-bar" id="export-bar" style="display: none;">
-                <button class="btn btn-secondary" onclick="handleExportDossier()">
-                    <span>📄 EXPORT TECHNICAL DOSSIER</span>
-                </button>
+                <div style="display: flex; gap: 0.5rem;">
+                    <button class="btn btn-secondary" onclick="handleExportDossier()">
+                        <span>📄 EXPORT MARKDOWN</span>
+                    </button>
+                    <button class="btn btn-secondary" onclick="handleExportHtmlDossier()">
+                        <span>🌐 EXPORT HTML + SVG</span>
+                    </button>
+                </div>
                 <div class="audit-hash-chip">
                     <span class="label">SHA-256:</span>
                     <span class="hash mono-text" id="final-audit-hash"></span>
@@ -155,6 +165,7 @@
         </section>
     </main>
 
-    <script src="/static/app.js?v=2.0"></script>
+    <script src="/static/canvas.js?v=2.5"></script>
+    <script src="/static/app.js?v=2.5"></script>
 </body>
 </html>

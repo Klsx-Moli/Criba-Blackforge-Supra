@@ -1,5 +1,5 @@
 /**
- * SUPRA Agentic Taskmaster - Frontend Orchestrator v2.0
+ * SUPRA Agentic Taskmaster - Frontend Orchestrator v2.5
  */
 
 let currentProjectId = null;
@@ -58,7 +58,7 @@ async function handleQuickDemo() {
     }
 }
 
-function setUIState(status, stage) {
+function setUIState(status, stage, posture) {
     const stageTag = document.getElementById('current-stage-tag');
     stageTag.innerText = stage || status;
     
@@ -83,10 +83,14 @@ function setUIState(status, stage) {
             el.classList.add('active');
         }
     });
+
+    if (window.causalCanvasInstance) {
+        window.causalCanvasInstance.updateStage(stage, posture);
+    }
 }
 
 function renderProjectPosture(posture) {
-    setUIState('COMPLETED', posture.stage);
+    setUIState('COMPLETED', posture.stage, posture);
     
     const container = document.getElementById('output-container');
     const decomp = posture.decomposition;
@@ -186,6 +190,11 @@ async function handleExportDossier() {
     } catch (exc) {
         alert('Export error: ' + exc.message);
     }
+}
+
+async function handleExportHtmlDossier() {
+    if (!currentProjectId) return;
+    window.open(`/api/v1/export/dossier/html/${currentProjectId}`, '_blank');
 }
 
 async function loadRecentProjects() {
