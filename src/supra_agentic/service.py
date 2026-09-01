@@ -174,6 +174,15 @@ def get_project_posture(project_id: str) -> dict[str, Any]:
     }
 
 
+# Compat alias: the live Cloud Run deployment and all submission docs
+# reference /api/v1/demo/quick-run. Keep it working alongside the new
+# /api/v1/examples/quick-run route.
+@app.get("/api/v1/demo/quick-run", tags=["Examples"], include_in_schema=False)
+def demo_quick_run_alias() -> dict[str, Any]:
+    """Backwards-compatible alias for the historical demo URL."""
+    return example_quick_run()
+
+
 @app.get("/api/v1/examples/quick-run", tags=["Examples"])
 def example_quick_run() -> dict[str, Any]:
     """Run a deterministic example without contacting a model provider."""
