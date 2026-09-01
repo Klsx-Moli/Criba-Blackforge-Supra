@@ -5,12 +5,10 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "supra-agentic-taskmaster"
 version = "1.0.0"
-description = "Autonomous Multi-Stage Innovation & Taskmaster Agent powered by Google Gemini 3.7 Flash and Google ADK"
+description = "Provider-neutral autonomous multi-stage innovation and taskmaster engine"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
-    "google-genai>=0.1.1",
-    "google-adk>=0.1.0",
     "fastapi>=0.115.0",
     "uvicorn[standard]>=0.30.0",
     "pydantic>=2.7.0",
@@ -31,4 +29,3 @@ where = ["src"]
 [tool.pytest.ini_options]
 pythonpath = ["src"]
 testpaths = ["tests"]
-asyncio_mode = "auto"

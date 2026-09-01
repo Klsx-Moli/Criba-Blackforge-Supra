@@ -40,12 +40,12 @@ async function handleRunTask(event) {
     }
 }
 
-async function handleQuickDemo() {
+async function handleExampleRun() {
     setUIState('RUNNING', 'RECEIVED');
     
     try {
-        const response = await fetch('/api/v1/demo/quick-run');
-        if (!response.ok) throw new Error('Demo endpoint failed');
+        const response = await fetch('/api/v1/examples/quick-run');
+        if (!response.ok) throw new Error('Example endpoint failed');
         
         const data = await response.json();
         currentProjectId = data.project_id;
@@ -53,7 +53,7 @@ async function handleQuickDemo() {
         renderProjectPosture(data.posture);
         loadRecentProjects();
     } catch (exc) {
-        alert('Demo Error: ' + exc.message);
+        alert('Example Error: ' + exc.message);
         setUIState('STANDBY', 'FAILED');
     }
 }

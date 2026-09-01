@@ -1,4 +1,4 @@
-"""Tests for SUPRA FastAPI Service, WebMCP Protocol, and Endpoints."""
+"""Tests for the SUPRA FastAPI service and provider-neutral endpoints."""
 import tempfile
 from fastapi.testclient import TestClient
 from supra_agentic.service import app
@@ -12,9 +12,10 @@ def test_healthcheck():
     assert response.status_code == 200
     data = response.json()
     assert data["status"] == "healthy"
-    assert data["google_stack"]["model"] == "gemini-3.7-flash"
-    assert data["google_stack"]["framework"] == "google-adk"
-    assert data["google_stack"]["webmcp_enabled"] is True
+    assert data["provider"]["name"] == "hermes"
+    assert data["provider"]["protocol"] == "openai-compatible"
+    assert data["webmcp_enabled"] is True
+    assert "provider" in data
 
 
 def test_serve_ui():
@@ -24,15 +25,15 @@ def test_serve_ui():
     assert "What do you want to solve?" in response.text
 
 
-def test_quick_run_judge_demo():
+def test_quick_run_example():
     with tempfile.TemporaryDirectory() as tmpdir:
         state_manager.storage_dir = type(state_manager.storage_dir)(tmpdir)
 
-        response = client.get("/api/v1/demo/quick-run")
+        response = client.get("/api/v1/examples/quick-run")
         assert response.status_code == 200
         data = response.json()
         assert data["status"] == "success"
-        assert data["google_stack_verified"] is True
+        assert data["example"] is True
         assert data["stage"] == "COMPLETED"
         assert "audit_sha256" in data["deliverable"]
         assert "null_hypothesis_h0" in data["deliverable"]
@@ -97,3 +98,25 @@ def test_create_and_run_project_and_html_export():
         assert html_res.status_code == 200
         assert "<svg" in html_res.text
         assert "SUPRA Autonomous Taskmaster Dossier" in html_res.text
+
+
+def test_create_project_records_provider_without_calling_it():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        state_manager.storage_dir = type(state_manager.storage_dir)(tmpdir)
+
+        response = client.post(
+            "/api/v1/projects",
+            json={
+                "objective": "Design a bounded local automation controller",
+                "provider": "ollama",
+                "model": "llama3.2",
+                "use_model": False,
+            },
+        )
+
+        assert response.status_code == 201
+        posture = response.json()["posture"]
+        assert posture["final_output"]["model_assistance"] == {
+            "enabled": False,
+            "provider": "ollama",
+        }

@@ -1,12 +1,14 @@
-"""SUPRA Taskmaster Autonomous Golden Path Runner with Dynamic Self-Correction."""
+"""SUPRA Taskmaster runner with deterministic safety and optional model help."""
 from __future__ import annotations
 
 import logging
+import os
 import time
 from typing import Any
 
-from .agent import create_taskmaster_agent
+from .agent import TaskmasterAgent, create_taskmaster_agent
 from .models import ProjectPosture, TaskmasterStage
+from .providers import AgentProvider, ProviderError
 from .state import state_manager
 from .tools import (
     decompose_objective,
@@ -22,9 +24,43 @@ logger = logging.getLogger("supra_agentic.runner")
 class TaskmasterRunner:
     """Executes the full 5-stage Taskmaster workflow autonomously with self-correction."""
 
-    def __init__(self, model_name: str = "gemini-3.7-flash") -> None:
+    def __init__(
+        self,
+        model_name: str | None = None,
+        provider_name: str | None = None,
+        provider: AgentProvider | None = None,
+    ) -> None:
         self.model_name = model_name
-        self._adk_agent = create_taskmaster_agent(model_name=model_name)
+        self.agent: TaskmasterAgent = create_taskmaster_agent(
+            model_name=model_name,
+            provider_name=provider_name,
+            provider=provider,
+        )
+
+    @property
+    def provider_name(self) -> str:
+        """Return the configured provider without checking its availability."""
+        return self.agent.provider_name
+
+    def provider_metadata(self) -> dict[str, Any]:
+        """Return safe provider metadata for health and telemetry endpoints."""
+        return self.agent.provider.metadata()
+
+    def generate(
+        self,
+        prompt: str,
+        *,
+        model: str | None = None,
+        temperature: float | None = None,
+        max_tokens: int | None = None,
+    ):
+        """Generate model text through the configured provider."""
+        return self.agent.generate(
+            prompt,
+            model=model,
+            temperature=temperature,
+            max_tokens=max_tokens,
+        )
 
     def run_golden_path(
         self,
@@ -33,12 +69,38 @@ class TaskmasterRunner:
         domain: str = "general",
         allow_disruptive: bool = True,
         max_retries: int = 2,
+        use_model: bool | None = None,
+        model_prompt: str | None = None,
     ) -> ProjectPosture:
         """Execute the 5-stage autonomous cycle with dynamic self-correction loops."""
         start_time = time.monotonic()
         clean_obj = objective.strip()
         if not clean_obj:
             raise ValueError("Objective cannot be empty.")
+
+        if use_model is None:
+            use_model = os.getenv("SUPRA_USE_MODEL", "false").strip().lower() in {
+                "1",
+                "true",
+                "yes",
+                "on",
+            }
+        model_assistance: dict[str, Any] = {"enabled": bool(use_model), "provider": self.provider_name}
+        if use_model:
+            try:
+                response = self.generate(model_prompt or clean_obj)
+                model_assistance.update(
+                    {
+                        "status": "completed",
+                        "model": response.model,
+                        "text": response.text[:12000],
+                        "tool_calls": response.tool_calls,
+                    }
+                )
+            except ProviderError as exc:
+                # Model help is optional. The deterministic pipeline remains
+                # authoritative when a local/cloud endpoint is unavailable.
+                model_assistance.update({"status": "unavailable", "error": str(exc)})
 
         # Stage 1: Initialize Project (RECEIVED)
         posture = state_manager.create_project(objective=clean_obj, project_id=project_id)
@@ -96,6 +158,7 @@ class TaskmasterRunner:
                 project_id=pid,
                 deliverable_title=f"Autonomous Solution: {clean_obj[:50]}",
                 summary=f"Taskmaster completed all 5 stages in {elapsed:.2f}s (Self-Corrections: {retries}).",
+                provider_metadata=model_assistance,
             )
 
             final_posture = state_manager.get_project(pid)

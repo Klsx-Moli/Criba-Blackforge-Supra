@@ -1,7 +1,7 @@
 """SUPRA Agentic Taskmaster Package.
 
-Autonomous multi-stage problem decomposition, causal planning,
-sandbox verification, and evidence ledger powered by Google Gemini 3.7 Flash.
+Provider-neutral autonomous problem decomposition, causal planning,
+sandbox verification, and evidence ledger.
 """
 from __future__ import annotations
 

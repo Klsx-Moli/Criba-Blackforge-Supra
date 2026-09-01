@@ -57,3 +57,6 @@ Thumbs.db
 service_account.json
 credentials.json
 .env.*
+
+# Runtime state (local, non-reproducible)
+.hermes/supra_state/

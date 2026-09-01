@@ -1,38 +1,51 @@
-# SUPRA Agentic Taskmaster — Technical Architecture
+# SUPRA Architecture
 
-## 1. System Overview
+## Boundaries
 
-SUPRA Agentic Taskmaster is an autonomous, multi-stage taskmaster agent designed to process high-uncertainty engineering and security objectives into structured, verified, and executable solutions.
+SUPRA is split into four explicit boundaries:
 
----
+1. **Transport** — FastAPI REST, the Web UI, and the JSON-RPC tool endpoint.
+2. **Provider facade** — a small typed contract for Hermes/Nous, Ollama,
+   OpenAI, and arbitrary OpenAI-compatible endpoints.
+3. **Deterministic coordinator** — five stateful stages with safety gates and
+   bounded sandbox execution.
+4. **Evidence** — thread-safe project persistence plus JSON, Markdown, and HTML
+   dossier exports with a SHA-256 integrity value.
 
-## 2. Core Subsystems
+## Provider contract
 
-### A. State Manager (`src/supra_agentic/state.py`)
-* **Thread Safety:** Uses `threading.RLock()` to guarantee reentrancy across concurrent background tasks.
-* **Persistence:** Serializes `ProjectPosture` records to disk in `data/projects/{project_id}.json`.
-* **State Machine:** Enforces strict monotonic transitions through `TaskmasterStage`:
-  $$\text{RECEIVED} \longrightarrow \text{STRUCTURED} \longrightarrow \text{STRATIFIED} \longrightarrow \text{SANDBOX\_VERIFIED} \longrightarrow \text{COMPLETED}$$
+`src/supra_agentic/providers/base.py` defines the stable interface. The HTTP
+adapter sends only typed messages and optional tool schemas to
+`/chat/completions`, discovers `/models` when the model is `auto`, and converts
+the response into a provider-neutral `ProviderResponse`.
 
-### B. Google ADK Toolset (`src/supra_agentic/tools.py`)
-1. `decompose_objective`: Extracts invariant constraints and mutable assumptions.
-2. `synthesize_strategy`: Formulates multi-paradigm candidates ($N \ge 3$).
-3. `verify_solution`: Evaluates candidate safety against invariants.
-4. `execute_sandbox_action`: Executes synthetic Python AST validation without external side-effects.
-5. `record_checkpoint`: Finalizes the deliverable and signs with SHA-256 integrity hash.
+Hermes is a local boundary by default. Its proxy owns authentication and
+upstream routing; SUPRA never embeds or persists those credentials. A provider
+failure is reported as an unavailable model boundary and does not corrupt the
+deterministic project state.
 
-### C. Autonomous Runner (`src/supra_agentic/runner.py`)
-* Implements the `run_golden_path` method that links all 5 stages in an uninterrupted, autonomous cycle.
-* Guarantees total execution in $<0.5\text{s}$ for preflight/demo runs and handles live Gemini 3.7 turns via Google ADK.
+## State flow
 
-### D. FastAPI Service (`src/supra_agentic/service.py`)
-* Exposes RESTful endpoints for project creation, telemetry polling, and 1-Click Judge Demo.
-* Serves static Web UI assets (`index.html`, `style.css`, `app.js`).
+```text
+RECEIVED -> STRUCTURED -> STRATIFIED -> SANDBOX_VERIFIED -> COMPLETED
+```
 
----
+Each transition writes a checkpoint containing the actor, evidence summary, and
+timestamp. `record_checkpoint` serializes the final deliverable in sorted JSON
+before computing the integrity digest.
 
-## 3. Security & Containment Model
+## Safety model
 
-* **AST Micro-Sandbox:** Prohibits `os`, `sys`, `subprocess`, and `shutil` inside dynamic evaluations.
-* **Zero-Trust Input Sanitization:** Rejects prompt injections and path traversal attempts.
-* **Immutable Checkpoints:** Every state transition records an append-only checkpoint with an ISO timestamp and actor signature.
+- The default project path does not contact a model.
+- Model assistance is opt-in per request (`use_model`) or through
+  `SUPRA_USE_MODEL=true`.
+- Model output is advisory and recorded separately from deterministic evidence.
+- Provider HTTP errors exclude response bodies and authorization headers.
+- The sandbox accepts only the constrained actions implemented by
+  `execute_sandbox_action`.
+
+## Extension points
+
+To add a backend, implement `AgentProvider.generate`, `name`, and `metadata`,
+then register a factory in `providers/__init__.py`. No coordinator or state
+machine changes are required for a new OpenAI-compatible endpoint.

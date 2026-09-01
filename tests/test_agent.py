@@ -1,9 +1,57 @@
-"""Tests for Taskmaster Agent and Golden Path Runner."""
+"""Tests for the provider-neutral Taskmaster facade and runner."""
 import tempfile
+from collections.abc import Mapping, Sequence
+from typing import Any
+
 from supra_agentic.models import TaskmasterStage
+from supra_agentic.agent import TaskmasterAgent
+from supra_agentic.providers import AgentProvider, ProviderResponse, ToolInput
 from supra_agentic.runner import TaskmasterRunner
 from supra_agentic.state import state_manager
 from supra_agentic.tools import execute_sandbox_action, synthesize_strategy
+
+
+class RecordingProvider(AgentProvider):
+    """Small in-memory provider used to test the application boundary."""
+
+    def __init__(self) -> None:
+        self.messages: list[Mapping[str, Any]] = []
+
+    @property
+    def name(self) -> str:
+        return "test-provider"
+
+    def metadata(self) -> dict[str, Any]:
+        return {"name": self.name, "configured": True}
+
+    def generate(
+        self,
+        messages: Sequence[Mapping[str, Any]],
+        *,
+        tools: Sequence[ToolInput] | None = None,
+        model: str | None = None,
+        temperature: float | None = None,
+        max_tokens: int | None = None,
+    ) -> ProviderResponse:
+        self.messages = list(messages)
+        return ProviderResponse(
+            text="provider response",
+            provider=self.name,
+            model=model or "test-model",
+        )
+
+
+def test_taskmaster_agent_delegates_to_selected_provider() -> None:
+    provider = RecordingProvider()
+    agent = TaskmasterAgent(provider, model_name="configured-model")
+
+    response = agent.generate("Assess this objective")
+
+    assert response.text == "provider response"
+    assert response.provider == "test-provider"
+    assert response.model == "configured-model"
+    assert provider.messages[0]["role"] == "system"
+    assert provider.messages[-1] == {"role": "user", "content": "Assess this objective"}
 
 
 def test_runner_golden_path_execution():

@@ -1,56 +1,90 @@
-"""SUPRA Google ADK Agent Integration.
-
-Configures and instantiates the Google ADK Agent with Gemini 3.7 Flash and Vertex AI.
-"""
+"""Provider-neutral agent facade for SUPRA."""
 from __future__ import annotations
 
-import logging
-import os
+from collections.abc import Mapping, Sequence
 from typing import Any
 
-from .tools import SUPRA_ADK_TOOLS
+from .providers import AgentProvider, ProviderResponse, ToolInput, get_provider
 
-logger = logging.getLogger("supra_agentic.agent")
 
-# Configure Google Cloud / Vertex AI environment defaults
-os.environ.setdefault("GOOGLE_APPLICATION_CREDENTIALS", "REMOVED_CREDENTIAL_PATH")
-os.environ.setdefault("GOOGLE_CLOUD_PROJECT", "REMOVED_PROJECT_ID")
-os.environ.setdefault("GOOGLE_CLOUD_LOCATION", "global")
-os.environ.setdefault("GOOGLE_GENAI_USE_VERTEXAI", "TRUE")
+TASKMASTER_SYSTEM_INSTRUCTION = """You are SUPRA, an autonomous Taskmaster agent.
 
-TASKMASTER_SYSTEM_INSTRUCTION = """You are SUPRA: the principal autonomous Taskmaster Agent for the All Things Agentic Hackathon 2026.
+MISSION:
+Decompose complex objectives, expose invariants and mutable assumptions,
+synthesize competing causal strategies, verify them in a contained sandbox,
+and produce an auditable deliverable.
 
-YOUR MISSION:
-Execute multi-stage autonomous problem decomposition, causal strategy synthesis, sandbox verification, and verifiable deliverable generation.
-
-CORE WORKFLOW:
-1. DECOMPOSE: Call `decompose_objective` to separate core invariants from mutable assumptions and establish clear subtasks.
-2. SYNTHESIZE: Call `synthesize_strategy` to formulate competing conservative, orthogonal, and disruptive candidate pathways.
-3. VERIFY: Call `verify_solution` to validate the chosen candidate against all system invariants.
-4. SANDBOX EXECUTION: Call `execute_sandbox_action` to run an isolated simulation / AST verification in the micro-sandbox.
-5. CHECKPOINT & RECORD: Call `record_checkpoint` to compile the final deliverable ledger with a cryptographic SHA-256 integrity hash.
-
-GUIDING PRINCIPLES:
-- Autonomous Action: Execute the required steps directly rather than just offering textual advice.
-- Verifiable Evidence: Ground every conclusion in structured checkpoints and telemetry.
-- Safe Containment: Ensure zero uncontained side-effects.
+OPERATING RULES:
+- Separate facts, assumptions, hypotheses, and unverified claims.
+- Prefer falsifiable experiments over persuasive prose.
+- Never perform an uncontained side effect.
+- Treat the deterministic SUPRA pipeline as the source of truth for stages,
+  safety decisions, and audit evidence.
 """
+
+
+class TaskmasterAgent:
+    """Small provider-neutral facade used by the runner and HTTP API."""
+
+    def __init__(
+        self,
+        provider: AgentProvider,
+        *,
+        model_name: str | None = None,
+        agent_name: str = "supra_taskmaster_agent",
+    ) -> None:
+        self.provider = provider
+        self.model_name = model_name
+        self.agent_name = agent_name
+
+    @property
+    def provider_name(self) -> str:
+        return self.provider.name
+
+    def generate(
+        self,
+        prompt: str,
+        *,
+        tools: Sequence[ToolInput] | None = None,
+        model: str | None = None,
+        temperature: float | None = None,
+        max_tokens: int | None = None,
+    ) -> ProviderResponse:
+        """Generate one response using the selected provider."""
+        if not prompt.strip():
+            raise ValueError("Prompt cannot be empty")
+        messages: list[Mapping[str, Any]] = [
+            {"role": "system", "content": TASKMASTER_SYSTEM_INSTRUCTION},
+            {"role": "user", "content": prompt},
+        ]
+        return self.provider.generate(
+            messages,
+            tools=tools,
+            model=model or self.model_name,
+            temperature=temperature,
+            max_tokens=max_tokens,
+        )
+
+    def run(self, prompt: str) -> ProviderResponse:
+        """Compatibility alias for simple programmatic callers."""
+        return self.generate(prompt)
 
 
 def create_taskmaster_agent(
-    model_name: str = "gemini-3.7-flash",
+    model_name: str | None = None,
     agent_name: str = "supra_taskmaster_agent",
-) -> Any:
-    """Instantiate and return a configured Google ADK Agent."""
-    try:
-        from google.adk.agents import Agent
-        return Agent(
-            name=agent_name,
-            model=model_name,
-            description="SUPRA Autonomous Multi-Stage Taskmaster Agent for All Things Agentic 2026.",
-            instruction=TASKMASTER_SYSTEM_INSTRUCTION,
-            tools=list(SUPRA_ADK_TOOLS),
-        )
-    except Exception as exc:
-        logger.warning(f"Google ADK Agent instantiation notice: {exc}. Local deterministic runner will be used.")
-        return None
+    provider_name: str | None = None,
+    provider: AgentProvider | None = None,
+) -> TaskmasterAgent:
+    """Create an agent without making a network request.
+
+    Provider selection is controlled by ``provider_name`` or ``SUPRA_PROVIDER``.
+    The returned object is lazy: endpoint availability is checked only when
+    ``generate`` or ``provider.list_models`` is called.
+    """
+    selected_provider = provider or get_provider(provider_name)
+    return TaskmasterAgent(
+        selected_provider,
+        model_name=model_name,
+        agent_name=agent_name,
+    )

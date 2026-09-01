@@ -1,9 +1,9 @@
-"""Tests for Google ADK Tools."""
+"""Tests for provider-neutral SUPRA tools."""
 import tempfile
 from supra_agentic.models import TaskmasterStage
 from supra_agentic.state import ProjectStateManager, state_manager
 from supra_agentic.tools import (
-    SUPRA_ADK_TOOLS,
+    SUPRA_TOOLS,
     decompose_objective,
     execute_sandbox_action,
     record_checkpoint,
@@ -13,8 +13,8 @@ from supra_agentic.tools import (
 
 
 def test_toolset_manifest():
-    assert len(SUPRA_ADK_TOOLS) == 5
-    tool_names = [t.__name__ for t in SUPRA_ADK_TOOLS]
+    assert len(SUPRA_TOOLS) == 5
+    tool_names = [t.__name__ for t in SUPRA_TOOLS]
     assert "decompose_objective" in tool_names
     assert "synthesize_strategy" in tool_names
     assert "verify_solution" in tool_names

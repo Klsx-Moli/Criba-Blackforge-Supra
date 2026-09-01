@@ -80,7 +80,7 @@ class CheckpointRecord(BaseModel):
     stage: TaskmasterStage
     title: str
     evidence_summary: str
-    actor: str = "agent:supra:adk"
+    actor: str = "agent:supra:provider"
     timestamp: float = Field(default_factory=time.time)
 
 

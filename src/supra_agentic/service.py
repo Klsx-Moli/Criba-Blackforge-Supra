@@ -1,15 +1,13 @@
-"""FastAPI Production Backend for SUPRA Agentic Taskmaster.
-
-Integrates REST, WebMCP JSON-RPC 2.0, HTML/SVG technical dossier export, and 1-Click Judge Demo.
-"""
+"""FastAPI backend for the provider-neutral SUPRA Agentic Taskmaster."""
 from __future__ import annotations
 
 import json
 import logging
+import os
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI, HTTPException, Request, Response, status
+from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
@@ -17,7 +15,9 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from .dossier import export_full_html_dossier
 from .mcp_handler import handle_mcp_jsonrpc_request
-from .models import ProjectPosture, TaskmasterStage
+from .models import ProjectPosture
+from .providers import ProviderError, get_provider, provider_names
+from .runner import TaskmasterRunner
 from .runner import taskmaster_runner
 from .state import state_manager
 
@@ -26,14 +26,14 @@ logger = logging.getLogger("supra_agentic.service")
 app = FastAPI(
     title="SUPRA Agentic Taskmaster",
     version="1.0.0",
-    description="Autonomous Multi-Stage Innovation & Taskmaster Agent powered by Google Gemini 3.7 Flash, Google ADK, WebMCP, and Google Cloud Run.",
+    description="Provider-neutral autonomous task decomposition, verification, and evidence generation.",
 )
 
 # Enable CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -49,23 +49,48 @@ class CreateProjectRequest(BaseModel):
     domain: str = Field("general", max_length=100, description="Target problem domain.")
     project_id: str | None = Field(None, max_length=64, description="Optional custom project ID.")
     allow_disruptive: bool = Field(True, description="Whether to include disruptive divergent pathways.")
+    provider: str | None = Field(None, max_length=64, description="Provider name, or SUPRA_PROVIDER when omitted.")
+    model: str | None = Field(None, max_length=200, description="Provider model ID; auto-discovered when omitted.")
+    use_model: bool = Field(False, description="Add optional model assistance without replacing deterministic gates.")
+
+
+class GenerateRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    prompt: str = Field(..., min_length=1, max_length=12000)
+    provider: str | None = Field(None, max_length=64)
+    model: str | None = Field(None, max_length=200)
+    temperature: float | None = Field(None, ge=0.0, le=2.0)
+    max_tokens: int | None = Field(None, ge=1, le=32768)
 
 
 @app.get("/health", tags=["System"])
 def healthcheck() -> dict[str, Any]:
-    """Health and Google Stack metadata probe."""
+    """Health probe with non-secret provider metadata."""
     return {
         "status": "healthy",
         "service": "supra-agentic-taskmaster",
         "version": "1.0.0",
-        "category": "Taskmaster",
-        "google_stack": {
-            "model": "gemini-3.7-flash",
-            "framework": "google-adk",
-            "cloud": "google-cloud-run",
-            "region": "us-central1",
-            "webmcp_enabled": True,
-        },
+        "provider": taskmaster_runner.provider_metadata(),
+        "webmcp_enabled": True,
+    }
+
+
+@app.get("/api/v1/providers", tags=["Providers"])
+def list_provider_options() -> dict[str, Any]:
+    """List supported providers and safe local configuration metadata."""
+    providers: list[dict[str, Any]] = []
+    for name in provider_names():
+        try:
+            provider = get_provider(name)
+            metadata = provider.metadata()
+            metadata["alias"] = name != provider.name
+            providers.append(metadata)
+        except ValueError as exc:
+            providers.append({"name": name, "configured": False, "error": str(exc)})
+    return {
+        "status": "success",
+        "active": os.getenv("SUPRA_PROVIDER", "hermes").strip().lower(),
+        "providers": providers,
     }
 
 
@@ -80,13 +105,15 @@ def serve_ui() -> FileResponse:
 
 @app.post("/api/v1/projects", status_code=status.HTTP_201_CREATED, tags=["Taskmaster"])
 def create_and_run_project(req: CreateProjectRequest) -> dict[str, Any]:
-    """Execute the autonomous 5-stage Taskmaster workflow for a user objective."""
+    """Execute the five-stage workflow with deterministic gates."""
     try:
-        posture = taskmaster_runner.run_golden_path(
+        runner = TaskmasterRunner(provider_name=req.provider, model_name=req.model)
+        posture = runner.run_golden_path(
             objective=req.objective,
             project_id=req.project_id,
             domain=req.domain,
             allow_disruptive=req.allow_disruptive,
+            use_model=req.use_model,
         )
         return {
             "status": "success",
@@ -97,6 +124,30 @@ def create_and_run_project(req: CreateProjectRequest) -> dict[str, Any]:
     except Exception as exc:
         logger.error(f"Execution error: {exc}")
         raise HTTPException(status_code=500, detail=str(exc))
+
+
+@app.post("/api/v1/generate", tags=["Providers"])
+def generate_with_provider(req: GenerateRequest) -> dict[str, Any]:
+    """Generate model output through the selected provider boundary."""
+    try:
+        runner = TaskmasterRunner(provider_name=req.provider, model_name=req.model)
+        response = runner.generate(
+            req.prompt,
+            model=req.model,
+            temperature=req.temperature,
+            max_tokens=req.max_tokens,
+        )
+    except ProviderError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return {
+        "status": "success",
+        "provider": response.provider,
+        "model": response.model,
+        "text": response.text,
+        "tool_calls": response.tool_calls,
+    }
 
 
 @app.get("/api/v1/projects", tags=["Taskmaster"])
@@ -123,28 +174,22 @@ def get_project_posture(project_id: str) -> dict[str, Any]:
     }
 
 
-@app.get("/api/v1/demo/quick-run", tags=["Judge Demo"])
-def judge_demo_quick_run() -> dict[str, Any]:
-    """1-Click Demonstration Endpoint for Hackathon Judges.
-
-    Executes a high-impact multi-stage autonomous scenario in <0.5s with complete
-    verifiable proof, sandbox execution log, and SHA-256 integrity hash.
-    """
+@app.get("/api/v1/examples/quick-run", tags=["Examples"])
+def example_quick_run() -> dict[str, Any]:
+    """Run a deterministic example without contacting a model provider."""
     demo_objective = (
         "Design an autonomous secretless service mesh with real-time continuous "
         "invariant verification and automated counterfactual rollback."
     )
     posture = taskmaster_runner.run_golden_path(
         objective=demo_objective,
-        project_id="demo-judge-golden-run",
+        project_id="example-quick-run",
         domain="cloud_security",
         allow_disruptive=True,
     )
     return {
         "status": "success",
-        "demo_mode": "1-CLICK JUDGE GOLDEN RUN",
-        "execution_time_target": "<0.5s",
-        "google_stack_verified": True,
+        "example": True,
         "stages_completed": 5,
         "project_id": posture.project_id,
         "stage": posture.stage.value,

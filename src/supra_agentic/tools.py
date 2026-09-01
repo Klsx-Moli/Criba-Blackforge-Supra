@@ -1,4 +1,4 @@
-"""Google ADK Tools for SUPRA Agentic Taskmaster.
+"""Provider-neutral tools for the SUPRA Agentic Taskmaster.
 
 Provides 5 typed, executable tool callables wrapped with state persistence,
 multi-candidate sandbox verification, self-correction feedback, and audit trail logging.
@@ -341,6 +341,7 @@ def record_checkpoint(
     summary: str,
     null_hypothesis_h0: str | None = None,
     export_format: str = "json",
+    provider_metadata: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Finalize the project lifecycle, compile all stage telemetry, and issue a verifiable deliverable ledger.
 
@@ -350,6 +351,7 @@ def record_checkpoint(
         summary: Executive summary of the completed autonomous task.
         null_hypothesis_h0: Optional formal null hypothesis for empirical falsification.
         export_format: Output format ('json', 'markdown', or 'html').
+        provider_metadata: Optional non-secret metadata from model assistance.
 
     Returns:
         Final deliverable payload and cryptographic audit hash.
@@ -375,6 +377,8 @@ def record_checkpoint(
         "checkpoints_count": len(posture.checkpoints) + 1,
         "timestamp": time.time(),
     }
+    if provider_metadata is not None:
+        payload["model_assistance"] = provider_metadata
 
     # Generate SHA-256 integrity hash
     raw_bytes = json.dumps(payload, sort_keys=True).encode("utf-8")
@@ -390,8 +394,8 @@ def record_checkpoint(
     }
 
 
-# Toolset manifest for Google ADK Agent registration
-SUPRA_ADK_TOOLS = [
+# Provider-neutral tool manifest
+SUPRA_TOOLS = [
     decompose_objective,
     synthesize_strategy,
     verify_solution,

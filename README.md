@@ -1,147 +1,139 @@
 # SUPRA Agentic Taskmaster
 
-**Autonomous Multi-Stage Innovation & Taskmaster Agent powered by Google Gemini 3.7 Flash, Google ADK, and Google Cloud Run.**
+Provider-neutral autonomous engine for decomposing complex objectives,
+testing causal strategies, and issuing auditable technical dossiers.
 
-[![All Things Agentic 2026](https://img.shields.io/badge/Hackathon-All%20Things%20Agentic%202026-blue)](https://devpost.com)
-[![Category](https://img.shields.io/badge/Category-Taskmaster-purple)](#)
-[![Google Cloud](https://img.shields.io/badge/Google%20Cloud-Cloud%20Run-green)](https://cloud.google.com/run)
-[![Google ADK](https://img.shields.io/badge/Agent%20Framework-Google%20ADK-4285F4)](https://github.com/google/adk)
-[![Gemini](https://img.shields.io/badge/Model-Gemini%203.7%20Flash-F4B400)](https://deepmind.google/technologies/gemini/)
-[![License](https://img.shields.io/badge/License-Apache%202.0-orange)](LICENSE)
+## What it does
 
----
+SUPRA combines a deterministic five-stage workflow with an optional model
+boundary. The deterministic stages remain authoritative for state transitions,
+safety gates, sandbox verification, and the SHA-256 deliverable ledger.
 
-## 1. Problem Statement
+1. **RECEIVED** — capture the objective and initialize an isolated project.
+2. **STRUCTURED** — separate invariants, mutable assumptions, and subtasks.
+3. **STRATIFIED** — produce Conservative, Orthogonal, and Disruptive pathways.
+4. **SANDBOX_VERIFIED** — verify invariants and run the contained AST sandbox.
+5. **COMPLETED** — persist checkpoints and export the integrity-checked dossier.
 
-Modern complex engineering, software architecture, and cybersecurity challenges require more than simple textual advice or one-shot prompt answering. Engineers need an autonomous partner that:
-1. Deconstructs ambiguous objectives into formal system invariants versus mutable framing assumptions.
-2. Formulates competing orthogonal and disruptive strategy candidates.
-3. Rigorously verifies candidates against constraints and executes synthetic code in an isolated sandbox.
-4. Issues a verifiable, cryptographically hashed deliverable ledger.
+The model is an interchangeable assistant, not a hidden requirement. The
+application can execute the complete workflow offline and can optionally use
+Hermes/Nous, Ollama, OpenAI, or any OpenAI-compatible local/cloud endpoint.
 
----
-
-## 2. Solution: SUPRA Taskmaster
-
-SUPRA is an autonomous Taskmaster agent built from first principles for the **All Things Agentic Hackathon 2026 (Taskmaster Category)**.
-
-When a user asks **"What do you want to solve?"**, SUPRA does not merely chat:
-* It autonomously coordinates a 5-stage lifecycle.
-* It invokes 5 typed Google ADK tools.
-* It maintains thread-safe, verifiable state persistence.
-* It outputs complete technical dossiers with SHA-256 integrity verification.
-
----
-
-## 3. Architecture & Data Flow
+## Architecture
 
 ```text
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                       USER INTERACTION ("HAZ TU PREGUNTA")                 │
-│                 "What do you want to solve?" (Web UI / REST API)            │
-└──────────────────────────────────────┬──────────────────────────────────────┘
-                                       │
-                                       ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│             SUPRA AGENT ORCHESTRATOR (Google ADK + Gemini 3.7 Flash)        │
-│          • Autonomous Multi-Turn Coordinator                                │
-│          • Vertex AI / Cloud Run Managed Environment                        │
-└──────┬───────────────────────┬───────────────────────┬───────────────┬──────┘
-       │                       │                       │               │
-       ▼                       ▼                       ▼               ▼
-┌──────────────┐       ┌──────────────┐       ┌────────────────┐ ┌────────────┐
-│ Tool 1       │       │ Tool 2       │       │ Tool 3 & 4     │ │ Tool 5     │
-│ decompose_   │       │ synthesize_  │       │ verify_solution│ │ record_    │
-│ objective    │       │ strategy     │       │ execute_sandbox│ │ checkpoint │
-└──────┬───────┘       └──────┬───────┘       └───────┬────────┘ └─────┬──────┘
-       │                       │                       │               │
-       └───────────────────────┼───────────────────────┴───────────────┘
-                               │
-                               ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                    THREAD-SAFE STATE MACHINE & PERSISTENCE                  │
-│   RECEIVED ──► STRUCTURED ──► STRATIFIED ──► SANDBOX_VERIFIED ──► COMPLETED  │
-│   • Checkpoint History • Invariant Ledger • SHA-256 Cryptographic Audit Hash │
-└──────────────────────────────────────┬──────────────────────────────────────┘
-                                       │
-                                       ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│             VERIFIABLE DELIVERABLE & EXPORTABLE TECHNICAL DOSSIER           │
-│         (1-Click Judge Demo &bull; Markdown Export &bull; Live Telemetry)   │
-└─────────────────────────────────────────────────────────────────────────────┘
+Web UI / REST / WebMCP
+          |
+          v
+Provider-neutral Taskmaster facade ---- optional model provider
+          |
+          v
+Deterministic stage runner
+  decompose -> synthesize -> verify -> sandbox -> checkpoint
+          |
+          v
+Thread-safe state + JSON/Markdown/HTML dossier + SHA-256 ledger
 ```
 
----
+The model boundary is deliberately narrow: SUPRA sends typed chat messages and
+can receive text and tool-call envelopes through the OpenAI-compatible wire
+contract. SUPRA does not launch provider subprocesses automatically and never
+stores provider credentials in the repository.
 
-## 4. The 5 Autonomous Stages
+## Providers
 
-1. **RECEIVED (`01`)**: Captures objective and initializes isolated project session.
-2. **STRUCTURED (`02`)**: Decomposes problem into core invariants, mutable assumptions, and subtasks via `decompose_objective`.
-3. **STRATIFIED (`03`)**: Formulates Conservative, Orthogonal, and Disruptive pathways and auto-selects the optimal strategy via `synthesize_strategy`.
-4. **SANDBOX_VERIFIED (`04`)**: Validates system invariants via `verify_solution` and runs isolated AST simulation in the micro-sandbox via `execute_sandbox_action`.
-5. **COMPLETED (`05`)**: Issues the final technical deliverable with checkpoints, telemetry, and SHA-256 cryptographic audit hash via `record_checkpoint`.
+Provider selection uses `SUPRA_PROVIDER` unless a request supplies `provider`.
 
----
+| Name | Default endpoint | Model configuration |
+|---|---|---|
+| `hermes` / `nous` | `http://127.0.0.1:8645/v1` | `SUPRA_HERMES_MODEL` or `SUPRA_MODEL` |
+| `ollama` | `http://127.0.0.1:11434/v1` | `SUPRA_OLLAMA_MODEL` or `SUPRA_MODEL` |
+| `openai` | `https://api.openai.com/v1` | `OPENAI_MODEL` or `SUPRA_MODEL` |
+| `openai-compatible` / `custom` | `SUPRA_BASE_URL` | `SUPRA_MODEL` |
 
-## 5. Google Technologies Integration
-
-* **Gemini 3.7 Flash:** Serves as the primary reasoning and decision engine.
-* **Google ADK (Agent Development Kit):** Orchestrates tool-calling turn sequences and autonomous state resolution.
-* **Google Cloud Run:** Hosts the containerized FastAPI backend with auto-scaling, low latency, and global availability.
-* **Google Cloud Build:** Manages the automated multi-stage CI/CD container build pipeline.
-
----
-
-## 6. Installation & Spin-Up
-
-### Prerequisites
-* Python 3.11+
-* Git
-* (Optional) Google Cloud SDK / Vertex AI credentials
-
-### Local Run
+Examples:
 
 ```bash
-# 1. Clone repository
-git clone https://github.com/klssxx/supra-agentic-taskmaster.git
-cd supra-agentic-taskmaster
+# Full workflow stays offline by default.
+uvicorn supra_agentic.service:app --host 127.0.0.1 --port 8080
 
-# 2. Install dependencies
-pip install -e .
+# Use the Hermes/Nous proxy for a direct model request.
+set SUPRA_PROVIDER=hermes
+set SUPRA_HERMES_MODEL=auto
+curl -X POST http://127.0.0.1:8080/api/v1/generate ^
+  -H "Content-Type: application/json" ^
+  -d "{\"prompt\":\"Describe one falsifiable architecture hypothesis.\"}"
 
-# 3. Start production server
-uvicorn supra_agentic.service:app --host 0.0.0.0 --port 8080
+# Use Ollama instead.
+set SUPRA_PROVIDER=ollama
+set SUPRA_OLLAMA_MODEL=llama3.2
+
+# Enable optional model assistance during a project run.
+curl -X POST http://127.0.0.1:8080/api/v1/projects ^
+  -H "Content-Type: application/json" ^
+  -d "{\"objective\":\"Bound a local automation controller\",\"use_model\":true}"
 ```
 
-Open your browser at `http://localhost:8080`.
-
-### Running Tests
+For Hermes/Nous, start and authenticate the proxy outside SUPRA using the
+Hermes CLI. SUPRA only connects to the local HTTP boundary; it does not copy,
+inspect, or persist the proxy credentials. With Hermes installed, the
+operator-managed sequence is:
 
 ```bash
-pytest
+hermes auth add nous
+hermes proxy start --provider nous --host 127.0.0.1 --port 8645
 ```
 
----
+The proxy supports Hermes' declared upstreams, while `openai-compatible` is
+the separate preset for arbitrary endpoints configured with `SUPRA_BASE_URL`.
 
-## 7. 1-Click Judge Demo Endpoint
+## Installation
 
-For instantaneous evaluation by competition judges:
+Requirements: Python 3.11+ and Git.
 
 ```bash
-# 1-Click Judge Golden Run (<0.5s execution)
-curl http://localhost:8080/api/v1/demo/quick-run
+python -m pip install -e .
+uvicorn supra_agentic.service:app --host 127.0.0.1 --port 8080
 ```
 
----
+Open `http://127.0.0.1:8080`.
 
-## 8. Originality & Disclosures
+## API surface
 
-* **Clean-Room Build:** Created strictly during the All Things Agentic Hackathon 2026 Submission Period.
-* **Zero Legacy Dependencies:** Independent, self-contained architecture with no proprietary imports or symlinks to older local codebases.
-* Full audit trail documented in `docs/ORIGINALITY_LEDGER.md` and `docs/BUILD_TIMELINE.md`.
+- `GET /health` — service and non-secret active-provider metadata.
+- `GET /api/v1/providers` — supported provider presets.
+- `POST /api/v1/generate` — direct provider generation.
+- `POST /api/v1/projects` — run the five-stage workflow.
+- `GET /api/v1/projects` — list persisted projects.
+- `GET /api/v1/projects/{project_id}` — retrieve full project telemetry.
+- `GET /api/v1/examples/quick-run` — deterministic local example.
+- `POST /api/v1/mcp` — JSON-RPC 2.0 tool boundary.
+- `GET /api/v1/export/dossier/{project_id}` — Markdown dossier.
+- `GET /api/v1/export/dossier/html/{project_id}` — HTML dossier.
 
----
+## Tests
 
-## 9. License
+```bash
+python -m pytest -q
+```
 
-Licensed under the **Apache License, Version 2.0**. See [LICENSE](LICENSE) for details.
+The provider tests use an in-memory HTTP transport; they do not contact a
+remote service or require credentials.
+
+## Container
+
+The included `Dockerfile` is a generic OCI-compatible image. It starts the
+same Uvicorn application and does not assume a hosting vendor or provider.
+
+## Security boundaries
+
+- Credentials are read only from environment variables or the external local
+  provider process.
+- Error responses do not include provider response bodies or authorization
+  headers.
+- The deterministic sandbox remains contained and its evidence is persisted in
+  the project checkpoint ledger.
+
+## License
+
+Apache License 2.0. See [LICENSE](LICENSE).
