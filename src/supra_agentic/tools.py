@@ -241,14 +241,55 @@ def verify_solution(
 
     invariants = posture.decomposition.invariants if posture.decomposition else ["System integrity preserved"]
 
+    # HONEST VERIFICATION (auditoría hallazgo 1): NO se puede declarar PASS sin
+    # ejecutar evidencia. Se requiere una prueba vinculada al CANDIDATO EXACTO y
+    # a los ARTEFACTOS exactos (action_plan/hypothesis). El verdict se deriva del
+    # resultado REAL de las pruebas, nunca de puntuaciones prefijadas de la
+    # estrategia. NOT_EVALUATED cuando no existe prueba que ejecutar.
+    evidence = _run_invariant_evidence(target_candidate, invariants)
+    evaluated = [e for e in evidence if e["status"] in ("PASS", "FAIL")]
+    failures = [e for e in evidence if e["status"] == "FAIL"]
+    not_evaluated = [e for e in evidence if e["status"] == "NOT_EVALUATED"]
+
+    if not evaluated:
+        # Sin ninguna prueba ejecutable: NO se afirma verificación.
+        verdict = "NOT_EVALUATED"
+        invariants_preserved = False  # desconocido != preservado
+        confidence = 0.0
+        rationale = (
+            f"NOT_EVALUATED: ningún invariante de '{target_candidate.pathway_name}' "
+            f"tiene una prueba ejecutable vinculada al candidato y a sus artefactos. "
+            f"Registrar una confianza aquí sería fabricar verificación."
+        )
+    else:
+        invariants_preserved = not failures
+        if failures:
+            verdict = "FAIL"
+        elif not_evaluated:
+            verdict = "CONDITIONAL_PASS"  # hay evidencia, pero no completa
+        else:
+            verdict = "PASS"
+        # La confianza se deriva de la FRACCIÓN de invariantes con evidencia PASS,
+        # no de feasibility/divergence prefijadas (que no miden verificación).
+        confidence = round(
+            len([e for e in evaluated if e["status"] == "PASS"]) / len(invariants), 3
+        )
+        rationale = (
+            f"Evidencia ejecutada sobre '{target_candidate.pathway_name}': "
+            f"{len([e for e in evaluated if e['status']=='PASS'])}/{len(invariants)} "
+            f"invariantes con prueba PASS, {len(failures)} FAIL, "
+            f"{len(not_evaluated)} NOT_EVALUATED."
+        )
+
     report = VerificationReport(
         candidate_id=target_candidate.candidate_id,
-        invariants_preserved=True,
+        invariants_preserved=invariants_preserved,
         invariants_checked=invariants,
-        vulnerabilities_detected=[],
-        confidence_score=round(min(0.98, target_candidate.feasibility_score * 0.7 + target_candidate.divergence_score * 0.3 + 0.15), 3),
-        verdict="PASS",
-        rationale=f"Strategy '{target_candidate.pathway_name}' rigorously satisfies all {len(invariants)} system invariants.",
+        vulnerabilities_detected=[f["invariant"] for f in failures],
+        confidence_score=confidence,
+        verdict=verdict,
+        rationale=rationale,
+        evidence=evidence,
     )
 
     state_manager.record_verification(project_id, report)
@@ -257,6 +298,75 @@ def verify_solution(
         "project_id": project_id,
         "report": report.model_dump(),
     }
+
+
+def _run_invariant_evidence(
+    candidate: StrategyCandidate,
+    invariants: list[str],
+) -> list[dict[str, Any]]:
+    """Ejecuta la evidencia de verificación por invariante, vinculada al candidato.
+
+    Para CADA invariante intenta construir una PRUEBA CONCRETA y ejecutable que
+    contrasta el plan/hipótesis DEL CANDIDATO EXACTO contra ese invariante. Si no
+    existe prueba ejecutable para un invariante, su estado es NOT_EVALUATED —
+    nunca se fabrica un PASS.
+
+    La prueba es determinista y offline: analiza el action_plan/hypothesis del
+    candidato en busca de la condición que el invariante exige, y la refuta con
+    un contraejemplo sintético cuando la condición no está cubierta. Es una
+    comprobación de COBERTURA de la estrategia frente al invariante, no una
+    certificación de que el sistema desplegado funcione (eso requeriría ejecutar
+    la solución real, fuera del alcance de esta herramienta).
+    """
+    plan_text = " ".join(candidate.action_plan).casefold()
+    hypothesis = (candidate.hypothesis or "").casefold()
+    artifacts = f"{plan_text} {hypothesis}"
+
+    evidence: list[dict[str, Any]] = []
+    for invariant in invariants:
+        inv = invariant.casefold()
+        check = _invariant_check(inv)
+        if check is None:
+            evidence.append({
+                "invariant": invariant,
+                "status": "NOT_EVALUATED",
+                "test": "sin prueba ejecutable vinculada al candidato",
+                "counterexample": "",
+            })
+            continue
+        keyword, counterexample = check
+        covered = keyword in artifacts
+        evidence.append({
+            "invariant": invariant,
+            "status": "PASS" if covered else "FAIL",
+            "test": f"el plan/hipótesis del candidato cubre '{keyword}'",
+            "counterexample": "" if covered else counterexample,
+        })
+    return evidence
+
+
+def _invariant_check(invariant_casefold: str) -> tuple[str, str] | None:
+    """Mapea un invariante a (condición requerida, contraejemplo si falta).
+
+    Devuelve None cuando el invariante no tiene una prueba de cobertura
+    ejecutable: ese invariante queda NOT_EVALUATED (honesto).
+    """
+    checks: list[tuple[tuple[str, ...], str, str]] = [
+        (("rollback", "reversib", "recover", "recuper"),
+         "rollback", "cambio irreversible sin punto de restauración"),
+        (("containment", "conten", "aisl", "isolat", "sandbox", "bound"),
+         "containment", "efecto fuera del perímetro designado"),
+        (("integrity", "integridad", "memory", "memoria"),
+         "integrity", "escritura fuera de la memoria autorizada"),
+        (("reproducib", "determin", "seed", "semilla"),
+         "determin", "dos ejecuciones con la misma semilla divergen"),
+        (("audit", "ledger", "hash", "trazab", "traceab"),
+         "audit", "cambio de estado sin registro encadenado"),
+    ]
+    for tokens, keyword, counterexample in checks:
+        if any(tok in invariant_casefold for tok in tokens):
+            return keyword, counterexample
+    return None
 
 
 # ---------------------------------------------------------------------------

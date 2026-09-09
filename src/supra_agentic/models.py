@@ -58,8 +58,9 @@ class VerificationReport(BaseModel):
     invariants_checked: list[str] = Field(default_factory=list)
     vulnerabilities_detected: list[str] = Field(default_factory=list)
     confidence_score: float = 0.90
-    verdict: str = "PASS"  # PASS, CONDITIONAL_PASS, FAIL
+    verdict: str = "PASS"  # PASS, CONDITIONAL_PASS, FAIL, NOT_EVALUATED
     rationale: str = ""
+    evidence: list[dict[str, Any]] = Field(default_factory=list)
     timestamp: float = Field(default_factory=time.time)
 
 
