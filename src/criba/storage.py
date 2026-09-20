@@ -14,6 +14,8 @@ from .constants import (
     VALID_DECISIONS,
 )
 
+SCHEMA_VERSION = 1
+
 
 class Storage:
     def __init__(self, path: Path | str | None = DEFAULT_DB) -> None:
@@ -24,11 +26,19 @@ class Storage:
     def connect(self) -> sqlite3.Connection:
         con = sqlite3.connect(self.path, timeout=3)
         con.row_factory = sqlite3.Row
+        con.execute("PRAGMA foreign_keys = ON")
+        con.execute("PRAGMA journal_mode = WAL")
         return con
 
     def initialize(self) -> None:
         con = self.connect()
         try:
+            current_version = int(con.execute("PRAGMA user_version").fetchone()[0])
+            if current_version > SCHEMA_VERSION:
+                raise RuntimeError(
+                    f"La base usa una versión de esquema más nueva ({current_version}) "
+                    f"que la soportada ({SCHEMA_VERSION})."
+                )
             with con:
                 con.execute('''CREATE TABLE IF NOT EXISTS sessions (
                   id TEXT PRIMARY KEY, created_at TEXT NOT NULL, query_hash TEXT NOT NULL,
@@ -61,6 +71,8 @@ class Storage:
                   mode TEXT NOT NULL,
                   seed INTEGER,
                   PRIMARY KEY (catalog_fingerprint, combo_key))''')
+                if current_version < SCHEMA_VERSION:
+                    con.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
         finally:
             con.close()
 
