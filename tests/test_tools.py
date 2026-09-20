@@ -43,16 +43,16 @@ def test_full_tool_cycle_execution():
         assert r2["candidates_count"] == 3
         assert r2["selected_candidate"] is not None
 
-        # 3. Verify (contrato honesto: el verdict se deriva de la evidencia
-        # ejecutada sobre los invariantes, nunca de puntuaciones prefijadas)
+        # 3. Verify (honest contract: verdict derives from evidence executed on invariants,
+        # never from preset scores)
         r3 = verify_solution(pid)
         assert r3["status"] == "success"
         report = r3["report"]
-        # la confianza es la fracción de invariantes con evidencia PASS en [0,1]
+        # confidence is fraction of invariants with PASS evidence in [0,1]
         assert 0.0 <= report["confidence_score"] <= 1.0
-        # el verdict es uno de los estados honestos posibles
+        # verdict is one of the honest states
         assert report["verdict"] in {"PASS", "CONDITIONAL_PASS", "FAIL", "NOT_EVALUATED"}
-        # la evidencia por invariante queda registrada y vinculada al candidato
+        # evidence per invariant is recorded and tied to candidate
         assert isinstance(report["evidence"], list)
         assert len(report["evidence"]) == len(report["invariants_checked"])
 
@@ -80,4 +80,5 @@ def test_sandbox_security_rejection():
         dangerous_code = "import os\nos.system('echo dangerous')"
         r = execute_sandbox_action(pid, code_snippet=dangerous_code)
         assert r["sandbox_result"]["passed"] is False
-        assert "prohibited in micro-sandbox" in r["sandbox_result"]["output_log"]
+        # New sandbox rejects via __import__ not in SAFE_BUILTINS
+        assert "import" in r["sandbox_result"]["output_log"].lower() or "prohibited" in r["sandbox_result"]["output_log"].lower() or "__import__" in r["sandbox_result"]["output_log"]

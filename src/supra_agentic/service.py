@@ -23,20 +23,24 @@ from .state import state_manager
 
 logger = logging.getLogger("supra_agentic.service")
 
+# CORS configuration - configurable via env, default to restrictive
+CORS_ORIGINS = os.getenv("SUPRA_CORS_ORIGINS", "").split(",") if os.getenv("SUPRA_CORS_ORIGINS") else []
+
 app = FastAPI(
     title="SUPRA Agentic Taskmaster",
     version="1.0.0",
     description="Provider-neutral autonomous task decomposition, verification, and evidence generation.",
 )
 
-# Enable CORS
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=False,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# Enable CORS - configurable, default restrictive (empty list = no CORS)
+if CORS_ORIGINS:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=CORS_ORIGINS,
+        allow_credentials=False,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
 STATIC_DIR = Path(__file__).parent / "web"
 STATIC_DIR.mkdir(parents=True, exist_ok=True)
@@ -105,7 +109,12 @@ def serve_ui() -> FileResponse:
 
 @app.post("/api/v1/projects", status_code=status.HTTP_201_CREATED, tags=["Taskmaster"])
 def create_and_run_project(req: CreateProjectRequest) -> dict[str, Any]:
-    """Execute the five-stage workflow with deterministic gates."""
+    """Execute the five-stage workflow with deterministic gates.
+    
+    Returns appropriate HTTP status based on pipeline execution result:
+    - 201 Created + {"status": "success"} on successful completion
+    - 500 Internal Server Error + {"status": "error"} on pipeline failure
+    """
     try:
         runner = TaskmasterRunner(provider_name=req.provider, model_name=req.model)
         posture = runner.run_golden_path(
@@ -115,6 +124,21 @@ def create_and_run_project(req: CreateProjectRequest) -> dict[str, Any]:
             allow_disruptive=req.allow_disruptive,
             use_model=req.use_model,
         )
+        
+        # Check if pipeline actually succeeded
+        if posture.stage.value == "FAILED" or (posture.verification and posture.verification.verdict == "FAIL"):
+            return Response(
+                content=json.dumps({
+                    "status": "error",
+                    "project_id": posture.project_id,
+                    "stage": posture.stage.value,
+                    "error": posture.error_message or "Pipeline execution failed",
+                    "verification": posture.verification.model_dump() if posture.verification else None,
+                }),
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                media_type="application/json"
+            )
+        
         return {
             "status": "success",
             "project_id": posture.project_id,
@@ -122,7 +146,7 @@ def create_and_run_project(req: CreateProjectRequest) -> dict[str, Any]:
             "posture": posture.model_dump(),
         }
     except Exception as exc:
-        logger.error(f"Execution error: {exc}")
+        logger.error(f"Execution error: {exc}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(exc))
 
 
@@ -209,11 +233,189 @@ def example_quick_run() -> dict[str, Any]:
 
 @app.post("/api/v1/mcp", tags=["WebMCP"])
 async def mcp_jsonrpc_endpoint(request: Request) -> dict[str, Any]:
-    """Native WebMCP JSON-RPC 2.0 Protocol Handler."""
+    """Native WebMCP JSON-RPC 2.0 Protocol Handler.
+    
+    Includes body size limit (8 MiB) and basic JSON-RPC argument validation.
+    """
+    # Body size limit: 8 MiB
+    body = await request.body()
+    if len(body) > 8 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="Request body exceeds 8 MiB limit")
+    
     try:
-        payload = await request.json()
-    except Exception:
-        raise HTTPException(status_code=400, detail="Invalid JSON payload.")
+        payload = json.loads(body)
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=400, detail="Invalid JSON payload")
+    
+    # Basic JSON-RPC 2.0 validation
+    if not isinstance(payload, dict):
+        raise HTTPException(status_code=400, detail="Payload must be a JSON object")
+    
+    if payload.get("jsonrpc") != "2.0":
+        raise HTTPException(status_code=400, detail="Only JSON-RPC 2.0 is supported")
+    
+    if "method" not in payload:
+        raise HTTPException(status_code=400, detail="Missing 'method' field")
+    
+    if not isinstance(payload.get("method"), str):
+        raise HTTPException(status_code=400, detail="'method' must be a string")
+    
+    # Validate params if present
+    params = payload.get("params")
+    if params is not None and not isinstance(params, (dict, list)):
+        raise HTTPException(status_code=400, detail="'params' must be object or array")
+    
+    return handle_mcp_jsonrpc_request(payload)
+
+
+@app.get("/api/v1/projects", tags=["Taskmaster"])
+def list_projects(limit: int = 20) -> dict[str, Any]:
+    """List recent Taskmaster projects."""
+    projects = state_manager.list_projects(limit=limit)
+    return {
+        "status": "success",
+        "count": len(projects),
+        "projects": [p.model_dump() for p in projects],
+    }
+
+
+@app.get("/api/v1/projects/{project_id}", tags=["Taskmaster"])
+def get_project_posture(project_id: str) -> dict[str, Any]:
+    """Retrieve full project telemetry and deliverable ledger."""
+    posture = state_manager.get_project(project_id)
+    if not posture:
+        raise HTTPException(status_code=404, detail=f"Project '{project_id}' not found.")
+    return {
+        "status": "success",
+        "project_id": posture.project_id,
+        "posture": posture.model_dump(),
+    }
+
+
+# Compat alias: the live Cloud Run deployment and all submission docs
+# reference /api/v1/demo/quick-run. Keep it working alongside the new
+# /api/v1/examples/quick-run route.
+@app.get("/api/v1/examples/quick-run", tags=["Examples"])
+def example_quick_run() -> dict[str, Any]:
+    """Run a deterministic example without contacting a model provider."""
+    demo_objective = (
+        "Design an autonomous secretless service mesh with real-time continuous "
+        "invariant verification and automated counterfactual rollback."
+    )
+    posture = taskmaster_runner.run_golden_path(
+        objective=demo_objective,
+        project_id="example-quick-run",
+        domain="cloud_security",
+        allow_disruptive=True,
+    )
+    return {
+        "status": "success",
+        "example": True,
+        "stages_completed": 5,
+        "project_id": posture.project_id,
+        "stage": posture.stage.value,
+        "deliverable": posture.final_output,
+        "posture": posture.model_dump(),
+    }
+
+
+@app.get("/api/v1/demo/quick-run", tags=["Examples"], include_in_schema=False)
+def demo_quick_run_alias() -> dict[str, Any]:
+    """Backwards-compatible alias for the historical demo URL."""
+    return example_quick_run()
+
+
+@app.get("/api/v1/projects", tags=["Taskmaster"])
+def list_projects(limit: int = 20) -> dict[str, Any]:
+    """List recent Taskmaster projects."""
+    projects = state_manager.list_projects(limit=limit)
+    return {
+        "status": "success",
+        "count": len(projects),
+        "projects": [p.model_dump() for p in projects],
+    }
+
+
+@app.get("/api/v1/projects/{project_id}", tags=["Taskmaster"])
+def get_project_posture(project_id: str) -> dict[str, Any]:
+    """Retrieve full project telemetry and deliverable ledger."""
+    posture = state_manager.get_project(project_id)
+    if not posture:
+        raise HTTPException(status_code=404, detail=f"Project '{project_id}' not found.")
+    return {
+        "status": "success",
+        "project_id": posture.project_id,
+        "posture": posture.model_dump(),
+    }
+
+
+# Compat alias: the live Cloud Run deployment and all submission docs
+# reference /api/v1/demo/quick-run. Keep it working alongside the new
+# /api/v1/examples/quick-run route.
+@app.get("/api/v1/examples/quick-run", tags=["Examples"])
+def example_quick_run() -> dict[str, Any]:
+    """Run a deterministic example without contacting a model provider."""
+    demo_objective = (
+        "Design an autonomous secretless service mesh with real-time continuous "
+        "invariant verification and automated counterfactual rollback."
+    )
+    posture = taskmaster_runner.run_golden_path(
+        objective=demo_objective,
+        project_id="example-quick-run",
+        domain="cloud_security",
+        allow_disruptive=True,
+    )
+    return {
+        "status": "success",
+        "example": True,
+        "stages_completed": 5,
+        "project_id": posture.project_id,
+        "stage": posture.stage.value,
+        "deliverable": posture.final_output,
+        "posture": posture.model_dump(),
+    }
+
+
+@app.get("/api/v1/demo/quick-run", tags=["Examples"], include_in_schema=False)
+def demo_quick_run_alias() -> dict[str, Any]:
+    """Backwards-compatible alias for the historical demo URL."""
+    return example_quick_run()
+
+
+@app.post("/api/v1/mcp", tags=["WebMCP"])
+async def mcp_jsonrpc_endpoint(request: Request) -> dict[str, Any]:
+    """Native WebMCP JSON-RPC 2.0 Protocol Handler.
+    
+    Includes body size limit (8 MiB) and basic JSON-RPC argument validation.
+    """
+    # Body size limit: 8 MiB
+    body = await request.body()
+    if len(body) > 8 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="Request body exceeds 8 MiB limit")
+    
+    try:
+        payload = json.loads(body)
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=400, detail="Invalid JSON payload")
+    
+    # Basic JSON-RPC 2.0 validation
+    if not isinstance(payload, dict):
+        raise HTTPException(status_code=400, detail="Payload must be a JSON object")
+    
+    if payload.get("jsonrpc") != "2.0":
+        raise HTTPException(status_code=400, detail="Only JSON-RPC 2.0 is supported")
+    
+    if "method" not in payload:
+        raise HTTPException(status_code=400, detail="Missing 'method' field")
+    
+    if not isinstance(payload.get("method"), str):
+        raise HTTPException(status_code=400, detail="'method' must be a string")
+    
+    # Validate params if present
+    params = payload.get("params")
+    if params is not None and not isinstance(params, (dict, list)):
+        raise HTTPException(status_code=400, detail="'params' must be object or array")
+    
     return handle_mcp_jsonrpc_request(payload)
 
 

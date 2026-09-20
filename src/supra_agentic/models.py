@@ -54,11 +54,11 @@ class VerificationReport(BaseModel):
     model_config = ConfigDict(extra="forbid")
     report_id: str = Field(default_factory=lambda: f"rep-{uuid.uuid4().hex[:6]}")
     candidate_id: str
-    invariants_preserved: bool = True
+    invariants_preserved: bool = False
     invariants_checked: list[str] = Field(default_factory=list)
     vulnerabilities_detected: list[str] = Field(default_factory=list)
-    confidence_score: float = 0.90
-    verdict: str = "PASS"  # PASS, CONDITIONAL_PASS, FAIL, NOT_EVALUATED
+    confidence_score: float = 0.0
+    verdict: str = "NOT_EVALUATED"  # PASS, CONDITIONAL_PASS, FAIL, NOT_EVALUATED
     rationale: str = ""
     evidence: list[dict[str, Any]] = Field(default_factory=list)
     timestamp: float = Field(default_factory=time.time)
