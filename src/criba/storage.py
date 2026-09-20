@@ -30,11 +30,6 @@ class Storage:
         con = self.connect()
         try:
             with con:
-                # B-9: Enable foreign keys, WAL mode, and user_version for schema tracking
-                con.execute("PRAGMA foreign_keys = ON")
-                con.execute("PRAGMA journal_mode = WAL")
-                con.execute("PRAGMA user_version = 1")  # Schema version 1
-                
                 con.execute('''CREATE TABLE IF NOT EXISTS sessions (
                   id TEXT PRIMARY KEY, created_at TEXT NOT NULL, query_hash TEXT NOT NULL,
                   query TEXT NOT NULL, current_id TEXT NOT NULL, status TEXT NOT NULL,
@@ -68,14 +63,6 @@ class Storage:
                   PRIMARY KEY (catalog_fingerprint, combo_key))''')
         finally:
             con.close()
-
-    def connect(self) -> sqlite3.Connection:
-        con = sqlite3.connect(self.path, timeout=3)
-        con.row_factory = sqlite3.Row
-        # B-9: Enable foreign keys and WAL on every connection
-        con.execute("PRAGMA foreign_keys = ON")
-        con.execute("PRAGMA journal_mode = WAL")
-        return con
 
     def save(self, query: str, packet: Mapping[str, Any], config: Mapping[str, Any]) -> str:
         ident = str(packet["activation_id"])
@@ -113,57 +100,45 @@ class Storage:
     def record_decision(self, session_id: str, status: str, evidence: list[Any] | dict[str, Any], note: str = "") -> dict[str, Any]:
         if status not in VALID_DECISIONS:
             raise ValueError("Estado de decisión inválido.")
-        
-        # B-8 FIX: Append to existing evidence instead of overwriting
+        if not isinstance(evidence, (list, dict)):
+            raise ValueError("evidence debe ser una lista o un objeto.")
+
+        entry: dict[str, Any] = {
+            "id": str(uuid.uuid4()),
+            "session_id": session_id,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "status": status,
+            "evidence": evidence,
+            "note": note,
+        }
         con = self.connect()
         try:
             with con:
-                if not con.execute("SELECT 1 FROM sessions WHERE id=?", (session_id,)).fetchone():
+                row = con.execute(
+                    "SELECT evidence_json FROM sessions WHERE id=?", (session_id,)
+                ).fetchone()
+                if not row:
                     raise ValueError(f"Sesión inexistente: {session_id}")
-                
-                # Load existing evidence
-                row = con.execute("SELECT evidence_json FROM sessions WHERE id=?", (session_id,)).fetchone()
-                existing_evidence = json.loads(row["evidence_json"]) if row and row["evidence_json"] else []
-                
-                # Append new decision to evidence
-                entry: dict[str, Any] = {
-                    "id": str(uuid.uuid4()), 
-                    "session_id": session_id, 
-                    "timestamp": datetime.now(timezone.utc).isoformat(), 
-                    "status": status, 
-                    "evidence": evidence, 
-                    "note": note
-                }
-                
-                # Append to existing evidence array
-                updated_evidence = existing_evidence + [entry]
-                
-                con.execute("INSERT INTO decisions VALUES(?,?,?,?,?,?)", 
-                    (entry["id"], session_id, entry["timestamp"], status, json.dumps(evidence, ensure_ascii=False), note))
-                con.execute("UPDATE sessions SET status=?, evidence_json=? WHERE id=?", 
-                    (status, json.dumps(updated_evidence, ensure_ascii=False), session_id))
+                existing = json.loads(row["evidence_json"])
+                if not isinstance(existing, list):
+                    raise ValueError("evidence_json almacenado debe ser una lista.")
+                updated = [*existing, entry]
+                con.execute(
+                    "INSERT INTO decisions VALUES(?,?,?,?,?,?)",
+                    (
+                        entry["id"],
+                        session_id,
+                        entry["timestamp"],
+                        status,
+                        json.dumps(evidence, ensure_ascii=False),
+                        note,
+                    ),
+                )
+                con.execute(
+                    "UPDATE sessions SET status=?, evidence_json=? WHERE id=?",
+                    (status, json.dumps(updated, ensure_ascii=False), session_id),
+                )
             return entry
-        finally:
-            con.close()
-
-    def list_sessions(self, limit: int = 100) -> list[dict[str, Any]]:
-        con = self.connect()
-        try:
-            rows = con.execute("SELECT id,created_at,query,current_id,status FROM sessions ORDER BY created_at DESC LIMIT ?", (limit,)).fetchall()
-            return [{str(key): row[key] for key in row.keys()} for row in rows]
-        finally:
-            con.close()
-
-    def get(self, ident: str) -> dict[str, Any]:
-        con = self.connect()
-        try:
-            row = con.execute("SELECT * FROM sessions WHERE id=?", (ident,)).fetchone()
-            if not row:
-                raise ValueError(f"Sesión inexistente: {ident}")
-            result: dict[str, Any] = {str(key): row[key] for key in row.keys()}
-            for key in ("config_json", "packet_json", "evidence_json"):
-                result[key[:-5]] = json.loads(result.pop(key))
-            return result
         finally:
             con.close()
 
