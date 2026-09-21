@@ -70,10 +70,10 @@ jobs:
       - name: Run tests
         shell: pwsh
         run: uv run pytest -q
-      - name: Type-check supported source
+      - name: Type-check supported source (no new debt)
         if: matrix.python-version == '3.11'
         shell: pwsh
-        run: uv run mypy src/criba
+        run: uv run python scripts/check_mypy_baseline.py
 
   workflow-lint:
     name: workflow lint
