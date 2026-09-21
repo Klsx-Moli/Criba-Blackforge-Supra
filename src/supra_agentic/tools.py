@@ -425,6 +425,7 @@ def _selected_candidate_identity(project_id: str) -> dict[str, str] | None:
     candidate = posture.selected_candidate
     return candidate_execution_identity(candidate) if candidate is not None else None
 
+
 def _protocol_version_for_code(code: str) -> str:
     payload = f"{RESTRICTED_PROTOCOL_FAMILY}\n{code}"
     return "sha256:" + hashlib.sha256(payload.encode("utf-8")).hexdigest()
