@@ -22,6 +22,12 @@ gates:
   G4:
     status: CODE_SENTINELS_IMPLEMENTED
     claim_scope: observer_persistence_restart_and_subsequent_decision_contamination
+sensitivity_controls:
+  status: CI_SENTINELS_IMPLEMENTED
+  scope:
+    - deliberate decisional contamination must be detected
+    - observer storage failure must remain O-only
+  limitation: does_not_replace_G3_deployment_isolation
 scientific_boundaries:
   D3: UNRESOLVED
   D4: UNRESOLVED
