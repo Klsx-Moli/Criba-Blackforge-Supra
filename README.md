@@ -12,7 +12,7 @@ safety gates, sandbox verification, and the SHA-256 deliverable ledger.
 1. **RECEIVED** — capture the objective and initialize an isolated project.
 2. **STRUCTURED** — separate invariants, mutable assumptions, and subtasks.
 3. **STRATIFIED** — produce Conservative, Orthogonal, and Disruptive pathways.
-4. **SANDBOX_VERIFIED** — verify invariants and run the contained AST sandbox.
+4. **RESTRICTED_EXECUTION_VERIFIED** — verify invariants and run a fixed trusted internal check. This is in-process restricted execution, not a security sandbox, and it does not accept arbitrary remote Python.
 5. **COMPLETED** — persist checkpoints and export the integrity-checked dossier.
 
 The model is an interchangeable assistant, not a hidden requirement. The
