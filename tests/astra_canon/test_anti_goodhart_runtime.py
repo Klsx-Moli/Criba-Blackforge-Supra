@@ -307,3 +307,31 @@ def test_product_runtime_has_no_observer_import_path():
     ).read_text(encoding="utf-8")
     assert "import random" not in detector_source
     assert "from random" not in detector_source
+
+
+def test_sensitivity_control_detects_intentional_decisional_contamination():
+    baseline = _posture()
+    contaminated = copy.deepcopy(baseline)
+    contaminated["stage"] = "FAILED"
+    assert project_public_posture(baseline) != project_public_posture(contaminated)
+
+
+def test_observer_storage_failure_is_confined_to_o_domain(tmp_path: Path):
+    trace = seal_public_posture(_posture())
+    before = trace.payload_json
+
+    class BrokenStore(ObserverStore):
+        def append_diagnostic(self, diagnostic):
+            raise OSError("SENTINEL_STORAGE_SECRET")
+
+    result = _observe_trace_after_gate(
+        trace,
+        store=BrokenStore(tmp_path / "observer"),
+    )
+    assert result.inserted_diagnostics == 0
+    assert result.failures == (
+        "observer_store:OSError",
+        "observer_store:OSError",
+        "observer_store:OSError",
+    )
+    assert trace.payload_json == before
