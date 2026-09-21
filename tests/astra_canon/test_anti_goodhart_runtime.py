@@ -175,12 +175,15 @@ def test_off_mode_creates_no_observer_state(tmp_path: Path) -> None:
     assert not root.exists()
 
 
-def test_standard_cannot_run_without_complete_gate(tmp_path: Path) -> None:
+def test_standard_public_api_stays_disabled_even_with_complete_gate(tmp_path: Path) -> None:
     trace = seal_public_packet(_packet())
     with pytest.raises(StandardDisabledError, match="STANDARD_DISABLED"):
         observe_trace(
             trace,
             store=ObserverStore(tmp_path / "observer"),
+            mode=ObserverMode.STANDARD,
+            gate_evidence=_full_gate(),
+            current_scope_fingerprint=_scope(),
         )
 
 
