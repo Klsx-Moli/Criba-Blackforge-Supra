@@ -127,12 +127,14 @@ def list_provider_options() -> dict[str, Any]:
             metadata["alias"] = name != provider.name
             providers.append(metadata)
         except ValueError as exc:
-            providers.append({
-                "name": name,
-                "configured": False,
-                "error": "provider_configuration_invalid",
-                "error_type": type(exc).__name__,
-            })
+            providers.append(
+                {
+                    "name": name,
+                    "configured": False,
+                    "error": "provider_configuration_invalid",
+                    "error_type": type(exc).__name__,
+                }
+            )
     return {
         "status": "success",
         "active": os.getenv("SUPRA_PROVIDER", "hermes").strip().lower(),
