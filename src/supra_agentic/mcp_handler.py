@@ -10,6 +10,7 @@ Exposes standard MCP tools, resources, and prompts over HTTP JSON-RPC 2.0:
 from __future__ import annotations
 
 import json
+import logging
 from collections.abc import Mapping
 from typing import Any
 
@@ -22,6 +23,8 @@ from .tools import (
     synthesize_strategy,
     verify_solution,
 )
+
+logger = logging.getLogger("supra_agentic.mcp_handler")
 
 MCP_TOOLS_MANIFEST = [
     {
@@ -191,7 +194,11 @@ def handle_mcp_jsonrpc_request(payload: Mapping[str, Any]) -> dict[str, Any]:
                     {"active_count": len(projects), "projects": projects}, indent=2
                 )
             else:
-                raise ValueError(f"Unknown resource URI: {uri}")
+                return {
+                    "jsonrpc": "2.0",
+                    "id": req_id,
+                    "error": {"code": -32602, "message": "Invalid params: unknown resource URI"},
+                }
             return {
                 "jsonrpc": "2.0",
                 "id": req_id,
@@ -241,11 +248,30 @@ def handle_mcp_jsonrpc_request(payload: Mapping[str, Any]) -> dict[str, Any]:
                             "message": f"Invalid params: unsupported fields {unexpected}",
                         },
                     }
-                res = restricted_python_executor(
-                    args["project_id"], fuzz_iterations=args.get("fuzz_iterations", 5)
-                )
+                iterations = args.get("fuzz_iterations", 5)
+                if (
+                    isinstance(iterations, bool)
+                    or not isinstance(iterations, int)
+                    or not 1 <= iterations <= MAX_FUZZ_ITERATIONS
+                ):
+                    return {
+                        "jsonrpc": "2.0",
+                        "id": req_id,
+                        "error": {
+                            "code": -32602,
+                            "message": (
+                                "Invalid params: fuzz_iterations must be an integer "
+                                f"between 1 and {MAX_FUZZ_ITERATIONS}"
+                            ),
+                        },
+                    }
+                res = restricted_python_executor(args["project_id"], fuzz_iterations=iterations)
             else:
-                raise ValueError(f"Unknown MCP tool: {tool_name}")
+                return {
+                    "jsonrpc": "2.0",
+                    "id": req_id,
+                    "error": {"code": -32601, "message": "Method not found: unknown tool"},
+                }
 
             return {
                 "jsonrpc": "2.0",
@@ -257,11 +283,22 @@ def handle_mcp_jsonrpc_request(payload: Mapping[str, Any]) -> dict[str, Any]:
                 },
             }
 
-        raise ValueError(f"Method not found: {method}")
-
-    except Exception as exc:
         return {
             "jsonrpc": "2.0",
             "id": req_id,
-            "error": {"code": -32000, "message": str(exc)},
+            "error": {"code": -32601, "message": "Method not found"},
+        }
+
+    except KeyError:
+        return {
+            "jsonrpc": "2.0",
+            "id": req_id,
+            "error": {"code": -32602, "message": "Invalid params: missing required field"},
+        }
+    except Exception as exc:
+        logger.error("Unhandled MCP error (%s)", type(exc).__name__)
+        return {
+            "jsonrpc": "2.0",
+            "id": req_id,
+            "error": {"code": -32603, "message": "Internal server error"},
         }
