@@ -150,7 +150,7 @@ class RestrictedExecutionResult(BaseModel):
         return value
 
     @model_validator(mode="after")
-    def derive_identity_binding(self) -> "RestrictedExecutionResult":
+    def derive_identity_binding(self) -> RestrictedExecutionResult:
         complete = all(
             isinstance(value, str) and bool(value.strip())
             for value in (
@@ -247,7 +247,7 @@ class ProjectPosture(BaseModel):
         return migrated
 
     @model_validator(mode="after")
-    def revalidate_persisted_execution_accreditation(self) -> "ProjectPosture":
+    def revalidate_persisted_execution_accreditation(self) -> ProjectPosture:
         """Revalidate execution-derived state on every load/restart.
 
         Workflow completion is historical and is not erased. Execution binding,
