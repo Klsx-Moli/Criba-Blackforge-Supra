@@ -8,7 +8,6 @@ import enum
 import hashlib
 import json
 
-
 STANDARD_RELEASE_STATE = "DISABLED"
 
 
