@@ -12,9 +12,7 @@ def generate_svg_architecture(posture: ProjectPosture) -> str:
     )
     verdict = posture.verification.verdict if posture.verification else "NOT_EVALUATED"
     latest_execution = (
-        posture.restricted_execution_results[-1]
-        if posture.restricted_execution_results
-        else None
+        posture.restricted_execution_results[-1] if posture.restricted_execution_results else None
     )
     restricted_status = (
         "BOUND_PASS"
