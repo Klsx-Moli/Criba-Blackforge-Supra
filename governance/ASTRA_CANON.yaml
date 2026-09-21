@@ -561,11 +561,21 @@ contracts:
   - human-visible alerts are external interventions unless deferred
   implementation:
   - governance/ASTRA_CANON.yaml
+  - governance/ANTI_GOODHART_STATUS.yaml
+  - src/criba/anti_goodhart/trace.py
+  - src/criba/anti_goodhart/gate.py
+  - src/criba/anti_goodhart/store.py
+  - src/criba/anti_goodhart/detectors.py
+  - src/criba/anti_goodhart/observer.py
+  - scripts/anti_goodhart_observer.py
   tests:
   - tests/astra_canon/test_astra_manifest.py
+  - tests/astra_canon/test_anti_goodhart_runtime.py
   limitations:
-  - Solo registrado; Anti-Goodhart runtime no se implementa en esta misión.
-  - STANDARD debe permanecer deshabilitado hasta verificar G1-G4 del anti_goodhart_entry_gate.
+  - G1/G2/G4 tienen sentinels de frontera de codigo, no acreditacion cientifica.
+  - G3_DEPLOYMENT_ISOLATION permanece NOT_VERIFIED.
+  - STANDARD permanece DISABLED hasta verificar todas las filas G1-G4, controles de sensibilidad y coincidencia exacta del deployment scope.
+  - No se distribuye evidencia de gate all-green ni se conecta el observador al camino decisional.
 - id: ASTRA-033
   name: Preservación de fallos
   status: CANON
