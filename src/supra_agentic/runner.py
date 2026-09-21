@@ -104,11 +104,13 @@ class TaskmasterRunner:
             except ProviderError as exc:
                 # Model help is optional. Do not persist provider exception
                 # details into the project deliverable.
-                model_assistance.update({
-                    "status": "unavailable",
-                    "error": "provider_assistance_unavailable",
-                    "error_type": type(exc).__name__,
-                })
+                model_assistance.update(
+                    {
+                        "status": "unavailable",
+                        "error": "provider_assistance_unavailable",
+                        "error_type": type(exc).__name__,
+                    }
+                )
 
         # Stage 1: Initialize Project (RECEIVED)
         posture = state_manager.create_project(objective=clean_obj, project_id=project_id)
@@ -143,12 +145,9 @@ class TaskmasterRunner:
             # Self-correct if the internal restricted check fails.
             retries = 0
             while (
-                (
-                    not execution_res["restricted_execution_result"]["passed"]
-                    or not execution_res["restricted_execution_result"]["identity_bound"]
-                )
-                and retries < max_retries
-            ):
+                not execution_res["restricted_execution_result"]["passed"]
+                or not execution_res["restricted_execution_result"]["identity_bound"]
+            ) and retries < max_retries:
                 retries += 1
                 err_log = execution_res["restricted_execution_result"]["output_log"]
                 logger.warning(
@@ -187,7 +186,9 @@ class TaskmasterRunner:
 
             final_posture = state_manager.get_project(pid)
             assert final_posture is not None
-            logger.info(f"[{pid}] Taskmaster workflow COMPLETED in {elapsed:.2f}s; verification/scientific status remain separate.")
+            logger.info(
+                f"[{pid}] Taskmaster workflow COMPLETED in {elapsed:.2f}s; verification/scientific status remain separate."
+            )
             return final_posture
 
         except Exception as exc:
