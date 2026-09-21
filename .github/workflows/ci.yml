@@ -145,8 +145,8 @@ jobs:
           fetch-depth: 0
       # v3.0.0, tag verified with git ls-remote on 2026-09-20.
       - uses: zricethezav/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e
-        with:
-          args: --verbose
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   repository-scan:
     name: repository scan (trivy)
