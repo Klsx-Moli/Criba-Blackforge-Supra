@@ -13,7 +13,7 @@ import io
 import json
 import logging
 import time
-from typing import Any
+from typing import Any, Literal
 
 from .models import (
     RESTRICTED_EXECUTION_SEMANTICS_VERSION,
@@ -268,6 +268,7 @@ def verify_solution(
     evaluated = [e for e in evidence if e["status"] in ("PASS", "FAIL")]
     failures = [e for e in evidence if e["status"] == "FAIL"]
     not_evaluated = [e for e in evidence if e["status"] == "NOT_EVALUATED"]
+    verdict: Literal["PASS", "CONDITIONAL_PASS", "FAIL", "NOT_EVALUATED"]
 
     if not evaluated:
         # Sin ninguna prueba ejecutable: NO se afirma verificación.
