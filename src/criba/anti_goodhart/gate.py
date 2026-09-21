@@ -9,6 +9,9 @@ from dataclasses import dataclass
 from enum import Enum
 
 
+STANDARD_RELEASE_STATE = "DISABLED"
+
+
 class ObserverMode(str, Enum):
     OFF = "OFF"
     STANDARD = "STANDARD"
@@ -50,15 +53,30 @@ class GateEvidence:
         )
 
 
+def gate_evidence_satisfies(
+    evidence: GateEvidence | None,
+    *,
+    current_scope_fingerprint: str,
+) -> bool:
+    """Validate G1-G4 evidence without granting product activation."""
+
+    return bool(evidence and evidence.allows(current_scope_fingerprint))
+
+
 def standard_allowed(
     evidence: GateEvidence | None,
     *,
     current_scope_fingerprint: str,
 ) -> bool:
-    """Return the binary ASTRA activation decision for STANDARD."""
+    """Product activation requires evidence AND an explicit versioned release."""
 
-    return bool(evidence and evidence.allows(current_scope_fingerprint))
-
+    return bool(
+        STANDARD_RELEASE_STATE == "ALLOWED"
+        and gate_evidence_satisfies(
+            evidence,
+            current_scope_fingerprint=current_scope_fingerprint,
+        )
+    )
 
 def scope_fingerprint(
     *,
