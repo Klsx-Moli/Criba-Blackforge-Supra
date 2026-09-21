@@ -20,7 +20,7 @@ WORKDIR /app
 
 # Non-root user for security
 RUN groupadd -g 1001 appgroup && \
-    useradd -u 1001 -g appgroup -s /bin/bash appuser
+    useradd -m -d /home/appuser -u 1001 -g appgroup -s /bin/bash appuser
 
 COPY --from=builder /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
 COPY --from=builder /usr/local/bin /usr/local/bin
@@ -29,6 +29,7 @@ COPY src/ ./src/
 COPY pyproject.toml README.md ./
 
 ENV PORT=8080 \
+    HOME=/home/appuser \
     PYTHONUNBUFFERED=1 \
     PYTHONPATH=/app/src
 
