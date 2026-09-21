@@ -12,7 +12,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 BASELINE = ROOT / "ci" / "mypy_baseline.json"
 ERROR_RE = re.compile(
-    r"^(?P<path>.+?):(?P<line>\d+): error: (?P<message>.+?)  \[(?P<code>[^\]]+)\]$"
+    r"^(?P<path>.+?):(?P<line>\d+): error: (?P<message>.*?)  \[(?P<code>[A-Za-z0-9_-]+)\]$"
 )
 
 
