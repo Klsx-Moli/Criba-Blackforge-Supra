@@ -92,7 +92,7 @@ def _observe_trace_after_gate(
                 failures.append(f"observer_store:{type(exc).__name__}")
 
     return ObserverRun(
-        mode=mode,
+        mode=ObserverMode.STANDARD,
         trace_sha256=trace.payload_sha256,
         inserted_diagnostics=inserted,
         duplicate_diagnostics=duplicates,
