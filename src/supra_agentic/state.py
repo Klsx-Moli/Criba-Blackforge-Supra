@@ -236,13 +236,9 @@ class ProjectStateManager:
             p.final_output = final_output
             p.stage = TaskmasterStage.COMPLETED
             p.updated_at = time.time()
-            verification_status = (
-                str(p.verification.verdict) if p.verification else "NOT_EVALUATED"
-            )
+            verification_status = str(p.verification.verdict) if p.verification else "NOT_EVALUATED"
             latest_execution = (
-                p.restricted_execution_results[-1]
-                if p.restricted_execution_results
-                else None
+                p.restricted_execution_results[-1] if p.restricted_execution_results else None
             )
             execution_status = (
                 "BOUND_PASS"
