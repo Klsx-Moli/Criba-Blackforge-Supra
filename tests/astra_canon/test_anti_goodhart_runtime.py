@@ -14,10 +14,11 @@ from supra_agentic.anti_goodhart.gate import (
     GateEvidence,
     ObserverMode,
     StandardDisabledError,
+    gate_evidence_satisfies,
     scope_fingerprint,
     standard_allowed,
 )
-from supra_agentic.anti_goodhart.observer import observe_trace
+from supra_agentic.anti_goodhart.observer import _observe_trace_after_gate, observe_trace
 from supra_agentic.anti_goodhart.records import Diagnostic
 from supra_agentic.anti_goodhart.store import ObserverStore
 from supra_agentic.anti_goodhart.trace import (
@@ -162,9 +163,10 @@ def test_g1_projection_requires_stable_project_identity():
 
 def test_activation_rule_is_binary_scope_bound_and_defaults_disabled():
     scope = _scope()
-    assert standard_allowed(None, current_scope_fingerprint=scope) is False
-    assert standard_allowed(_full_gate(), current_scope_fingerprint=scope) is True
-    assert standard_allowed(_full_gate(), current_scope_fingerprint="changed") is False
+    assert gate_evidence_satisfies(None, current_scope_fingerprint=scope) is False
+    assert gate_evidence_satisfies(_full_gate(), current_scope_fingerprint=scope) is True
+    assert gate_evidence_satisfies(_full_gate(), current_scope_fingerprint="changed") is False
+    assert standard_allowed(_full_gate(), current_scope_fingerprint=scope) is False
 
     stale = GateEvidence(
         scope_fingerprint=scope,
@@ -176,7 +178,7 @@ def test_activation_rule_is_binary_scope_bound_and_defaults_disabled():
         sensitivity_controls_pass=True,
         deployment_scope_matches=True,
     )
-    assert standard_allowed(stale, current_scope_fingerprint=scope) is False
+    assert gate_evidence_satisfies(stale, current_scope_fingerprint=scope) is False
 
 
 def test_off_creates_no_observer_state(tmp_path: Path):
@@ -194,8 +196,6 @@ def test_standard_refuses_incomplete_gate(tmp_path: Path):
         observe_trace(
             trace,
             store=ObserverStore(tmp_path / "observer"),
-            mode=ObserverMode.STANDARD,
-            current_scope_fingerprint=_scope(),
         )
 
 
@@ -203,19 +203,13 @@ def test_duplicate_delivery_is_idempotent_and_trace_is_unchanged(tmp_path: Path)
     trace = seal_public_posture(_posture())
     before = trace.payload_json
     store = ObserverStore(tmp_path / "observer")
-    first = observe_trace(
+    first = _observe_trace_after_gate(
         trace,
         store=store,
-        mode=ObserverMode.STANDARD,
-        gate_evidence=_full_gate(),
-        current_scope_fingerprint=_scope(),
     )
-    second = observe_trace(
+    second = _observe_trace_after_gate(
         trace,
         store=store,
-        mode=ObserverMode.STANDARD,
-        gate_evidence=_full_gate(),
-        current_scope_fingerprint=_scope(),
     )
     assert first.inserted_diagnostics == 3
     assert second.inserted_diagnostics == 0
@@ -231,12 +225,9 @@ def test_detector_failure_is_confined_and_secret_message_not_persisted(tmp_path:
         raise RuntimeError("SENTINEL_SECRET_DO_NOT_PERSIST")
 
     store = ObserverStore(tmp_path / "observer")
-    result = observe_trace(
+    result = _observe_trace_after_gate(
         trace,
         store=store,
-        mode=ObserverMode.STANDARD,
-        gate_evidence=_full_gate(),
-        current_scope_fingerprint=_scope(),
         detectors=(DetectorSpec("broken", "1", broken),),
     )
     assert result.failures == ("broken:RuntimeError",)
@@ -265,12 +256,9 @@ def test_diagnostic_volume_changes_only_observer_domain(tmp_path: Path):
             for index in range(100)
         ]
 
-    result = observe_trace(
+    result = _observe_trace_after_gate(
         trace,
         store=ObserverStore(tmp_path / "observer"),
-        mode=ObserverMode.STANDARD,
-        gate_evidence=_full_gate(),
-        current_scope_fingerprint=_scope(),
         detectors=(DetectorSpec("volume", "1", many),),
     )
     assert result.inserted_diagnostics == 100
@@ -280,12 +268,9 @@ def test_diagnostic_volume_changes_only_observer_domain(tmp_path: Path):
 def test_observer_restart_restores_only_observer_records(tmp_path: Path):
     trace = seal_public_posture(_posture())
     root = tmp_path / "observer"
-    observe_trace(
+    _observe_trace_after_gate(
         trace,
         store=ObserverStore(root),
-        mode=ObserverMode.STANDARD,
-        gate_evidence=_full_gate(),
-        current_scope_fingerprint=_scope(),
     )
     restarted = ObserverStore(root)
     assert len(restarted.read_diagnostics()) == 3
