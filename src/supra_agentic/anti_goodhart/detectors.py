@@ -26,15 +26,11 @@ def _executions(trace: SealedTrace) -> list[dict[str, Any]]:
 def traceability_integrity(trace: SealedTrace) -> list[Diagnostic]:
     payload = trace.payload()
     selected = payload.get("selected_candidate")
-    selected_id = (
-        str(selected.get("candidate_id") or "") if isinstance(selected, dict) else ""
-    )
+    selected_id = str(selected.get("candidate_id") or "") if isinstance(selected, dict) else ""
     executions = _executions(trace)
     execution_ids = [str(item.get("execution_id") or "") for item in executions]
     duplicate_execution_ids = sorted(
-        item
-        for item, count in Counter(execution_ids).items()
-        if item and count > 1
+        item for item, count in Counter(execution_ids).items() if item and count > 1
     )
     missing_identity = [
         index
@@ -80,7 +76,9 @@ def traceability_integrity(trace: SealedTrace) -> list[Diagnostic]:
 def descriptive_distributions(trace: SealedTrace) -> list[Diagnostic]:
     executions = _executions(trace)
     pass_counts = Counter(
-        "PASS" if item.get("passed") is True else "FAIL"
+        "PASS"
+        if item.get("passed") is True
+        else "FAIL"
         if item.get("passed") is False
         else "UNKNOWN"
         for item in executions
