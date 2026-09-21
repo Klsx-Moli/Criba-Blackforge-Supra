@@ -52,6 +52,26 @@ def observe_trace(
             "STANDARD_DISABLED: G1-G4/deployment scope evidence is incomplete or stale"
         )
 
+    return _observe_trace_after_gate(
+        trace,
+        store=store,
+        detectors=detectors,
+    )
+
+
+def _observe_trace_after_gate(
+    trace: SealedTrace,
+    *,
+    store: ObserverStore,
+    detectors: Sequence[DetectorSpec] = DEFAULT_DETECTORS,
+) -> ObserverRun:
+    """Private verification core.
+
+    This function does not evaluate the product release latch and is deliberately
+    not exported. It exists so CI can exercise O-domain behavior while the
+    product STANDARD release remains hard-disabled.
+    """
+
     inserted = 0
     duplicates = 0
     failures: list[str] = []
