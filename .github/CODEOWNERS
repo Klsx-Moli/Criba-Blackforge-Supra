@@ -41,3 +41,5 @@ scripts/anti_goodhart_observer.py @klssxx
 governance/ANTI_GOODHART_STATUS.yaml @klssxx
 docs/ANTI_GOODHART_RUNTIME.md @klssxx
 tests/astra_canon/test_anti_goodhart_runtime.py @klssxx
+governance/ANTI_GOODHART_ACCEPTANCE_MATRIX.yaml @klssxx
+docs/ANTI_GOODHART_G3_PROTOCOL.md @klssxx
