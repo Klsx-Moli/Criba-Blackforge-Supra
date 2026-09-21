@@ -70,6 +70,7 @@ def standard_allowed(
         )
     )
 
+
 def scope_fingerprint(
     *,
     runtime_version: str,
