@@ -5,9 +5,8 @@ from __future__ import annotations
 import tempfile
 
 import pytest
-from pydantic import ValidationError
-
 import supra_agentic.runner as runner_module
+from pydantic import ValidationError
 from supra_agentic.models import ProjectPosture, TaskmasterStage, VerificationReport
 from supra_agentic.runner import TaskmasterRunner
 from supra_agentic.state import state_manager
