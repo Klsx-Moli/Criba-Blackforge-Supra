@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
+from collections.abc import Sequence
 from dataclasses import dataclass
 from enum import Enum
 
@@ -55,3 +58,22 @@ def standard_allowed(
     """Return the binary ASTRA activation decision for STANDARD."""
 
     return bool(evidence and evidence.allows(current_scope_fingerprint))
+
+
+def scope_fingerprint(
+    *,
+    runtime_version: str,
+    export_schema: str,
+    detector_versions: Sequence[str],
+    isolation_profile: str,
+) -> str:
+    """Fingerprint the exact activation scope whose G1-G4 evidence applies."""
+
+    payload = {
+        "runtime_version": runtime_version,
+        "export_schema": export_schema,
+        "detector_versions": list(detector_versions),
+        "isolation_profile": isolation_profile,
+    }
+    canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
