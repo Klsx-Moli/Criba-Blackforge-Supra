@@ -234,9 +234,7 @@ def test_detector_failure_is_confined_and_secret_message_not_persisted(tmp_path:
         detectors=(DetectorSpec("broken", "1", broken),),
     )
     assert result.failures == ("broken:RuntimeError",)
-    persisted = (tmp_path / "observer" / "observer_failures.jsonl").read_text(
-        encoding="utf-8"
-    )
+    persisted = (tmp_path / "observer" / "observer_failures.jsonl").read_text(encoding="utf-8")
     assert "RuntimeError" in persisted
     assert "SENTINEL_SECRET_DO_NOT_PERSIST" not in persisted
 
@@ -302,9 +300,9 @@ def test_product_runtime_has_no_observer_import_path():
         source = (ROOT / relative).read_text(encoding="utf-8")
         assert "anti_goodhart" not in source, f"observer entered decisional path: {relative}"
 
-    detector_source = (
-        ROOT / "src" / "supra_agentic" / "anti_goodhart" / "detectors.py"
-    ).read_text(encoding="utf-8")
+    detector_source = (ROOT / "src" / "supra_agentic" / "anti_goodhart" / "detectors.py").read_text(
+        encoding="utf-8"
+    )
     assert "import random" not in detector_source
     assert "from random" not in detector_source
 
