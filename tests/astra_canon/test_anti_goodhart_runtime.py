@@ -307,3 +307,31 @@ def test_g4_two_decisions_remain_identical_after_out_of_band_observation(
 
     assert _normalized_engine_packet(control) == _normalized_engine_packet(observed)
     assert _normalized_engine_packet(control) == _normalized_engine_packet(after)
+
+
+def test_sensitivity_control_detects_intentional_decisional_contamination() -> None:
+    baseline = engine.activate(QUERY)
+    contaminated = copy.deepcopy(baseline)
+    contaminated["decision"]["pipeline_action"] = "INTENTIONAL_CONTAMINATION"
+    assert _normalized_engine_packet(baseline) != _normalized_engine_packet(contaminated)
+
+
+def test_observer_storage_failure_is_confined_to_o_domain(tmp_path: Path) -> None:
+    trace = seal_public_packet(_packet())
+    before = trace.payload_json
+
+    class BrokenStore(ObserverStore):
+        def append_diagnostic(self, diagnostic):
+            raise OSError("SENTINEL_STORAGE_SECRET")
+
+    result = _observe_trace_after_gate(
+        trace,
+        store=BrokenStore(tmp_path / "observer"),
+    )
+    assert result.inserted_diagnostics == 0
+    assert result.failures == (
+        "observer_store:OSError",
+        "observer_store:OSError",
+        "observer_store:OSError",
+    )
+    assert trace.payload_json == before
