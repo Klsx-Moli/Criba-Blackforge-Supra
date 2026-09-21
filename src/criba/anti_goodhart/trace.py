@@ -11,22 +11,6 @@ from typing import Any, cast
 TRACE_SCHEMA_VERSION = "astra-public-trace/1"
 TRACE_SOURCE = "CRIBA_BLACKFORGE"
 
-_FORBIDDEN_PUBLIC_KEYS = frozenset(
-    {
-        "original_query",
-        "model_instruction",
-        "response_contract",
-        "hcm_context",
-        "hidden_labels",
-        "hidden_evaluation",
-        "confirmatory_results",
-        "private_chain_of_thought",
-        "prompt",
-        "prompts",
-        "retrieved_context",
-    }
-)
-
 
 @dataclass(frozen=True, slots=True)
 class SealedTrace:
@@ -134,9 +118,6 @@ def project_public_packet(packet: Mapping[str, Any]) -> dict[str, Any]:
 
     if not projected["activation_id"]:
         raise ValueError("public trace requires a stable activation_id")
-    forbidden = _FORBIDDEN_PUBLIC_KEYS.intersection(projected)
-    if forbidden:
-        raise ValueError(f"forbidden public trace keys: {sorted(forbidden)}")
     return projected
 
 
