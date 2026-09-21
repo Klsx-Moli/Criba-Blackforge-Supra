@@ -611,9 +611,7 @@ def record_checkpoint(
     )
 
     latest_execution = (
-        posture.restricted_execution_results[-1]
-        if posture.restricted_execution_results
-        else None
+        posture.restricted_execution_results[-1] if posture.restricted_execution_results else None
     )
     restricted_execution_status = (
         "BOUND_PASS"
@@ -624,9 +622,7 @@ def record_checkpoint(
         if latest_execution
         else "NOT_RUN"
     )
-    verification_verdict = (
-        posture.verification.verdict if posture.verification else "NOT_EVALUATED"
-    )
+    verification_verdict = posture.verification.verdict if posture.verification else "NOT_EVALUATED"
     opportunity_accounting = {
         "candidate_opportunities": len(posture.candidates),
         "selection_opportunities": len(posture.candidates),
@@ -681,9 +677,7 @@ def record_checkpoint(
             else "TEXTUAL_STRATEGY_COVERAGE"
         ),
         "verification_measurement_kind": (
-            posture.verification.measurement_kind
-            if posture.verification
-            else "HEURISTIC_COVERAGE"
+            posture.verification.measurement_kind if posture.verification else "HEURISTIC_COVERAGE"
         ),
         "restricted_execution_status": restricted_execution_status,
         "restricted_execution_identity_bound": bool(
