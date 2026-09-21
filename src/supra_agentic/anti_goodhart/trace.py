@@ -79,9 +79,7 @@ def project_public_posture(posture: Mapping[str, Any]) -> dict[str, Any]:
             "confidence_score": verification.get("confidence_score"),
             "confidence_semantics": verification.get("confidence_semantics"),
         },
-        "restricted_execution_results": [
-            _public_execution(item) for item in executions
-        ]
+        "restricted_execution_results": [_public_execution(item) for item in executions]
         if isinstance(executions, list)
         else [],
         "checkpoints": [
