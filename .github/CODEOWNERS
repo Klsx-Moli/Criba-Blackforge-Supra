@@ -23,3 +23,5 @@ governance/ANTI_GOODHART_STATUS.yaml @klssxx
 docs/ANTI_GOODHART_RUNTIME.md @klssxx
 governance/ANTI_GOODHART_ACCEPTANCE_MATRIX.yaml @klssxx
 docs/ANTI_GOODHART_G3_PROTOCOL.md @klssxx
+scripts/anti_goodhart_g3_worker.py @klssxx
+scripts/anti_goodhart_g3_probe.py @klssxx
