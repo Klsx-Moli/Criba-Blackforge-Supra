@@ -162,9 +162,7 @@ class RestrictedExecutionResult(BaseModel):
             )
         )
         self.identity_bound = bool(
-            complete
-            and self.execution_semantics_version
-            == RESTRICTED_EXECUTION_SEMANTICS_VERSION
+            complete and self.execution_semantics_version == RESTRICTED_EXECUTION_SEMANTICS_VERSION
         )
         return self
 
@@ -210,8 +208,7 @@ class ProjectPosture(BaseModel):
             if not isinstance(result, dict) or result.get("passed") is not True:
                 continue
             identity_complete = all(
-                isinstance(field_value := result.get(field), str)
-                and bool(field_value.strip())
+                isinstance(field_value := result.get(field), str) and bool(field_value.strip())
                 for field in (
                     "candidate_id",
                     "mechanism_version",
@@ -221,8 +218,7 @@ class ProjectPosture(BaseModel):
                 )
             )
             semantics_current = (
-                result.get("execution_semantics_version")
-                == RESTRICTED_EXECUTION_SEMANTICS_VERSION
+                result.get("execution_semantics_version") == RESTRICTED_EXECUTION_SEMANTICS_VERSION
             )
             if identity_complete and semantics_current:
                 has_bound_pass = True
@@ -273,14 +269,10 @@ class ProjectPosture(BaseModel):
             result.identity_bound = matches_selected_candidate
 
         latest_execution = (
-            self.restricted_execution_results[-1]
-            if self.restricted_execution_results
-            else None
+            self.restricted_execution_results[-1] if self.restricted_execution_results else None
         )
         latest_authoritative_bound_pass = bool(
-            latest_execution
-            and latest_execution.passed
-            and latest_execution.identity_bound
+            latest_execution and latest_execution.passed and latest_execution.identity_bound
         )
         if self.final_output is not None:
             output = dict(self.final_output)
