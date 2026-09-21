@@ -16,12 +16,14 @@ import time
 from typing import Any
 
 from .models import (
+    RESTRICTED_EXECUTION_SEMANTICS_VERSION,
     RestrictedExecutionResult,
     StrategyCandidate,
     StructuredDecomposition,
     Subtask,
     TaskmasterStage,
     VerificationReport,
+    candidate_execution_identity,
 )
 from .state import state_manager
 
@@ -221,14 +223,19 @@ def verify_solution(
     project_id: str,
     candidate_id: str | None = None,
 ) -> dict[str, Any]:
-    """Verify the selected candidate strategy against system invariants and safety policies.
+    """Evaluate textual strategy coverage against declared invariants.
+
+    PASS means the candidate text contains every supported coverage condition
+    checked by this deterministic heuristic. It does NOT certify a deployed
+    system, causal mechanism, safety property or scientific hypothesis.
 
     Args:
         project_id: The unique project identifier.
         candidate_id: Optional specific candidate to verify (defaults to currently selected candidate).
 
     Returns:
-        Verification report with confidence metrics and pass/fail verdict.
+        Scoped coverage report. confidence_score is a coverage fraction, not a
+        probability of real-world success.
     """
     posture = state_manager.get_project(project_id)
     if not posture:
@@ -344,6 +351,7 @@ def _run_invariant_evidence(
                     "status": "NOT_EVALUATED",
                     "test": "sin prueba ejecutable vinculada al candidato",
                     "counterexample": "",
+                    "evidence_type": "TEXTUAL_COVERAGE_HEURISTIC",
                 }
             )
             continue
@@ -355,6 +363,7 @@ def _run_invariant_evidence(
                 "status": "PASS" if covered else "FAIL",
                 "test": f"el plan/hipótesis del candidato cubre '{keyword}'",
                 "counterexample": "" if covered else counterexample,
+                "evidence_type": "TEXTUAL_COVERAGE_HEURISTIC",
             }
         )
     return evidence
@@ -402,9 +411,23 @@ def _invariant_check(invariant_casefold: str) -> tuple[str, str] | None:
 # ---------------------------------------------------------------------------
 # Tool 4: trusted restricted Python execution (NOT a security sandbox)
 # ---------------------------------------------------------------------------
+RESTRICTED_PROTOCOL_FAMILY = "supra-restricted-internal-v2"
 MAX_FUZZ_ITERATIONS = 100
 MAX_CODE_SIZE = 64 * 1024
 MAX_OUTPUT_SIZE = 64 * 1024
+
+
+def _selected_candidate_identity(project_id: str) -> dict[str, str] | None:
+    """Resolve execution identity from persisted SUPRA state, never caller claims."""
+    posture = state_manager.get_project(project_id)
+    if posture is None:
+        raise KeyError(f"Project '{project_id}' not found.")
+    candidate = posture.selected_candidate
+    return candidate_execution_identity(candidate) if candidate is not None else None
+
+def _protocol_version_for_code(code: str) -> str:
+    payload = f"{RESTRICTED_PROTOCOL_FAMILY}\n{code}"
+    return "sha256:" + hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 
 class _BoundedTextIO(io.StringIO):
@@ -445,14 +468,21 @@ def restricted_python_executor(
     fuzz_iterations: int = 5,
     *,
     trusted_internal: bool = False,
+    mechanism_version: str | None = None,
+    claim_id: str | None = None,
+    protocol_version: str | None = None,
 ) -> dict[str, Any]:
     """Run a bounded in-process check for trusted internal code only.
 
     This is not a security sandbox, has no OS/process isolation, and must not
     receive arbitrary remote or user-supplied Python. Any explicit source code
     requires the caller to opt into the trusted internal contract.
+
+    Execution identity is resolved from the persisted selected candidate. Caller
+    identity arguments are compatibility assertions only: when a selected
+    candidate exists they must match the resolved identity and can never create
+    accreditation by themselves.
     """
-    del candidate_id
     if not 1 <= fuzz_iterations <= MAX_FUZZ_ITERATIONS:
         raise ValueError(f"fuzz_iterations must satisfy 1 <= value <= {MAX_FUZZ_ITERATIONS}")
     if code_snippet is not None and not trusted_internal:
@@ -469,6 +499,29 @@ def restricted_python_executor(
     if len(code.encode("utf-8")) > MAX_CODE_SIZE:
         raise ValueError(f"Code exceeds MAX_CODE_SIZE ({MAX_CODE_SIZE} bytes)")
 
+    resolved_identity = _selected_candidate_identity(project_id)
+    resolved_protocol = _protocol_version_for_code(code)
+    if resolved_identity is not None:
+        assertions = {
+            "candidate_id": candidate_id,
+            "mechanism_version": mechanism_version,
+            "claim_id": claim_id,
+        }
+        for field, supplied in assertions.items():
+            if supplied is not None and supplied != resolved_identity[field]:
+                raise ValueError(f"{field} does not match persisted selected candidate")
+        if protocol_version is not None and protocol_version != resolved_protocol:
+            raise ValueError("protocol_version does not match executed restricted protocol")
+        bound_candidate_id = resolved_identity["candidate_id"]
+        bound_mechanism_version = resolved_identity["mechanism_version"]
+        bound_claim_id = resolved_identity["claim_id"]
+    else:
+        # A generic internal check may still run, but without a selected
+        # candidate it cannot advance an evidence-bearing execution stage.
+        bound_candidate_id = None
+        bound_mechanism_version = None
+        bound_claim_id = None
+
     start_time = time.monotonic()
     try:
         parsed = ast.parse(code)
@@ -480,6 +533,12 @@ def restricted_python_executor(
         duration_ms = (time.monotonic() - start_time) * 1000
         suffix = f" Captured {len(captured)} bytes." if captured else ""
         result = RestrictedExecutionResult(
+            candidate_id=bound_candidate_id,
+            mechanism_version=bound_mechanism_version,
+            claim_id=bound_claim_id,
+            protocol_version=resolved_protocol,
+            execution_semantics_version=RESTRICTED_EXECUTION_SEMANTICS_VERSION,
+            observed_result="PASS",
             action_type="TRUSTED_RESTRICTED_PYTHON",
             passed=True,
             output_log=(
@@ -490,10 +549,19 @@ def restricted_python_executor(
         )
     except Exception as exc:
         duration_ms = (time.monotonic() - start_time) * 1000
+        error_type = type(exc).__name__
+        logger.warning("Restricted internal execution rejected (%s)", error_type)
         result = RestrictedExecutionResult(
+            candidate_id=bound_candidate_id,
+            mechanism_version=bound_mechanism_version,
+            claim_id=bound_claim_id,
+            protocol_version=resolved_protocol,
+            execution_semantics_version=RESTRICTED_EXECUTION_SEMANTICS_VERSION,
+            observed_result="FAIL",
             action_type="TRUSTED_RESTRICTED_PYTHON",
             passed=False,
-            output_log=f"Restricted internal execution rejected: {exc}"[:MAX_OUTPUT_SIZE],
+            output_log=f"Restricted internal execution rejected ({error_type}).",
+            error_type=error_type,
             duration_ms=round(duration_ms, 2),
         )
 
@@ -517,7 +585,10 @@ def record_checkpoint(
     export_format: str = "json",
     provider_metadata: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """Finalize the project lifecycle, compile all stage telemetry, and issue a verifiable deliverable ledger.
+    """Finalize the workflow and issue an integrity-addressed deliverable ledger.
+
+    Completion, coverage verification, restricted execution and scientific
+    validation are separate statuses. SHA-256 protects payload integrity only.
 
     Args:
         project_id: The unique project identifier.
@@ -539,17 +610,103 @@ def record_checkpoint(
         f"fails to outperform standard baseline under stress or introduces uncontained side-effects."
     )
 
+    latest_execution = (
+        posture.restricted_execution_results[-1]
+        if posture.restricted_execution_results
+        else None
+    )
+    restricted_execution_status = (
+        "BOUND_PASS"
+        if latest_execution and latest_execution.passed and latest_execution.identity_bound
+        else "BOUND_FAIL"
+        if latest_execution and latest_execution.identity_bound
+        else "UNBOUND"
+        if latest_execution
+        else "NOT_RUN"
+    )
+    verification_verdict = (
+        posture.verification.verdict if posture.verification else "NOT_EVALUATED"
+    )
+    opportunity_accounting = {
+        "candidate_opportunities": len(posture.candidates),
+        "selection_opportunities": len(posture.candidates),
+        "selected_candidates": 1 if posture.selected_candidate else 0,
+        "verification_reports": 1 if posture.verification else 0,
+        "restricted_execution_attempts": len(posture.restricted_execution_results),
+        "provider_generation_calls": None,
+        "provider_generation_calls_authoritative": False,
+        "budget_complete": False,
+        "scope": "SUPRA_WORKFLOW_LOCAL_ACCOUNTING",
+    }
+    reproducibility_dependencies = {
+        "closure_complete": False,
+        "selected_candidate_id": (
+            posture.selected_candidate.candidate_id if posture.selected_candidate else None
+        ),
+        "restricted_protocol_version": (
+            latest_execution.protocol_version if latest_execution else None
+        ),
+        "provider_metadata_present": provider_metadata is not None,
+        "known_unclosed_dependencies": [
+            "code_version",
+            "python_runtime",
+            "provider_model_and_config_when_used",
+            "external_environment_state",
+        ],
+    }
+    evaluator_controls = {
+        "blinding": False,
+        "positive_controls": False,
+        "negative_controls": False,
+        "disagreement_analysis": False,
+        "strong_scientific_claims_supported": False,
+    }
+
     payload = {
         "title": deliverable_title,
         "project_id": project_id,
         "summary": summary,
         "null_hypothesis_h0": h0_statement,
+        "h0_evaluation_status": "NOT_EVALUATED",
         "objective": posture.objective,
         "domain": posture.decomposition.domain if posture.decomposition else "general",
         "selected_strategy": posture.selected_candidate.pathway_name
         if posture.selected_candidate
         else "Standard",
-        "verification_verdict": posture.verification.verdict if posture.verification else "PASS",
+        "workflow_status": "COMPLETED",
+        "verification_verdict": verification_verdict,
+        "verification_scope": (
+            posture.verification.verification_scope
+            if posture.verification
+            else "TEXTUAL_STRATEGY_COVERAGE"
+        ),
+        "verification_measurement_kind": (
+            posture.verification.measurement_kind
+            if posture.verification
+            else "HEURISTIC_COVERAGE"
+        ),
+        "restricted_execution_status": restricted_execution_status,
+        "restricted_execution_identity_bound": bool(
+            latest_execution and latest_execution.identity_bound
+        ),
+        "scientific_status": "NOT_VALIDATED",
+        "discriminant_protocol_status": "NOT_ESTABLISHED",
+        "independent_confirmation_status": "NOT_ESTABLISHED",
+        "learning_update_status": "NOT_APPLICABLE",
+        "evaluator_controls": evaluator_controls,
+        "opportunity_accounting": opportunity_accounting,
+        "reproducibility_dependencies": reproducibility_dependencies,
+        "evidence_provenance": {
+            "verification_report_id": (
+                posture.verification.report_id if posture.verification else None
+            ),
+            "restricted_execution_ids": [
+                item.execution_id for item in posture.restricted_execution_results
+            ],
+            "scope": "SUPRA_WORKFLOW_TELEMETRY",
+            "transformation": "record_checkpoint_payload_v2",
+        },
+        "integrity_semantics": "SHA256_OF_SERIALIZED_PAYLOAD_NOT_TRUTH",
         "checkpoints_count": len(posture.checkpoints) + 1,
         "timestamp": time.time(),
     }

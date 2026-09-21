@@ -25,6 +25,7 @@ from .models import (
     StructuredDecomposition,
     TaskmasterStage,
     VerificationReport,
+    candidate_execution_identity,
 )
 
 logger = logging.getLogger("supra_agentic.state")
@@ -94,7 +95,11 @@ class ProjectStateManager:
                     self._projects[project_id] = posture
                     return posture
                 except Exception as exc:
-                    logger.error(f"Failed to load project {project_id} from disk: {exc}")
+                    logger.error(
+                        "Failed to load project %s from disk (%s)",
+                        project_id,
+                        type(exc).__name__,
+                    )
             return None
 
     def update_decomposition(
@@ -154,8 +159,13 @@ class ProjectStateManager:
             p.checkpoints.append(
                 CheckpointRecord(
                     stage=p.stage,
-                    title="Verification Conducted",
-                    evidence_summary=f"Verdict: {report.verdict} (Confidence: {report.confidence_score:.2f}). Invariants Preserved: {report.invariants_preserved}.",
+                    title="Strategy Coverage Evaluated",
+                    evidence_summary=(
+                        f"Coverage verdict: {report.verdict}; "
+                        f"coverage fraction: {report.confidence_score:.2f}; "
+                        f"scope: {report.verification_scope}; "
+                        "not deployed-system or scientific validation."
+                    ),
                     actor="agent:supra:verifier",
                 )
             )
@@ -168,9 +178,41 @@ class ProjectStateManager:
         """Record trusted restricted execution without claiming process isolation."""
         with self._lock:
             p = self._get_required_project(project_id)
+            expected = (
+                candidate_execution_identity(p.selected_candidate)
+                if p.selected_candidate is not None
+                else None
+            )
+            identity_matches = bool(
+                result.identity_bound
+                and expected is not None
+                and result.candidate_id == expected["candidate_id"]
+                and result.mechanism_version == expected["mechanism_version"]
+                and result.claim_id == expected["claim_id"]
+                and isinstance(result.protocol_version, str)
+                and result.protocol_version.startswith("sha256:")
+            )
+            result.identity_bound = identity_matches
             p.restricted_execution_results.append(result)
-            if result.passed:
-                p.stage = TaskmasterStage.RESTRICTED_EXECUTION_VERIFIED
+            if p.stage not in {TaskmasterStage.COMPLETED, TaskmasterStage.FAILED}:
+                if result.passed and identity_matches:
+                    p.stage = TaskmasterStage.RESTRICTED_EXECUTION_VERIFIED
+                elif p.selected_candidate is not None:
+                    # The latest bound or unbound review replaces derived
+                    # execution state; a failed review cannot preserve PASS.
+                    p.stage = TaskmasterStage.STRATIFIED
+            if p.final_output is not None:
+                output = dict(p.final_output)
+                output["restricted_execution_identity_bound"] = result.identity_bound
+                output["restricted_execution_status"] = (
+                    "BOUND_PASS"
+                    if result.passed and result.identity_bound
+                    else "BOUND_FAIL"
+                    if result.identity_bound
+                    else "UNBOUND"
+                )
+                output["derived_execution_state_revalidated"] = True
+                p.final_output = output
             p.updated_at = time.time()
             p.checkpoints.append(
                 CheckpointRecord(
@@ -178,7 +220,8 @@ class ProjectStateManager:
                     title="Trusted Restricted Execution",
                     evidence_summary=(
                         f"Executed {result.action_type} in {result.duration_ms:.1f}ms. "
-                        f"Passed: {result.passed}. Process isolated: False."
+                        f"Passed: {result.passed}. Identity bound: {result.identity_bound}. "
+                        "Process isolated: False. Scientific validation: False."
                     ),
                     actor="agent:supra:restricted-executor",
                 )
@@ -187,17 +230,38 @@ class ProjectStateManager:
             return p
 
     def complete_project(self, project_id: str, final_output: dict[str, Any]) -> ProjectPosture:
-        """Mark project as COMPLETED with final verifiable deliverable."""
+        """Mark workflow completion without implying verification or scientific proof."""
         with self._lock:
             p = self._get_required_project(project_id)
             p.final_output = final_output
             p.stage = TaskmasterStage.COMPLETED
             p.updated_at = time.time()
+            verification_status = (
+                str(p.verification.verdict) if p.verification else "NOT_EVALUATED"
+            )
+            latest_execution = (
+                p.restricted_execution_results[-1]
+                if p.restricted_execution_results
+                else None
+            )
+            execution_status = (
+                "BOUND_PASS"
+                if latest_execution and latest_execution.passed and latest_execution.identity_bound
+                else "BOUND_FAIL"
+                if latest_execution and latest_execution.identity_bound
+                else "UNBOUND"
+                if latest_execution
+                else "NOT_RUN"
+            )
             p.checkpoints.append(
                 CheckpointRecord(
                     stage=TaskmasterStage.COMPLETED,
-                    title="Taskmaster Mission Complete",
-                    evidence_summary="All 5 stages completed autonomously with verifiable proof and telemetry.",
+                    title="Taskmaster Workflow Complete",
+                    evidence_summary=(
+                        f"Workflow completed. Verification status: {verification_status}. "
+                        f"Restricted execution status: {execution_status}. "
+                        "Scientific validation: NOT_CLAIMED."
+                    ),
                     actor="agent:supra:coordinator",
                 )
             )
@@ -255,9 +319,15 @@ class ProjectStateManager:
                 tmp_path = Path(tmp.name)
             tmp_path.replace(p_file)
         except Exception as exc:
-            # B-6 fix: Don't silently fail - log with full traceback and re-raise
-            logger.exception(f"CRITICAL: Failed to persist project {project_id} - data loss risk!")
-            raise RuntimeError(f"Persistence failed for project {project_id}: {exc}") from exc
+            error_type = type(exc).__name__
+            logger.error(
+                "Project persistence failed (%s); data-loss risk for project %s",
+                error_type,
+                project_id,
+            )
+            raise RuntimeError(
+                f"Persistence failed for project {project_id} ({error_type})"
+            ) from exc
 
 
 # Global Singleton Instance
