@@ -16,9 +16,9 @@ Current enforcement vocabulary:
 
 ## Execution evidence
 
-The historical `6 passed` result belongs to the earlier ASTRA snapshot. New
-behavioral sentinels and runtime repairs were added afterwards. The current branch
-therefore remains **REMOTE CI NOT_RUN** until GitHub Actions executes this HEAD.
+The frozen ASTRA base passed remote CI before this feature branch. Anti-Goodhart
+adds separate G1/G2/G4 code-boundary sentinels; this branch must pass CI again
+before those checks are considered executed for this HEAD.
 
 | ID | Current enforcement | Evidence / remaining limitation |
 |---|---|---|
@@ -52,7 +52,9 @@ All 14 are present in the SUPRA manifest. The previous omissions of
 - `D4_FUNCTIONAL_DIVERSITY = UNRESOLVED`
 - `D6_ADAPTIVE_BENEFIT = STILL_UNRESOLVED`
 - `SCIENTIFIC_ADVANTAGE_OF_CRIBA = NOT_ESTABLISHED`
-- Anti-Goodhart runtime is not implemented by this branch.
+- Anti-Goodhart runtime boundary is partially implemented out-of-band.
+- `governance/ANTI_GOODHART_STATUS.yaml` keeps STANDARD **DISABLED** because G3 deployment-resource isolation is NOT_VERIFIED.
+- The 14 SUPRA canon contracts remain unchanged; the observer does not promote D3/D4/D6 or scientific advantage.
 
 A green CI run is evidence for the checks that actually executed. It is not a
 blanket scientific validation of SUPRA or CRIBA.
