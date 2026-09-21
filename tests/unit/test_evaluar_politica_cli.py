@@ -46,7 +46,8 @@ class TestEvaluarPoliticaCli:
         store = TechniqueOutcomeStore()
         for _ in range(10):
             store.record(profile="CRIBA", family="f", technique_id="good",
-                         channel=CHANNEL_OBSERVED, outcome="positivo", canon_version="")
+                         channel=CHANNEL_OBSERVED, outcome="positivo", canon_version="",
+                         run_id=f"run-good-{_}")
         _seed_log()
         assert main(["evaluar-politica", "--boost", "100"]) == 0
         out = json.loads(capsys.readouterr().out)
@@ -60,8 +61,9 @@ class TestRehydrate:
         store = TechniqueOutcomeStore(tmp_path / "o.jsonl")
         for _ in range(5):
             store.record(profile="CRIBA", family="f", technique_id="T059",
-                         channel=CHANNEL_OBSERVED, outcome="positivo", canon_version="")
-        dec = [LoggedDecision("T059", "f", 0.5, 0.0)]  # reward pendiente
+                         channel=CHANNEL_OBSERVED, outcome="positivo", canon_version="",
+                         run_id="run-rehydrate")
+        dec = [LoggedDecision("T059", "f", 0.5, None, run_id="run-rehydrate")]
         out = rehydrate_rewards(dec, store)
         assert out[0].reward > 0.0  # unida al outcome real
 

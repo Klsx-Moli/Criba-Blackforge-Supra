@@ -1,4 +1,5 @@
 """Regresiones de atribución: datos sintéticos, sin validar ideas reales."""
+import hashlib
 import json
 from copy import deepcopy
 
@@ -10,8 +11,21 @@ from criba.supra_dossier import (
 
 
 def dossier(mechanism="MECANISMO_ANTERIOR"):
-    return preparar_dossier({"candidate_id": "candidate-repetido", "run_id": "r1",
-                            "mecanismo": mechanism}, "reducir cola de atencion")
+    return preparar_dossier(
+        {
+            "candidate_id": "candidate-repetido",
+            "run_id": "r1",
+            "hipotesis": "el mecanismo modifica la cola",
+            "mecanismo": mechanism,
+            "prueba_concreta": "aplicar el mecanismo y medir la cola",
+            "observable": "tiempo medio de cola",
+            "resultado_favorable_mecanismo": "la cola disminuye",
+            "resultado_favorable_alternativa": "la cola no disminuye",
+            "regla_decision": "positivo si la cola disminuye",
+        },
+        "reducir cola de atencion",
+        alternativa_explicativa="la cola cambia por demanda externa",
+    )
 
 
 def write_legacy(directory, records):
@@ -21,8 +35,36 @@ def write_legacy(directory, records):
 
 
 def observed(d):
-    return {"tipo": "resultado_observado", "dossier_id": d["dossier_id"],
-            "resultado": "positivo", "condiciones": "DATOS SINTETICOS"}
+    receipt = {
+        "candidate_id": d.get("candidate_id", ""),
+        "mechanism_version": d.get("mechanism_version", ""),
+        "claim_id": d.get("claim_id", ""),
+        "protocol_version": d.get("protocol_version", ""),
+        "execution_id": "exec-synthetic",
+        "observed_result": "positivo",
+        "result_scope": "EXPERIMENTAL_OBSERVATION",
+    }
+    observation_id = hashlib.sha256(
+        f"{d['dossier_id']}|exec-synthetic|{d.get('protocol_version', '')}".encode("utf-8")
+    ).hexdigest()
+    return {
+        "tipo": "resultado_observado",
+        "observation_id": observation_id,
+        "revision_index": 0,
+        "first_registered_at": "2026-01-01T00:00:00+00:00",
+        "registrado_at": "2026-01-01T00:00:00+00:00",
+        "dossier_id": d["dossier_id"],
+        **{k: receipt[k] for k in ("candidate_id", "mechanism_version", "claim_id", "protocol_version", "execution_id")},
+        "observed_result": "positivo",
+        "execution_receipt": receipt,
+        "receipt_authority": "EXECUTION_RESOLVER",
+        "result_semantics_version": 3,
+        "protocol_complete": True,
+        "learning_eligible": True,
+        "accreditation": "ACCREDITED_EXECUTION",
+        "resultado": "positivo",
+        "condiciones": "DATOS SINTETICOS",
+    }
 
 
 def test_each_preparation_has_own_identity():
@@ -35,7 +77,21 @@ def test_each_preparation_has_own_identity():
 def test_positive_does_not_migrate_to_new_mechanism(tmp_path):
     a, b = dossier(), dossier("MECANISMO_NUEVO")
     guardar_dossier(a, tmp_path)
-    registrar_resultado(a["dossier_id"], "positivo", directory=tmp_path)
+    receipt = {
+        "candidate_id": a["candidate_id"],
+        "mechanism_version": a["mechanism_version"],
+        "claim_id": a["claim_id"],
+        "protocol_version": a["protocol_version"],
+        "execution_id": "exec-a",
+        "observed_result": "positivo",
+        "result_scope": "EXPERIMENTAL_OBSERVATION",
+    }
+    registrar_resultado(
+        a["dossier_id"], "positivo", execution_id="exec-a",
+        protocol_version=a["protocol_version"], execution_receipt=receipt,
+        execution_resolver=lambda execution_id: receipt if execution_id == "exec-a" else None,
+        directory=tmp_path,
+    )
     guardar_dossier(b, tmp_path)
     lessons = " ".join(lecciones_previas("atencion", tmp_path))
     assert "MECANISMO_ANTERIOR" in lessons

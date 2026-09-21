@@ -37,15 +37,16 @@ def test_empty_vs_complete_low_similarity():
 
 def test_single_known_equal_field_low_coverage():
     r = genome_distance(G(mechanism=["verification"]), G(mechanism=["verification"]))
-    # only mechanism known (normalized weight 0.30/0.85 ~ 0.353) -> low coverage
+    # only mechanism known -> low coverage, but the known comparison itself
+    # is an exact match. Unknown dimensions cannot manufacture dissimilarity.
     assert r["coverage"] < MIN_DUPLICATE_COVERAGE
-    assert r["similarity"] == pytest.approx(0.3529, abs=0.001)
+    assert r["similarity"] == 1.0
 
 
-def test_nearly_empty_never_probable_duplicate():
+def test_nearly_empty_is_insufficient_evidence_not_distinct():
     r = classify(G(), G())
     assert r["verdict"] != "probable_duplicate"
-    assert r["verdict"] == "structurally_distinct"
+    assert r["verdict"] == "insufficient_evidence"
 
 
 def test_unknown_sets_no_jaccard_one():
@@ -58,8 +59,9 @@ def test_unknown_ignored_in_jaccard():
     a = G(mechanism=["verification", "unknown"])
     b = G(mechanism=["verification"])
     r = genome_distance(a, b)
-    # unknown stripped; only mechanism compared (normalized weight ~0.353)
-    assert r["similarity"] == pytest.approx(0.3529, abs=0.001)
+    # unknown stripped; the only comparable field is an exact match.
+    assert r["similarity"] == 1.0
+    assert r["coverage"] < MIN_DUPLICATE_COVERAGE
 
 
 def test_low_coverage_blocks_duplicate_even_if_partial_high():

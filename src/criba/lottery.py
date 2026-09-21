@@ -5,6 +5,7 @@ import hashlib
 import json
 import os
 import random
+import uuid
 import re
 import sys
 from collections import Counter
@@ -57,6 +58,7 @@ class LotteryEngine:
     prior UCB de cada método (memoria técnica→outcome). Sin store (default) el
     comportamiento es byte-idéntico al congelado: mismo seed = mismo output.
     El prior nunca excluye un método: pondera el sorteo, no filtra el catálogo.
+    El logging off-policy es research-only y está desactivado por defecto.
     """
 
     def __init__(
@@ -67,6 +69,7 @@ class LotteryEngine:
         outcome_store: Any | None = None,
         outcome_profile: str = "CRIBA",
         outcome_canon_version: str | None = None,
+        off_policy_logging: bool = False,
     ):
         self.methods = self._load_methods(methods_file)
         self.used_combos: set[tuple[str, str]] = set()
@@ -80,6 +83,9 @@ class LotteryEngine:
         self.outcome_store = outcome_store
         self.outcome_profile = outcome_profile
         self.outcome_canon_version = outcome_canon_version
+        self.off_policy_logging = bool(off_policy_logging)
+        self.decision_session_id = uuid.uuid4().hex if self.off_policy_logging else ""
+        self.last_memory_status = "memory:disabled" if outcome_store is None else "memory:not_queried"
         if self.storage is not None:
             self.sync_storage(self.storage)
 
@@ -163,6 +169,7 @@ class LotteryEngine:
         outcome_store: Any | None = None,
         outcome_profile: str = "CRIBA",
         outcome_canon_version: str | None = None,
+        off_policy_logging: bool = False,
     ) -> LotteryEngine:
         """Construye el motor desde una lista de métodos ya cargada en memoria.
 
@@ -183,6 +190,9 @@ class LotteryEngine:
         eng.outcome_store = outcome_store
         eng.outcome_profile = outcome_profile
         eng.outcome_canon_version = outcome_canon_version
+        eng.off_policy_logging = bool(off_policy_logging)
+        eng.decision_session_id = uuid.uuid4().hex if eng.off_policy_logging else ""
+        eng.last_memory_status = "memory:disabled" if outcome_store is None else "memory:not_queried"
         if eng.storage is not None:
             eng.sync_storage(eng.storage)
         return eng
@@ -195,8 +205,9 @@ class LotteryEngine:
         congelado: el llamador usa entonces ``rng.choice`` uniforme, byte-
         idéntico al comportamiento previo). El prior NUNCA excluye un método:
         peso mínimo 1.0 (uniforme) + prior UCB ≥ 0 escalado como bonus. Un
-        método sin outcomes queda exactamente como antes (exploración pura),
-        uno con SURVIVED acumulados sube — memoria compartida (§12.4).
+        método sin registros elegibles queda exactamente como antes (exploración
+        pura); registros elegibles pueden cambiar la preferencia operacional.
+        SURVIVED_SEARCH sigue siendo prior-art operativo, no prueba de innovación.
 
         Escalado: con catálogos grandes (miles de métodos por clase) un prior
         UCB ~1.4 es invisible frente a la masa uniforme. ``ADAPTIVE_BOOST``
@@ -204,14 +215,14 @@ class LotteryEngine:
         la exploración (todo método conserva peso ≥ 1.0 y sigue saliendo).
         """
         if self.outcome_store is None:
+            self.last_memory_status = "memory:disabled"
             return None
         try:
-            # El prior combina los canales de resultado: VERDICT (prior-art
-            # automático) y OBSERVED (dossier SUPRA / veredicto humano via
-            # `criba retro`). Ambos son evidencia de outcome real; JUDGE (score
-            # del crítico) queda fuera del sorteo para no confundir calidad de
-            # generación con resultado observado (§12.2.3). Se toma el máximo:
-            # la señal más fuerte disponible manda, sin doble conteo.
+            # El prior consulta dos canales separados: VERDICT (prior-art
+            # operativo) y OBSERVED (resultado acreditado/registrado). No son
+            # intercambiables ni adquieren significado científico por compartir
+            # escala. JUDGE queda fuera del sorteo. OBSERVED, cuando existe,
+            # tiene precedencia operacional; no se suman canales.
             from .intelligence.outcome_store import CHANNEL_OBSERVED, CHANNEL_VERDICT
 
             weights: list[float] = []
@@ -245,19 +256,24 @@ class LotteryEngine:
                 else:
                     best = 0.0
                 weights.append(1.0 + best * ADAPTIVE_BOOST)
+            self.last_memory_status = (
+                "memory:no_data"
+                if all(weight == 1.0 for weight in weights)
+                else "memory:weighted"
+            )
             return weights
-        except Exception:  # noqa: BLE001 — la memoria nunca rompe el sorteo
+        except Exception as exc:  # noqa: BLE001 — la memoria nunca rompe el sorteo
+            self.last_memory_status = f"memory:error:{type(exc).__name__}"
             return None
 
     def _log_decision(self, chosen: dict[str, Any], propensity: float) -> None:
-        """G3: registra la decisión del sorteo CON su propensión pi_b.
+        """Research-only decision logging with behavior propensity.
 
-        Append-only en el log estándar de off-policy; la recompensa queda 0.0
-        (pendiente) — se une por ``technique_id`` desde el outcome_store en la
-        evaluación, cuando el outcome ya existe. Nunca rompe el sorteo: cualquier
-        fallo de escritura se ignora (el log es aprendizaje, no requisito).
+        Disabled by default. Pending reward is None, never synthetic zero.
+        A reward may be attached later only by exact stable episode identity;
+        priors/UCB are not observed rewards.
         """
-        if propensity <= 0.0:
+        if propensity <= 0.0 or not self.off_policy_logging:
             return
         try:
             from .intelligence.off_policy import LoggedDecision, append_decision, _default_log_path
@@ -268,9 +284,9 @@ class LotteryEngine:
                     technique_id=str(chosen["id"]),
                     family=str(chosen.get("thinking_class") or chosen.get("family") or ""),
                     propensity=propensity,
-                    reward=0.0,  # pendiente: se une al outcome real en la evaluación
+                    reward=None,
                     profile=self.outcome_profile,
-                    run_id=f"round-{self.round_number}",
+                    run_id=f"{self.decision_session_id}:round-{self.round_number}",
                 ),
             )
         except Exception:  # noqa: BLE001 — el log nunca rompe el sorteo
@@ -638,6 +654,7 @@ class LotteryEngine:
         if len(self.get_available_methods()) < 2:
             raise ValueError("No quedan al menos dos métodos sin usar.")
         self.round_number += 1
+        self.last_memory_status = "memory:not_applicable"
 
         # Seleccionar lote según modo
         if mode == "optimized":
@@ -673,6 +690,7 @@ class LotteryEngine:
             'families': sorted({str(m['family']) for m in batch}),
             'classes': sorted({str(m.get('thinking_class') or '') for m in batch} - {''}),
             'method_ids': [str(m['id']) for m in batch],
+            'memory_status': self.last_memory_status,
         }
 
         self.round_history.append(stats)

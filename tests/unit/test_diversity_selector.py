@@ -184,4 +184,4 @@ def test_parafraasis_y_distinto_siguen_clasificando() -> None:
     assert compare_mechanisms(
         MEC, "restringir cada autorizacion a un unico uso por operacion") == "DUPLICATE"
     assert compare_mechanisms(
-        MEC, "auditar cada autorizacion otorgada por operadores externos semanalmente") == "DISTINCT"
+        MEC, "auditar cada autorizacion otorgada por operadores externos semanalmente") == "UNKNOWN"

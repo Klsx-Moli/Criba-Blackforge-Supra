@@ -157,6 +157,9 @@ class Intervention:
     family_id: str
     params: Mapping[str, Any] = field(default_factory=dict)
     strength: float = 1.0
+    preconditions: tuple[str, ...] = ()
+    unmet_preconditions: tuple[str, ...] = ()
+    precondition_status: str = "NOT_APPLICABLE"
     
     def axis_affected(self) -> set[Axis]:
         """Retorna el conjunto de ejes afectados (delta ≠ 0)."""
@@ -253,13 +256,23 @@ class CausalState:
         # 1. Instanciar la intervención
         intervention = instantiate(spec, self, target, context)
         
-        # 2. Acumular ejes (no destructivo)
+        # 2. Preconditions are never silently discarded. If the caller
+        # explicitly supplied a satisfied_preconditions set and it is
+        # incomplete, applying the intervention is invalid. Absence of such a
+        # set remains NOT_EVALUATED rather than being invented as satisfied.
+        if intervention.precondition_status == "UNSATISFIED":
+            raise ValueError(
+                "preconditions no satisfechas: "
+                + ", ".join(intervention.unmet_preconditions)
+            )
+
+        # 3. Acumular ejes (no destructivo)
         self.vector = accumulate_axes(self.vector, intervention.axis_delta)
         
-        # 3. Registrar intervención
+        # 4. Registrar intervención
         self.interventions.append(intervention)
         
-        # 4. Calcular interacciones con intervenciones previas
+        # 5. Calcular interacciones con intervenciones previas
         for i, prev in enumerate(self.interventions[:-1]):
             interaction = compose(prev, intervention)
             self.interactions.append((i, len(self.interventions) - 1, interaction))
@@ -342,6 +355,21 @@ def instantiate(
     for axis, weight in spec.secondary_axes.items():
         axis_delta[axis] = weight * strength * 0.5
     
+    preconditions = tuple(spec.preconditions)
+    if not preconditions:
+        precondition_status = "NOT_APPLICABLE"
+        unmet_preconditions: tuple[str, ...] = ()
+    elif "satisfied_preconditions" not in context:
+        precondition_status = "NOT_EVALUATED"
+        unmet_preconditions = preconditions
+    else:
+        provided = {
+            str(item)
+            for item in (context.get("satisfied_preconditions") or [])
+        }
+        unmet_preconditions = tuple(p for p in preconditions if p not in provided)
+        precondition_status = "UNSATISFIED" if unmet_preconditions else "SATISFIED"
+
     return Intervention(
         operator=spec.operator,
         target=target,
@@ -349,6 +377,9 @@ def instantiate(
         family_id=spec.family_id,
         params=context,
         strength=strength,
+        preconditions=preconditions,
+        unmet_preconditions=unmet_preconditions,
+        precondition_status=precondition_status,
     )
 
 
@@ -367,10 +398,11 @@ def accumulate_axes(
 
 
 def compose_interventions(state: CausalState) -> CausalState:
-    """Recompone el estado considerando interacciones.
-    
-    Si dos intervenciones se cancelan, el estado refleja la cancelación.
-    Si son sinérgicas, el efecto se amplifica.
+    """Recompose state for interaction types with an explicit effect rule.
+
+    CANCELLING and SYNERGISTIC have materialized vector semantics below.
+    Other interaction types remain explicitly recorded in state.interactions;
+    they are not silently invented into numerical effects.
     """
     # Ajustar por interacciones
     for i, j, interaction in state.interactions:

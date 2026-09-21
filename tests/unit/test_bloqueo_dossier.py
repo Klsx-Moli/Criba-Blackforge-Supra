@@ -102,8 +102,13 @@ def _methods_catalogo():
 def _entry_stub(mecanismo: str) -> dict:
     return {
         "candidate_id": "invent-1-abc-01", "run_id": "r1", "title": "t",
-        "hipotesis": "h", "mecanismo": mecanismo, "prueba_concreta":
-        "medir retornos frente a capacidad", "supuestos": ["s"],
+        "hipotesis": "h", "mecanismo": mecanismo,
+        "prueba_concreta": "medir retornos frente a capacidad",
+        "observable": "tasa de retornos",
+        "resultado_favorable_mecanismo": "baja la tasa de retornos",
+        "resultado_favorable_alternativa": "la tasa no baja",
+        "regla_decision": "positivo si baja la tasa de retornos",
+        "supuestos": ["s"],
         "evidencia_local_usada": [],
     }
 
@@ -121,11 +126,30 @@ def test_dossier_estado_pendiente_nunca_pass(tmp_path) -> None:
 def test_circuito_aprendizaje_resultado_vuelve_como_leccion(tmp_path) -> None:
     """La prueba más importante (astra!.txt §5): un resultado registrado
     modifica la exploración posterior pertinente con trazabilidad."""
-    d = preparar_dossier(_entry_stub("rotar turnos de atención"), "reducir la cola de atención")
+    d = preparar_dossier(
+        _entry_stub("rotar turnos de atención"),
+        "reducir la cola de atención",
+        alternativa_explicativa="el cambio se debe a variación de demanda",
+    )
     guardar_dossier(d, directory=tmp_path)
-    registrar_resultado(d["dossier_id"], "negativo",
-                        condiciones="retornos dominados por errores de formulario",
-                        directory=tmp_path)
+    receipt = {
+        "candidate_id": d["candidate_id"],
+        "mechanism_version": d["mechanism_version"],
+        "claim_id": d["claim_id"],
+        "protocol_version": d["protocol_version"],
+        "execution_id": "exec-test",
+        "observed_result": "negativo",
+        "result_scope": "EXPERIMENTAL_OBSERVATION",
+    }
+    registrar_resultado(
+        d["dossier_id"], "negativo",
+        condiciones="retornos dominados por errores de formulario",
+        execution_id="exec-test",
+        protocol_version=d["protocol_version"],
+        execution_receipt=receipt,
+        execution_resolver=lambda execution_id: receipt if execution_id == "exec-test" else None,
+        directory=tmp_path,
+    )
     lecciones = lecciones_previas("cola de atención", directory=tmp_path)
     assert lecciones and "negativo" in lecciones[0] and "rotar turnos" in lecciones[0]
     # la lección llega al siguiente invent() dentro del bloqueo

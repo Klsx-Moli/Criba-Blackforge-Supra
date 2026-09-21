@@ -1,0 +1,619 @@
+version: 1
+authority: ASTRA
+decision: PROTECT_CONTRACTS_NOT_ENTIRE_MODULES
+principle: implementation is replaceable; contract is protected
+scientific_state:
+  D3_NOVELTY: UNRESOLVED
+  D4_FUNCTIONAL_DIVERSITY: UNRESOLVED
+  D6_ADAPTIVE_BENEFIT: STILL_UNRESOLVED
+  ANTI_GOODHART_RUNTIME: APPROVE_WITH_CHANGES_NOT_IMPLEMENTED
+  RESEARCH_VAULT: APPROVE_WITH_CHANGES_PRESERVED
+  BLANKET_PROMOTION_OF_RESEARCH_BRANCHES: REJECT
+  SCIENTIFIC_ADVANTAGE_OF_CRIBA: NOT_ESTABLISHED
+contract_change:
+  required:
+  - versioned_decision
+  - evidence
+  - review
+  conflict_state: ASTRA_CONFLICT
+enforcement_evidence:
+  matrix: docs/ASTRA_COVERAGE_MATRIX.md
+  rule: normative_status_is_not_runtime_enforcement
+  current_branch_remote_ci: NOT_RUN
+anti_goodhart_entry_gate:
+  decision: ASTRA_BASE_READY_AFTER_LISTED_FIXES
+  activation_rule: STANDARD_MUST_REMAIN_DISABLED_UNTIL_G1_G4_VERIFIED
+  G1_BASE_COMMON:
+  - OFF and STANDARD preserve the same mandatory contracts
+  - OFF disables additional observation, not base guarantees
+  - corrected base is versioned and historical baseline remains preserved
+  G2_EFFECT_SEPARATION:
+  - STANDARD does not modify decision state, shared RNG, candidates, order, memory, priors, decision caches or retrievable corpus
+  - diagnostics never feed prompts or learning
+  G3_TEMPORAL_NONINTERFERENCE:
+  - observer cost, failures and persistence do not change retries, budgets, deadlines or fallback
+  - if isolation is not accredited, STANDARD stays disabled on that path
+  G4_TRAJECTORY_VERIFICATION:
+  - with equal controlled external inputs, OFF and STANDARD yield identical current and later decisions, including after restart
+  - observer failures, duplicate diagnostics and diagnostic volume do not change the trajectory
+  human_alert_rule:
+  - human-visible alerts may alter future external inputs and must be deferred or treated as an intervention in confirmatory trials
+contracts:
+- id: ASTRA-001
+  name: Separación de estados epistémicos
+  status: CANON
+  scopes:
+  - CRIBA
+  - BLACKFORGE
+  - SUPRA
+  contract:
+  - hecho, hipótesis, pendiente, observación, evidencia y decisión permanecen distintos
+  - una estructura completa no eleva certeza
+  implementation:
+  - src/criba/intelligence/contracts.py
+  - src/criba/intelligence/provenance.py
+  tests:
+  - tests/astra_canon/test_astra_epistemic.py
+  limitations:
+  - Los vocabularios legacy no están unificados; se protege la separación, no una enum única.
+- id: ASTRA-002
+  name: UNKNOWN conserva ausencia de conocimiento
+  status: CANON
+  scopes:
+  - CRIBA
+  - BLACKFORGE
+  contract:
+  - UNKNOWN no es ZERO, FAILURE, PARTIAL_SUCCESS ni DEMONSTRATED_DIVERSITY
+  - missing, None, unknown, observed zero y known no-change no se colapsan
+  implementation:
+  - src/criba/similarity.py
+  - src/criba/diversity_selector.py
+  - src/criba/intelligence/outcome_store.py
+  - src/criba/engine.py
+  tests:
+  - tests/astra_canon/test_astra_memory_and_ids.py
+  - tests/astra_canon/test_astra_engine_score_hardening.py
+  limitations:
+  - No exige una representación única de UNKNOWN.
+- id: ASTRA-003
+  name: Procedencia verificable
+  status: CANON
+  scopes:
+  - CRIBA
+  - BLACKFORGE
+  - SUPRA
+  contract:
+  - las afirmaciones derivadas conservan source, transformation, version y scope cuando procede
+  - la extracción no se presenta como observación experimental
+  implementation:
+  - src/criba/intelligence/contracts.py
+  - src/criba/intelligence/provenance.py
+  tests:
+  - tests/astra_canon/test_astra_epistemic.py
+  limitations:
+  - La procedencia universal sigue limitada a componentes que ya emiten evidencia.
+- id: ASTRA-004
+  name: Frontera public/hidden evaluation
+  status: CANON
+  scopes:
+  - CRIBA
+  - BLACKFORGE
+  contract:
+  - hidden labels, future outcomes y evaluación confirmatoria no entran en generación, ranking, selección o learning
+    cuando el protocolo lo prohíbe
+  implementation:
+  - governance/ASTRA_CANON.yaml
+  tests:
+  - tests/astra_canon/test_astra_scope_guards.py
+  limitations:
+  - Guard de flujo y repositorio; no ejecuta hidden evaluation.
+- id: ASTRA-005
+  name: Uso de evidencia con alcance
+  status: CANON
+  scopes:
+  - CRIBA
+  - BLACKFORGE
+  contract:
+  - RETRIEVED, DELIVERED, DOCUMENTED_AS_USED y CAUSAL_INFLUENCE_DEMONSTRATED no se colapsan
+  implementation:
+  - src/criba/inventar.py
+  - src/criba/supra_dossier.py
+  tests:
+  - tests/astra_canon/test_astra_evidence_and_ledger.py
+  limitations:
+  - No se intenta demostrar influencia causal del contexto recuperado.
+- id: ASTRA-006
+  name: Score con significado delimitado
+  status: CANON
+  scopes:
+  - CRIBA
+  - BLACKFORGE
+  - SUPRA
+  contract:
+  - todo score declara objetivo, escala, cobertura y heurística vs medición cuando aplica
+  - un score interno no se presenta como probabilidad real de éxito sin soporte
+  implementation:
+  - src/criba/engine.py
+  - src/criba/inventar.py
+  - src/criba/interprete/adaptador.py
+  tests:
+  - tests/astra_canon/test_astra_engine_score_hardening.py
+  - tests/astra_canon/test_astra_adversarial_repairs.py
+  limitations:
+  - Algunos scores legacy requieren migración futura; esta misión añade guards, no un nuevo MCDA.
+- id: ASTRA-007
+  name: Resistencia a cambios superficiales
+  status: CANON
+  scopes:
+  - CRIBA
+  - BLACKFORGE
+  contract:
+  - renombrar, alargar texto o añadir verborrea no fabrica mérito científico
+  implementation:
+  - src/criba/engine.py
+  - src/criba/diversity_selector.py
+  tests:
+  - tests/astra_canon/test_astra_engine_score_hardening.py
+  limitations:
+  - El comparador mínimo se abstiene; no es un sistema NLP completo.
+- id: ASTRA-008
+  name: Novedad externa acotada
+  status: CANON_WITH_LIMITATIONS
+  scopes:
+  - CRIBA
+  - BLACKFORGE
+  contract:
+  - no prior-art encontrado no equivale a científicamente novedoso
+  - la novedad externa conserva reference, corpus, queries, date, scope y uncertainty cuando se afirma
+  implementation:
+  - src/criba/inventar.py
+  - src/criba/intelligence/prior_art/verdict.py
+  tests:
+  - tests/astra_canon/test_astra_epistemic.py
+  limitations:
+  - D3_NOVELTY permanece UNRESOLVED; cobertura de corpus no universal.
+- id: ASTRA-009
+  name: Diversidad conocida vs incertidumbre
+  status: CANON
+  scopes:
+  - CRIBA
+  - BLACKFORGE
+  contract:
+  - UNKNOWN no aporta diversidad demostrada
+  - explorar incertidumbre se etiqueta uncertainty exploration, no known diversity
+  implementation:
+  - src/criba/diversity_selector.py
+  - src/criba/similarity.py
+  tests:
+  - tests/astra_canon/test_astra_unknown_diversity.py
+  - tests/astra_canon/test_astra_engine_score_hardening.py
+  limitations:
+  - No añade ahora un bonus de exploración por incertidumbre.
+- id: ASTRA-010
+  name: Equivalencia de mecanismos contextual
+  status: CANON
+  scopes:
+  - CRIBA
+  - BLACKFORGE
+  contract:
+  - roles, quantities, direction, conditions y scope se conservan cuando importan
+  - información insuficiente produce UNKNOWN y no DISTINCT por defecto
+  implementation:
+  - src/criba/diversity_selector.py
+  tests:
+  - tests/astra_canon/test_astra_learning.py
+  limitations:
+  - Comparador lexical conservador, no comprensión semántica general.
+- id: ASTRA-011
+  name: Eligibility != preference
+  status: CANON
+  scopes:
+  - CRIBA
+  - BLACKFORGE
+  contract:
+  - bonus, prior o diversidad no convierte NOT_ELIGIBLE en ELIGIBLE
+  implementation:
+  - src/criba/blackforge_selector.py
+  - src/criba/intelligence/router.py
+  - src/criba/diversity_selector.py
+  tests:
+  - tests/astra_canon/test_astra_learning.py
+  limitations:
+  - Protege el orden gate-antes-de-ranking.
+- id: ASTRA-012
+  name: Desempate sin mérito inventado
+  status: CANON
+  scopes:
+  - CRIBA
+  - BLACKFORGE
+  contract:
+  - se registra el tie set y la regla operativa de desempate
+  - un ganador arbitrario no se presenta como científicamente superior
+  implementation:
+  - src/criba/blackforge_selector.py
+  - src/criba/diversity_selector.py
+  tests:
+  - tests/astra_canon/test_astra_blackforge.py
+  - tests/astra_canon/test_astra_engine_score_hardening.py
+  limitations:
+  - La regla determinista no prueba superioridad.
+- id: ASTRA-013
+  name: Probabilidad de acción efectiva
+  status: CANON
+  scopes:
+  - CRIBA
+  - BLACKFORGE
+  contract:
+  - una propensión registrada corresponde a la acción real tras filters, retries, selection procedure y fallbacks
+  implementation:
+  - governance/ASTRA_CANON.yaml
+  tests:
+  - tests/astra_canon/test_astra_manifest.py
+  limitations:
+  - Actualmente no se emite una propensión autoritativa; el guard impide fingirla.
+- id: ASTRA-014
+  name: Bloqueo como afirmación contrastable
+  status: CANON
+  scopes:
+  - CRIBA
+  contract:
+  - FichaBloqueo conserva condition, available evidence, proposed change, failure condition y epistemic origin
+  - completar la ficha no valida el bloqueo
+  implementation:
+  - src/criba/rescate.py
+  - src/criba/supra_dossier.py
+  tests:
+  - tests/astra_canon/test_astra_epistemic.py
+  limitations:
+  - Los registros legacy pueden carecer de campos nuevos; se leen sin elevar certeza.
+- id: ASTRA-015
+  name: Comparación de rescate válida
+  status: CANON
+  scopes:
+  - CRIBA
+  contract:
+  - sin evaluador, excepción o medición inválida produce UNRESOLVED
+  - las evaluaciones comparadas usan el mismo evaluador y protocolo
+  implementation:
+  - src/criba/rescate.py
+  tests:
+  - tests/astra_canon/test_astra_rescue.py
+  limitations:
+  - No valida externamente al evaluador.
+- id: ASTRA-016
+  name: Alcance de RESCUED
+  status: CANON_WITH_LIMITATIONS
+  scopes:
+  - CRIBA
+  contract:
+  - A+B superior a A y B solo demuestra superioridad bajo evaluator E, protocol P y conditions C
+  - no implica automáticamente nueva capacidad funcional
+  implementation:
+  - src/criba/rescate.py
+  tests:
+  - tests/astra_canon/test_astra_rescue.py
+  limitations:
+  - El resultado sigue dependiendo del evaluador inyectado.
+- id: ASTRA-017
+  name: Planificación != ejecución
+  status: CANON
+  scopes:
+  - CRIBA
+  - SUPRA
+  contract:
+  - planned test no equivale a executed test
+  - generic restricted execution success no equivale a scientific validation
+  implementation:
+  - src/criba/supra_dossier.py
+  tests:
+  - tests/astra_canon/test_astra_execution_accreditation.py
+  - tests/astra_canon/test_astra_adversarial_repairs.py
+  limitations:
+  - La ejecución restringida acredita solo su propio protocolo.
+- id: ASTRA-018
+  name: Pertinencia discriminante
+  status: CANON
+  scopes:
+  - CRIBA
+  - SUPRA
+  contract:
+  - una prueba relaciona claim, rival explanation, intervention/test, observable, predictions y decision rule
+  - una observación no discriminante es INCONCLUSIVE
+  implementation:
+  - src/criba/supra_dossier.py
+  tests:
+  - tests/astra_canon/test_astra_adversarial_repairs.py
+  limitations:
+  - No construye nueva infraestructura experimental.
+- id: ASTRA-019
+  name: Canales epistémicos separados
+  status: CANON
+  scopes:
+  - CRIBA
+  - BLACKFORGE
+  - SUPRA
+  contract:
+  - prior-art, judge y observed result permanecen separados hasta consumidor
+  - combinar canales requiere semántica explícita
+  implementation:
+  - src/criba/intelligence/outcome_store.py
+  - src/criba/supra_dossier.py
+  tests:
+  - tests/astra_canon/test_astra_adversarial_repairs.py
+  limitations:
+  - No define un agregador científico nuevo.
+- id: ASTRA-020
+  name: Resultado elegible para learning
+  status: CANON
+  scopes:
+  - CRIBA
+  - SUPRA
+  contract:
+  - INDETERMINATE, INVALID y NOT_EVALUATED no generan reward observado
+  - una semántica histórica invalidada no recupera learning al reiniciar, migrar o recargar estado derivado
+  implementation:
+  - src/criba/intelligence/outcome_store.py
+  - src/criba/supra_dossier.py
+  tests:
+  - tests/astra_canon/test_astra_adversarial_repairs.py
+  - tests/astra_canon/test_astra_engine_score_hardening.py
+  - tests/astra_canon/test_astra_outcome_identity.py
+  limitations:
+  - Los veredictos teóricos se conservan como canal separado y no son outcome observado.
+- id: ASTRA-021
+  name: Idempotencia de observaciones
+  status: CANON
+  scopes:
+  - CRIBA
+  contract:
+  - repetir o reexportar la misma observación no aumenta n, confidence, recency ni bonus
+  - corregir un registro sustituye la interpretación vigente conservando historial; no crea un nuevo experimento ni rejuvenece la observación
+  - la identidad y corrección sobreviven reinicio/replay
+  implementation:
+  - src/criba/intelligence/outcome_store.py
+  tests:
+  - tests/astra_canon/test_astra_outcome_identity.py
+  - tests/astra_canon/test_astra_engine_score_hardening.py
+  limitations:
+  - La identidad requiere run_id estable.
+  - Filas legacy sin identidad o sin versión semántica vigente se preservan pero no se reactivan como learning sin revalidación.
+- id: ASTRA-022
+  name: Agregación sin doble conteo
+  status: CANON
+  scopes:
+  - CRIBA
+  - BLACKFORGE
+  contract:
+  - un episodio compartido no se convierte en varios ensayos independientes
+  - duplicar IDs o representar un episodio como técnica y familia no crea ensayos adicionales
+  - el resultado pertenece a la intervención/composición efectivamente aplicada; mérito individual requiere atribución experimental explícita
+  implementation:
+  - src/criba/intelligence/outcome_store.py
+  - src/criba/inventar.py
+  tests:
+  - tests/astra_canon/test_astra_adversarial_repairs.py
+  - tests/astra_canon/test_astra_engine_score_hardening.py
+  limitations:
+  - Los registros legacy sin episode identity conservan su ambigüedad.
+- id: ASTRA-023
+  name: Adaptación explícita y reversible
+  status: CANON
+  scopes:
+  - CRIBA
+  contract:
+  - se declara adaptation enabled, policy, history y fallback
+  - desactivar adaptación conserva la política de referencia definida
+  - derived priors/caches incompatibles con la semántica vigente no se reactivan tras restart o migration
+  implementation:
+  - src/criba/inventar.py
+  - src/criba/intelligence/outcome_store.py
+  tests:
+  - tests/astra_canon/test_astra_memory_and_ids.py
+  - tests/astra_canon/test_astra_evidence_and_ledger.py
+  limitations:
+  - adaptive controla OutcomeStore; history_storage es una influencia separada y explícita.
+- id: ASTRA-024
+  name: Reproducibilidad por cierre de dependencias
+  status: CANON_WITH_LIMITATIONS
+  scopes:
+  - CRIBA
+  - BLACKFORGE
+  - SUPRA
+  contract:
+  - seed y store hash no prometen reproducibilidad global si influyen clock, policy version, corpus, config, provider,
+    ordering, code version o external state
+  - se registran las dependencias reales conocidas del componente
+  implementation:
+  - src/criba/intelligence/outcome_store.py
+  - src/criba/inventar.py
+  - docs/ASTRA_CANON.md
+  tests:
+  - tests/astra_canon/test_astra_evidence_and_ledger.py
+  limitations:
+  - No implementa un sistema universal de provenance.
+- id: ASTRA-025
+  name: Beneficio adaptativo pendiente
+  status: RESEARCH_ONLY
+  scopes:
+  - CRIBA
+  contract:
+  - no se afirma que OutcomeStore o UCB mejora decisiones futuras sin evaluación prospectiva adecuada
+  implementation:
+  - docs/ASTRA_CANON.md
+  - src/criba/intelligence/off_policy.py
+  - src/criba/lottery.py
+  tests:
+  - tests/astra_canon/test_astra_manifest.py
+  - tests/intelligence/test_off_policy.py
+  - tests/unit/test_lottery_adaptive.py
+  limitations:
+  - D6_ADAPTIVE_BENEFIT permanece UNRESOLVED.
+  - OPE no alimenta selección ni learning productivo; su logging es opt-in research-only.
+  - reward pendiente es null/None y nunca se sustituye por prior/UCB; solo un OBSERVED exacto por episodio puede rellenarlo.
+- id: ASTRA-026
+  name: Oportunidades equivalentes
+  status: CANON
+  scopes:
+  - CRIBA
+  - BLACKFORGE
+  - SUPRA
+  contract:
+  - comparaciones contabilizan generation calls, retries, candidate opportunities, selection opportunities, evaluation
+    calls y budget
+  implementation:
+  - src/criba/inventar.py
+  - src/criba/blackforge_selector.py
+  tests:
+  - tests/astra_canon/test_astra_evidence_and_ledger.py
+  - tests/astra_canon/test_astra_blackforge.py
+  limitations:
+  - La instrumentación es mínima y no pretende telemetría universal.
+- id: ASTRA-027
+  name: Confirmación independiente
+  status: CANON
+  scopes:
+  - CRIBA
+  - BLACKFORGE
+  - SUPRA
+  contract:
+  - datos usados para desarrollo no vuelven a considerarse confirmatorios independientes
+  implementation:
+  - governance/ASTRA_CANON.yaml
+  - docs/ASTRA_CANON.md
+  tests:
+  - tests/astra_canon/test_astra_manifest.py
+  limitations:
+  - Guard documental y de frontera; no ejecuta campañas confirmatorias.
+- id: ASTRA-028
+  name: Evaluador sometido a control
+  status: CANON
+  scopes:
+  - CRIBA
+  - SUPRA
+  contract:
+  - para claims fuertes se documentan blinding, positive controls, negative controls, disagreement y limits cuando
+    aplican
+  implementation:
+  - docs/ASTRA_CANON.md
+  - governance/ASTRA_CANON.yaml
+  tests:
+  - tests/astra_canon/test_astra_manifest.py
+  limitations:
+  - Los evaluadores actuales no satisfacen por sí solos claims fuertes.
+- id: ASTRA-029
+  name: Proyección semántica sin pérdida encubierta
+  status: CANON
+  scopes:
+  - CRIBA
+  - BLACKFORGE
+  contract:
+  - solo EXACT puede presentarse como equivalente
+  - AMBIGUOUS no se convierte en EXACT para satisfacer un scorer
+  implementation:
+  - src/criba/diversity_selector.py
+  - src/criba/similarity.py
+  tests:
+  - tests/astra_canon/test_astra_mechanisms.py
+  limitations:
+  - No introduce un nuevo registro universal de proyecciones.
+- id: ASTRA-030
+  name: Composición sin pérdida silenciosa
+  status: CANON
+  scopes:
+  - CRIBA
+  - BLACKFORGE
+  contract:
+  - order, conflicts, preconditions y effects conservan semántica explícita
+  - no hay silent overwrite
+  implementation:
+  - src/criba/causal_v2.py
+  tests:
+  - tests/astra_canon/test_astra_causal_semantics.py
+  limitations:
+  - Se verifica el motor causal existente; no se expande BLACKFORGE.
+- id: ASTRA-031
+  name: Nombre algorítmico no acredita capacidad
+  status: CANON
+  scopes:
+  - CRIBA
+  - BLACKFORGE
+  - SUPRA
+  contract:
+  - nombres como Pareto, MAP-Elites, do-calculus o causal no acreditan implementación completa
+  - las capacidades se describen por contrato real
+  implementation:
+  - src/criba/blackforge_orthogonal/compositor.py
+  - docs/ASTRA_CANON.md
+  tests:
+  - tests/astra_canon/test_astra_algorithm_labels.py
+  limitations:
+  - Los modos simplificados quedan etiquetados como heurísticos.
+- id: ASTRA-032
+  name: Observación runtime sin intervención
+  status: CANON
+  scopes:
+  - CRIBA
+  - BLACKFORGE
+  contract:
+  - Anti-Goodhart STANDARD futuro no cambia scores, order, finalists, learning, shared RNG, decision caches, prompts, retrievable corpus ni future decisions
+  - observer cost, failure, persistence and diagnostics do not alter retries, budgets, deadlines or fallback
+  - OFF and STANDARD produce identical current and subsequent automated decisions under the same controlled external inputs, including after restart
+  - human-visible alerts are external interventions unless deferred
+  implementation:
+  - governance/ASTRA_CANON.yaml
+  tests:
+  - tests/astra_canon/test_astra_manifest.py
+  limitations:
+  - Solo registrado; Anti-Goodhart runtime no se implementa en esta misión.
+  - STANDARD debe permanecer deshabilitado hasta verificar G1-G4 del anti_goodhart_entry_gate.
+- id: ASTRA-033
+  name: Preservación de fallos
+  status: CANON
+  scopes:
+  - CRIBA
+  - BLACKFORGE
+  - SUPRA
+  contract:
+  - una reparación no borra negative evidence, historical failures ni original protocols
+  - invalidar semántica derivada conserva el registro fuente pero desactiva rewards, priors o estados incompatibles
+  - un hash acredita integridad relativa a una referencia, no verdad
+  implementation:
+  - src/criba/intelligence/outcome_store.py
+  - src/criba/supra_dossier.py
+  - docs/ASTRA_CANON.md
+  tests:
+  - tests/astra_canon/test_astra_manifest.py
+  - tests/astra_canon/test_astra_outcome_identity.py
+  limitations:
+  - Los artefactos históricos se preservan; no se reinterpretan.
+- id: ASTRA-034
+  name: Promoción explícita
+  status: CANON
+  scopes:
+  - CRIBA
+  - BLACKFORGE
+  - SUPRA
+  contract:
+  - cambiar un contrato requiere versioned decision, evidence y review
+  - cambiar implementación conservando contrato está permitido
+  implementation:
+  - governance/ASTRA_CANON.yaml
+  - docs/ASTRA_AGENT_POLICY.md
+  tests:
+  - tests/astra_canon/test_astra_manifest.py
+  limitations:
+  - CODEOWNERS solo informa hasta que un ruleset exija revisión.
+- id: ASTRA-035
+  name: Metaevolución con evidencia
+  status: RESEARCH_ONLY
+  scopes:
+  - CRIBA
+  - BLACKFORGE
+  contract:
+  - no se añaden automáticamente dimensiones u operadores para ajustar resultados retrospectivos
+  implementation:
+  - docs/ASTRA_CANON.md
+  tests:
+  - tests/astra_canon/test_astra_manifest.py
+  limitations:
+  - No se promueve metaevolución; D3, D4 y D6 permanecen abiertos.

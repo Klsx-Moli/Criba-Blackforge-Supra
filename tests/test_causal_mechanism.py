@@ -200,7 +200,9 @@ def test_causal_claim_and_differentiated_confidence():
     separates confidence-in-code from confidence-in-causal-root."""
     p = _packet()
     for idea in p["innovation"]["ideas"]:
-        assert idea.get("causal_claim") in ("MECHANISM_VERIFIED", "CORRELATION"), \
+        assert idea.get("causal_claim") in (
+            "MECHANISM_VERIFIED", "MECHANISM_PROPOSED_UNVALIDATED", "CORRELATION"
+        ), \
             f"idea {idea['id']} sin causal_claim explícito"
     m = p["metrics"]
     assert m["conf_code_executes"] == 1.0, "conf_code_executes debe ser verificable por lectura"

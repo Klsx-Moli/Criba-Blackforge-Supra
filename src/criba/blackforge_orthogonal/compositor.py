@@ -12,8 +12,8 @@ Modos:
     CROSS_DOMAIN       — Introduce metodologías alejadas
     EDGE_CASE          — Bordes extremos del espacio
     NOVELTY_SEARCH     — Maximiza diferencia estructural
-    PARETO_FRONTIER    — Optimiza múltiples criterios
-    MAP_ELITES         — Conserva mejor idea por región
+    PARETO_FRONTIER    — Heurística inspirada en Pareto; no calcula un frente Pareto real
+    MAP_ELITES         — Heurística de cobertura; no implementa MAP-Elites completo
     HYBRID             — Combina estrategias
 """
 from __future__ import annotations
@@ -253,15 +253,19 @@ class OrthogonalComposer:
         return self._max_distance(request)
 
     def _pareto_frontier(self, request: CompositionRequest) -> Composition:
-        """Optimiza para multiples criterios simultaneos (NOVELTY, UTILITY, FEASIBILITY)."""
-        # Implementacion simplificada: maximizar distancia + coverage
+        """Heuristic proxy inspired by Pareto exploration.
+
+        This implementation delegates to max-distance search and MUST NOT be
+        described as computing a true Pareto frontier.
+        """
         return self._max_distance(request)
 
     def _map_elites(self, request: CompositionRequest) -> Composition:
-        """Conserva la mejor idea EN CADA REGION del espacio."""
-        # Requiere coverage_map poblado; si no, fallback a least_visited
-        if not self.coverage_map:
-            return self._least_visited(request)
+        """Coverage heuristic inspired by MAP-Elites, not full MAP-Elites.
+
+        It currently delegates to least-visited exploration and does not
+        maintain an elite archive per behavioral cell.
+        """
         return self._least_visited(request)
 
     def _hybrid(self, request: CompositionRequest) -> Composition:

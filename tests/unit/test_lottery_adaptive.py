@@ -13,6 +13,7 @@ Contratos verificados:
 """
 from __future__ import annotations
 
+import json
 import pytest
 
 from criba.diversity_selector import _adaptive_bonus, select_finalists
@@ -43,10 +44,10 @@ def _catalog(n_per_class: int = 6) -> list[dict[str, object]]:
 def _seeded_store(tmp_path, method_id: str, thinking_class: str, n: int = 5,
                   profile: str = "CRIBA") -> TechniqueOutcomeStore:
     store = TechniqueOutcomeStore(tmp_path / "outcomes" / "t.jsonl")
-    for _ in range(n):
+    for i in range(n):
         store.record(profile=profile, family=thinking_class, technique_id=method_id,
                      channel=CHANNEL_VERDICT, outcome="SURVIVED_SEARCH",
-                     canon_version="c")
+                     canon_version="c", run_id=f"seed-{method_id}-{i}")
     return store
 
 
@@ -227,7 +228,7 @@ class TestAdaptiveBonus:
     def test_sin_store_bonus_cero(self, tmp_path) -> None:
         cand = {"method_ids": ["T059"], "classes": ["perspectiva"], "family": "f"}
         bonus, label = _adaptive_bonus(cand, None, "CRIBA", "c")
-        assert bonus == 0.0 and label == ""
+        assert bonus == 0.0 and label == "memory:disabled"
 
     def test_bonus_solo_con_outcomes(self, tmp_path) -> None:
         store = _seeded_store(tmp_path, "T059", "perspectiva", n=4)
@@ -252,7 +253,7 @@ class TestAdaptiveBonus:
 
         cand = {"method_ids": ["T059"], "classes": ["perspectiva"], "family": "f"}
         bonus, label = _adaptive_bonus(cand, BrokenStore(), "CRIBA", "c")
-        assert bonus == 0.0 and label == ""
+        assert bonus == 0.0 and label == "memory:error:RuntimeError"
 
 
 class TestAdaptiveSelector:
@@ -319,3 +320,50 @@ class TestAdaptiveSelector:
         )
         ids = [c["idea_id"] for c in finalists]
         assert "low" not in ids  # el suelo de calidad manda sobre la memoria
+
+
+def test_lottery_memory_failure_is_visible_but_nonfatal(tmp_path) -> None:
+    class BrokenStore:
+        def prior(self, **kw):  # noqa: ANN001
+            raise RuntimeError("SENTINEL_SECRET")
+
+    cat = _catalog()
+    engine = LotteryEngine.from_methods(cat, seed=7, outcome_store=BrokenStore())
+    batch = engine.select_stratified_batch(20)
+    assert len(batch) == 20
+    assert engine.last_memory_status == "memory:error:RuntimeError"
+
+
+def test_round_history_does_not_carry_previous_memory_status(tmp_path) -> None:
+    cat = _catalog()
+    store = _seeded_store(tmp_path, "perspectiva-00", "perspectiva", n=4)
+    engine = LotteryEngine.from_methods(cat, seed=7, outcome_store=store)
+
+    weighted = engine.run_round(mode="stratified", batch_size=8)
+    assert weighted["memory_status"] in {"memory:weighted", "memory:no_data"}
+
+    non_adaptive = engine.run_round(mode="pure", batch_size=8)
+    assert non_adaptive["memory_status"] == "memory:not_applicable"
+
+
+def test_off_policy_logging_is_disabled_by_default(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))
+    cat = _catalog()
+    engine = LotteryEngine.from_methods(cat, seed=1)
+    engine._log_decision(cat[0], 0.5)
+    log_path = tmp_path / "CRIBA-Blackforge" / "outcomes" / "policy_decisions.jsonl"
+    assert engine.off_policy_logging is False
+    assert engine.decision_session_id == ""
+    assert not log_path.exists()
+
+
+def test_off_policy_logging_opt_in_uses_pending_reward_and_unique_session(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))
+    cat = _catalog()
+    engine = LotteryEngine.from_methods(cat, seed=1, off_policy_logging=True)
+    engine._log_decision(cat[0], 0.5)
+    log_path = tmp_path / "CRIBA-Blackforge" / "outcomes" / "policy_decisions.jsonl"
+    row = json.loads(log_path.read_text(encoding="utf-8").splitlines()[-1])
+    assert row["reward"] is None
+    assert row["run_id"].startswith(engine.decision_session_id + ":round-")
+    assert engine.decision_session_id

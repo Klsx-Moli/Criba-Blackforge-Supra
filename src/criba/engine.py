@@ -575,7 +575,8 @@ def diverge(carto: dict[str, Any], rupture: dict[str, Any], selected: dict[str, 
                 f"Al aplicar {fam_a} se modifica '{ax_changed}': "
                 f"'{base.get(ax_changed, '?')}' → '{cv.get(ax_changed, '?')}'. "
                 f"Al cruzar con {fam_b}, se añade '{moved[1] if len(moved) > 1 else ax_changed}'. "
-                f"Esto crea una configuración causal que no existía en el espacio conocido."
+                "Esto deriva una configuración causal propuesta; no acredita novedad externa "
+                "ni verificación funcional del mecanismo."
             )
 
             # --- Expected effect ---
@@ -610,7 +611,7 @@ def diverge(carto: dict[str, Any], rupture: dict[str, Any], selected: dict[str, 
                 "family2": fam_b,
                 "divergence_real": divergence_real,
                 "extreme": extreme,
-                "causal_claim": "MECHANISM_VERIFIED",
+                "causal_claim": "MECHANISM_PROPOSED_UNVALIDATED",
                 "duplicate_status": "candidate",
                 "source_method": f"{ma['id']}+{mb['id']}",
                 "method1_name": ma['name'],
@@ -760,49 +761,37 @@ def value_score(evidence: float, novelty: float, cost: float) -> float:
 def _evaluate_idea(idea: dict[str, Any]) -> dict[str, Any]:
     """Convergence scoring with CONTENT-based diversity.
 
-    Scoring now depends on:
-    1. Causal variables (original)
-    2. Method names (new) - longer names = more specific = higher novelty
-    3. Method descriptions (new) - more detail = higher evidence
-    4. Combination uniqueness (new) - different families = higher novelty
+    Scoring is deliberately resistant to superficial text changes.
+    It depends on declared causal-axis changes and family combination only;
+    method-name/description length is never scientific merit or evidence.
+
+    Missing axes are UNKNOWN, not moved axes.
     """
 
     cv = idea.get("causal_variables", {})
-    method1_name = idea.get("method1_name", "")
-    method2_name = idea.get("method2_name", "")
-    method1_desc = idea.get("method1_desc", "")
-    method2_desc = idea.get("method2_desc", "")
     fam_a = idea.get("family", "")
     fam_b = idea.get("family2", "")
 
-    # NOVELTY: basada en contenido de métodos + ejes movidos
-    moved_axes = [k for k in _CAUSAL_AXES if cv.get(k) != _BASE_VALUES.get(k)]
+    # NOVELTY heuristic: only explicitly present changed axes count.
+    moved_axes = [k for k in _CAUSAL_AXES if k in cv and cv[k] != _BASE_VALUES.get(k)]
 
     # Si no hay ejes movidos, novelty es 0 (regla original)
     if len(moved_axes) == 0:
         novelty = 0.0
     else:
-        # Factor 1: ejes movidos (original)
         axes_novelty = len(moved_axes) / len(_CAUSAL_AXES)
-
-        # Factor 2: diversidad de nombres (nombres más largos = más específicos)
-        name_diversity = (len(method1_name) + len(method2_name)) / 200  # normalizado
-
-        # Factor 3: si las familias son diferentes
         family_diversity = 0.2 if fam_a != fam_b else 0.0
+        novelty = round(min(1.0, axes_novelty * 0.5 + family_diversity + 0.2), 4)
 
-        novelty = round(min(1.0, axes_novelty * 0.5 + name_diversity * 0.3 + family_diversity + 0.2), 4)
-
-    # EVIDENCE: basada en descripciones + ejes concretos
-    concrete = sum(1 for k in _CAUSAL_AXES if cv.get(k) and cv.get(k) != _BASE_VALUES.get(k))
-
-    # Factor 1: ejes concretos (original)
+    # EVIDENCE heuristic: only explicitly present changed axes contribute.
+    # Text length/verbosity never increases evidence.
+    concrete = sum(
+        1
+        for k in _CAUSAL_AXES
+        if k in cv and cv[k] and cv[k] != _BASE_VALUES.get(k)
+    )
     axes_evidence = concrete / len(_CAUSAL_AXES)
-
-    # Factor 2: longitud de descripciones (más detalle = más evidencia)
-    desc_evidence = min(1.0, (len(method1_desc) + len(method2_desc)) / 400)
-
-    evidence = round(0.3 + 0.7 * (axes_evidence * 0.6 + desc_evidence * 0.4), 4)
+    evidence = round(0.3 + 0.7 * axes_evidence, 4)
 
     # VIABILITY
     extreme = bool(idea.get("extreme"))

@@ -69,6 +69,7 @@ class LocalInterprete:
                 "veredicto": parsed.get("veredicto", "PENDIENTE"),
                 "analisis": parsed.get("analisis", ""),
                 "protocolo_aplicado": protocolo,
+                "evaluation_status": "EVALUATED",
             }
         except Exception as e:
             log.error("Interpretación local fallida para idea %s: %s", idea.get("id"), e)
@@ -181,8 +182,9 @@ de las técnicas. Si el cruce no produce nada pertinente, dilo en hipótesis."""
                 "error": "",
             }
         except Exception as e:  # noqa: BLE001 - la propuesta nunca rompe el loop
-            log.error("Propuesta fallida para idea %s: %s", idea.get("id"), e)
-            pending["error"] = str(e)
+            error_type = type(e).__name__
+            log.error("Propuesta fallida para idea %s (%s)", idea.get("id"), error_type)
+            pending["error"] = f"proposal_failed:{error_type}"
             return pending
 
     def _offline_fallback(self, query: str, idea: dict[str, Any]) -> dict[str, Any]:
@@ -213,7 +215,14 @@ de las técnicas. Si el cruce no produce nada pertinente, dilo en hipótesis."""
                 verdict = priority
                 break
         protocolo = protocolo_para(idea)
-        return {"labels": labels, "score": score, "veredicto": verdict, "analisis": "[fallback-local-offline]", "protocolo_aplicado": protocolo}
+        return {
+            "labels": labels,
+            "score": score,
+            "veredicto": verdict,
+            "analisis": "[fallback-local-offline]",
+            "protocolo_aplicado": protocolo,
+            "evaluation_status": "HEURISTIC_FALLBACK",
+        }
 
     def _build_prompt(self, query: str, idea: dict[str, Any], protocolo: dict[str, Any]) -> str:
         preguntas = [p["pregunta"] for p in protocolo["preguntas"]]
@@ -321,6 +330,12 @@ PREGUNTAS DE EXPANSIÓN:
                 "protocolo_aplicado": protocolo,
             }
         except (httpx.HTTPError, json.JSONDecodeError, KeyError, ValueError) as e:
-            log.error("Interpretación fallida para idea %s: %s", idea.get("id"), e)
-            return {"labels": [], "score": 0.0, "veredicto": "ERROR_INTERPRETE",
-                    "analisis": str(e), "protocolo_aplicado": protocolo}
+            error_type = type(e).__name__
+            log.error("Interpretación fallida para idea %s (%s)", idea.get("id"), error_type)
+            return {
+                "labels": [],
+                "score": 0.0,
+                "veredicto": "ERROR_INTERPRETE",
+                "analisis": f"interpreter_failed:{error_type}",
+                "protocolo_aplicado": protocolo,
+            }

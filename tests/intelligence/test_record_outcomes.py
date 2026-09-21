@@ -44,17 +44,19 @@ class TestTechniqueIds:
 class TestRecordOutcomes:
     def test_escribe_canales_etiquetados_por_tecnica(self, tmp_path):
         store = TechniqueOutcomeStore(tmp_path / "o.jsonl")
-        sheet = _sheet([_entry(aportacion_por_tecnica=[{"tecnica": "T059"}])])
+        sheet = _sheet([_entry(classes=["perspectiva"],
+                                aportacion_por_tecnica=[{"tecnica": "T059"}],
+                                judge={"score": 0.7, "evaluation_status": "EVALUATED",
+                                       "veredicto": "OK"})])
         n = record_outcomes(sheet, store, canon_version="2026-09-08.3")
-        # 1 verdict (técnica) + 1 judge (técnica) + 2 agregados familia (P4:
-        # uno por CADA clase del entry: perspectiva y generacion)
-        assert n == 4
+        # 1 verdict (técnica) + 1 judge (técnica) + 1 agregado de familia.
+        assert n == 3
         recs = store._read_valid()
         channels = {(r["technique_id"], r["channel"]) for r in recs}
         assert ("T059", CHANNEL_VERDICT) in channels
         assert ("T059", CHANNEL_JUDGE) in channels
         # etiquetados, nunca mezclados: verdict y judge son registros distintos
-        assert len(recs) == 4
+        assert len(recs) == 3
 
     def test_prior_disponible_tras_escritura(self, tmp_path):
         """El circuito se cierra: lo escrito por record_outcomes lo lee el router.
@@ -66,7 +68,8 @@ class TestRecordOutcomes:
         store = TechniqueOutcomeStore(tmp_path / "o.jsonl")
         for i in range(3):
             sheet = {"run_id": f"run-{i}",
-                     "entries": [_entry(aportacion_por_tecnica=[{"tecnica": "T059"}],
+                     "entries": [_entry(classes=["perspectiva"],
+                                        aportacion_por_tecnica=[{"tecnica": "T059"}],
                                         run_id=f"run-{i}")]}
             record_outcomes(sheet, store, canon_version="2026-09-08.3")
         prior, n, _ = store.prior(profile="CRIBA", family="perspectiva",
@@ -77,7 +80,8 @@ class TestRecordOutcomes:
         """P3: reintentos del MISMO ensayo (mismo run_id) cuentan UNA vez."""
         store = TechniqueOutcomeStore(tmp_path / "o.jsonl")
         for _ in range(3):
-            sheet = _sheet([_entry(aportacion_por_tecnica=[{"tecnica": "T059"}])])
+            sheet = _sheet([_entry(classes=["perspectiva"],
+                                   aportacion_por_tecnica=[{"tecnica": "T059"}])])
             record_outcomes(sheet, store, canon_version="2026-09-08.3")
         _, n, _ = store.prior(profile="CRIBA", family="perspectiva",
                               technique_id="T059", canon_version="2026-09-08.3")
@@ -92,7 +96,8 @@ class TestRecordOutcomes:
 
     def test_verdict_invalido_normalizado_a_unresolved(self, tmp_path):
         store = TechniqueOutcomeStore(tmp_path / "o.jsonl")
-        e = _entry(aportacion_por_tecnica=[{"tecnica": "T059"}],
+        e = _entry(classes=["perspectiva"],
+                   aportacion_por_tecnica=[{"tecnica": "T059"}],
                    prior_art={"verdict": "PROVEN_NEW"})  # jamás
         record_outcomes(_sheet([e]), store, canon_version="c")
         recs = [r for r in store._read_valid() if r["channel"] == CHANNEL_VERDICT]
@@ -112,7 +117,8 @@ class TestRecordOutcomes:
     def test_aislamiento_por_perfil(self, tmp_path):
         """Outcomes BLACKFORGE no contaminan priors CRIBA (§13.6)."""
         store = TechniqueOutcomeStore(tmp_path / "o.jsonl")
-        sheet = _sheet([_entry(aportacion_por_tecnica=[{"tecnica": "T059"}])])
+        sheet = _sheet([_entry(classes=["perspectiva"],
+                               aportacion_por_tecnica=[{"tecnica": "T059"}])])
         record_outcomes(sheet, store, profile="BLACKFORGE", canon_version="c")
         p_criba, n_criba, _ = store.prior(profile="CRIBA", family="perspectiva",
                                           technique_id="T059", canon_version="c")
