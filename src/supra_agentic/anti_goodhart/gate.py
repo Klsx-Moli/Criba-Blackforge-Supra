@@ -2,17 +2,17 @@
 
 from __future__ import annotations
 
+import collections.abc
+import dataclasses
+import enum
 import hashlib
 import json
-from collections.abc import Sequence
-from dataclasses import dataclass
-from enum import Enum
 
 
 STANDARD_RELEASE_STATE = "DISABLED"
 
 
-class ObserverMode(str, Enum):
+class ObserverMode(str, enum.Enum):
     OFF = "OFF"
     STANDARD = "STANDARD"
 
@@ -21,7 +21,7 @@ class StandardDisabledError(RuntimeError):
     """Raised only in the external observer when STANDARD is not accredited."""
 
 
-@dataclass(frozen=True, slots=True)
+@dataclasses.dataclass(frozen=True, slots=True)
 class GateEvidence:
     scope_fingerprint: str
     g1_pass: bool
@@ -75,7 +75,7 @@ def scope_fingerprint(
     *,
     runtime_version: str,
     export_schema: str,
-    detector_versions: Sequence[str],
+    detector_versions: collections.abc.Sequence[str],
     isolation_profile: str,
 ) -> str:
     payload = {
