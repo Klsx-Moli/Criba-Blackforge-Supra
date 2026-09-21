@@ -17,10 +17,11 @@ from criba.anti_goodhart.gate import (
     GateEvidence,
     ObserverMode,
     StandardDisabledError,
+    gate_evidence_satisfies,
     scope_fingerprint,
     standard_allowed,
 )
-from criba.anti_goodhart.observer import observe_trace
+from criba.anti_goodhart.observer import _observe_trace_after_gate, observe_trace
 from criba.anti_goodhart.records import Diagnostic
 from criba.anti_goodhart.store import ObserverStore
 from criba.anti_goodhart.trace import project_public_packet, seal_public_packet
@@ -143,9 +144,10 @@ def test_g1_projection_requires_stable_episode_identity() -> None:
 
 def test_activation_rule_is_binary_scope_bound_and_defaults_disabled() -> None:
     scope = _scope()
-    assert standard_allowed(None, current_scope_fingerprint=scope) is False
-    assert standard_allowed(_full_gate(), current_scope_fingerprint=scope) is True
-    assert standard_allowed(_full_gate(), current_scope_fingerprint="changed-scope") is False
+    assert gate_evidence_satisfies(None, current_scope_fingerprint=scope) is False
+    assert gate_evidence_satisfies(_full_gate(), current_scope_fingerprint=scope) is True
+    assert gate_evidence_satisfies(_full_gate(), current_scope_fingerprint="changed-scope") is False
+    assert standard_allowed(_full_gate(), current_scope_fingerprint=scope) is False
 
     stale = GateEvidence(
         scope_fingerprint=scope,
@@ -157,7 +159,7 @@ def test_activation_rule_is_binary_scope_bound_and_defaults_disabled() -> None:
         sensitivity_controls_pass=True,
         deployment_scope_matches=True,
     )
-    assert standard_allowed(stale, current_scope_fingerprint=scope) is False
+    assert gate_evidence_satisfies(stale, current_scope_fingerprint=scope) is False
 
 
 def test_off_mode_creates_no_observer_state(tmp_path: Path) -> None:
@@ -179,8 +181,6 @@ def test_standard_cannot_run_without_complete_gate(tmp_path: Path) -> None:
         observe_trace(
             trace,
             store=ObserverStore(tmp_path / "observer"),
-            mode=ObserverMode.STANDARD,
-            current_scope_fingerprint=_scope(),
         )
 
 
@@ -189,19 +189,13 @@ def test_g2_duplicate_delivery_is_idempotent_and_does_not_mutate_trace(tmp_path:
     original = trace.payload_json
     store = ObserverStore(tmp_path / "observer")
 
-    first = observe_trace(
+    first = _observe_trace_after_gate(
         trace,
         store=store,
-        mode=ObserverMode.STANDARD,
-        gate_evidence=_full_gate(),
-        current_scope_fingerprint=_scope(),
     )
-    second = observe_trace(
+    second = _observe_trace_after_gate(
         trace,
         store=store,
-        mode=ObserverMode.STANDARD,
-        gate_evidence=_full_gate(),
-        current_scope_fingerprint=_scope(),
     )
 
     assert first.inserted_diagnostics == 3
@@ -221,12 +215,9 @@ def test_g2_detector_exception_is_confined_and_secret_message_not_persisted(
 
     detector = DetectorSpec("broken", "1", broken_detector)
     store = ObserverStore(tmp_path / "observer")
-    result = observe_trace(
+    result = _observe_trace_after_gate(
         trace,
         store=store,
-        mode=ObserverMode.STANDARD,
-        gate_evidence=_full_gate(),
-        current_scope_fingerprint=_scope(),
         detectors=(detector,),
     )
 
@@ -256,12 +247,9 @@ def test_g2_diagnostic_volume_changes_only_observer_domain(tmp_path: Path) -> No
             for index in range(100)
         ]
 
-    result = observe_trace(
+    result = _observe_trace_after_gate(
         trace,
         store=ObserverStore(tmp_path / "observer"),
-        mode=ObserverMode.STANDARD,
-        gate_evidence=_full_gate(),
-        current_scope_fingerprint=_scope(),
         detectors=(DetectorSpec("volume", "1", many_diagnostics),),
     )
     assert result.inserted_diagnostics == 100
@@ -271,12 +259,9 @@ def test_g2_diagnostic_volume_changes_only_observer_domain(tmp_path: Path) -> No
 def test_g4_observer_store_restart_restores_only_observer_records(tmp_path: Path) -> None:
     trace = seal_public_packet(_packet())
     root = tmp_path / "observer"
-    observe_trace(
+    _observe_trace_after_gate(
         trace,
         store=ObserverStore(root),
-        mode=ObserverMode.STANDARD,
-        gate_evidence=_full_gate(),
-        current_scope_fingerprint=_scope(),
     )
 
     restarted = ObserverStore(root)
@@ -311,12 +296,9 @@ def test_g4_two_decisions_remain_identical_after_out_of_band_observation(
     control = engine.activate(QUERY)
     observed = engine.activate(QUERY)
     trace = seal_public_packet(observed)
-    observe_trace(
+    _observe_trace_after_gate(
         trace,
         store=ObserverStore(tmp_path / "observer"),
-        mode=ObserverMode.STANDARD,
-        gate_evidence=_full_gate(),
-        current_scope_fingerprint=_scope(),
     )
     after = engine.activate(QUERY)
 
