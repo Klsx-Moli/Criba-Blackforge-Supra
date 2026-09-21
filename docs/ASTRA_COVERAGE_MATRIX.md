@@ -55,7 +55,7 @@ document does not invent a new pass count.
 | ASTRA-029 | PARTIAL | Conservative equivalence/UNKNOWN behavior exists; no universal semantic projection registry exists. |
 | ASTRA-030 | PARTIAL | Preconditions and interaction classes are explicit; cancellation has behavioral sentinel. Not every interaction class has a numeric effect rule, by design. |
 | ASTRA-031 | ENFORCED | Pareto/MAP-Elites modes are explicitly documented as heuristic-inspired proxies, not full algorithm implementations. |
-| ASTRA-032 | CONTRACT_ONLY | G1-G4 are binding: same base contracts, no decision/RNG/cache/prompt/corpus effects, no retry/budget/deadline/fallback effects, and OFF/STANDARD trajectory equivalence across restart. STANDARD remains disabled until those tests pass. |
+| ASTRA-032 | PARTIAL_RUNTIME | Sealed post-run public export, separate O store, deterministic descriptive detectors, binary scope-bound activation gate, and G1/G2/G4 code sentinels are implemented. G3 deployment resource isolation is NOT_VERIFIED, so STANDARD remains disabled. |
 | ASTRA-033 | PARTIAL | Historical/negative records remain preserved while incompatible derived learning is invalidated; hashes are integrity references, not truth. Universal preservation outside instrumented stores remains unproven. |
 | ASTRA-034 | PARTIAL | Canon, tests, CI and CODEOWNERS exist; server-side ruleset enforcement is not verified by this branch. |
 | ASTRA-035 | RESEARCH_ONLY | Metaevolution remains research-only; D3/D4/D6 are not promoted. |
