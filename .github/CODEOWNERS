@@ -17,3 +17,7 @@ src/supra_agentic/runner.py @klssxx
 src/supra_agentic/service.py @klssxx
 src/supra_agentic/mcp_handler.py @klssxx
 src/supra_agentic/web/** @klssxx
+src/supra_agentic/anti_goodhart/ @klssxx
+scripts/anti_goodhart_observer.py @klssxx
+governance/ANTI_GOODHART_STATUS.yaml @klssxx
+docs/ANTI_GOODHART_RUNTIME.md @klssxx
