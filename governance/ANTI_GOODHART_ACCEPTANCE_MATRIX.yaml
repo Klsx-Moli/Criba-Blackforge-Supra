@@ -1,0 +1,84 @@
+schema_version: 1
+authority: ASTRA
+standard_release_state: DISABLED
+release_rule: ALL_APPLICABLE_ROWS_PASS_AND_SCOPE_MATCH_AND_EXPLICIT_VERSIONED_RELEASE
+rows:
+  - gate: G1
+    perturbation: sealed_public_export
+    status: CI_SENTINEL_IMPLEMENTED
+    sentinel: tests/astra_canon/test_anti_goodhart_runtime.py::test_g1_public_posture_is_deterministic_immutable_and_excludes_free_form_inputs
+    failure_effect: STANDARD_REMAINS_DISABLED
+  - gate: G1
+    perturbation: stable_project_identity
+    status: CI_SENTINEL_IMPLEMENTED
+    sentinel: tests/astra_canon/test_anti_goodhart_runtime.py::test_g1_projection_requires_stable_project_identity
+    failure_effect: STANDARD_REMAINS_DISABLED
+  - gate: G2
+    perturbation: observer_exception
+    status: CI_SENTINEL_IMPLEMENTED
+    sentinel: tests/astra_canon/test_anti_goodhart_runtime.py::test_detector_failure_is_confined_and_secret_message_not_persisted
+    failure_effect: STANDARD_REMAINS_DISABLED
+  - gate: G2
+    perturbation: observer_storage_failure
+    status: CI_SENTINEL_IMPLEMENTED
+    sentinel: tests/astra_canon/test_anti_goodhart_runtime.py::test_observer_storage_failure_is_confined_to_o_domain
+    failure_effect: STANDARD_REMAINS_DISABLED
+  - gate: G2
+    perturbation: duplicate_diagnostic
+    status: CI_SENTINEL_IMPLEMENTED
+    sentinel: tests/astra_canon/test_anti_goodhart_runtime.py::test_duplicate_delivery_is_idempotent_and_trace_is_unchanged
+    failure_effect: STANDARD_REMAINS_DISABLED
+  - gate: G2
+    perturbation: diagnostic_volume_100x
+    status: CI_SENTINEL_IMPLEMENTED
+    sentinel: tests/astra_canon/test_anti_goodhart_runtime.py::test_diagnostic_volume_changes_only_observer_domain
+    failure_effect: STANDARD_REMAINS_DISABLED
+  - gate: G2
+    perturbation: observer_rng_independence
+    status: CI_STATIC_SENTINEL_IMPLEMENTED
+    sentinel: tests/astra_canon/test_anti_goodhart_runtime.py::test_product_runtime_has_no_observer_import_path
+    failure_effect: STANDARD_REMAINS_DISABLED
+  - gate: G3
+    perturbation: separate_resource_domain
+    status: PENDING_DEPLOYMENT_EXPERIMENT
+    failure_effect: STANDARD_REMAINS_DISABLED
+  - gate: G3
+    perturbation: observer_latency
+    status: PENDING_DEPLOYMENT_EXPERIMENT
+    failure_effect: STANDARD_REMAINS_DISABLED
+  - gate: G3
+    perturbation: observer_timeout
+    status: PENDING_DEPLOYMENT_EXPERIMENT
+    failure_effect: STANDARD_REMAINS_DISABLED
+  - gate: G3
+    perturbation: saturation
+    status: PENDING_DEPLOYMENT_EXPERIMENT
+    failure_effect: STANDARD_REMAINS_DISABLED
+  - gate: G3
+    perturbation: shared_provider_quota_absence
+    status: PENDING_DEPLOYMENT_EXPERIMENT
+    failure_effect: STANDARD_REMAINS_DISABLED
+  - gate: G4
+    perturbation: observer_restart
+    status: CI_SENTINEL_IMPLEMENTED
+    sentinel: tests/astra_canon/test_anti_goodhart_runtime.py::test_observer_restart_restores_only_observer_records
+    failure_effect: STANDARD_REMAINS_DISABLED
+  - gate: G4
+    perturbation: execution_state_consistency
+    status: CI_SENTINEL_IMPLEMENTED
+    sentinel: tests/astra_canon/test_anti_goodhart_runtime.py::test_execution_consistency_reports_latest_fail_without_correcting_posture
+    failure_effect: STANDARD_REMAINS_DISABLED
+  - gate: G4
+    perturbation: sensitivity_control
+    status: CI_SENTINEL_IMPLEMENTED
+    sentinel: tests/astra_canon/test_anti_goodhart_runtime.py::test_sensitivity_control_detects_intentional_decisional_contamination
+    failure_effect: STANDARD_REMAINS_DISABLED
+  - gate: G4
+    perturbation: two_consecutive_decisions
+    status: NOT_YET_IMPLEMENTED
+    failure_effect: STANDARD_REMAINS_DISABLED
+scientific_claims:
+  goodhart_detected: NOT_CLAIMED
+  D3: UNRESOLVED
+  D4: UNRESOLVED
+  D6: STILL_UNRESOLVED_RESEARCH_ONLY
