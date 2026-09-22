@@ -14,7 +14,7 @@ from typing import Any, Literal
 from urllib.parse import quote
 
 import httpx
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
 
 _PROJECT_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$")
 
@@ -174,10 +174,29 @@ class SupraClient:
             raise SupraClientError(f"SUPRA {operation} returned a non-object JSON payload")
         return value
 
+    @staticmethod
+    def _validate_response(
+        model_type: type[BaseModel],
+        payload: dict[str, Any],
+        operation: str,
+    ) -> BaseModel:
+        try:
+            return model_type.model_validate(payload)
+        except ValidationError as exc:
+            raise SupraClientError(
+                f"SUPRA {operation} violated response contract"
+            ) from exc
+
     def health(self) -> SupraHealth:
         response = self._client.get("/health")
         self._raise_for_response(response, "health")
-        return SupraHealth.model_validate(self._json_object(response, "health"))
+        validated = self._validate_response(
+            SupraHealth,
+            self._json_object(response, "health"),
+            "health",
+        )
+        assert isinstance(validated, SupraHealth)
+        return validated
 
     def run_project(
         self,
@@ -208,9 +227,13 @@ class SupraClient:
 
         response = self._client.post("/api/v1/projects", json=payload)
         self._raise_for_response(response, "project execution")
-        return SupraProjectResult.model_validate(
-            self._json_object(response, "project execution")
+        validated = self._validate_response(
+            SupraProjectResult,
+            self._json_object(response, "project execution"),
+            "project execution",
         )
+        assert isinstance(validated, SupraProjectResult)
+        return validated
 
     def get_project(self, project_id: str) -> dict[str, Any]:
         response = self._client.get(self._project_path(project_id))
@@ -222,7 +245,13 @@ class SupraClient:
             raise ValueError("SUPRA project list limit must be between 1 and 50")
         response = self._client.get("/api/v1/projects", params={"limit": limit})
         self._raise_for_response(response, "project list")
-        return SupraProjectList.model_validate(self._json_object(response, "project list"))
+        validated = self._validate_response(
+            SupraProjectList,
+            self._json_object(response, "project list"),
+            "project list",
+        )
+        assert isinstance(validated, SupraProjectList)
+        return validated
 
     def mcp(self, method: str, *, params: dict[str, Any] | None = None, request_id: int = 1) -> dict[str, Any]:
         if not method:
