@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import copy
 import json
+import math
 from pathlib import Path
 
 import pytest
@@ -375,3 +376,26 @@ def test_tampered_parseable_record_cannot_suppress_valid_diagnostic(tmp_path: Pa
         item for item in store.read_diagnostics() if item.get("message") == "canonical diagnostic"
     ]
     assert len(canonical) == 1
+
+@pytest.mark.parametrize("value", [math.nan, math.inf, -math.inf])
+def test_public_trace_rejects_nonfinite_numbers(value: float) -> None:
+    packet = _packet()
+    packet["metrics"]["potential_novelty"] = value
+    with pytest.raises(ValueError):
+        seal_public_packet(packet)
+
+
+@pytest.mark.parametrize("value", [math.nan, math.inf, -math.inf])
+def test_diagnostic_identity_rejects_nonfinite_details(value: float) -> None:
+    diagnostic = Diagnostic(
+        detector_id="nonfinite-sentinel",
+        detector_version="1",
+        trace_sha256="a" * 64,
+        kind="integrity",
+        status="OBSERVED",
+        message="finite-json-required",
+        details={"value": value},
+    )
+    with pytest.raises(ValueError):
+        _ = diagnostic.diagnostic_id
+
