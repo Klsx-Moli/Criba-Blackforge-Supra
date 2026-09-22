@@ -156,10 +156,10 @@ def test_gui_uses_canonical_supra_client_without_direct_http_routes() -> None:
     assert "/api/v1/" not in source
 
 
-def test_gui_dossier_mapping_preserves_epistemic_language() -> None:
-    from criba.ui.actions import _supra_objective_from_dossier
+def test_dossier_mapping_preserves_epistemic_language() -> None:
+    from criba.integrations import objective_from_dossier
 
-    objective = _supra_objective_from_dossier(
+    objective = objective_from_dossier(
         {
             "problema": "Reduce thermal drift",
             "hipotesis": "A bounded calibration loop reduces drift",
