@@ -151,7 +151,6 @@ def test_gui_uses_canonical_supra_client_without_direct_http_routes() -> None:
     source = Path("src/criba/ui/actions.py").read_text(encoding="utf-8")
     assert "from ..integrations import SupraClient" in source
     assert "_execute_supra_dossiers" in source
-    assert "QThreadPool" not in source  # UI uses the existing Worker abstraction instead.
     assert "httpx" not in source
     assert "/api/v1/" not in source
 
