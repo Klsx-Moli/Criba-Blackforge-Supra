@@ -7,7 +7,9 @@ import threading
 from pathlib import Path
 from typing import Any, cast
 
-from .records import Diagnostic, ObserverFailure
+from .records import Diagnostic, DiagnosticStatus, ObserverFailure
+
+_DIAGNOSTIC_STATUSES = {"OBSERVED", "UNKNOWN", "NOT_EVALUATED", "CONFLICT"}
 
 
 class ObserverStore:
@@ -42,19 +44,53 @@ class ObserverStore:
                 records.append(cast(dict[str, Any], decoded))
         return records
 
+    @staticmethod
+    def _validated_diagnostic(item: dict[str, Any]) -> Diagnostic | None:
+        string_fields = (
+            "diagnostic_id",
+            "detector_id",
+            "detector_version",
+            "trace_sha256",
+            "kind",
+            "status",
+            "message",
+        )
+        if not all(isinstance(item.get(key), str) for key in string_fields):
+            return None
+        status = item["status"]
+        details = item.get("details")
+        if status not in _DIAGNOSTIC_STATUSES or not isinstance(details, dict):
+            return None
+        diagnostic = Diagnostic(
+            detector_id=item["detector_id"],
+            detector_version=item["detector_version"],
+            trace_sha256=item["trace_sha256"],
+            kind=item["kind"],
+            status=cast(DiagnosticStatus, status),
+            message=item["message"],
+            details=cast(dict[str, Any], details),
+        )
+        if diagnostic.diagnostic_id != item["diagnostic_id"]:
+            return None
+        return diagnostic
+
     def read_diagnostics(self) -> list[dict[str, Any]]:
-        return self._read_records(self.diagnostics_path)
+        return [
+            item
+            for item in self._read_records(self.diagnostics_path)
+            if self._validated_diagnostic(item) is not None
+        ]
 
     def read_failures(self) -> list[dict[str, Any]]:
         return self._read_records(self.failures_path)
 
     def append_diagnostic(self, diagnostic: Diagnostic) -> bool:
-        """Append once; duplicate delivery of the same event is idempotent."""
+        """Append once; duplicate delivery of the same valid event is idempotent."""
 
         with self._lock:
             existing = {
                 str(item.get("diagnostic_id") or "")
-                for item in self._read_records(self.diagnostics_path)
+                for item in self.read_diagnostics()
             }
             if diagnostic.diagnostic_id in existing:
                 return False
