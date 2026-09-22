@@ -35,6 +35,8 @@ class FichaBloqueo:
     evidencia: list[dict[str, str]] = field(default_factory=list)  # {texto, origen, relacion}
     restricciones_obligatorias: list[str] = field(default_factory=list)
     supuestos_cuestionables: list[str] = field(default_factory=list)
+    cambio_propuesto: str = ""                  # intervención que haría contrastable el bloqueo
+    condicion_fallo: str = ""                   # observable que refutaría la ficha
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -46,6 +48,8 @@ class FichaBloqueo:
             "evidencia": [dict(e) for e in self.evidencia],
             "restricciones_obligatorias": list(self.restricciones_obligatorias),
             "supuestos_cuestionables": list(self.supuestos_cuestionables),
+            "cambio_propuesto": self.cambio_propuesto,
+            "condicion_fallo": self.condicion_fallo,
         }
 
 

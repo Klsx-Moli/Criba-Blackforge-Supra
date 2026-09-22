@@ -67,6 +67,8 @@ class Bloqueo:
     condicion: str          # lo que necesita y no tiene (X)
     cambio: str             # cómo debería cambiar X para reintentar
     evidencia_fallo: str = ""
+    condicion_fallo: str = ""
+    origen_epistemico: str = "UNSPECIFIED"
     recorded_at: str = ""
 
     def to_dict(self) -> dict[str, Any]:
@@ -96,6 +98,9 @@ class VeredictoRescate:
     score_ab: float | None
     verdict: str            # RESCUED | NOT_RESCUED | UNRESOLVED
     reason: str
+    evaluator_id: str = ""
+    protocol_id: str = ""
+    conditions: str = ""
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -123,6 +128,8 @@ def read_bloqueos(path: Path | str) -> list[Bloqueo]:
                 idea_id=str(rec["idea_id"]), mecanismo=str(rec["mecanismo"]),
                 condicion=str(rec["condicion"]), cambio=str(rec["cambio"]),
                 evidencia_fallo=str(rec.get("evidencia_fallo", "")),
+                condicion_fallo=str(rec.get("condicion_fallo", "")),
+                origen_epistemico=str(rec.get("origen_epistemico", "UNSPECIFIED")),
                 recorded_at=str(rec.get("recorded_at", "")),
             ))
         except (json.JSONDecodeError, KeyError, TypeError):
@@ -143,21 +150,20 @@ def probar_rescate(
     evaluador: Evaluador | None,
     *,
     contexto: str = "",
+    evaluator_id: str = "",
+    protocol_id: str = "rescue-comparison-v1",
 ) -> VeredictoRescate:
-    """Movimiento 3: prueba A sola, B sola y A+B con el MISMO evaluador.
-
-    Veredictos:
-    - RESCUED: A+B supera a A Y a B (la interacción aporta capacidad nueva).
-    - NOT_RESCUED: A+B NO supera a alguna componente (misma conducta con
-      explicación más larga -> se descarta, honesto).
-    - UNRESOLVED: sin evaluador (no hay prueba) o la puntuación no es finita.
-    """
+    """Compare A, B and A+B under one identified evaluator and protocol."""
+    resolved_evaluator_id = evaluator_id or (
+        getattr(evaluador, "__qualname__", "") if evaluador is not None else ""
+    )
     if evaluador is None:
         return VeredictoRescate(
             bloqueo_id=bloqueo.idea_id, complemento_id=complemento.idea_id,
             score_a=None, score_b=None, score_ab=None,
             verdict="UNRESOLVED",
             reason="sin evaluador: no hay prueba que ejecutar (nunca se fabrica un rescate)",
+            evaluator_id=resolved_evaluator_id, protocol_id=protocol_id, conditions=contexto,
         )
     mecanismo_a = bloqueo.mecanismo
     mecanismo_b = complemento.mecanismo
@@ -171,6 +177,7 @@ def probar_rescate(
             bloqueo_id=bloqueo.idea_id, complemento_id=complemento.idea_id,
             score_a=None, score_b=None, score_ab=None,
             verdict="UNRESOLVED", reason=f"evaluador falló: {exc}",
+            evaluator_id=resolved_evaluator_id, protocol_id=protocol_id, conditions=contexto,
         )
     for s in (score_a, score_b, score_ab):
         if not (0.0 <= s <= 1.0):
@@ -178,6 +185,7 @@ def probar_rescate(
                 bloqueo_id=bloqueo.idea_id, complemento_id=complemento.idea_id,
                 score_a=score_a, score_b=score_b, score_ab=score_ab,
                 verdict="UNRESOLVED", reason=f"puntuación fuera de [0,1]: {s}",
+                evaluator_id=resolved_evaluator_id, protocol_id=protocol_id, conditions=contexto,
             )
     if score_ab > score_a and score_ab > score_b:
         return VeredictoRescate(
@@ -185,18 +193,22 @@ def probar_rescate(
             score_a=score_a, score_b=score_b, score_ab=score_ab,
             verdict="RESCUED",
             reason=(
-                f"A+B ({score_ab:.3f}) supera a A ({score_a:.3f}) y a B ({score_b:.3f}): "
-                f"la interacción aporta capacidad que ninguna tenía por separado"
+                f"A+B ({score_ab:.3f}) outperformed A ({score_a:.3f}) and B ({score_b:.3f}) "
+                f"under evaluator {resolved_evaluator_id} and protocol {protocol_id}; "
+                f"conditions={contexto or 'unspecified'}"
             ),
+            evaluator_id=resolved_evaluator_id, protocol_id=protocol_id, conditions=contexto,
         )
     return VeredictoRescate(
         bloqueo_id=bloqueo.idea_id, complemento_id=complemento.idea_id,
         score_a=score_a, score_b=score_b, score_ab=score_ab,
         verdict="NOT_RESCUED",
         reason=(
-            f"A+B ({score_ab:.3f}) no supera a A ({score_a:.3f}) y/o B ({score_b:.3f}): "
-            f"misma conducta con explicación más larga, se descarta"
+            f"A+B ({score_ab:.3f}) did not outperform both A ({score_a:.3f}) and B "
+            f"({score_b:.3f}) under evaluator {resolved_evaluator_id} and protocol "
+            f"{protocol_id}; no stronger interpretation is supported"
         ),
+        evaluator_id=resolved_evaluator_id, protocol_id=protocol_id, conditions=contexto,
     )
 
 

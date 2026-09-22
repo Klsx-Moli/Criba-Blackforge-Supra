@@ -57,27 +57,40 @@ def _field_similarity(field: str, a: object, b: object) -> float:
 
 
 def genome_distance(a: Mapping[str, object], b: Mapping[str, object]) -> dict[str, Any]:
-    """Weighted distance/similarity with coverage. unknown never counts as match."""
+    """Weighted distance/similarity over jointly known fields only.
+
+    UNKNOWN/missing fields contribute neither match credit nor distance. This
+    prevents information deletion from manufacturing demonstrated diversity.
+    Coverage separately reports how much declared structure was comparable.
+    """
     matches: dict[str, float] = {}
     diffs: dict[str, dict[str, object | None]] = {}
     unknowns: list[str] = []
-    total = 0.0
+    weighted_distance = 0.0
     comp_weight = 0.0
     for field, w in WEIGHTS.items():
         if field not in _MULTIVALUE_FIELDS:
             continue
-        sim = _field_similarity(field, a.get(field, ["unknown"]), b.get(field, ["unknown"]))
-        matches[field] = round(sim, 4)
+        ea = _effective(a.get(field, ["unknown"]))
+        eb = _effective(b.get(field, ["unknown"]))
         diffs[field] = {"a": a.get(field), "b": b.get(field)}
-        total += w * (1 - sim)
-        ea, eb = _effective(a.get(field, ["unknown"])), _effective(b.get(field, ["unknown"]))
-        if ea or eb:
-            comp_weight += w  # field carried comparable information
-        else:
+        if not (ea and eb):
+            matches[field] = 0.0
             unknowns.append(field)
-    distance = round(total, 4)
-    similarity = round(1 - distance, 4)
+            continue
+        sim = _field_similarity(field, ea, eb)
+        matches[field] = round(sim, 4)
+        weighted_distance += w * (1 - sim)
+        comp_weight += w
+
     coverage = round(comp_weight / _COMP_TOTAL, 4)
+    if comp_weight == 0.0:
+        # No known comparison => neither similarity nor diversity is demonstrated.
+        distance = 0.0
+        similarity = 0.0
+    else:
+        distance = round(weighted_distance / comp_weight, 4)
+        similarity = round(1 - distance, 4)
     return {
         "distance": distance,
         "similarity": similarity,
@@ -88,7 +101,6 @@ def genome_distance(a: Mapping[str, object], b: Mapping[str, object]) -> dict[st
         "unknown_fields": unknowns,
     }
 
-
 def classify(a: Mapping[str, object], b: Mapping[str, object]) -> dict[str, Any]:
     res = genome_distance(a, b)
     sim = res["similarity"]
@@ -97,7 +109,7 @@ def classify(a: Mapping[str, object], b: Mapping[str, object]) -> dict[str, Any]
     main_b = main_mechanism(b) or "unknown"
     same_main = main_a == main_b and main_a != "unknown"
     if cov < MIN_DUPLICATE_COVERAGE:
-        verdict = "structurally_distinct"  # insufficient info -> never duplicate
+        verdict = "insufficient_evidence"
     elif sim >= _TH and same_main:
         verdict = "probable_duplicate"
     elif sim >= _MID:

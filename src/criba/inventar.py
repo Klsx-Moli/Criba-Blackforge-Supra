@@ -103,17 +103,26 @@ def _default_proponer(
     try:
         return LocalInterprete().proponer(query, idea, domain, evidence)
     except Exception as exc:  # noqa: BLE001 - la propuesta nunca rompe el loop
-        return _pending_proposal(str(exc))
+        return _pending_proposal(f"proposal_failed:{type(exc).__name__}")
 
 
 def _judge(query: str, idea: dict[str, Any], offline: bool) -> dict[str, Any]:
-    """Crítica automática; falla cerrado a PENDIENTE sin red."""
+    """Automatic critique; unavailable evaluation has no numeric score."""
     if offline:
-        return {"veredicto": "PENDIENTE_OFFLINE", "labels": [], "score": 0.0, "analisis": ""}
+        return {
+            "veredicto": "PENDIENTE_OFFLINE", "labels": [], "score": None,
+            "evaluation_status": "NOT_EVALUATED", "analisis": "",
+        }
     try:
-        return LocalInterprete().interpretar(query, idea)
+        result = LocalInterprete().interpretar(query, idea)
+        if isinstance(result, dict):
+            result.setdefault("evaluation_status", "EVALUATED")
+        return result
     except Exception:  # noqa: BLE001 - el juez nunca rompe el loop
-        return {"veredicto": "PENDIENTE_OFFLINE", "labels": [], "score": 0.0, "analisis": ""}
+        return {
+            "veredicto": "PENDIENTE_OFFLINE", "labels": [], "score": None,
+            "evaluation_status": "NOT_EVALUATED", "analisis": "",
+        }
 
 
 def _assess_candidate(
@@ -219,6 +228,41 @@ def _fts_query(query: str) -> str:
     return " OR ".join(tokens) if tokens else query
 
 
+def _filter_documented_evidence(
+    documented: object,
+    delivered: list[dict[str, Any]],
+) -> list[Any]:
+    """Keep only evidence references that can be resolved to delivered evidence.
+
+    DOCUMENTED_AS_USED is a statement by the proposer, not proof of causal
+    influence. It may only reference evidence actually delivered to that proposer.
+    """
+    if not isinstance(documented, list):
+        return []
+    valid_urls = {
+        str(item.get("url") or "").strip()
+        for item in delivered
+        if isinstance(item, dict) and str(item.get("url") or "").strip()
+    }
+    valid_titles = {
+        str(item.get("title") or "").strip()
+        for item in delivered
+        if isinstance(item, dict) and str(item.get("title") or "").strip()
+    }
+    out: list[Any] = []
+    for item in documented:
+        if isinstance(item, dict):
+            url = str(item.get("url") or "").strip()
+            title = str(item.get("title") or "").strip()
+            if (url and url in valid_urls) or (title and title in valid_titles):
+                out.append(item)
+        elif isinstance(item, str):
+            ref = item.strip()
+            if ref and (ref in valid_urls or ref in valid_titles):
+                out.append(item)
+    return out
+
+
 def invent(
     query: str,
     *,
@@ -242,10 +286,12 @@ def invent(
     ``methods``/``sources``/``proponer``/``store`` son inyectables para
     pruebas deterministas.
 
-    ``adaptive`` (G2, opt-in, BLUEPRINT §12.4): con ``outcome_store`` presente
-    la lotería pondera el sorteo por prior UCB y el selector suma el bonus de
-    memoria por técnica aportante. ``adaptive=False`` (default) es byte-
-    idéntico al congelado: mismo seed = mismo output, invariante intacto.
+    ``adaptive`` controls OutcomeStore/UCB influence only. With an
+    ``outcome_store`` present it weights the lottery and selector; adaptive
+    does not disable ``history_storage``.
+    ``history_storage=False`` is the explicit no-history reference policy for
+    this component: it disables cooldown/history storage AND prior dossier
+    lessons. External/provider state remains a separate dependency.
 
     Semilla (megaprompt §31-§33): ``seed=None`` genera una NUEVA semilla
     reproducible con ``secrets.randbits(64)`` (registra seed_source
@@ -320,6 +366,16 @@ def invent(
         outcome_profile="CRIBA",
         outcome_canon_version=canon_version,
     )
+    selection_report["initial_candidate_pool"] = [
+        {
+            "idea_id": idea.get("idea_id", ""),
+            "title": idea.get("title", ""),
+            "score": idea.get("score", 0.0),
+            "method_ids": [idea.get("method1_id", ""), idea.get("method2_id", "")],
+        }
+        for idea in pool
+    ]
+    selection_report["initial_finalists"] = [idea.get("idea_id", "") for idea in top_ideas]
     if history is not None and selection_report.get("pool_size"):
         try:  # registrar los pares de ESTA ejecución (first_seen=ahora)
             history.save_lottery_combinations(
@@ -358,7 +414,8 @@ def invent(
     # Lecciones de dossiers previos (circuito de aprendizaje, astra!.txt §5):
     # un resultado observado vuelve a la búsqueda como evidencia trazable.
     lecciones: list[str] = []
-    if ficha_bloqueo:
+    history_channels_enabled = history_storage is not False and history_storage is not None
+    if ficha_bloqueo and history_channels_enabled:
         try:
             from .supra_dossier import lecciones_previas
             lecciones = lecciones_previas(query)
@@ -374,6 +431,13 @@ def invent(
         # 1) Propuesta: aplicar el cruce al problema (con evidencia) ANTES de
         #    buscar antecedentes.
         proposal = proponer_fn(query, idea_enviada, domain, local_evidence)
+        documented_raw = proposal.get("evidence_documented_as_used", [])
+        documented_evidence = _filter_documented_evidence(documented_raw, local_evidence)
+        documented_rejected = (
+            len(documented_raw) - len(documented_evidence)
+            if isinstance(documented_raw, list)
+            else 0
+        )
         if proposal.get("estado") != "PROPUESTA" or not str(proposal.get("mecanismo", "")).strip():
             if proposal.get("estado") == "PROPUESTA":
                 proposal = _pending_proposal("PROPUESTA sin mecanismo")
@@ -405,7 +469,14 @@ def invent(
             "prueba_concreta": proposal.get("prueba_concreta", ""),
             "ruta_desbloqueo": proposal.get("ruta_desbloqueo", ""),
             "interpretacion_error": proposal.get("error", ""),
+            "evidence_retrieved": local_evidence,
+            "evidence_delivered": local_evidence,
+            "evidence_documented_as_used": documented_evidence,
+            "evidence_documented_rejected_count": documented_rejected,
+            # Deprecated read-compatible alias. Historically this meant only
+            # retrieved+delivered, never demonstrated causal use.
             "evidencia_local_usada": local_evidence,
+            "evidencia_local_usada_semantics": "DEPRECATED_ALIAS_FOR_EVIDENCE_DELIVERED",
             "judge": judged,
             "prior_art": assessment,
             "estado_antecedentes": _estado_antecedentes(assessment),
@@ -485,13 +556,58 @@ def invent(
                 "llamadas_modelo": 1,
             })
             entry["mecanismo_duplicado_con"] = "otro finalista (sustitución rechazada)"
-    if intentos:
-        selection_report["revision_post_interpretacion"] = {
-            "intentos": intentos,
-            "llamadas_revision": len(intentos),
-            "llamadas_modelo_total": model_calls,
-            "sustituciones_aceptadas": sum(1 for i in intentos if i["resultado"] == "aceptado"),
-        }
+    selection_report["revision_post_interpretacion"] = {
+        "intentos": intentos,
+        "llamadas_revision": len(intentos),
+        "candidate_development_attempts": model_calls,
+        # Compatibility field: historically misnamed as model calls. It is not
+        # authoritative request accounting because proposal/judge/provider
+        # boundaries are not fully instrumented here.
+        "llamadas_modelo_total": model_calls,
+        "model_requests": None,
+        "model_requests_authoritative": False,
+        "sustituciones_aceptadas": sum(1 for i in intentos if i["resultado"] == "aceptado"),
+    }
+    selection_report["opportunity_accounting"] = {
+        "generated_candidates": len(engine.all_ideas),
+        "selection_candidates_considered": len(pool),
+        "initial_finalists": len(top_ideas),
+        "candidate_development_attempts": model_calls,
+        "replacement_attempts": len(intentos),
+        "finalists": len(entries),
+        "provider_model_requests": None,
+        "provider_model_requests_authoritative": False,
+        "evaluation_calls_authoritative": False,
+        "budget_complete": False,
+        "scope": "LOCAL_PIPELINE_ACCOUNTING_ONLY",
+    }
+    selection_report["finalists"] = [entry["candidate_id"] for entry in entries]
+
+    outcome_store_hash: str | None = None
+    if active_outcome_store is not None and hasattr(active_outcome_store, "state_hash"):
+        try:
+            outcome_store_hash = str(active_outcome_store.state_hash())
+        except Exception:  # noqa: BLE001
+            outcome_store_hash = None
+    reproducibility_dependencies = {
+        "closure_complete": False,
+        "seed": seed,
+        "seed_source": seed_source,
+        "rounds": rounds,
+        "batch_size": batch_size,
+        "canon_version": canon_version,
+        "catalog_fingerprint": getattr(engine, "catalog_fingerprint", None),
+        "outcome_store_hash": outcome_store_hash,
+        "offline": is_offline,
+        "history_storage_enabled": history is not None,
+        "dossier_lessons_enabled": bool(ficha_bloqueo and history_channels_enabled),
+        "known_unclosed_dependencies": [
+            "code_version",
+            "provider_model_and_config_when_used",
+            "external_source_state_when_online",
+            "environment_configuration",
+        ],
+    }
 
     sheet = {
         "query": query,
@@ -500,6 +616,15 @@ def invent(
         "run_id": run_id,
         "mode": "stratified",
         "rounds": rounds,
+        "reproducibility_dependencies": reproducibility_dependencies,
+        "adaptation": {
+            "enabled": bool(adaptive and active_outcome_store is not None),
+            "policy": "outcome_store_ucb",
+            "scope": "OUTCOME_STORE_ONLY",
+            "history_storage_enabled": history is not None,
+            "dossier_lessons_enabled": bool(ficha_bloqueo and history_channels_enabled),
+            "fallback": "continue_without_outcome_prior",
+        },
         "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "domain_coupling": {
             "id": domain.get("id") if domain else None,
@@ -548,15 +673,17 @@ def record_outcomes(
     profile: str = "CRIBA",
     canon_version: str = "",
 ) -> int:
-    """Escribe outcomes técnica→resultado en el store (BLUEPRINT §4.4).
+    """Persist operational outcome channels only when attribution is identifiable.
 
-    Por candidato y por técnica que aportó: registra el canal verdict (prior-art)
-    y el canal judge (score de la crítica) ETIQUETADOS por separado (§12.2.3) —
-    nunca mezclados. También registra el outcome agregado por clase de pensamiento
-    (familia de la lotería) para el back-off jerárquico (§12.2.1).
+    VERDICT (prior-art) and JUDGE (automatic critique) remain separately tagged.
+    A candidate-level result is written to a technique only when one unique
+    technique/family attribution is identifiable. Family back-off is written
+    only for one identifiable family. Multi-component participation alone is
+    not individual causal credit.
 
-    Nunca rompe el loop: cualquier fallo de escritura se ignora (la memoria es
-    aprendizaje, no requisito del resultado). Devuelve el nº de registros.
+    Stable run_id controls learning eligibility in OutcomeStore. Memory is
+    optional operational adaptation, not scientific validation, and never
+    breaks the invention loop.
     """
     from .intelligence.outcome_store import CHANNEL_JUDGE, CHANNEL_VERDICT
 
@@ -565,53 +692,67 @@ def record_outcomes(
         verdict = entry.get("prior_art", {}).get("verdict", "UNRESOLVED")
         if verdict not in ("SURVIVED_SEARCH", "PARTIAL_PRIOR_ART", "UNRESOLVED"):
             verdict = "UNRESOLVED"
-        judge_score = entry.get("judge", {}).get("score")
+        judge = entry.get("judge", {})
+        judge_score = judge.get("score")
+        judge_status = str(judge.get("evaluation_status") or "").upper()
+        judge_verdict = str(judge.get("veredicto") or "").upper()
+        judge_evaluated = (
+            isinstance(judge_score, (int, float))
+            and judge_status == "EVALUATED"
+            and not judge_verdict.startswith("PENDIENTE")
+        )
         run_id = entry.get("run_id", sheet.get("run_id", ""))
 
-        # P4 (atribución): el resultado se vincula al candidato y a los MÉTODOS
-        # REALMENTE sorteados (method_ids), cada uno con SU clase de pensamiento
-        # — no a la primera clase del cruce ni solo a los IDs T-canon del
-        # intérprete (que offline quedan vacíos y rompían el circuito). Si el
-        # intérprete aporta además IDs T-canon, también se registran con la
-        # clase del primer método (aproximación documentada: la clase de un
-        # T-canon no es recuperable sin el intérprete).
-        method_ids = [m for m in (entry.get("method_ids") or []) if m]
-        classes = [c for c in (entry.get("classes") or []) if c]
-        pares = list(zip(method_ids, classes)) if method_ids else []
-        # técnica T-canon aportada por el intérprete (si la hay) -> clase[0]
+        # ASTRA-022 credit assignment: a candidate-level outcome is not
+        # automatically independent evidence for every component that
+        # participated in a combination. Fine-grained learning is allowed only
+        # when one unique technique/family attribution is identifiable.
+        method_ids = [str(m).strip() for m in (entry.get("method_ids") or []) if str(m).strip()]
+        classes = [str(c).strip() for c in (entry.get("classes") or []) if str(c).strip()]
+        pairs = list(dict.fromkeys(zip(method_ids, classes))) if method_ids else []
         t_ids = _entry_technique_ids(entry)
-        familia_t = classes[0] if classes else "unknown"
+        if t_ids and len(set(classes)) == 1:
+            family_t = classes[0]
+            pairs.extend((tid, family_t) for tid in t_ids)
+        pairs = list(dict.fromkeys(pairs))
 
         def _escribe(tid: str, familia: str) -> None:
             nonlocal written
             try:
-                store.record(profile=profile, family=familia, technique_id=tid,
-                             channel=CHANNEL_VERDICT, outcome=verdict,
-                             canon_version=canon_version, run_id=run_id)
+                store.record(
+                    profile=profile, family=familia, technique_id=tid,
+                    channel=CHANNEL_VERDICT, outcome=verdict,
+                    canon_version=canon_version, run_id=run_id,
+                )
                 written += 1
-                if isinstance(judge_score, (int, float)):
-                    store.record(profile=profile, family=familia, technique_id=tid,
-                                 channel=CHANNEL_JUDGE, outcome="score",
-                                 value=float(judge_score),
-                                 canon_version=canon_version, run_id=run_id)
+                if judge_evaluated:
+                    store.record(
+                        profile=profile, family=familia, technique_id=tid,
+                        channel=CHANNEL_JUDGE, outcome="score",
+                        value=float(judge_score),
+                        canon_version=canon_version, run_id=run_id,
+                    )
                     written += 1
             except Exception:  # noqa: BLE001 — la memoria nunca rompe el loop
                 return
 
-        # 1) métodos sorteados: cada uno con SU clase (atribución correcta).
-        for mid, clase in pares:
-            _escribe(mid, clase)
-        # 2) IDs T-canon del intérprete (circuito G1 original), si existen.
-        for tid in t_ids:
-            _escribe(tid, familia_t)
-        # 3) agregados de familia para back-off: uno por CLASE presente (no solo
-        #    la primera), para que el back-off jerárquico sea coherente con la
-        #    atribución por clase.
-        for clase in dict.fromkeys(classes):
+        if len(pairs) == 1:
+            _escribe(*pairs[0])
+
+        # Family back-off is likewise written only when one family attribution
+        # is identifiable. Multi-family candidate outcomes stay in the ledger
+        # but do not masquerade as independent family evidence.
+        unique_classes = list(dict.fromkeys(classes))
+        if len(unique_classes) == 1:
             try:
-                store.record_family_outcome(profile=profile, family=clase,
-                                            channel=CHANNEL_VERDICT, outcome=verdict,
-                                            canon_version=canon_version, run_id=run_id)
+                store.record_family_outcome(
+                    profile=profile,
+                    family=unique_classes[0],
+                    channel=CHANNEL_VERDICT,
+                    outcome=verdict,
+                    canon_version=canon_version,
+                    run_id=run_id,
+                )
                 written += 1
             except Exception:  # noqa: BLE001
                 pass
@@ -619,10 +760,31 @@ def record_outcomes(
 
 
 def append_ledger(sheet: dict[str, Any], ledger_dir: Path | None = None) -> Path:
-    """Añade el registro completo al ledger append-only (JSONL)."""
+    """Append an auditable invention and selection record to the JSONL ledger."""
     directory = ledger_dir or _ledger_dir()
     directory.mkdir(parents=True, exist_ok=True)
     path = directory / "verdicts.jsonl"
+    selection = sheet.get("seleccion_finalista") or {}
+    revision = selection.get("revision_post_interpretacion") or {}
+    selection_audit = {
+        "initial_candidate_pool": list(selection.get("initial_candidate_pool") or []),
+        "initial_finalists": list(selection.get("initial_finalists") or []),
+        "selection_report": selection,
+        "replacement_attempts": list(revision.get("intentos") or []),
+        "final_finalists": list(selection.get("finalists") or []),
+        "blocking_sheet": sheet.get("ficha_bloqueo"),
+        "call_accounting": {
+            "candidate_development_attempts": revision.get("candidate_development_attempts"),
+            "model_requests": revision.get("model_requests"),
+            "model_requests_authoritative": bool(
+                revision.get("model_requests_authoritative", False)
+            ),
+        },
+        "opportunity_accounting": dict(selection.get("opportunity_accounting") or {
+            "budget_complete": False,
+            "scope": "LEGACY_OR_UNINSTRUMENTED",
+        }),
+    }
     record = {
         "generated_at": sheet["generated_at"],
         "query": sheet["query"],
@@ -631,8 +793,23 @@ def append_ledger(sheet: dict[str, Any], ledger_dir: Path | None = None) -> Path
         "run_id": sheet["run_id"],
         "mode": sheet["mode"],
         "rounds": sheet["rounds"],
+        "reproducibility_dependencies": sheet.get(
+            "reproducibility_dependencies",
+            {
+                "closure_complete": False,
+                "known_unclosed_dependencies": ["legacy_record_missing_dependency_closure"],
+            },
+        ),
+        "adaptation": sheet.get("adaptation", {
+            "enabled": False,
+            "policy": "legacy_unspecified",
+            "scope": "UNKNOWN",
+            "history_storage_enabled": None,
+            "fallback": "legacy_unspecified",
+        }),
         "domain_coupling": sheet["domain_coupling"],
         "totals": sheet["totals"],
+        "selection_audit": selection_audit,
         "entries": [
             {
                 "candidate_id": e["candidate_id"],
@@ -650,7 +827,15 @@ def append_ledger(sheet: dict[str, Any], ledger_dir: Path | None = None) -> Path
                 "ruta_desbloqueo": e["ruta_desbloqueo"],
                 "supuestos": e["supuestos"],
                 "estado_antecedentes": e["estado_antecedentes"],
-                "evidencia_local_usada": e["evidencia_local_usada"],
+                "evidence_retrieved": list(
+                    e.get("evidence_retrieved", e.get("evidencia_local_usada", []))
+                ),
+                "evidence_delivered": list(
+                    e.get("evidence_delivered", e.get("evidencia_local_usada", []))
+                ),
+                "evidence_documented_as_used": list(e.get("evidence_documented_as_used", [])),
+                "evidencia_local_usada": list(e.get("evidencia_local_usada", [])),
+                "evidencia_local_usada_semantics": "DEPRECATED_ALIAS_FOR_EVIDENCE_DELIVERED",
                 "verdict": e["prior_art"]["verdict"],
                 "queries": e["prior_art"]["queries"],
                 "detail": e["prior_art"]["detail"],
@@ -683,7 +868,7 @@ def print_sheet(sheet: dict[str, Any]) -> None:
             print(f"   hipótesis: {entry['hipotesis'][:200]}")
             print(f"   mecanismo: {entry['mecanismo'][:200]}")
             print(f"   prueba: {entry['prueba_concreta'][:200]}")
-        print(f"   juez: {judge.get('veredicto', '?')} ({judge.get('score', 0)})")
+        print(f"   juez: {judge.get('veredicto', '?')} ({judge.get('score', 'N/A')})")
         print(f"   prior-art: {prior['verdict']} (rondas={prior['rounds']}, mutaciones={prior['mutations']})")
     totals = sheet["totals"]
     print()

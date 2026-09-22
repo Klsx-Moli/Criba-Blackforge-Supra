@@ -175,13 +175,21 @@ class SourceQueryResult:
 
 @dataclass
 class ProvenanceRecord:
-    """Blueprint §26/§103: every factual claim must trace to a source."""
+    """Blueprint §26/§103: source and derivation metadata for evidence.
+
+    transformation, source_version and scope make derived evidence provenance
+    explicit when those dimensions apply. Empty legacy values remain
+    representable and therefore must not be mistaken for complete provenance.
+    """
     source_id: str
     retrieved_at: str = field(default_factory=_now_iso)
     url: str = ""
     license: str = ""
     method: str = ""               # api|crawl|file|derived
     raw_hash: str = ""             # sha256 of normalized raw payload
+    transformation: str = ""       # normalization/extraction/derivation performed
+    source_version: str = ""       # source/corpus/API snapshot version when known
+    scope: str = ""                # claim/run/corpus scope of this evidence
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)

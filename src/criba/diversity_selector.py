@@ -40,7 +40,7 @@ MECHANISM_DUPLICATE_JACCARD = 0.6
 # Marcadores de negación: presentes en un lado y no en el otro, invierten el
 # mecanismo aunque el vocabulario coincida (prueba negativa de negación).
 _NEGATION_RE = re.compile(
-    r"\b(no|sin|nunca|jamás|jamais|impide|impedir|prohíbe|prohibir|prohibido|"
+    r"\b(no|not|without|never|sin|nunca|jamás|jamais|impide|impedir|prohíbe|prohibir|prohibido|"
     r"evita|evitar|cancela|cancelar|revoca|revocar)\b")
 
 
@@ -48,37 +48,47 @@ def _content_tokens(text: str) -> list[str]:
     return [t for t in re.split(r"[^a-z0-9áéíóúñü]+", (text or "").casefold()) if len(t) >= 4]
 
 
-def compare_mechanisms(a: str, b: str) -> str:
-    """Clasificación honesta entre dos mecanismos interpretados.
+def _quantities(text: str) -> tuple[str, ...]:
+    """Return explicit numeric quantities without pretending to parse semantics."""
+    return tuple(re.findall(r"(?<!\w)[+-]?(?:\d+(?:[.,]\d+)?)(?!\w)", text or ""))
 
-    Devuelve: ``DUPLICATE`` (misma idea, paráfrasis), ``DISTINCT`` (mecanismos
-    distintos, incluidos negación e inversión de dirección) o ``UNKNOWN``
-    (texto insuficiente o zona gris — NO se auto-descarta por similitud baja).
+
+def compare_mechanisms(a: str, b: str) -> str:
+    """Conservative contextual comparison of two interpreted mechanisms.
+
+    ``DISTINCT`` requires positive evidence (a scoped negation or different
+    quantities in an otherwise shared context). Low lexical overlap is
+    insufficient and therefore yields ``UNKNOWN`` rather than inventing a
+    functional difference.
     """
-    ta, tb = set(_content_tokens(a)), set(_content_tokens(b))
+    ra, rb = _content_tokens(a), _content_tokens(b)
+    ta, tb = set(ra), set(rb)
     if len(ta) < 3 or len(tb) < 3:
         return "UNKNOWN"
-    # Negación asimétrica ANTES de comparar vocabulario: "no concede" vs
-    # "concede" comparte todos los tokens pero el mecanismo es opuesto.
+    inter, union = len(ta & tb), len(ta | tb)
+    jac = inter / union if union else 0.0
+
+    # Negation is evidence of a difference only when both texts otherwise refer
+    # to substantially the same mechanism. An unrelated negated sentence does
+    # not become DISTINCT merely because the other sentence is affirmative.
     neg_a = bool(_NEGATION_RE.search((a or "").casefold()))
     neg_b = bool(_NEGATION_RE.search((b or "").casefold()))
     if neg_a != neg_b:
-        return "DISTINCT"
-    ra, rb = _content_tokens(a), _content_tokens(b)
+        return "DISTINCT" if jac >= 0.6 else "UNKNOWN"
+
+    # Quantities are not content tokens, so compare them explicitly, but only
+    # under strong shared lexical context.
+    qa, qb = _quantities(a), _quantities(b)
+    if qa != qb and (qa or qb):
+        return "DISTINCT" if jac >= 0.6 else "UNKNOWN"
+
     if ta == tb:
-        # Mismo vocabulario: solo una secuencia idéntica es paráfrasis segura.
-        # Un reorden distinto puede ser estilo O inversión de actores ("el banco
-        # presta al cliente" vs "el cliente presta al banco", misma primera
-        # cláusula) → DUPLICATE falso descartaría mecanismos genuinos
-        # (auditoría de la base: confusión de mecanismos al invertir actores).
+        # Same vocabulary: only an identical sequence is safely duplicate. A
+        # reordering may invert roles or direction and must remain UNKNOWN.
         return "DUPLICATE" if ra == rb else "UNKNOWN"
-    inter, union = len(ta & tb), len(ta | tb)
-    jac = inter / union if union else 0.0
     if jac >= MECHANISM_DUPLICATE_JACCARD:
         return "DUPLICATE"
-    if jac >= 0.45:
-        return "UNKNOWN"  # zona gris: no descartar automáticamente
-    return "DISTINCT"
+    return "UNKNOWN"
 
 
 def same_idea_mechanism(a: str, b: str) -> bool:
@@ -92,7 +102,9 @@ PENALTY_CLOSE_VARIANT = 0.35    # por cada close_variant ya elegido
 PENALTY_PROBABLE_DUPLICATE = 2.0  # excluye en la práctica si hay alternativas
 PENALTY_FAMILY_REPEAT = 0.15    # por cada finalista previo de la misma familia
 PENALTY_MECHANISM_REPEAT = 0.25  # por cada finalista previo con el mismo mecanismo
-NEUTRAL_DISTANCE = 0.5     # genoma insuficiente (cobertura < 0.60): ni igual ni diverso
+# Unknown/not-comparable structure contributes zero demonstrated diversity.
+# Uncertainty exploration, if ever added, must be a separate labelled signal.
+NEUTRAL_DISTANCE = 0.0
 
 # Suelo de calidad relativo: un candidato entra al pool si score >= mejor_score
 # del pool − RELATIVE_QUALITY_FLOOR. Centralizado para poder ablacionar.
@@ -152,15 +164,19 @@ def _adaptive_bonus(
     Suma los priors del outcome_store sobre los ``technique_ids`` del candidato
     (los que inventar.record_outcomes escribió). Sin store o sin técnicas:
     bonus 0.0 — el selector queda byte-idéntico al congelado. Nunca negativo:
-    la memoria empuja hacia arriba lo que demostró outcome, no hunde al resto.
+    la memoria aplica una preferencia operacional opt-in basada en registros
+    elegibles; no convierte esos registros en mérito científico ni causal.
     La familia de consulta usa la clase de pensamiento cuando existe (coherente
     con la escritura de record_outcomes); de lo contrario, la familia del método.
     """
     if outcome_store is None:
-        return 0.0, ""
-    tids = candidate.get("technique_ids") or candidate.get("method_ids") or []
+        return 0.0, "memory:disabled"
+    tids = list(dict.fromkeys(
+        str(tid) for tid in (candidate.get("technique_ids") or candidate.get("method_ids") or [])
+        if str(tid)
+    ))
     if not tids:
-        return 0.0, ""
+        return 0.0, "memory:no_ids"
     classes = [c for c in (candidate.get("classes") or []) if c]
     family = classes[0] if classes else str(candidate.get("family") or "unknown")
     total = 0.0
@@ -192,34 +208,35 @@ def _adaptive_bonus(
             elif n_v > 0:
                 total += prior_v
                 n_used += 1
-    except Exception:  # noqa: BLE001 — la memoria nunca rompe la selección
-        return 0.0, ""
+    except Exception as exc:  # noqa: BLE001 — la memoria nunca rompe la selección
+        return 0.0, f"memory:error:{type(exc).__name__}"
     if not n_used:
-        return 0.0, ""
-    return total, f"memoria:bonus={total:.3f}(tecnicas={n_used})"
+        return 0.0, "memory:no_data"
+    state = "memory:valid_zero_prior" if total == 0.0 else "memoria:bonus"
+    return total, f"{state}={total:.3f}(tecnicas={n_used})"
 
 
 def _structural_distance(a: dict[str, Any], b: dict[str, Any]) -> float:
-    """Distancia estructural [0,1]. Un campo solo compara si AMBOS lados
-    llevan información: lo desconocido NO otorga diversidad ni igualdad —
-    contribuye neutro (mandato §2: mecanismo incompleto queda UNKNOWN).
-    Sin ningún campo comparable en ambos lados: distancia neutra."""
+    """Demonstrated structural distance in ``[0, 1]``.
+
+    A field contributes only when both sides contain known information. Missing
+    or unknown fields contribute zero—not a neutral bonus—and the result remains
+    normalized against the complete declared weight budget. Removing information
+    therefore cannot increase demonstrated diversity.
+    """
     ga, gb = a.get("genome") or {}, b.get("genome") or {}
-    if not ga and not gb:
-        return NEUTRAL_DISTANCE
     total = 0.0
     comparable = False
     for field, w in WEIGHTS.items():
         ea = _effective(ga.get(field, ["unknown"]))
         eb = _effective(gb.get(field, ["unknown"]))
-        if ea and eb:
-            union = len(ea | eb)
-            sim = (len(ea & eb) / union) if union else 0.0
-            total += w * (1 - sim)
-            comparable = True
-        else:
-            total += w * (1 - NEUTRAL_DISTANCE)
-    return round(total, 4) if comparable else NEUTRAL_DISTANCE
+        if not (ea and eb):
+            continue
+        union = len(ea | eb)
+        sim = (len(ea & eb) / union) if union else 0.0
+        total += w * (1 - sim)
+        comparable = True
+    return round(total, 4) if comparable else 0.0
 
 
 def _relation(a: dict[str, Any], b: dict[str, Any]) -> str:
@@ -263,6 +280,11 @@ def select_finalists(
         "pool_size": len(pool),
         "valid_size": len(valid),
         "picks": [],
+        "tie_sets": [],
+        "tiebreak_rule": (
+            "deterministic idea_id order among equal operational utility; "
+            "tie-break is not scientific superiority"
+        ),
     }
 
     if not valid:
@@ -271,6 +293,14 @@ def select_finalists(
         return [], report
 
     ordered = sorted(valid, key=lambda c: (-float(c.get("score", 0.0)), str(c.get("idea_id", ""))))
+    score_groups: dict[float, list[str]] = {}
+    for candidate in ordered:
+        score_groups.setdefault(float(candidate.get("score", 0.0)), []).append(
+            str(candidate.get("idea_id", ""))
+        )
+    report["tie_sets"].extend(
+        ids for ids in score_groups.values() if len(ids) > 1
+    )
     selected: list[dict[str, Any]] = [ordered[0]]
     remaining = ordered[1:]
     report["picks"].append({
@@ -282,6 +312,7 @@ def select_finalists(
         best: dict[str, Any] | None = None
         best_utility = float("-inf")
         best_explain = ""
+        best_ties: list[str] = []
         for candidate in remaining:
             utility = W_QUALITY * float(candidate.get("score", 0.0))
             explain: list[str] = []
@@ -325,11 +356,17 @@ def select_finalists(
                 utility -= overuse
                 explain.append(f"fatiga histórica −{overuse:.2f}")
 
-            if utility > best_utility:
-                best, best_utility, best_explain = candidate, utility, "; ".join(explain) or "sin vecinos"
+            if utility > best_utility + 1e-12:
+                best, best_utility = candidate, utility
+                best_explain = "; ".join(explain) or "sin vecinos"
+                best_ties = [str(candidate.get("idea_id", ""))]
+            elif abs(utility - best_utility) <= 1e-12:
+                best_ties.append(str(candidate.get("idea_id", "")))
 
         if best is None:
             break
+        if len(best_ties) > 1:
+            report["tie_sets"].append(best_ties)
         selected.append(best)
         remaining.remove(best)
         report["picks"].append({

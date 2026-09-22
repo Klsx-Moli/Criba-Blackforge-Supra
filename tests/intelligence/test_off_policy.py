@@ -12,6 +12,11 @@ from __future__ import annotations
 
 import pytest
 
+from criba.intelligence.outcome_store import (
+    CHANNEL_OBSERVED,
+    CHANNEL_VERDICT,
+    TechniqueOutcomeStore,
+)
 from criba.intelligence.off_policy import (
     LoggedDecision,
     append_decision,
@@ -19,6 +24,7 @@ from criba.intelligence.off_policy import (
     evaluate_policy,
     log_hash,
     read_decisions,
+    rehydrate_rewards,
 )
 
 
@@ -192,3 +198,51 @@ class TestCompare:
     def test_log_vacio_compare_unresolved(self):
         result = compare_policies([], lambda t, f, pool: 1.0)
         assert result["verdict"] == "UNRESOLVED"
+
+
+def test_pending_reward_is_unresolved_not_zero_outcome():
+    decisions = [
+        LoggedDecision("T1", "f", 0.5, None, run_id="episode-1"),
+        LoggedDecision("T2", "f", 0.5, 1.0, run_id="episode-2"),
+    ]
+    est = evaluate_policy(decisions, lambda *_: 0.5)
+    assert est.verdict == "UNRESOLVED"
+    assert est.value is None
+    assert "pendiente" in est.reason
+
+
+def test_rehydrate_never_uses_prior_art_or_ucb_as_observed_reward(tmp_path):
+    store = TechniqueOutcomeStore(tmp_path / "outcomes.jsonl")
+    store.record(
+        profile="CRIBA",
+        family="f",
+        technique_id="T1",
+        channel=CHANNEL_VERDICT,
+        outcome="SURVIVED_SEARCH",
+        canon_version="c",
+        run_id="episode-1",
+    )
+    pending = [LoggedDecision("T1", "f", 0.5, None, run_id="episode-1")]
+    got = rehydrate_rewards(pending, store, canon_version="c")
+    assert got[0].reward is None
+
+
+def test_rehydrate_accepts_only_exact_observed_episode(tmp_path):
+    store = TechniqueOutcomeStore(tmp_path / "outcomes.jsonl")
+    store.record(
+        profile="CRIBA",
+        family="f",
+        technique_id="T1",
+        channel=CHANNEL_OBSERVED,
+        outcome="positivo",
+        canon_version="c",
+        run_id="episode-exact",
+    )
+    pending = [
+        LoggedDecision("T1", "f", 0.5, None, run_id="episode-exact"),
+        LoggedDecision("T1", "f", 0.5, None, run_id="episode-other"),
+    ]
+    got = rehydrate_rewards(pending, store, canon_version="c")
+    assert got[0].reward == 1.0
+    assert got[0].channel == CHANNEL_OBSERVED
+    assert got[1].reward is None

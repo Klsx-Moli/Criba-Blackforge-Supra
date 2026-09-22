@@ -11,12 +11,15 @@ mecanismos y condiciones), cerrando el circuito con trazabilidad.
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import warnings
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
+
+DOSSIER_RESULT_SEMANTICS_VERSION = 3
 from uuid import uuid4
 
 
@@ -73,31 +76,62 @@ def preparar_dossier(
     distinguir. Si no se aporta, el dossier lo declara en lugar de inventarla.
     """
     bloqueo = (ficha_bloqueo or {})
+    prueba_concreta = str(entry.get("prueba_concreta", ""))[:600]
+    observable = str(entry.get("observable") or entry.get("metrica") or "")[:400]
     prueba = {
-        "afirmacion_decisiva": str(entry.get("prueba_concreta", ""))[:600],
+        "afirmacion_decisiva": prueba_concreta,
         "alternativa_explicativa": alternativa_explicativa.strip(),
+        "intervencion_prueba": prueba_concreta,
+        "observable": observable,
         "comparacion": (
             "observación que distinga el mecanismo propuesto de la alternativa; "
-            "si no hay alternativa declarada, la prueba solo puede confirmar "
-            "coherencia, no decidir entre explicaciones"
+            "si no hay alternativa declarada, la prueba no es discriminante"
         ),
-        "metrica": "",
-        "resultado_favorable_mecanismo": "",
-        "resultado_favorable_alternativa": "",
-        "condicion_fracaso": "si la observación no discrimina, el dossier no decide",
+        "metrica": observable,
+        "resultado_favorable_mecanismo": str(
+            entry.get("resultado_favorable_mecanismo") or ""
+        )[:400],
+        "resultado_favorable_alternativa": str(
+            entry.get("resultado_favorable_alternativa") or ""
+        )[:400],
+        "regla_decision": str(entry.get("regla_decision") or "")[:400],
+        "condicion_fracaso": str(
+            entry.get("condicion_fracaso")
+            or "si la observación no discrimina, el dossier no decide"
+        )[:400],
         "coste_permisos": "a evaluar por el responsable antes de ejecutar",
         "estado_prueba": "NO_EJECUTADA",
     }
+    claim = str(entry.get("hipotesis", ""))[:800]
+    mechanism = str(entry.get("mecanismo", ""))
+    claim_id = str(entry.get("claim_id") or (
+        "claim-" + hashlib.sha256(claim.encode("utf-8")).hexdigest()[:16]
+    ))
+    mechanism_version = str(entry.get("mechanism_version") or (
+        "sha256:" + hashlib.sha256(mechanism.encode("utf-8")).hexdigest()
+    ))
+    protocol_version = str(entry.get("protocol_version") or (
+        "sha256:" + hashlib.sha256(
+            json.dumps(prueba, ensure_ascii=False, sort_keys=True).encode("utf-8")
+        ).hexdigest()
+    ))
+    delivered = list(entry.get("evidence_delivered", entry.get("evidencia_local_usada", [])))
+    documented = list(entry.get("evidence_documented_as_used", []))
     return {
         "dossier_id": f"dossier-{uuid4().hex}",
         "candidate_id": entry.get("candidate_id", ""),
         "run_id": entry.get("run_id", ""),
+        "claim_id": claim_id,
+        "protocol_version": protocol_version,
+        "mechanism_version": mechanism_version,
         "problema": problema[:400],
         "bloqueo": bloqueo.get("bloqueo", ""),
         "origen_bloqueo": bloqueo.get("origen_bloqueo", ""),
-        "hipotesis": str(entry.get("hipotesis", ""))[:800],
-        "mecanismo": str(entry.get("mecanismo", "")),
-        "evidencia_utilizada": list(entry.get("evidencia_local_usada", [])),
+        "hipotesis": claim,
+        "mecanismo": mechanism,
+        "evidence_delivered": delivered,
+        "evidence_documented_as_used": documented,
+        "evidencia_utilizada": documented,
         "prueba_discriminante": prueba,
         "supuestos": list(entry.get("supuestos", [])),
         "estado": "SUPRA_EJECUCION_PENDIENTE",
@@ -126,32 +160,168 @@ def guardar_dossier(dossier: dict[str, Any], directory: Path | None = None) -> P
     return path
 
 
+def _discriminant_protocol_complete(dossier: dict[str, Any]) -> bool:
+    """Return True only when the dossier can actually discriminate rival claims."""
+    prueba = dossier.get("prueba_discriminante")
+    if not isinstance(prueba, dict):
+        return False
+    required = (
+        "afirmacion_decisiva",
+        "alternativa_explicativa",
+        "intervencion_prueba",
+        "observable",
+        "resultado_favorable_mecanismo",
+        "resultado_favorable_alternativa",
+        "regla_decision",
+        "condicion_fracaso",
+    )
+    return bool(str(dossier.get("claim_id") or "").strip()) and all(
+        str(prueba.get(field) or "").strip() for field in required
+    )
+
+
+_RECEIPT_FIELDS = (
+    "candidate_id",
+    "mechanism_version",
+    "claim_id",
+    "protocol_version",
+    "execution_id",
+    "observed_result",
+    "result_scope",
+)
+
+
+def _normalizar_execution_receipt(receipt: dict[str, Any] | None) -> dict[str, str]:
+    """Keep only the non-secret fields needed to verify execution identity."""
+    if not isinstance(receipt, dict):
+        return {}
+    return {field: str(receipt.get(field) or "") for field in _RECEIPT_FIELDS}
+
+
+def _execution_receipt_matches(
+    dossier: dict[str, Any],
+    receipt: dict[str, Any] | None,
+    *,
+    resultado: str,
+    execution_id: str,
+    protocol_version: str,
+) -> bool:
+    """Accredit only a receipt that independently binds the full experiment identity."""
+    normalized = _normalizar_execution_receipt(receipt)
+    expected = {
+        "candidate_id": str(dossier.get("candidate_id") or ""),
+        "mechanism_version": str(dossier.get("mechanism_version") or ""),
+        "claim_id": str(dossier.get("claim_id") or ""),
+        "protocol_version": protocol_version.strip(),
+        "execution_id": execution_id.strip(),
+        "observed_result": resultado,
+        "result_scope": "EXPERIMENTAL_OBSERVATION",
+    }
+    if not all(expected.values()):
+        return False
+    return all(normalized.get(field) == value for field, value in expected.items())
+
+
 def registrar_resultado(
     dossier_id: str,
     resultado: str,
     *,
     condiciones: str = "",
+    execution_id: str = "",
+    protocol_version: str = "",
+    execution_receipt: dict[str, Any] | None = None,
+    execution_resolver: Callable[[str], dict[str, Any] | None] | None = None,
     directory: Path | None = None,
 ) -> dict[str, Any]:
-    """Registra el resultado OBSERVADO de la prueba discriminante.
+    """Record a declared result, accrediting it only to a bound execution.
 
-    ``resultado`` debe ser uno de: positivo | negativo | indeterminado.
-    Un fallo de datos/proveedor/implementación no atribuye efecto al
-    mecanismo (ASTRA §7): por eso existe ``indeterminado``.
+    A result without a matching execution/protocol identity is preserved as
+    ``DECLARED_RESULT`` but is not eligible for ``lecciones_previas``.
     """
     if resultado not in ("positivo", "negativo", "indeterminado"):
         raise ValueError("resultado debe ser positivo|negativo|indeterminado")
     directory = _dossiers_dir(directory)
     path = directory / "dossiers.jsonl"
-    dossiers, ambiguos, _ = _leer_historial(path)
+    dossiers, ambiguos, existing_results = _leer_historial(path)
     if dossier_id not in dossiers or dossier_id in ambiguos:
         raise ValueError("el resultado requiere un dossier existente y no ambiguo")
+    dossier = dossiers[dossier_id]
+    bound_protocol = str(dossier.get("protocol_version") or "")
+    declared_receipt = _normalizar_execution_receipt(execution_receipt)
+    resolved_receipt: dict[str, str] = {}
+    if execution_resolver is not None and execution_id.strip():
+        try:
+            resolved_receipt = _normalizar_execution_receipt(
+                execution_resolver(execution_id.strip())
+            )
+        except Exception:  # noqa: BLE001 — resolver failure cannot fabricate accreditation
+            resolved_receipt = {}
+    protocol_complete = _discriminant_protocol_complete(dossier)
+    accredited = bool(
+        protocol_complete
+        and protocol_version.strip()
+        and protocol_version == bound_protocol
+        and execution_resolver is not None
+        and _execution_receipt_matches(
+            dossier,
+            resolved_receipt,
+            resultado=resultado,
+            execution_id=execution_id,
+            protocol_version=protocol_version,
+        )
+    )
+    observation_id = ""
+    previous_revisions: list[dict[str, Any]] = []
+    if execution_id.strip() and protocol_version.strip():
+        observation_id = hashlib.sha256(
+            f"{dossier_id}|{execution_id.strip()}|{protocol_version.strip()}".encode("utf-8")
+        ).hexdigest()
+        previous_revisions = [
+            item
+            for item in existing_results
+            if item.get("observation_id") == observation_id
+            and item.get("result_semantics_version") == DOSSIER_RESULT_SEMANTICS_VERSION
+        ]
+    first_registered_at = (
+        str(previous_revisions[0].get("first_registered_at") or previous_revisions[0].get("registrado_at") or "")
+        if previous_revisions
+        else ""
+    )
+    registered_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    if not first_registered_at:
+        first_registered_at = registered_at
+
     registro = {
+        "observation_id": observation_id,
+        "revision_index": len(previous_revisions),
+        "first_registered_at": first_registered_at,
         "dossier_id": dossier_id,
+        "candidate_id": dossier.get("candidate_id", ""),
+        "mechanism_version": dossier.get("mechanism_version", ""),
+        "claim_id": dossier.get("claim_id", ""),
+        "protocol_version": protocol_version,
+        "execution_id": execution_id,
         "resultado": resultado,
+        "observed_result": resultado,
+        "declared_execution_receipt": declared_receipt,
+        "execution_receipt": resolved_receipt,
+        "receipt_authority": "EXECUTION_RESOLVER" if accredited else "NONE",
+        "result_semantics_version": DOSSIER_RESULT_SEMANTICS_VERSION,
+        "protocol_complete": protocol_complete,
+        "accreditation": "ACCREDITED_EXECUTION" if accredited else "DECLARED_RESULT",
+        "learning_eligible": bool(accredited and resultado in ("positivo", "negativo")),
+        "accreditation_reason": (
+            "resolved_authoritative_execution_receipt"
+            if accredited
+            else (
+                "incomplete_discriminant_protocol"
+                if not protocol_complete
+                else "no_authoritative_matching_execution_receipt"
+            )
+        ),
         "condiciones": condiciones[:400],
-        "registrado_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-        "autor": "humano/experimento",  # solo experimentos observados escriben aquí
+        "registrado_at": registered_at,
+        "autor": "humano/experimento",
     }
     with path.open("a", encoding="utf-8") as handle:
         handle.write(json.dumps(
@@ -162,8 +332,9 @@ def registrar_resultado(
 def lecciones_previas(query: str, directory: Path | None = None, limit: int = 3) -> list[str]:
     """Lecciones registradas pertinentes a la consulta (paso 5 del circuito).
 
-    Un resultado observado vuelve a la búsqueda como aprendizaje trazable:
-    'este cambio de mecanismo produjo este resultado en estas condiciones'.
+    Un resultado elegible vuelve a la búsqueda como aprendizaje trazable y
+    acotado: se informa qué se observó en una ejecución acreditada bajo su
+    protocolo; no se convierte automáticamente en afirmación causal general.
     """
     path = _dossiers_dir(directory) / "dossiers.jsonl"
     if not path.exists() or limit <= 0:
@@ -176,21 +347,57 @@ def lecciones_previas(query: str, directory: Path | None = None, limit: int = 3)
             RuntimeWarning,
             stacklevel=2,
         )
-    out: list[str] = []
+    # Latest revision wins for one stable accredited observation identity.
+    # Corrections remain in JSONL but never become independent lessons.
+    effective_results: dict[str, dict[str, Any]] = {}
     for res in resultados:
+        observation_id = str(res.get("observation_id") or "")
+        if (
+            not observation_id
+            or res.get("result_semantics_version") != DOSSIER_RESULT_SEMANTICS_VERSION
+        ):
+            continue
+        effective_results[observation_id] = res
+
+    out: list[str] = []
+    for res in effective_results.values():
         identity = res.get("dossier_id", "")
         if identity in ambiguos or identity not in dossiers:
             continue
-        if res.get("resultado") not in ("positivo", "negativo", "indeterminado"):
+        if res.get("accreditation") != "ACCREDITED_EXECUTION":
+            continue
+        if res.get("result_semantics_version") != DOSSIER_RESULT_SEMANTICS_VERSION:
+            # Preserve legacy observations but never reactivate old derived
+            # lessons after semantic/accreditation rules become stricter.
+            continue
+        if res.get("receipt_authority") != "EXECUTION_RESOLVER":
+            # Legacy/caller-declared receipts are preserved but never promoted
+            # to learning evidence after the authoritative-resolver contract.
+            continue
+        if res.get("learning_eligible") is not True:
+            # INDETERMINATE is an observed state, not a learning reward/lesson.
             continue
         d = dossiers[identity]
+        if not _execution_receipt_matches(
+            d,
+            res.get("execution_receipt"),
+            resultado=str(res.get("resultado") or ""),
+            execution_id=str(res.get("execution_id") or ""),
+            protocol_version=str(res.get("protocol_version") or ""),
+        ):
+            continue
+        if res.get("resultado") not in ("positivo", "negativo", "indeterminado"):
+            continue
         problema = str(d.get("problema", "")).casefold()
         if q and not any(w in problema for w in q.split() if len(w) >= 4):
             continue
         out.append(
-            f"{res['dossier_id']}: prueba discriminante {res['resultado']} "
-            f"para '{str(d.get('mecanismo', ''))[:120]}' "
-            f"(condiciones: {res.get('condiciones', '')[:120]})"
+            f"{res['dossier_id']}: en ejecución acreditada se observó "
+            f"'{res['resultado']}' para el contraste del mecanismo "
+            f"'{str(d.get('mecanismo', ''))[:120]}' "
+            f"(protocolo={res.get('protocol_version', '')[:80]}; "
+            f"condiciones: {res.get('condiciones', '')[:120]}). "
+            "Alcance: resultado del contraste ejecutado, no causalidad general."
         )
         if len(out) >= limit:
             break

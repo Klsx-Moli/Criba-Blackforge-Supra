@@ -14,6 +14,8 @@ from .constants import (
     VALID_DECISIONS,
 )
 
+SCHEMA_VERSION = 1
+
 
 class Storage:
     def __init__(self, path: Path | str | None = DEFAULT_DB) -> None:
@@ -24,11 +26,19 @@ class Storage:
     def connect(self) -> sqlite3.Connection:
         con = sqlite3.connect(self.path, timeout=3)
         con.row_factory = sqlite3.Row
+        con.execute("PRAGMA foreign_keys = ON")
+        con.execute("PRAGMA journal_mode = WAL")
         return con
 
     def initialize(self) -> None:
         con = self.connect()
         try:
+            current_version = int(con.execute("PRAGMA user_version").fetchone()[0])
+            if current_version > SCHEMA_VERSION:
+                raise RuntimeError(
+                    f"La base usa una versión de esquema más nueva ({current_version}) "
+                    f"que la soportada ({SCHEMA_VERSION})."
+                )
             with con:
                 con.execute('''CREATE TABLE IF NOT EXISTS sessions (
                   id TEXT PRIMARY KEY, created_at TEXT NOT NULL, query_hash TEXT NOT NULL,
@@ -61,6 +71,8 @@ class Storage:
                   mode TEXT NOT NULL,
                   seed INTEGER,
                   PRIMARY KEY (catalog_fingerprint, combo_key))''')
+                if current_version < SCHEMA_VERSION:
+                    con.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
         finally:
             con.close()
 
@@ -100,14 +112,44 @@ class Storage:
     def record_decision(self, session_id: str, status: str, evidence: list[Any] | dict[str, Any], note: str = "") -> dict[str, Any]:
         if status not in VALID_DECISIONS:
             raise ValueError("Estado de decisión inválido.")
-        entry: dict[str, Any] = {"id": str(uuid.uuid4()), "session_id": session_id, "timestamp": datetime.now(timezone.utc).isoformat(), "status": status, "evidence": evidence, "note": note}
+        if not isinstance(evidence, (list, dict)):
+            raise ValueError("evidence debe ser una lista o un objeto.")
+
+        entry: dict[str, Any] = {
+            "id": str(uuid.uuid4()),
+            "session_id": session_id,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "status": status,
+            "evidence": evidence,
+            "note": note,
+        }
         con = self.connect()
         try:
             with con:
-                if not con.execute("SELECT 1 FROM sessions WHERE id=?", (session_id,)).fetchone():
+                row = con.execute(
+                    "SELECT evidence_json FROM sessions WHERE id=?", (session_id,)
+                ).fetchone()
+                if not row:
                     raise ValueError(f"Sesión inexistente: {session_id}")
-                con.execute("INSERT INTO decisions VALUES(?,?,?,?,?,?)", (entry["id"], session_id, entry["timestamp"], status, json.dumps(evidence, ensure_ascii=False), note))
-                con.execute("UPDATE sessions SET status=?, evidence_json=? WHERE id=?", (status, json.dumps([entry], ensure_ascii=False), session_id))
+                existing = json.loads(row["evidence_json"])
+                if not isinstance(existing, list):
+                    raise ValueError("evidence_json almacenado debe ser una lista.")
+                updated = [*existing, entry]
+                con.execute(
+                    "INSERT INTO decisions VALUES(?,?,?,?,?,?)",
+                    (
+                        entry["id"],
+                        session_id,
+                        entry["timestamp"],
+                        status,
+                        json.dumps(evidence, ensure_ascii=False),
+                        note,
+                    ),
+                )
+                con.execute(
+                    "UPDATE sessions SET status=?, evidence_json=? WHERE id=?",
+                    (status, json.dumps(updated, ensure_ascii=False), session_id),
+                )
             return entry
         finally:
             con.close()

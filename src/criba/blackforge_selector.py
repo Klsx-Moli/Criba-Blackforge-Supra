@@ -6,7 +6,7 @@ catalog's own selection_policy / safety_policy, never relaxing a constraint
 silently.
 
 Design rules (from HIPER_MEGAPROMPT FASE 2):
-- reproducible with the same seed (random.Random, stable ordering);
+- deterministic stable ordering; seed is recorded for API/report compatibility but does not currently perturb ranking;
 - uses an appropriate profile score (quality_score_v2);
 - respects quotas (tiers, source catalogs, primary categories, families,
   causal axes, mandatory stages);
@@ -19,7 +19,6 @@ Design rules (from HIPER_MEGAPROMPT FASE 2):
 """
 from __future__ import annotations
 
-import random
 from collections import Counter
 from collections.abc import Mapping
 from dataclasses import dataclass, field
@@ -51,6 +50,11 @@ class SelectionReport:
     s3_count: int
     s3_allowed: bool
     failure: SelectionFailure | None = None
+    tie_sets: list[list[str]] = field(default_factory=list)
+    tiebreak_rule: str = (
+        "profile score desc, diversity heuristic desc, selection weight desc, "
+        "blackforge_id asc; operational ordering is not scientific superiority"
+    )
 
     def status_ok(self) -> bool:
         return self.failure is None
@@ -67,6 +71,8 @@ class SelectionReport:
             "s3_count": self.s3_count,
             "s3_allowed": self.s3_allowed,
             "compliance": self.compliance,
+            "tie_sets": self.tie_sets,
+            "tiebreak_rule": self.tiebreak_rule,
             "failure": self.failure.to_dict() if self.failure else None,
         }
 
@@ -130,7 +136,6 @@ def select_blackforge(
         return True
     candidates = [r for r in recs if _eligible(r)]
 
-    rng = random.Random(seed)
 
     # Honest pre-check: if the eligible pool is smaller than the requested
     # session size, the quota is impossible to meet — never return a silently
@@ -158,6 +163,11 @@ def select_blackforge(
         )
 
     ordered = sorted(candidates, key=_key)
+    tied: dict[tuple[Any, ...], list[str]] = {}
+    for record in ordered:
+        substantive_key = _key(record)[:-1]
+        tied.setdefault(substantive_key, []).append(str(record["blackforge_id"]))
+    tie_sets = [ids for ids in tied.values() if len(ids) > 1]
 
     # Greedy quota-respecting fill (stable, deterministic).
     selected: list[Mapping[str, Any]] = []
@@ -270,4 +280,5 @@ def select_blackforge(
         s3_count=s3_count,
         s3_allowed=s3_allowed,
         failure=failure,
+        tie_sets=tie_sets,
     )

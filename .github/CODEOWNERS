@@ -9,3 +9,30 @@ scripts/build-portable.ps1 @klssxx
 scripts/criba.ps1 @klssxx
 scripts/verify-mvp.ps1 @klssxx
 docs/RELEASE_OPERATIONS.md @klssxx
+
+# ASTRA canon: changes require explicit owner review.
+governance/ASTRA_CANON.yaml @klssxx
+docs/ASTRA_CANON.md @klssxx
+docs/ASTRA_AGENT_POLICY.md @klssxx
+docs/ASTRA_COVERAGE_MATRIX.md @klssxx
+tests/astra_canon/** @klssxx
+src/criba/diversity_selector.py @klssxx
+src/criba/similarity.py @klssxx
+src/criba/intelligence/outcome_store.py @klssxx
+src/criba/inventar.py @klssxx
+src/criba/supra_dossier.py @klssxx
+src/criba/bloqueo.py @klssxx
+src/criba/rescate.py @klssxx
+src/criba/blackforge_selector.py @klssxx
+src/criba/blackforge_orthogonal/** @klssxx
+
+src/criba/causal_v2.py @klssxx
+src/criba/intelligence/contracts.py @klssxx
+src/criba/intelligence/provenance.py @klssxx
+src/criba/intelligence/router.py @klssxx
+src/criba/intelligence/prior_art/verdict.py @klssxx
+src/criba/interprete/adaptador.py @klssxx
+src/criba/engine.py @klssxx
+src/criba/lottery.py @klssxx
+src/criba/scoring/** @klssxx
+docs/ASTRA_ANTI_GOODHART_ENTRY_GATE.md @klssxx

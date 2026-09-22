@@ -32,7 +32,7 @@ class TestStoreSchema:
         s = _store(tmp_path)
         s.record(profile="CRIBA", family="INVENTION", technique_id="T059",
                  channel=CHANNEL_VERDICT, outcome="SURVIVED_SEARCH",
-                 canon_version="2026-09-08.3")
+                 canon_version="2026-09-08.3", run_id="run-minimo")
         prior, n, label = s.prior(profile="CRIBA", family="INVENTION",
                                   technique_id="T059", canon_version="2026-09-08.3")
         assert n == 1 and prior > 0.0 and "ucb:" in label
@@ -51,7 +51,8 @@ class TestStoreSchema:
         s = _store(tmp_path)
         with pytest.raises(ValueError, match="fuera de \\[0,1\\]"):
             s.record(profile="CRIBA", family="INVENTION", technique_id="T059",
-                     channel="judge", outcome="ok", value=1.7, canon_version="x")
+                     channel="judge", outcome="score", value=1.7, canon_version="x",
+                     run_id="run-invalid-value")
 
     def test_lineas_malformadas_excluidas_con_warning(self, tmp_path):
         s = _store(tmp_path)
@@ -76,7 +77,7 @@ class TestBackoffJerarquico:
         for _ in range(BACKOFF_MIN_OBS):
             s.record_family_outcome(profile="CRIBA", family="INVENTION",
                                     channel=CHANNEL_VERDICT, outcome="SURVIVED_SEARCH",
-                                    canon_version="c")
+                                    canon_version="c", run_id=f"run-family-{_}")
         prior, n, label = s.prior(profile="CRIBA", family="INVENTION",
                                   technique_id="T999", canon_version="c")  # técnica sin datos
         assert n >= BACKOFF_MIN_OBS and prior > 0.0
@@ -95,7 +96,7 @@ class TestCanonEpoch:
         for _ in range(3):
             s.record(profile="CRIBA", family="INVENTION", technique_id="T059",
                      channel=CHANNEL_VERDICT, outcome="SURVIVED_SEARCH",
-                     canon_version="2026-09-08.2")
+                     canon_version="2026-09-08.2", run_id=f"run-epoch-{_}")
         # Misma técnica, época distinta: no hereda priors (§13.4).
         prior_new, n_new, _ = s.prior(profile="CRIBA", family="INVENTION",
                                       technique_id="T059", canon_version="2026-09-08.3")
@@ -111,10 +112,10 @@ class TestDecaimiento:
         old = datetime.now(timezone.utc) - timedelta(days=180)  # 2 vidas medias
         s.record(profile="CRIBA", family="INVENTION", technique_id="T059",
                  channel=CHANNEL_VERDICT, outcome="SURVIVED_SEARCH",
-                 canon_version="c", recorded_at=old)
+                 canon_version="c", recorded_at=old, run_id="run-old")
         s.record(profile="CRIBA", family="INVENTION", technique_id="T060",
                  channel=CHANNEL_VERDICT, outcome="SURVIVED_SEARCH",
-                 canon_version="c")  # reciente
+                 canon_version="c", run_id="run-new")  # reciente
         p_old, _, _ = s.prior(profile="CRIBA", family="INVENTION",
                               technique_id="T059", canon_version="c")
         p_new, _, _ = s.prior(profile="CRIBA", family="INVENTION",
@@ -156,7 +157,7 @@ class TestRouterAdaptativo:
             store.record(profile="CRIBA", family=target.technique.family,
                          technique_id=target.id, channel=CHANNEL_VERDICT,
                          outcome="SURVIVED_SEARCH",
-                         canon_version=registry.canon_version)
+                         canon_version=registry.canon_version, run_id=f"run-router-{_}")
         boosted = router.select(task, "CRIBA", adaptive=True, outcome_store=store)
         boosted_ids = [c.id for c in boosted.selected]
         # la técnica impulsada sube de posición respecto al ranking congelado
@@ -175,7 +176,7 @@ class TestRouterAdaptativo:
             store.record(profile="CRIBA", family="PATENT_INTELLIGENCE",
                          technique_id="T001", channel=CHANNEL_VERDICT,
                          outcome="SURVIVED_SEARCH",
-                         canon_version=registry.canon_version)
+                         canon_version=registry.canon_version, run_id=f"run-planned-{_}")
         result = router.select(task, "CRIBA", adaptive=True, outcome_store=store)
         for cand in result.selected:
             assert cand.executable, "ninguna PLANNED puede entrar como ejecutable"

@@ -1,4 +1,10 @@
-"""Evaluación off-policy de políticas de selección (BLUEPRINT §12.4, G3).
+"""RESEARCH-ONLY off-policy evaluation of selection policies.
+
+This module is not product evidence that adaptation is beneficial. D6 remains
+UNRESOLVED. Production code must not feed OPE estimates back into selection,
+learning, prompts, or scientific claims.
+
+Evaluación off-policy de políticas de selección (BLUEPRINT §12.4, G3).
 
 Pregunta que responde: «con los outcomes YA registrados bajo la política de
 logging, cómo HABRÍA rendido una política candidata distinta SIN re-ejecutar la
@@ -41,6 +47,7 @@ from typing import Any, Callable, Sequence
 DEFAULT_BOOTSTRAP_SAMPLES = 1000
 BOOTSTRAP_SEED = 20260909  # fija y documentada: reproducibilidad del IC
 MIN_ESS = 10.0  # tamaño efectivo mínimo para un IC bootstrap fiable
+RESEARCH_ONLY = True
 
 
 def _default_log_path() -> Path:
@@ -55,7 +62,7 @@ class LoggedDecision:
     technique_id: str
     family: str
     propensity: float          # pi_b(a|x) registrada en el sorteo
-    reward: float              # outcome observado posterior [0,1]
+    reward: float | None       # explicit observed reward; None means pending/unobserved
     profile: str = "CRIBA"
     channel: str = "verdict"
     run_id: str = ""
@@ -78,7 +85,7 @@ def append_decision(path: Path | str, decision: LoggedDecision) -> None:
     """Registra una decisión con propensión (append-only, auditable)."""
     if not 0.0 < decision.propensity <= 1.0:
         raise ValueError(f"propensión fuera de (0,1]: {decision.propensity}")
-    if not 0.0 <= decision.reward <= 1.0:
+    if decision.reward is not None and not 0.0 <= decision.reward <= 1.0:
         raise ValueError(f"reward fuera de [0,1]: {decision.reward}")
     p = Path(path)
     p.parent.mkdir(parents=True, exist_ok=True)
@@ -110,7 +117,9 @@ def read_decisions(path: Path | str) -> list[LoggedDecision]:
                 technique_id=str(rec["technique_id"]),
                 family=str(rec["family"]),
                 propensity=float(rec["propensity"]),
-                reward=float(rec["reward"]),
+                reward=(
+                    None if rec.get("reward") is None else float(rec["reward"])
+                ),
                 profile=str(rec.get("profile", "CRIBA")),
                 channel=str(rec.get("channel", "verdict")),
                 run_id=str(rec.get("run_id", "")),
@@ -141,57 +150,54 @@ def rehydrate_rewards(
     profile: str = "CRIBA",
     canon_version: str | None = None,
 ) -> list[LoggedDecision]:
-    """Une la recompensa real a cada decisión desde el outcome_store.
+    """Attach reward only from an exact eligible OBSERVED episode.
 
-    El sorteo registra la decisión con reward pendiente (0.0); la evaluación la
-    rehidrata con el prior VERDICT/OBSERVED de su ``technique_id`` — el outcome
-    real observado para ese método. Sin outcome conocido la recompensa queda 0.0
-    (exploración sin señal: honesto, no se inventa resultado).
-
-    Devuelve NUEVAS instancias (LoggedDecision es inmutable); las decisiones con
-    reward ya >0 se respetan (un log curado manualmente no se sobrescribe).
+    A prior/UCB value is never an observed reward. Joining requires a stable
+    non-empty run_id shared by the logged decision and OutcomeStore record,
+    plus exact profile/family/technique/channel scope. If no such exact episode
+    exists, reward remains None and OPE stays UNRESOLVED.
     """
-    from .outcome_store import CHANNEL_OBSERVED, CHANNEL_VERDICT
+    from .outcome_store import CHANNEL_OBSERVED
 
+    records = outcome_store._read_valid()  # research-only introspection
     out: list[LoggedDecision] = []
     for d in decisions:
-        if d.reward > 0.0:
+        if d.reward is not None:
             out.append(d)
             continue
-        # P2: OBSERVED (evidencia práctica) CAPA a VERDICT (teórica). Un fallo
-        # real observado no queda neutralizado por señal de antecedentes.
-        prior_v = prior_o = 0.0
-        n_v = n_o = 0
-        try:
-            for ch in (CHANNEL_VERDICT, CHANNEL_OBSERVED):
-                prior, n_eff, _ = outcome_store.prior(
-                    profile=d.profile or profile,
-                    family=d.family,
-                    technique_id=d.technique_id,
-                    channel=ch,
-                    canon_version=canon_version,
-                )
-                if ch == CHANNEL_VERDICT:
-                    prior_v, n_v = prior, n_eff
-                else:
-                    prior_o, n_o = prior, n_eff
-        except Exception:  # noqa: BLE001 — sin store la recompensa queda 0.0
-            n_o = n_v = 0
-        if n_o > 0:
-            best = prior_o
-        elif n_v > 0:
-            best = prior_v
-        else:
-            best = 0.0
-        if best != d.reward:
-            out.append(LoggedDecision(
-                technique_id=d.technique_id, family=d.family,
-                propensity=d.propensity, reward=min(1.0, best),
-                profile=d.profile, channel=d.channel, run_id=d.run_id,
-                recorded_at=d.recorded_at,
-            ))
-        else:
+        if not d.run_id:
             out.append(d)
+            continue
+
+        effective: float | None = None
+        for rec in records:
+            if (
+                rec.get("profile") == (d.profile or profile)
+                and rec.get("family") == d.family
+                and rec.get("technique_id") == d.technique_id
+                and rec.get("channel") == CHANNEL_OBSERVED
+                and rec.get("run_id") == d.run_id
+                and (canon_version is None or rec.get("canon_version") == canon_version)
+                and rec.get("learning_eligible") is True
+                and isinstance(rec.get("value"), (int, float))
+            ):
+                effective = float(rec["value"])
+
+        if effective is None:
+            out.append(d)
+        else:
+            out.append(
+                LoggedDecision(
+                    technique_id=d.technique_id,
+                    family=d.family,
+                    propensity=d.propensity,
+                    reward=effective,
+                    profile=d.profile,
+                    channel=CHANNEL_OBSERVED,
+                    run_id=d.run_id,
+                    recorded_at=d.recorded_at,
+                )
+            )
     return out
 
 
@@ -273,6 +279,12 @@ def evaluate_policy(
             ci_low=None, ci_high=None,
             reason="log vacío: sin decisiones con propensión no hay contrafactual",
         )
+    if any(d.reward is None for d in decisions):
+        return OffPolicyEstimate(
+            value=None, verdict="UNRESOLVED", n_decisions=len(decisions), ess=0.0,
+            ci_low=None, ci_high=None,
+            reason="reward pendiente/no observado: OPE requiere outcomes explícitos",
+        )
 
     pool = sorted({d.technique_id for d in decisions})
     # Soporte real de la política de logging: acciones que SÍ tomó al menos una
@@ -283,6 +295,7 @@ def evaluate_policy(
     for d in decisions:
         # Validación en frontera de evaluación (no solo en escritura): recompensa
         # finita en [0,1] y propensión en (0,1]. Fuera de contrato -> UNRESOLVED.
+        assert d.reward is not None
         if not (0.0 < d.propensity <= 1.0) or not (0.0 <= d.reward <= 1.0):
             return OffPolicyEstimate(
                 value=None, verdict="UNRESOLVED", n_decisions=len(decisions),
@@ -376,8 +389,8 @@ def compare_policies(
         value=None, verdict="UNRESOLVED", n_decisions=0, ess=0.0,
         ci_low=None, ci_high=None, reason="sin decisiones",
     )
-    if decisions:
-        rewards_obs = [d.reward for d in decisions]
+    if decisions and all(d.reward is not None for d in decisions):
+        rewards_obs = [float(d.reward) for d in decisions if d.reward is not None]
         mean_obs = sum(rewards_obs) / len(rewards_obs)
         # IC bootstrap de la media observada (pesos unitarios)
         rng = random.Random(seed)
@@ -404,6 +417,7 @@ def compare_policies(
         for d in decisions:
             pi_e = max(0.0, float(candidate(d.technique_id, d.family, pool)))
             w = pi_e / d.propensity
+            assert d.reward is not None
             diffs.append((w - 1.0) * d.reward)
         mean_diff = sum(diffs) / len(diffs) if diffs else 0.0
         rng = random.Random(seed)

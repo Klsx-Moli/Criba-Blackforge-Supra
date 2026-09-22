@@ -1,0 +1,135 @@
+{
+  "schema_version": 1,
+  "policy": "Known type debt is allowed only at or below these exact normalized fingerprints. New fingerprints or higher counts fail CI; removals are allowed.",
+  "captured_from_commit": "af1d063caf29574490572962bda002bdeffd31b3",
+  "mypy_version": "2.3.1",
+  "total_known_errors": 78,
+  "fingerprints": [
+    {
+      "path": "src/criba/blackforge_orthogonal/compositor.py",
+      "code": "return-value",
+      "message": "Incompatible return value type (got \"Composition | None\", expected \"Composition\")",
+      "count": 1
+    },
+    {
+      "path": "src/criba/blackforge_orthogonal/genealogy.py",
+      "code": "no-untyped-def",
+      "message": "Function is missing a return type annotation",
+      "count": 1
+    },
+    {
+      "path": "src/criba/blackforge_orthogonal/genealogy.py",
+      "code": "type-arg",
+      "message": "Missing type arguments for generic type \"Dict\"",
+      "count": 1
+    },
+    {
+      "path": "src/criba/blackforge_orthogonal/tests/__init__.py",
+      "code": "misc",
+      "message": "Property \"id\" defined in \"Axis\" is read-only",
+      "count": 1
+    },
+    {
+      "path": "src/criba/blackforge_orthogonal/tests/__init__.py",
+      "code": "no-untyped-call",
+      "message": "Call to untyped function \"GenealogyGraph\" in typed context",
+      "count": 8
+    },
+    {
+      "path": "src/criba/blackforge_orthogonal/tests/__init__.py",
+      "code": "no-untyped-def",
+      "message": "Function is missing a return type annotation",
+      "count": 46
+    },
+    {
+      "path": "src/criba/causal_v2.py",
+      "code": "no-untyped-def",
+      "message": "Function is missing a return type annotation",
+      "count": 1
+    },
+    {
+      "path": "src/criba/latency.py",
+      "code": "no-untyped-def",
+      "message": "Function is missing a return type annotation",
+      "count": 1
+    },
+    {
+      "path": "src/criba/scoring/__init__.py",
+      "code": "dict-item",
+      "message": "Dict entry 0 has incompatible type \"str\": \"float\"; expected \"str\": \"int\"",
+      "count": 1
+    },
+    {
+      "path": "src/criba/scoring/__init__.py",
+      "code": "dict-item",
+      "message": "Dict entry 1 has incompatible type \"str\": \"float\"; expected \"str\": \"int\"",
+      "count": 1
+    },
+    {
+      "path": "src/criba/scoring/__init__.py",
+      "code": "dict-item",
+      "message": "Dict entry 2 has incompatible type \"str\": \"float\"; expected \"str\": \"int\"",
+      "count": 1
+    },
+    {
+      "path": "src/criba/scoring/__init__.py",
+      "code": "dict-item",
+      "message": "Dict entry 3 has incompatible type \"str\": \"float\"; expected \"str\": \"int\"",
+      "count": 1
+    },
+    {
+      "path": "src/criba/scoring/__init__.py",
+      "code": "name-defined",
+      "message": "Name \"miscal_x\" is not defined",
+      "count": 1
+    },
+    {
+      "path": "src/criba/scoring/__init__.py",
+      "code": "return-value",
+      "message": "Incompatible return value type (got \"list[dict[str, int]]\", expected \"list[dict[str, float]]\")",
+      "count": 1
+    },
+    {
+      "path": "src/criba/scoring/information_theory.py",
+      "code": "dict-item",
+      "message": "Dict entry 0 has incompatible type \"str\": \"float\"; expected \"str\": \"int\"",
+      "count": 1
+    },
+    {
+      "path": "src/criba/scoring/information_theory.py",
+      "code": "dict-item",
+      "message": "Dict entry 1 has incompatible type \"str\": \"float\"; expected \"str\": \"int\"",
+      "count": 1
+    },
+    {
+      "path": "src/criba/scoring/information_theory.py",
+      "code": "dict-item",
+      "message": "Dict entry 2 has incompatible type \"str\": \"float\"; expected \"str\": \"int\"",
+      "count": 1
+    },
+    {
+      "path": "src/criba/scoring/information_theory.py",
+      "code": "dict-item",
+      "message": "Dict entry 3 has incompatible type \"str\": \"float\"; expected \"str\": \"int\"",
+      "count": 1
+    },
+    {
+      "path": "src/criba/scoring/information_theory.py",
+      "code": "return-value",
+      "message": "Incompatible return value type (got \"list[dict[str, int]]\", expected \"list[dict[str, float]]\")",
+      "count": 1
+    },
+    {
+      "path": "src/criba/scoring/network.py",
+      "code": "no-untyped-def",
+      "message": "Function is missing a return type annotation",
+      "count": 5
+    },
+    {
+      "path": "src/criba/scoring/network.py",
+      "code": "no-untyped-def",
+      "message": "Function is missing a type annotation",
+      "count": 2
+    }
+  ]
+}

@@ -70,6 +70,33 @@ Issues = "https://github.com/klssxx/Criba-Blackforge/issues"
 [project.scripts]
 criba = "criba.cli:main"
 
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+src = ["."]
+extend-include = ["*.py", "*.pyi"]
+
+[tool.ruff.lint]
+# Errores lógicos (F), estilo básico (E, W), imports (I),
+# modernización (UP), bugs comunes (B)
+select = ["E", "F", "W", "I", "UP", "B"]
+ignore = []
+
+# Ajustes opcionales según necesites
+unfixable = []
+
+[tool.ruff.lint.per-file-ignores]
+# Ejemplo: ignora warnings en scripts de experimentos o prototipos
+# "src/experimental/*.py" = ["F401", "F841"]
+# "scripts/*.py" = ["E501"]
+
+[tool.ruff.format]
+# Estilo de comillas y saltos de línea consistente
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "auto"
+
 [tool.setuptools]
 package-dir = {"" = "src", "data" = "data"}
 

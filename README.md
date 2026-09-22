@@ -1,6 +1,6 @@
 # CRIBA
 
-**The reproducible ideation engine.** Deterministic, auditable, local-first: the same seed always produces the same ideas — no paid APIs required to get useful output.
+**A reproducible-by-contract ideation engine.** Deterministic, auditable, local-first: fixed inputs plus the same code/catalog/policy and the same relevant state reproduce deterministic core paths; external/history/model dependencies must also be fixed when they participate.
 
 CRIBA is a self-contained engine for combinatorial exploration, causal analysis and defensive cybersecurity ideation. It couples an immutable, versioned catalog of innovation and security methods with a repeatable, seed-based selector, a SQLite audit trail for every idea, and (optional) LLM interpretation through configurable cloud or local providers (OpenAI-compatible endpoints).
 
@@ -12,7 +12,7 @@ CRIBA is a self-contained engine for combinatorial exploration, causal analysis 
 
 Most "AI ideation" tools are black boxes: prompt in, text out, no way to know why or to reproduce the same answer twice.
 
-- **Deterministic by default** — `--seed 42` yields byte-identical results on any machine.
+- **Deterministic core paths** — an explicit seed makes seeded selection repeatable when the same code, catalog, configuration, ordering and relevant state are fixed. It is not a universal cross-machine guarantee for model/network/history-dependent paths.
 - **Every idea is audited** — SQLite trail per activation: methods used, scores, order, and the exact catalog version.
 - **Zero-friction local** — no API key, no network, no telemetry to run the core engine.
 - **Optional model interpretation** — bring your own provider (local GGUF/Ollama or an OpenAI-compatible cloud endpoint); without one, deterministic local scoring runs and interpretation is marked PENDING instead of fabricated.
@@ -68,8 +68,7 @@ uv run criba --help
 criba lottery --query "how can we design secure approvals for autonomous agents?" --seed 42 --rounds 3 --batch-size 5
 ```
 
-Run it twice. The same seed, the same rounds and batch produce the **same ideas**
-— that is the reproducibility contract everything else builds on.
+Run it twice under the same code/catalog/configuration and without changing relevant history or external/model state. The seeded deterministic path should reproduce its selection. That scoped dependency closure—not the seed alone—is the reproducibility contract.
 
 Deterministic single activation:
 
@@ -83,10 +82,11 @@ Dashboard / workbench on Windows:
 scripts\launch_workbench.bat
 ```
 
-## Reproducibility guarantee
+## Reproducibility contract
 
-- Catalog files are frozen and versioned (`CURRENT_CATALOG_VERSION`, `SELECTOR_VERSION`).
-- The selector is seeded and the ordering is canonical; the output is stable across runs and machines.
+- Catalog files are versioned (`CURRENT_CATALOG_VERSION`, `SELECTOR_VERSION`).
+- Seeded deterministic selectors use stable ordering, but a seed is only one dependency.
+- Runs that depend on history, clock/evaluation time, provider/model, corpus, configuration, code version or external state require those dependencies to be fixed or recorded before claiming reproduction.
 - Every activation writes an auditable record in the SQLite store (`artifacts/criba.sqlite3` by default).
 
 ## Free cloud expansion (optional, 0€)

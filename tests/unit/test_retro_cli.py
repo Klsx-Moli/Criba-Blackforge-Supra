@@ -5,7 +5,6 @@ from __future__ import annotations
 from criba.cli import main
 from criba.intelligence.outcome_store import (
     CHANNEL_OBSERVED,
-    CHANNEL_VERDICT,
     TechniqueOutcomeStore,
 )
 
@@ -62,12 +61,15 @@ class TestRetroCli:
         p_bf, n_bf, _ = store.prior(
             profile="BLACKFORGE", family="perspectiva", technique_id="T059",
             channel=CHANNEL_OBSERVED, canon_version=None)
-        assert n_criba == 0 and n_bf >= 1  # BF no contamina CRIBA
+        assert n_criba == 0 and n_bf == 0
+        rec = store._read_valid()[0]
+        assert rec["profile"] == "BLACKFORGE"
+        assert rec["learning_eligible"] is False
 
 
 class TestInventarCierraCircuito:
-    def test_inventar_adaptive_escribe_outcomes(self, tmp_path, monkeypatch):
-        """Con --adaptive, inventar registra outcomes en el store (circuito G1)."""
+    def test_inventar_adaptive_no_aprende_de_resultado_pendiente(self, tmp_path, monkeypatch):
+        """Offline/PENDING outcomes do not become learning evidence."""
         monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))
         code = main([
             "inventar", "test circuito g1",
@@ -77,10 +79,7 @@ class TestInventarCierraCircuito:
         assert code == 0
         store = TechniqueOutcomeStore(_store_path(tmp_path))
         recs = store._read_valid()
-        # al menos el agregado de familia (verdict) se escribe
-        assert any(r["channel"] == CHANNEL_VERDICT for r in recs), (
-            "inventar --adaptive debe escribir outcomes verdict al store"
-        )
+        assert recs == []
 
     def test_inventar_sin_adaptive_no_escribe_outcomes(self, tmp_path, monkeypatch):
         """Sin --adaptive (default congelado) no se escribe nada al store."""
