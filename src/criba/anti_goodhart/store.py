@@ -88,10 +88,7 @@ class ObserverStore:
         """Append once; duplicate delivery of the same valid event is idempotent."""
 
         with self._lock:
-            existing = {
-                str(item.get("diagnostic_id") or "")
-                for item in self.read_diagnostics()
-            }
+            existing = {str(item.get("diagnostic_id") or "") for item in self.read_diagnostics()}
             if diagnostic.diagnostic_id in existing:
                 return False
             self.root.mkdir(parents=True, exist_ok=True)
