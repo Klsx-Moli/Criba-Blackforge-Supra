@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import copy
+import json
 from pathlib import Path
 
 import pytest
@@ -22,8 +23,10 @@ from supra_agentic.anti_goodhart.observer import _observe_trace_after_gate, obse
 from supra_agentic.anti_goodhart.records import Diagnostic
 from supra_agentic.anti_goodhart.store import ObserverStore
 from supra_agentic.anti_goodhart.trace import (
+    load_sealed_trace,
     project_public_posture,
     seal_public_posture,
+    sealed_trace_record,
 )
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -333,3 +336,40 @@ def test_observer_storage_failure_is_confined_to_o_domain(tmp_path: Path):
         "observer_store:OSError",
     )
     assert trace.payload_json == before
+
+def test_sealed_trace_rejects_forged_source_identity() -> None:
+    trace = seal_public_posture(_posture())
+    record = sealed_trace_record(trace)
+    record["source"] = "FORGED_SOURCE"
+    with pytest.raises(ValueError, match="source"):
+        load_sealed_trace(record)
+
+
+def test_tampered_parseable_record_cannot_suppress_valid_diagnostic(tmp_path: Path) -> None:
+    trace = seal_public_posture(_posture())
+    diagnostic = Diagnostic(
+        detector_id="poison-sentinel",
+        detector_version="1",
+        trace_sha256=trace.payload_sha256,
+        kind="integrity",
+        status="OBSERVED",
+        message="canonical diagnostic",
+        details={"value": 1},
+    )
+    store = ObserverStore(tmp_path / "observer")
+    store.root.mkdir(parents=True, exist_ok=True)
+    tampered = diagnostic.to_record()
+    tampered["message"] = "tampered but parseable"
+    store.diagnostics_path.write_text(
+        json.dumps(tampered, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+
+    assert store.append_diagnostic(diagnostic) is True
+    canonical = [
+        item
+        for item in store.read_diagnostics()
+        if item.get("message") == "canonical diagnostic"
+    ]
+    assert len(canonical) == 1
+
