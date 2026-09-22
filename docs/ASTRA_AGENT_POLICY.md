@@ -34,3 +34,12 @@ Agents MUST NOT:
   `ASTRA_ANTI_GOODHART_ENTRY_GATE.md` are verified;
 - feed STANDARD diagnostics back into prompts, learning, RNG-consuming decision
   paths, retrievable product corpus or future automated decisions.
+
+## Historical research non-authority
+
+Historical and research branches are evidence archives, not canon. In particular,
+`anti-goodhart-benchmark` and `feature/anti-goodhart` contain superseded experimental
+claims and MUST NOT be merged or cited as current capability without revalidation
+against current `main`, current `ASTRA_CANON`, and a reviewed versioned decision.
+A historical status such as PARTIALLY_RESOLVED, PASS, or implemented is never
+promoted merely because the branch or report still exists.
