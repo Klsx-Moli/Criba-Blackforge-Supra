@@ -141,6 +141,12 @@ Expected safe outcome on one machine:
   subprocess execution is insufficient to accredit G3.
 - The probe can never emit `PASS`.
 - The probe can never edit `STANDARD_RELEASE_STATE`.
+- `probe_complete` is true only when every local perturbation was actually observed.
+- The restart row requires two distinct worker process IDs using the same O-domain store.
+- Per-row timing is descriptive only and is not G3 resource-isolation evidence.
+- Exit code 0 means a complete same-host probe with no semantic interference; exit
+  code 1 means semantic interference/sensitivity-control failure; exit code 2
+  means incomplete or unstable local evidence.
 - The report is written to `verification/anti_goodhart_g3_supra.json`.
 
 Do not interpret `NOT_VERIFIED` as failure of the implementation. It means the
