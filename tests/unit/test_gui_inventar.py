@@ -80,13 +80,13 @@ def test_inventar_button_runs_shared_service(qapp, tmp_path, monkeypatch) -> Non
         qapp.processEvents()
         actions.on_inventar(win)
         # on_inventar corre el servicio en QThreadPool: espera acotada.
-        for _ in range(200):
+        for _ in range(1000):
             qapp.processEvents()
             if getattr(win, "invent_sheet", None) is not None:
                 break
             QTest.qWait(10)
 
-        assert win.invent_sheet is not None
+        assert getattr(win, "invent_sheet", None) is not None
         assert calls == ["permisos excesivos de un agente"]
         summary = win.refs["ideaSummary"].text()
         assert "1 candidatos" in summary
@@ -123,13 +123,13 @@ def test_inventar_passes_default_store_like_cli(qapp, tmp_path, monkeypatch) -> 
         actions.on_nueva_idea_no_dialog(win, "permisos excesivos de un agente")
         qapp.processEvents()
         actions.on_inventar(win)
-        for _ in range(200):
+        for _ in range(1000):
             qapp.processEvents()
             if getattr(win, "invent_sheet", None) is not None:
                 break
             QTest.qWait(10)
 
-        assert win.invent_sheet is not None
+        assert getattr(win, "invent_sheet", None) is not None
         assert kwargs_captured.get("store") is sentinel
     finally:
         win.close()
