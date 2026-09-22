@@ -337,6 +337,7 @@ def test_observer_storage_failure_is_confined_to_o_domain(tmp_path: Path):
     )
     assert trace.payload_json == before
 
+
 def test_sealed_trace_rejects_forged_source_identity() -> None:
     trace = seal_public_posture(_posture())
     record = sealed_trace_record(trace)
