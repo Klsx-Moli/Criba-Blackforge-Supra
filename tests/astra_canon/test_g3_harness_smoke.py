@@ -283,4 +283,3 @@ def test_incomplete_worker_cannot_create_causal_interference_claim(
     assert report["reason"] == "local_probe_incomplete"
     assert report["rows"][0]["semantic_equal"] is False
     assert report["rows"][0]["perturbation_ok"] is False
-
