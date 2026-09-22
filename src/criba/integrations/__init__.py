@@ -5,6 +5,7 @@ from .supra_client import (
     SupraClientConfig,
     SupraClientError,
     SupraProjectResult,
+    objective_from_dossier,
 )
 
 __all__ = [
@@ -12,4 +13,5 @@ __all__ = [
     "SupraClientConfig",
     "SupraClientError",
     "SupraProjectResult",
+    "objective_from_dossier",
 ]
