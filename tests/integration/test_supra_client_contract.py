@@ -120,3 +120,59 @@ def test_http_failure_does_not_become_success() -> None:
     with _client(handler) as client:
         with pytest.raises(SupraClientError, match="HTTP 401"):
             client.list_projects()
+
+
+
+def test_client_rejects_legacy_fail_plus_completed_overclaim() -> None:
+    def handler(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            201,
+            json={
+                "status": "success",
+                "status_scope": "WORKFLOW_EXECUTION_ONLY",
+                "completion_status": "COMPLETED",
+                "workflow_status": "COMPLETED",
+                "verification_status": "FAIL",
+                "scientific_status": "NOT_VALIDATED",
+                "project_id": "legacy-overclaim",
+                "stage": "COMPLETED",
+                "posture": {"project_id": "legacy-overclaim"},
+            },
+        )
+
+    with _client(handler) as client:
+        with pytest.raises(ValueError, match="failed/unevaluated"):
+            client.run_project(objective="Reject contradictory SUPRA completion")
+
+
+def test_gui_uses_canonical_supra_client_without_direct_http_routes() -> None:
+    from pathlib import Path
+
+    source = Path("src/criba/ui/actions.py").read_text(encoding="utf-8")
+    assert "from ..integrations import SupraClient" in source
+    assert "_execute_supra_dossiers" in source
+    assert "QThreadPool" not in source  # UI uses the existing Worker abstraction instead.
+    assert "httpx" not in source
+    assert "/api/v1/" not in source
+
+
+def test_gui_dossier_mapping_preserves_epistemic_language() -> None:
+    from criba.ui.actions import _supra_objective_from_dossier
+
+    objective = _supra_objective_from_dossier(
+        {
+            "problema": "Reduce thermal drift",
+            "hipotesis": "A bounded calibration loop reduces drift",
+            "mecanismo": "Closed-loop correction",
+            "prueba_discriminante": {
+                "intervencion_prueba": "Compare calibrated and baseline runs",
+                "observable": "temperature-adjusted error",
+                "regla_decision": "prefer lower held-out error",
+                "condicion_fracaso": "no measurable separation",
+            },
+        }
+    )
+    assert "sin convertir evidencia ausente en PASS" in objective
+    assert "Closed-loop correction" in objective
+    assert "no measurable separation" in objective
+    assert len(objective) <= 2000
