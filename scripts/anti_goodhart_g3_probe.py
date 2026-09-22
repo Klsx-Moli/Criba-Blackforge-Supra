@@ -20,11 +20,7 @@ import time
 from pathlib import Path
 from typing import Any
 
-from supra_agentic.anti_goodhart.trace import (
-    project_public_posture,
-    seal_public_posture,
-    sealed_trace_record,
-)
+from supra_agentic.anti_goodhart.trace import seal_public_posture, sealed_trace_record
 from supra_agentic.runner import TaskmasterRunner
 from supra_agentic.state import state_manager
 
@@ -38,33 +34,48 @@ PERTURBATIONS = (
     "restart",
 )
 
+_VOLATILE_KEYS = {
+    "project_id",
+    "created_at",
+    "updated_at",
+    "timestamp",
+    "task_id",
+    "candidate_id",
+    "selected_candidate_id",
+    "report_id",
+    "execution_id",
+    "checkpoint_id",
+    "audit_sha256",
+    "duration_ms",
+    "mechanism_version",
+    "output_log",
+    "summary",
+    "evidence_summary",
+    "restricted_execution_ids",
+}
+
+_VOLATILE_CONTAINERS = {"evidence_provenance"}
+
+
+def _semantic_value(value: Any) -> Any:
+    if isinstance(value, dict):
+        normalized: dict[str, Any] = {}
+        for key, item in value.items():
+            if key in _VOLATILE_KEYS or key in _VOLATILE_CONTAINERS:
+                continue
+            normalized[key] = _semantic_value(item)
+        return normalized
+    if isinstance(value, list):
+        return [_semantic_value(item) for item in value]
+    return copy.deepcopy(value)
+
 
 def _normalized_public(posture: dict[str, Any]) -> dict[str, Any]:
-    value = project_public_posture(posture)
-    normalized = copy.deepcopy(value)
-    normalized["project_id"] = "<PROJECT>"
-    selected = normalized.get("selected_candidate")
-    if isinstance(selected, dict):
-        selected["candidate_id"] = "<CANDIDATE>"
-    executions = normalized.get("restricted_execution_results")
-    if isinstance(executions, list):
-        for item in executions:
-            if not isinstance(item, dict):
-                continue
-            for key in (
-                "execution_id",
-                "candidate_id",
-                "mechanism_version",
-                "claim_id",
-                "protocol_version",
-            ):
-                item[key] = f"<{key.upper()}>"
-            item["duration_ms"] = None
-    checkpoints = normalized.get("checkpoints")
-    if isinstance(checkpoints, list):
-        for item in checkpoints:
-            if isinstance(item, dict):
-                item["checkpoint_id"] = "<CHECKPOINT>"
+    """Normalize complete decisional semantics while removing run-ephemeral data."""
+
+    normalized = _semantic_value(posture)
+    if not isinstance(normalized, dict):
+        raise TypeError("normalized SUPRA posture must be an object")
     return normalized
 
 
@@ -90,6 +101,10 @@ def _run_d(objective: str, storage_root: Path, project_id: str) -> tuple[dict[st
     return posture.model_dump(mode="json"), elapsed_ms
 
 
+def _worker_timeout_seconds(latency_ms: int) -> float:
+    return max(10.0, max(0, latency_ms) / 1000.0 + 5.0)
+
+
 def _worker(
     *,
     trace_path: Path,
@@ -100,33 +115,115 @@ def _worker(
     worker = Path(__file__).with_name("anti_goodhart_g3_worker.py")
     env = dict(os.environ)
     env["ASTRA_G3_VERIFICATION"] = "1"
-    proc = subprocess.run(
-        [
-            sys.executable,
-            str(worker),
-            "--trace",
-            str(trace_path),
-            "--observer-root",
-            str(observer_root),
-            "--perturbation",
-            perturbation,
-            "--latency-ms",
-            str(latency_ms),
-        ],
-        text=True,
-        capture_output=True,
-        env=env,
-        check=False,
-    )
+    try:
+        proc = subprocess.run(
+            [
+                sys.executable,
+                str(worker),
+                "--trace",
+                str(trace_path),
+                "--observer-root",
+                str(observer_root),
+                "--perturbation",
+                perturbation,
+                "--latency-ms",
+                str(latency_ms),
+            ],
+            text=True,
+            capture_output=True,
+            env=env,
+            check=False,
+            timeout=_worker_timeout_seconds(latency_ms),
+        )
+    except subprocess.TimeoutExpired:
+        return {
+            "worker_exit": None,
+            "worker_error_type": "VERIFICATION_WORKER_TIMEOUT",
+            "perturbation": perturbation,
+        }
+
     if proc.returncode != 0:
         return {
             "worker_exit": proc.returncode,
             "worker_error_type": "VERIFICATION_WORKER_FAILED",
+            "perturbation": perturbation,
         }
-    decoded = json.loads(proc.stdout)
+    try:
+        decoded = json.loads(proc.stdout)
+    except json.JSONDecodeError:
+        return {
+            "worker_exit": 0,
+            "worker_error_type": "VERIFICATION_WORKER_INVALID_JSON",
+            "perturbation": perturbation,
+        }
     if not isinstance(decoded, dict):
-        raise ValueError("worker output must be a JSON object")
+        return {
+            "worker_exit": 0,
+            "worker_error_type": "VERIFICATION_WORKER_INVALID_PAYLOAD",
+            "perturbation": perturbation,
+        }
+    decoded.setdefault("worker_exit", 0)
     return decoded
+
+
+def _count(value: object) -> int | None:
+    if isinstance(value, bool) or not isinstance(value, int):
+        return None
+    return value
+
+
+def _number(value: object) -> float | None:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return None
+    return float(value)
+
+
+def _perturbation_ok(
+    perturbation: str,
+    worker: dict[str, Any],
+    *,
+    latency_ms: int,
+) -> bool:
+    if worker.get("worker_exit") != 0:
+        return False
+    if worker.get("perturbation") != perturbation:
+        return False
+    if worker.get("verification_only") is not True:
+        return False
+    if worker.get("standard_release_changed") is not False:
+        return False
+
+    inserted = _count(worker.get("inserted_diagnostics"))
+    duplicates = _count(worker.get("duplicate_diagnostics"))
+    failures = worker.get("failures")
+    elapsed_ms = _number(worker.get("elapsed_ms"))
+    if inserted is None or duplicates is None or not isinstance(failures, list):
+        return False
+
+    if perturbation == "normal":
+        return inserted >= 1 and not failures
+    if perturbation == "duplicate":
+        return inserted >= 1 and duplicates >= 1 and not failures
+    if perturbation == "volume100":
+        return inserted == 100 and not failures
+    if perturbation == "detector_exception":
+        return inserted == 0 and "g3_broken:RuntimeError" in failures
+    if perturbation == "storage_failure":
+        return (
+            inserted == 0
+            and bool(failures)
+            and all(item == "observer_store:OSError" for item in failures)
+        )
+    if perturbation == "latency":
+        return (
+            inserted >= 1
+            and not failures
+            and elapsed_ms is not None
+            and elapsed_ms >= latency_ms * 0.8
+        )
+    if perturbation == "restart":
+        return inserted >= 1 and duplicates >= 1 and not failures
+    return False
 
 
 def main() -> int:
@@ -137,8 +234,10 @@ def main() -> int:
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
 
-    if args.iterations < 1:
-        raise ValueError("iterations must be >= 1")
+    if args.iterations < 2:
+        raise ValueError("iterations must be >= 2")
+    if args.latency_ms < 0:
+        raise ValueError("latency-ms must be >= 0")
 
     with tempfile.TemporaryDirectory(prefix="astra-g3-supra-") as tmp:
         root = Path(tmp)
@@ -158,6 +257,7 @@ def main() -> int:
         reference_digest = control_digests[0]
         rows: list[dict[str, Any]] = []
         semantic_interference = False
+        probe_complete = True
 
         for index, perturbation in enumerate(PERTURBATIONS):
             before, before_ms = _run_d(
@@ -178,6 +278,13 @@ def main() -> int:
                 perturbation=perturbation,
                 latency_ms=args.latency_ms,
             )
+            perturbation_ok = _perturbation_ok(
+                perturbation,
+                worker,
+                latency_ms=args.latency_ms,
+            )
+            probe_complete = probe_complete and perturbation_ok
+
             after, after_ms = _run_d(
                 args.objective,
                 root / f"{perturbation}-after",
@@ -186,15 +293,17 @@ def main() -> int:
             normalized_after = _normalized_public(after)
             before_digest = _digest(normalized_before)
             after_digest = _digest(normalized_after)
-            semantic_equal = (
+            semantic_equal = bool(
                 control_stable
                 and before_digest == reference_digest
                 and after_digest == reference_digest
             )
-            semantic_interference = semantic_interference or not semantic_equal
+            if control_stable and not semantic_equal:
+                semantic_interference = True
             rows.append(
                 {
                     "perturbation": perturbation,
+                    "perturbation_ok": perturbation_ok,
                     "semantic_equal": semantic_equal,
                     "before_digest": before_digest,
                     "after_digest": after_digest,
@@ -202,6 +311,7 @@ def main() -> int:
                     "before_duration_ms": round(before_ms, 3),
                     "after_duration_ms": round(after_ms, 3),
                     "duration_delta_ms": round(after_ms - before_ms, 3),
+                    "timing_claim": "DESCRIPTIVE_ONLY_NOT_G3_RESOURCE_ISOLATION",
                     "worker": worker,
                 }
             )
@@ -210,22 +320,27 @@ def main() -> int:
         contaminated["stage"] = "G3_SENSITIVITY_MUTATION"
         sensitivity_control_pass = _digest(contaminated) != reference_digest
 
-        status = (
-            "FAIL"
-            if semantic_interference or not control_stable or not sensitivity_control_pass
-            else "NOT_VERIFIED"
-        )
+        if semantic_interference or not sensitivity_control_pass:
+            status = "FAIL"
+            reason = "semantic_interference_or_failed_sensitivity_control"
+        elif not control_stable:
+            status = "NOT_VERIFIED"
+            reason = "unstable_control_trajectory"
+        elif not probe_complete:
+            status = "NOT_VERIFIED"
+            reason = "local_probe_incomplete"
+        else:
+            status = "NOT_VERIFIED"
+            reason = "same_host_subprocess_does_not_prove_separate_resource_domain"
+
         report = {
             "schema_version": 1,
             "gate": "G3",
             "target": "SUPRA",
             "status": status,
-            "reason": (
-                "semantic_interference_or_failed_sensitivity_control"
-                if status == "FAIL"
-                else "same_host_subprocess_does_not_prove_separate_resource_domain"
-            ),
+            "reason": reason,
             "topology": "LOCAL_SAME_HOST_SUBPROCESS",
+            "probe_complete": probe_complete,
             "control_stable": control_stable,
             "control_digest": reference_digest,
             "control_durations_ms": [round(item, 3) for item in control_durations],
@@ -240,7 +355,11 @@ def main() -> int:
             encoding="utf-8",
         )
         print(json.dumps({"status": status, "output": str(args.output)}, sort_keys=True))
-        return 1 if status == "FAIL" else 0
+        if status == "FAIL":
+            return 1
+        if not probe_complete or not control_stable:
+            return 2
+        return 0
 
 
 if __name__ == "__main__":
