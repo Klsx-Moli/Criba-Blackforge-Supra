@@ -52,6 +52,7 @@ def test_run_project_uses_real_payload_and_preserves_blocked_status() -> None:
                 "workflow_status": "RESTRICTED_EXECUTION_VERIFIED",
                 "verification_status": "FAIL",
                 "scientific_status": "NOT_VALIDATED",
+                "secure_sandbox_status": "UNVERIFIED_ISOLATION",
                 "project_id": "criba-run-1",
                 "stage": "RESTRICTED_EXECUTION_VERIFIED",
                 "posture": {"project_id": "criba-run-1"},
@@ -65,6 +66,7 @@ def test_run_project_uses_real_payload_and_preserves_blocked_status() -> None:
         )
     assert result.status == "blocked"
     assert result.verification_status == "FAIL"
+    assert result.secure_sandbox_status == "UNVERIFIED_ISOLATION"
     assert result.stage != "COMPLETED"
 
 
@@ -143,6 +145,53 @@ def test_client_rejects_legacy_fail_plus_completed_overclaim() -> None:
     with _client(handler) as client:
         with pytest.raises(ValueError, match="failed/unevaluated"):
             client.run_project(objective="Reject contradictory SUPRA completion")
+
+
+def test_client_rejects_completed_without_isolated_sandbox_proof() -> None:
+    def handler(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            201,
+            json={
+                "status": "success",
+                "status_scope": "WORKFLOW_EXECUTION_ONLY",
+                "completion_status": "COMPLETED",
+                "workflow_status": "COMPLETED",
+                "verification_status": "PASS",
+                "scientific_status": "NOT_VALIDATED",
+                "project_id": "legacy-no-sandbox",
+                "stage": "COMPLETED",
+                "posture": {"project_id": "legacy-no-sandbox"},
+            },
+        )
+
+    with _client(handler) as client:
+        with pytest.raises(ValueError, match="ISOLATED_BOUND_PASS"):
+            client.run_project(objective="Reject completion without sandbox proof")
+
+
+def test_client_accepts_completed_only_with_isolated_bound_pass() -> None:
+    def handler(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            201,
+            json={
+                "status": "success",
+                "status_scope": "WORKFLOW_EXECUTION_ONLY",
+                "completion_status": "COMPLETED",
+                "workflow_status": "COMPLETED",
+                "verification_status": "PASS",
+                "scientific_status": "NOT_VALIDATED",
+                "secure_sandbox_status": "ISOLATED_BOUND_PASS",
+                "project_id": "sandbox-complete",
+                "stage": "COMPLETED",
+                "posture": {"project_id": "sandbox-complete"},
+            },
+        )
+
+    with _client(handler) as client:
+        result = client.run_project(objective="Accept isolated completion")
+    assert result.status == "success"
+    assert result.secure_sandbox_status == "ISOLATED_BOUND_PASS"
+    assert result.stage == "COMPLETED"
 
 
 def test_gui_uses_canonical_supra_client_without_direct_http_routes() -> None:
