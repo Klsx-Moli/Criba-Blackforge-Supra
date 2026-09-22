@@ -80,7 +80,7 @@ def _normalized_public(posture: dict[str, Any]) -> dict[str, Any]:
 
 
 def _digest(value: object) -> str:
-    raw = json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    raw = json.dumps(\n        value, ensure_ascii=False, sort_keys=True, separators=(",", ":"), allow_nan=False\n    )
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()
 
 
@@ -353,8 +353,6 @@ def main() -> int:
                 worker,
                 latency_ms=args.latency_ms,
             )
-            probe_complete = probe_complete and perturbation_ok
-
             after, after_ms = _run_d(
                 args.objective,
                 root / f"{perturbation}-after",
@@ -363,17 +361,22 @@ def main() -> int:
             normalized_after = _normalized_public(after)
             before_digest = _digest(normalized_before)
             after_digest = _digest(normalized_after)
-            semantic_equal = bool(
-                control_stable
-                and before_digest == reference_digest
-                and after_digest == reference_digest
+            before_matches_control = bool(
+                control_stable and before_digest == reference_digest
             )
-            if control_stable and not semantic_equal:
+            after_matches_control = bool(
+                control_stable and after_digest == reference_digest
+            )
+            semantic_equal = bool(before_matches_control and after_matches_control)
+            row_complete = bool(perturbation_ok and before_matches_control)
+            probe_complete = probe_complete and row_complete
+            if perturbation_ok and before_matches_control and not after_matches_control:
                 semantic_interference = True
             rows.append(
                 {
                     "perturbation": perturbation,
                     "perturbation_ok": perturbation_ok,
+                    "baseline_equal": before_matches_control,
                     "semantic_equal": semantic_equal,
                     "before_digest": before_digest,
                     "after_digest": after_digest,
