@@ -1,0 +1,39 @@
+schema_version: 1
+authority: ASTRA
+implementation_spec: READY
+runtime_branch: feat/anti-goodhart-standard
+activation:
+  STANDARD: DISABLED
+  reason: G3_DEPLOYMENT_ISOLATION_NOT_VERIFIED
+gates:
+  G1:
+    status: CODE_SENTINELS_IMPLEMENTED
+    claim_scope: sealed_public_posture_and_contract_equivalence
+  G2:
+    status: CODE_SENTINELS_IMPLEMENTED
+    claim_scope: observer_errors_duplicates_and_storage_do_not_write_D
+  G3:
+    status: NOT_VERIFIED
+    claim_scope: deployment_resource_isolation
+    required:
+      - observer worker runs outside D resource domain
+      - no shared locks connection pools provider quotas or scheduling queues
+      - latency saturation storage failure and timeout perturbations leave D timing semantics unchanged
+  G4:
+    status: CODE_SENTINELS_IMPLEMENTED
+    claim_scope: observer_persistence_restart_and_execution_state_contamination
+sensitivity_controls:
+  status: CI_SENTINELS_IMPLEMENTED
+  scope:
+    - deliberate decisional contamination must be detected
+    - observer storage failure must remain O-only
+  limitation: does_not_replace_G3_deployment_isolation
+scientific_boundaries:
+  D3: UNRESOLVED
+  D4: UNRESOLVED
+  D6: STILL_UNRESOLVED_RESEARCH_ONLY
+  goodhart_detected: NOT_CLAIMED
+notes:
+  - Code-boundary tests do not accredit deployment isolation.
+  - No all-green gate evidence file is shipped.
+  - STANDARD remains disabled until all applicable G1-G4 rows and sensitivity controls pass for the exact deployment scope.
