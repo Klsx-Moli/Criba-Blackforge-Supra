@@ -23,6 +23,26 @@ class SupraClientError(RuntimeError):
     """Raised when the SUPRA transport or response violates the client contract."""
 
 
+def objective_from_dossier(dossier: dict[str, Any]) -> str:
+    """Map CRIBA's local dossier exchange format onto SUPRA's objective field."""
+    prueba = dossier.get("prueba_discriminante") or {}
+    fields = [
+        ("Problema", dossier.get("problema")),
+        ("Hipótesis CRIBA/BLACKFORGE", dossier.get("hipotesis")),
+        ("Mecanismo", dossier.get("mecanismo")),
+        ("Prueba discriminante", prueba.get("intervencion_prueba")),
+        ("Observable", prueba.get("observable")),
+        ("Regla de decisión", prueba.get("regla_decision")),
+        ("Condición de fracaso", prueba.get("condicion_fracaso")),
+    ]
+    body = "\n".join(f"{label}: {value}" for label, value in fields if value)
+    prefix = (
+        "Desarrolla y evalúa este dossier CRIBA/BLACKFORGE sin convertir "
+        "evidencia ausente en PASS. "
+    )
+    return (prefix + body)[:2000]
+
+
 @dataclass(frozen=True, slots=True)
 class SupraClientConfig:
     endpoint: str = "http://127.0.0.1:8000"
