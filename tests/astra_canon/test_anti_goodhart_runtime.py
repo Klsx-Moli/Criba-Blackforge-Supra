@@ -372,9 +372,6 @@ def test_tampered_parseable_record_cannot_suppress_valid_diagnostic(tmp_path: Pa
 
     assert store.append_diagnostic(diagnostic) is True
     canonical = [
-        item
-        for item in store.read_diagnostics()
-        if item.get("message") == "canonical diagnostic"
+        item for item in store.read_diagnostics() if item.get("message") == "canonical diagnostic"
     ]
     assert len(canonical) == 1
-
