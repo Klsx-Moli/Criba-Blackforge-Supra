@@ -47,6 +47,9 @@ def main() -> int:
     parser.add_argument("--latency-ms", type=int, default=200)
     args = parser.parse_args()
 
+    if args.latency_ms < 0:
+        raise ValueError("latency-ms must be >= 0")
+
     raw = json.loads(args.trace.read_text(encoding="utf-8"))
     if not isinstance(raw, dict):
         raise ValueError("trace record must be a JSON object")
@@ -84,10 +87,10 @@ def main() -> int:
     elif args.perturbation == "volume100":
         detectors = (DetectorSpec("g3_volume", "1", volume_detector),)
 
-    if args.perturbation == "latency":
-        time.sleep(max(0, args.latency_ms) / 1000.0)
-
     started = time.perf_counter()
+    if args.perturbation == "latency":
+        time.sleep(args.latency_ms / 1000.0)
+
     kwargs = {"trace": trace, "store": store}
     if detectors is not None:
         kwargs["detectors"] = detectors
@@ -111,6 +114,9 @@ def main() -> int:
         "duplicate_diagnostics": duplicate_count,
         "failures": list(result.failures),
         "elapsed_ms": round(elapsed_ms, 3),
+        "injected_latency_ms": args.latency_ms
+        if args.perturbation == "latency"
+        else 0,
         "verification_only": True,
         "standard_release_changed": False,
     }
