@@ -478,4 +478,3 @@ print(int(ObserverStore(root).append_diagnostic(diagnostic)), flush=True)
     assert inserted == 1
     assert len(diagnostics) == 1
     assert diagnostics[0]["diagnostic_id"]
-
