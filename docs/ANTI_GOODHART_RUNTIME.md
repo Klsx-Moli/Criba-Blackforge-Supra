@@ -20,9 +20,9 @@ STANDARD is binary and scope-bound. It requires all G1-G4 evidence, every
 applicable acceptance row, passing sensitivity controls and exact deployment
 scope equality.
 
-This branch ships no all-green deployment gate evidence. G3 resource isolation
-is NOT_VERIFIED, therefore governance/ANTI_GOODHART_STATUS.yaml keeps STANDARD
-DISABLED.
+This branch ships no all-green gate evidence. G3 resource isolation is
+NOT_VERIFIED and the G4 two-consecutive-decisions row is NOT_YET_IMPLEMENTED;
+therefore governance/ANTI_GOODHART_STATUS.yaml keeps STANDARD DISABLED.
 
 A process/thread on the same machine is not enough to prove G3. The deployment
 must establish that O cannot consume D locks, connection pools, provider quotas,

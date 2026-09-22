@@ -3,6 +3,11 @@
 from __future__ import annotations
 
 import copy
+import json
+import math
+import subprocess
+import sys
+import time
 from pathlib import Path
 
 import pytest
@@ -22,8 +27,10 @@ from supra_agentic.anti_goodhart.observer import _observe_trace_after_gate, obse
 from supra_agentic.anti_goodhart.records import Diagnostic
 from supra_agentic.anti_goodhart.store import ObserverStore
 from supra_agentic.anti_goodhart.trace import (
+    load_sealed_trace,
     project_public_posture,
     seal_public_posture,
+    sealed_trace_record,
 )
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -333,3 +340,141 @@ def test_observer_storage_failure_is_confined_to_o_domain(tmp_path: Path):
         "observer_store:OSError",
     )
     assert trace.payload_json == before
+
+
+def test_sealed_trace_rejects_forged_source_identity() -> None:
+    trace = seal_public_posture(_posture())
+    record = sealed_trace_record(trace)
+    record["source"] = "FORGED_SOURCE"
+    with pytest.raises(ValueError, match="source"):
+        load_sealed_trace(record)
+
+
+def test_tampered_parseable_record_cannot_suppress_valid_diagnostic(tmp_path: Path) -> None:
+    trace = seal_public_posture(_posture())
+    diagnostic = Diagnostic(
+        detector_id="poison-sentinel",
+        detector_version="1",
+        trace_sha256=trace.payload_sha256,
+        kind="integrity",
+        status="OBSERVED",
+        message="canonical diagnostic",
+        details={"value": 1},
+    )
+    store = ObserverStore(tmp_path / "observer")
+    store.root.mkdir(parents=True, exist_ok=True)
+    tampered = diagnostic.to_record()
+    tampered["message"] = "tampered but parseable"
+    store.diagnostics_path.write_text(
+        json.dumps(tampered, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+
+    assert store.append_diagnostic(diagnostic) is True
+    canonical = [
+        item for item in store.read_diagnostics() if item.get("message") == "canonical diagnostic"
+    ]
+    assert len(canonical) == 1
+
+
+def test_store_ignores_parseable_nonfinite_diagnostic_record(tmp_path: Path) -> None:
+    store = ObserverStore(tmp_path / "observer")
+    store.root.mkdir(parents=True, exist_ok=True)
+    poisoned = {
+        "diagnostic_id": "forged-id",
+        "detector_id": "poison",
+        "detector_version": "1",
+        "trace_sha256": "a" * 64,
+        "kind": "integrity",
+        "status": "OBSERVED",
+        "message": "parseable non-finite record",
+        "details": {"value": math.nan},
+    }
+    store.diagnostics_path.write_text(json.dumps(poisoned), encoding="utf-8")
+
+    assert store.read_diagnostics() == []
+
+
+@pytest.mark.parametrize("value", [math.nan, math.inf, -math.inf])
+def test_public_trace_rejects_nonfinite_numbers(value: float) -> None:
+    posture = _posture()
+    posture["selected_candidate"]["divergence_score"] = value
+    with pytest.raises(ValueError):
+        seal_public_posture(posture)
+
+
+@pytest.mark.parametrize("value", [math.nan, math.inf, -math.inf])
+def test_diagnostic_identity_rejects_nonfinite_details(value: float) -> None:
+    diagnostic = Diagnostic(
+        detector_id="nonfinite-sentinel",
+        detector_version="1",
+        trace_sha256="a" * 64,
+        kind="integrity",
+        status="OBSERVED",
+        message="finite-json-required",
+        details={"value": value},
+    )
+    with pytest.raises(ValueError):
+        _ = diagnostic.diagnostic_id
+
+
+def test_observer_store_deduplicates_across_processes(tmp_path: Path) -> None:
+    root = tmp_path / "observer-multiprocess"
+    start = tmp_path / "start.signal"
+    process_count = 8
+    child = """
+import sys
+import time
+from pathlib import Path
+from supra_agentic.anti_goodhart.records import Diagnostic
+from supra_agentic.anti_goodhart.store import ObserverStore
+
+root = Path(sys.argv[1])
+ready = Path(sys.argv[2])
+start = Path(sys.argv[3])
+diagnostic = Diagnostic(
+    detector_id="multiprocess-sentinel",
+    detector_version="1",
+    trace_sha256="a" * 64,
+    kind="integrity",
+    status="OBSERVED",
+    message="same semantic diagnostic",
+    details={"value": 1},
+)
+ready.write_text("ready", encoding="utf-8")
+while not start.exists():
+    time.sleep(0.005)
+print(int(ObserverStore(root).append_diagnostic(diagnostic)), flush=True)
+"""
+    processes = []
+    ready_paths = []
+    for index in range(process_count):
+        ready = tmp_path / f"ready-{index}.signal"
+        ready_paths.append(ready)
+        processes.append(
+            subprocess.Popen(
+                [sys.executable, "-c", child, str(root), str(ready), str(start)],
+                cwd=ROOT,
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
+        )
+
+    deadline = time.monotonic() + 15.0
+    while not all(path.exists() for path in ready_paths):
+        assert time.monotonic() < deadline, "observer workers did not reach race barrier"
+        time.sleep(0.01)
+    start.write_text("go", encoding="utf-8")
+
+    inserted = 0
+    for process in processes:
+        stdout, stderr = process.communicate(timeout=20)
+        assert process.returncode == 0, stderr
+        inserted += int(stdout.strip())
+
+    store = ObserverStore(root)
+    diagnostics = store.read_diagnostics()
+    assert inserted == 1
+    assert len(diagnostics) == 1
+    assert diagnostics[0]["diagnostic_id"]

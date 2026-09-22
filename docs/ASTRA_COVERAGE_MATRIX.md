@@ -53,7 +53,7 @@ All 14 are present in the SUPRA manifest. The previous omissions of
 - `D6_ADAPTIVE_BENEFIT = STILL_UNRESOLVED`
 - `SCIENTIFIC_ADVANTAGE_OF_CRIBA = NOT_ESTABLISHED`
 - Anti-Goodhart runtime boundary is partially implemented out-of-band.
-- `governance/ANTI_GOODHART_STATUS.yaml` keeps STANDARD **DISABLED** because G3 deployment-resource isolation is NOT_VERIFIED.
+- `governance/ANTI_GOODHART_STATUS.yaml` keeps STANDARD **DISABLED** because G3 deployment-resource isolation is NOT_VERIFIED and the G4 two-consecutive-decisions row remains NOT_YET_IMPLEMENTED.
 - The 14 SUPRA canon contracts remain unchanged; the observer does not promote D3/D4/D6 or scientific advantage.
 
 A green CI run is evidence for the checks that actually executed. It is not a

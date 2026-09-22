@@ -12,6 +12,10 @@ TRACE_SCHEMA_VERSION = "astra-supra-public-trace/1"
 TRACE_SOURCE = "SUPRA"
 
 
+def _reject_nonfinite(token: str) -> None:
+    raise ValueError(f"non-finite JSON value is not allowed: {token}")
+
+
 @dataclass(frozen=True, slots=True)
 class SealedTrace:
     schema_version: str
@@ -21,7 +25,7 @@ class SealedTrace:
     payload_json: str
 
     def payload(self) -> dict[str, Any]:
-        decoded = json.loads(self.payload_json)
+        decoded = json.loads(self.payload_json, parse_constant=_reject_nonfinite)
         if not isinstance(decoded, dict):
             raise ValueError("sealed trace payload must decode to an object")
         return cast(dict[str, Any], decoded)
@@ -125,6 +129,7 @@ def seal_public_posture(posture: Mapping[str, Any]) -> SealedTrace:
         ensure_ascii=False,
         sort_keys=True,
         separators=(",", ":"),
+        allow_nan=False,
     )
     digest = hashlib.sha256(payload_json.encode("utf-8")).hexdigest()
     return SealedTrace(
@@ -156,6 +161,8 @@ def load_sealed_trace(record: Mapping[str, Any]) -> SealedTrace:
     )
     if trace.schema_version != TRACE_SCHEMA_VERSION:
         raise ValueError("unsupported public trace schema")
+    if trace.source != TRACE_SOURCE:
+        raise ValueError("unsupported public trace source")
     if not trace.run_id:
         raise ValueError("sealed trace is missing run_id")
     actual = hashlib.sha256(trace.payload_json.encode("utf-8")).hexdigest()
