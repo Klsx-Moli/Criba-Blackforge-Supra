@@ -80,10 +80,7 @@ class ObserverStore:
 
     def append_diagnostic(self, diagnostic: Diagnostic) -> bool:
         with self._lock:
-            existing = {
-                str(item.get("diagnostic_id") or "")
-                for item in self.read_diagnostics()
-            }
+            existing = {str(item.get("diagnostic_id") or "") for item in self.read_diagnostics()}
             if diagnostic.diagnostic_id in existing:
                 return False
             self.root.mkdir(parents=True, exist_ok=True)
