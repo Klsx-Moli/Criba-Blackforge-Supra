@@ -9,6 +9,9 @@ from __future__ import annotations
 import copy
 import json
 import math
+import subprocess
+import sys
+import time
 from pathlib import Path
 
 import pytest
@@ -416,4 +419,66 @@ def test_diagnostic_identity_rejects_nonfinite_details(value: float) -> None:
     )
     with pytest.raises(ValueError):
         _ = diagnostic.diagnostic_id
+
+
+def test_observer_store_deduplicates_across_processes(tmp_path: Path) -> None:
+    root = tmp_path / "observer-multiprocess"
+    start = tmp_path / "start.signal"
+    process_count = 8
+    child = """
+import sys
+import time
+from pathlib import Path
+from criba.anti_goodhart.records import Diagnostic
+from criba.anti_goodhart.store import ObserverStore
+
+root = Path(sys.argv[1])
+ready = Path(sys.argv[2])
+start = Path(sys.argv[3])
+diagnostic = Diagnostic(
+    detector_id="multiprocess-sentinel",
+    detector_version="1",
+    trace_sha256="a" * 64,
+    kind="integrity",
+    status="OBSERVED",
+    message="same semantic diagnostic",
+    details={"value": 1},
+)
+ready.write_text("ready", encoding="utf-8")
+while not start.exists():
+    time.sleep(0.005)
+print(int(ObserverStore(root).append_diagnostic(diagnostic)), flush=True)
+"""
+    processes = []
+    ready_paths = []
+    for index in range(process_count):
+        ready = tmp_path / f"ready-{index}.signal"
+        ready_paths.append(ready)
+        processes.append(
+            subprocess.Popen(
+                [sys.executable, "-c", child, str(root), str(ready), str(start)],
+                cwd=ROOT,
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
+        )
+
+    deadline = time.monotonic() + 15.0
+    while not all(path.exists() for path in ready_paths):
+        assert time.monotonic() < deadline, "observer workers did not reach race barrier"
+        time.sleep(0.01)
+    start.write_text("go", encoding="utf-8")
+
+    inserted = 0
+    for process in processes:
+        stdout, stderr = process.communicate(timeout=20)
+        assert process.returncode == 0, stderr
+        inserted += int(stdout.strip())
+
+    store = ObserverStore(root)
+    diagnostics = store.read_diagnostics()
+    assert inserted == 1
+    assert len(diagnostics) == 1
+    assert diagnostics[0]["diagnostic_id"]
 
