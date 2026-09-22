@@ -160,6 +160,22 @@ def guardar_dossier(dossier: dict[str, Any], directory: Path | None = None) -> P
     return path
 
 
+def cargar_dossier(
+    dossier_id: str,
+    directory: Path | None = None,
+) -> dict[str, Any] | None:
+    """Load one unambiguous local dossier by identity."""
+    identity = dossier_id.strip()
+    if not identity:
+        raise ValueError("dossier_id es obligatorio")
+    path = _dossiers_dir(directory) / "dossiers.jsonl"
+    dossiers, ambiguos, _ = _leer_historial(path)
+    if identity in ambiguos:
+        raise ValueError("dossier_id ambiguo")
+    dossier = dossiers.get(identity)
+    return dict(dossier) if dossier is not None else None
+
+
 def _discriminant_protocol_complete(dossier: dict[str, Any]) -> bool:
     """Return True only when the dossier can actually discriminate rival claims."""
     prueba = dossier.get("prueba_discriminante")
