@@ -3,13 +3,53 @@
 from __future__ import annotations
 
 import json
+import os
 import threading
+import time
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Any, cast
 
 from .records import Diagnostic, DiagnosticStatus, ObserverFailure
 
 _DIAGNOSTIC_STATUSES = {"OBSERVED", "UNKNOWN", "NOT_EVALUATED", "CONFLICT"}
+_PROCESS_LOCK_RETRY_SECONDS = 0.01
+
+
+@contextmanager
+def _interprocess_file_lock(path: Path):
+    """Serialize store mutations across independent observer processes."""
+
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("a+b") as handle:
+        handle.seek(0, os.SEEK_END)
+        if handle.tell() == 0:
+            handle.write(b"\\0")
+            handle.flush()
+        handle.seek(0)
+
+        if os.name == "nt":
+            import msvcrt
+
+            while True:
+                try:
+                    msvcrt.locking(handle.fileno(), msvcrt.LK_NBLCK, 1)
+                    break
+                except OSError:
+                    time.sleep(_PROCESS_LOCK_RETRY_SECONDS)
+            try:
+                yield
+            finally:
+                handle.seek(0)
+                msvcrt.locking(handle.fileno(), msvcrt.LK_UNLCK, 1)
+        else:
+            import fcntl
+
+            fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
+            try:
+                yield
+            finally:
+                fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
 
 
 class ObserverStore:
@@ -26,6 +66,10 @@ class ObserverStore:
     @property
     def diagnostics_path(self) -> Path:
         return self.root / "diagnostics.jsonl"
+
+    @property
+    def lock_path(self) -> Path:
+        return self.root / ".observer_store.lock"
 
     @property
     def failures_path(self) -> Path:
@@ -91,7 +135,7 @@ class ObserverStore:
     def append_diagnostic(self, diagnostic: Diagnostic) -> bool:
         """Append once; duplicate delivery of the same valid event is idempotent."""
 
-        with self._lock:
+        with self._lock, _interprocess_file_lock(self.lock_path):
             existing = {str(item.get("diagnostic_id") or "") for item in self.read_diagnostics()}
             if diagnostic.diagnostic_id in existing:
                 return False
@@ -109,7 +153,7 @@ class ObserverStore:
             return True
 
     def append_failure(self, failure: ObserverFailure) -> None:
-        with self._lock:
+        with self._lock, _interprocess_file_lock(self.lock_path):
             self.root.mkdir(parents=True, exist_ok=True)
             with self.failures_path.open("a", encoding="utf-8") as handle:
                 handle.write(
