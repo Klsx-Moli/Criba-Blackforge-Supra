@@ -6,9 +6,11 @@ Public trace schema: `astra-supra-public-trace/1`
 
 ## Purpose
 
-This protocol is the **only remaining deployment gate** after code-boundary G1/G2/G4
-sentinels. It does not test whether diagnostics are useful. It tests whether the
-observer can change decisional timing/resources.
+This protocol is the remaining **deployment-resource gate**. It does not imply
+that every non-deployment G4 row is already complete: the current acceptance
+matrix still marks the two-consecutive-decisions G4 row as NOT_YET_IMPLEMENTED.
+It does not test whether diagnostics are useful. It tests whether the observer
+can change decisional timing/resources.
 
 Passing this protocol **does not edit** `STANDARD_RELEASE_STATE`. Product
 STANDARD remains disabled until a separate reviewed/versioned release commit.
