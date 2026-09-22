@@ -6,6 +6,7 @@ import json
 import os
 import threading
 import time
+from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Any, cast
@@ -17,7 +18,7 @@ _PROCESS_LOCK_RETRY_SECONDS = 0.01
 
 
 @contextmanager
-def _interprocess_file_lock(path: Path):
+def _interprocess_file_lock(path: Path) -> Iterator[None]:
     """Serialize store mutations across independent observer processes."""
 
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -45,11 +46,11 @@ def _interprocess_file_lock(path: Path):
         else:
             import fcntl
 
-            fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
+            fcntl.flock(handle.fileno(), fcntl.LOCK_EX)  # type: ignore[attr-defined]
             try:
                 yield
             finally:
-                fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+                fcntl.flock(handle.fileno(), fcntl.LOCK_UN)  # type: ignore[attr-defined]
 
 
 class ObserverStore:
