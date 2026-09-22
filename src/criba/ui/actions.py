@@ -913,6 +913,7 @@ def _execute_supra_dossiers(
                     "completion_status": result.completion_status,
                     "workflow_status": result.workflow_status,
                     "verification_status": result.verification_status,
+                    "secure_sandbox_status": result.secure_sandbox_status,
                     "scientific_status": result.scientific_status,
                     "stage": result.stage,
                 }
@@ -934,18 +935,28 @@ def _on_supra_dossiers_done(win: Any, report: dict[str, Any]) -> None:
     sheet["supra_runs"] = runs
     completed = sum(1 for item in runs if item.get("completion_status") == "COMPLETED")
     blocked = sum(1 for item in runs if item.get("completion_status") == "BLOCKED")
+    sandbox_blocked = sum(
+        1
+        for item in runs
+        if item.get("completion_status") == "BLOCKED"
+        and item.get("secure_sandbox_status") != "ISOLATED_BOUND_PASS"
+    )
     r = win.refs
+    sandbox_note = (
+        f" · {sandbox_blocked} sin aislamiento acreditado" if sandbox_blocked else ""
+    )
     r["ideaSummary"].setText(
-        f"SUPRA: {completed} completado(s) · {blocked} bloqueado(s) · "
-        f"{len(runs)} ejecución(es) registradas"
+        f"SUPRA: {completed} completado(s) · {blocked} bloqueado(s)"
+        f"{sandbox_note} · {len(runs)} ejecución(es) registradas"
     )
     chip = "SUPRA completado" if runs and blocked == 0 else "SUPRA bloqueado"
     set_chip(r["ideaEstadoChip"], chip, "exploracion")
     _activity(
         win,
         "cyan",
-        f"SUPRA real: {completed} completado(s), {blocked} bloqueado(s); "
-        "verificación y completion conservan estados separados.",
+        f"SUPRA real: {completed} completado(s), {blocked} bloqueado(s), "
+        f"{sandbox_blocked} sin sandbox aislado; verification, sandbox y "
+        "completion conservan estados separados.",
     )
 
 
