@@ -373,6 +373,24 @@ def test_tampered_parseable_record_cannot_suppress_valid_diagnostic(tmp_path: Pa
     ]
     assert len(canonical) == 1
 
+def test_store_ignores_parseable_nonfinite_diagnostic_record(tmp_path: Path) -> None:
+    store = ObserverStore(tmp_path / "observer")
+    store.root.mkdir(parents=True, exist_ok=True)
+    poisoned = {
+        "diagnostic_id": "forged-id",
+        "detector_id": "poison",
+        "detector_version": "1",
+        "trace_sha256": "a" * 64,
+        "kind": "integrity",
+        "status": "OBSERVED",
+        "message": "parseable non-finite record",
+        "details": {"value": math.nan},
+    }
+    store.diagnostics_path.write_text(json.dumps(poisoned), encoding="utf-8")
+
+    assert store.read_diagnostics() == []
+
+
 @pytest.mark.parametrize("value", [math.nan, math.inf, -math.inf])
 def test_public_trace_rejects_nonfinite_numbers(value: float) -> None:
     posture = _posture()
