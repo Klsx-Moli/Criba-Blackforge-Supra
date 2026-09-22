@@ -887,32 +887,12 @@ def on_ver_todas(win: Any) -> None:
 # ---------------------------------------------------------------------------
 # DESARROLLAR CON SUPRA (paridad con `inventar --dossier`)
 # ---------------------------------------------------------------------------
-def _supra_objective_from_dossier(dossier: dict[str, Any]) -> str:
-    """Map the local exchange dossier onto SUPRA's real objective contract."""
-    prueba = dossier.get("prueba_discriminante") or {}
-    fields = [
-        ("Problema", dossier.get("problema")),
-        ("Hipótesis CRIBA/BLACKFORGE", dossier.get("hipotesis")),
-        ("Mecanismo", dossier.get("mecanismo")),
-        ("Prueba discriminante", prueba.get("intervencion_prueba")),
-        ("Observable", prueba.get("observable")),
-        ("Regla de decisión", prueba.get("regla_decision")),
-        ("Condición de fracaso", prueba.get("condicion_fracaso")),
-    ]
-    body = "\n".join(f"{label}: {value}" for label, value in fields if value)
-    prefix = (
-        "Desarrolla y evalúa este dossier CRIBA/BLACKFORGE sin convertir "
-        "evidencia ausente en PASS. "
-    )
-    return (prefix + body)[:2000]
-
-
 def _execute_supra_dossiers(
     dossiers: list[dict[str, Any]],
     client: Any | None = None,
 ) -> dict[str, Any]:
     """Execute prepared dossiers through the single canonical SupraClient."""
-    from ..integrations import SupraClient
+    from ..integrations import SupraClient, objective_from_dossier
 
     owned = client is None
     supra = client or SupraClient()
@@ -921,7 +901,7 @@ def _execute_supra_dossiers(
         runs: list[dict[str, Any]] = []
         for dossier in dossiers:
             result = supra.run_project(
-                objective=_supra_objective_from_dossier(dossier),
+                objective=objective_from_dossier(dossier),
                 domain="criba_blackforge",
                 allow_disruptive=True,
             )
