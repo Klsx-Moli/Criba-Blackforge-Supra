@@ -113,3 +113,42 @@ The local harness/report should produce JSON containing:
 ```
 
 No generated report is allowed to set product activation.
+
+
+## Local same-host probe
+
+The repository includes a verification-only probe. It exercises the O-domain
+worker after a completed D run and applies these perturbations:
+
+- normal observer run;
+- duplicate delivery;
+- 100 diagnostics;
+- detector exception;
+- observer storage failure;
+- artificial observer latency;
+- observer restart.
+
+Run from the repository root:
+
+```powershell
+uv run python scripts/anti_goodhart_g3_probe.py --output "verification/anti_goodhart_g3_criba.json"
+```
+
+Expected safe outcome on one machine:
+
+- `FAIL` means semantic trajectory interference or a broken sensitivity control.
+- `NOT_VERIFIED` means no semantic interference was detected, but same-host
+  subprocess execution is insufficient to accredit G3.
+- The probe can never emit `PASS`.
+- The probe can never edit `STANDARD_RELEASE_STATE`.
+- `probe_complete` is true only when every local perturbation was actually observed.
+- The restart row requires two distinct worker process IDs using the same O-domain store.
+- Per-row timing is descriptive only and is not G3 resource-isolation evidence.
+- Exit code 0 means a complete same-host probe with no semantic interference; exit
+  code 1 means semantic interference/sensitivity-control failure; exit code 2
+  means incomplete or unstable local evidence.
+- The report is written to `verification/anti_goodhart_g3_criba.json`.
+
+Do not interpret `NOT_VERIFIED` as failure of the implementation. It means the
+remaining evidence must come from a genuinely separate resource domain or an
+equivalent deployment topology satisfying this protocol.

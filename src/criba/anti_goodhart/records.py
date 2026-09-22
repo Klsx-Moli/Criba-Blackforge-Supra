@@ -11,7 +11,9 @@ DiagnosticStatus = Literal["OBSERVED", "UNKNOWN", "NOT_EVALUATED", "CONFLICT"]
 
 
 def _canonical_json(value: object) -> str:
-    return json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    return json.dumps(
+        value, ensure_ascii=False, sort_keys=True, separators=(",", ":"), allow_nan=False
+    )
 
 
 @dataclass(frozen=True, slots=True)
