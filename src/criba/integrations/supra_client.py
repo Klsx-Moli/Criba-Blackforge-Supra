@@ -69,6 +69,7 @@ class SupraProjectResult(BaseModel):
     workflow_status: str
     verification_status: str
     scientific_status: str = "NOT_VALIDATED"
+    secure_sandbox_status: str = "NOT_REPORTED"
     project_id: str
     stage: str
     posture: dict[str, Any]
@@ -91,6 +92,10 @@ class SupraProjectResult(BaseModel):
         if verification_blocks and completed:
             raise ValueError(
                 "SUPRA contract violation: failed/unevaluated verification cannot be COMPLETED"
+            )
+        if completed and self.secure_sandbox_status != "ISOLATED_BOUND_PASS":
+            raise ValueError(
+                "SUPRA contract violation: COMPLETED requires ISOLATED_BOUND_PASS"
             )
         if not completed and not blocked:
             raise ValueError("SUPRA contract violation: inconsistent completion fields")
