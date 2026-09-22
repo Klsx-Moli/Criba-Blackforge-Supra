@@ -1,8 +1,16 @@
-"""Thread-safe, In-Memory & File-Backed Project State Manager."""
+"""Thread-safe file-backed project state manager.
+
+Filesystem storage is classified honestly as local, configured, or instance
+ephemeral. A configured path may be durable only when the deployment mounts
+a durable external backend there.
+"""
+
 from __future__ import annotations
 
 import json
 import logging
+import os
+import tempfile
 import threading
 import time
 import uuid
@@ -12,23 +20,41 @@ from typing import Any
 from .models import (
     CheckpointRecord,
     ProjectPosture,
-    SandboxExecutionResult,
+    RestrictedExecutionResult,
     StrategyCandidate,
     StructuredDecomposition,
     TaskmasterStage,
     VerificationReport,
+    candidate_execution_identity,
 )
 
 logger = logging.getLogger("supra_agentic.state")
 
 
+def _get_storage_configuration(
+    explicit: Path | str | None = None,
+) -> tuple[Path, str]:
+    """Resolve filesystem location without claiming unverified durability."""
+    if explicit is not None:
+        return Path(explicit), "CONFIGURED_FILESYSTEM"
+    for env_var in ("SUPRA_STORAGE_DIR", "CLOUD_RUN_PERSISTENT_DIR"):
+        if path := os.getenv(env_var):
+            return Path(path), "CONFIGURED_FILESYSTEM"
+    if os.getenv("K_SERVICE"):
+        return Path(tempfile.gettempdir()) / "supra-agentic", "INSTANCE_EPHEMERAL"
+    if os.name == "nt":
+        root = Path(os.getenv("LOCALAPPDATA", tempfile.gettempdir()))
+        return root / "SUPRA-Agentic", "LOCAL_FILESYSTEM"
+    return Path.home() / ".supra" / "projects", "LOCAL_FILESYSTEM"
+
+
 class ProjectStateManager:
-    """Manages project lifecycles with thread-safe locking and state persistence."""
+    """Manage project lifecycles with locked filesystem persistence."""
 
     def __init__(self, storage_dir: Path | str | None = None) -> None:
         self._lock = threading.RLock()
         self._projects: dict[str, ProjectPosture] = {}
-        self.storage_dir = Path(storage_dir) if storage_dir else Path("data/projects")
+        self.storage_dir, self.storage_mode = _get_storage_configuration(storage_dir)
         self.storage_dir.mkdir(parents=True, exist_ok=True)
 
     def create_project(self, objective: str, project_id: str | None = None) -> ProjectPosture:
@@ -69,10 +95,16 @@ class ProjectStateManager:
                     self._projects[project_id] = posture
                     return posture
                 except Exception as exc:
-                    logger.error(f"Failed to load project {project_id} from disk: {exc}")
+                    logger.error(
+                        "Failed to load project %s from disk (%s)",
+                        project_id,
+                        type(exc).__name__,
+                    )
             return None
 
-    def update_decomposition(self, project_id: str, decomp: StructuredDecomposition) -> ProjectPosture:
+    def update_decomposition(
+        self, project_id: str, decomp: StructuredDecomposition
+    ) -> ProjectPosture:
         """Store decomposition and advance stage to STRUCTURED."""
         with self._lock:
             p = self._get_required_project(project_id)
@@ -90,14 +122,18 @@ class ProjectStateManager:
             self._persist_project(project_id)
             return p
 
-    def add_candidates(self, project_id: str, candidates: list[StrategyCandidate], select_best: bool = True) -> ProjectPosture:
+    def add_candidates(
+        self, project_id: str, candidates: list[StrategyCandidate], select_best: bool = True
+    ) -> ProjectPosture:
         """Store strategy candidates and advance stage to STRATIFIED."""
         with self._lock:
             p = self._get_required_project(project_id)
             p.candidates = candidates
             if select_best and candidates:
                 # Select candidate with highest combined feasibility + divergence score
-                best = max(candidates, key=lambda c: (c.feasibility_score * 0.6 + c.divergence_score * 0.4))
+                best = max(
+                    candidates, key=lambda c: c.feasibility_score * 0.6 + c.divergence_score * 0.4
+                )
                 best.is_selected = True
                 p.selected_candidate = best
             p.stage = TaskmasterStage.STRATIFIED
@@ -123,45 +159,105 @@ class ProjectStateManager:
             p.checkpoints.append(
                 CheckpointRecord(
                     stage=p.stage,
-                    title="Verification Conducted",
-                    evidence_summary=f"Verdict: {report.verdict} (Confidence: {report.confidence_score:.2f}). Invariants Preserved: {report.invariants_preserved}.",
+                    title="Strategy Coverage Evaluated",
+                    evidence_summary=(
+                        f"Coverage verdict: {report.verdict}; "
+                        f"coverage fraction: {report.confidence_score:.2f}; "
+                        f"scope: {report.verification_scope}; "
+                        "not deployed-system or scientific validation."
+                    ),
                     actor="agent:supra:verifier",
                 )
             )
             self._persist_project(project_id)
             return p
 
-    def record_sandbox_execution(self, project_id: str, result: SandboxExecutionResult) -> ProjectPosture:
-        """Record sandbox execution and advance to SANDBOX_VERIFIED."""
+    def record_restricted_execution(
+        self, project_id: str, result: RestrictedExecutionResult
+    ) -> ProjectPosture:
+        """Record trusted restricted execution without claiming process isolation."""
         with self._lock:
             p = self._get_required_project(project_id)
-            p.sandbox_results.append(result)
-            if result.passed:
-                p.stage = TaskmasterStage.SANDBOX_VERIFIED
+            expected = (
+                candidate_execution_identity(p.selected_candidate)
+                if p.selected_candidate is not None
+                else None
+            )
+            identity_matches = bool(
+                result.identity_bound
+                and expected is not None
+                and result.candidate_id == expected["candidate_id"]
+                and result.mechanism_version == expected["mechanism_version"]
+                and result.claim_id == expected["claim_id"]
+                and isinstance(result.protocol_version, str)
+                and result.protocol_version.startswith("sha256:")
+            )
+            result.identity_bound = identity_matches
+            p.restricted_execution_results.append(result)
+            if p.stage not in {TaskmasterStage.COMPLETED, TaskmasterStage.FAILED}:
+                if result.passed and identity_matches:
+                    p.stage = TaskmasterStage.RESTRICTED_EXECUTION_VERIFIED
+                elif p.selected_candidate is not None:
+                    # The latest bound or unbound review replaces derived
+                    # execution state; a failed review cannot preserve PASS.
+                    p.stage = TaskmasterStage.STRATIFIED
+            if p.final_output is not None:
+                output = dict(p.final_output)
+                output["restricted_execution_identity_bound"] = result.identity_bound
+                output["restricted_execution_status"] = (
+                    "BOUND_PASS"
+                    if result.passed and result.identity_bound
+                    else "BOUND_FAIL"
+                    if result.identity_bound
+                    else "UNBOUND"
+                )
+                output["derived_execution_state_revalidated"] = True
+                p.final_output = output
             p.updated_at = time.time()
             p.checkpoints.append(
                 CheckpointRecord(
                     stage=p.stage,
-                    title="Sandbox Execution",
-                    evidence_summary=f"Executed {result.action_type} in {result.duration_ms:.1f}ms. Passed: {result.passed}.",
-                    actor="agent:supra:sandbox",
+                    title="Trusted Restricted Execution",
+                    evidence_summary=(
+                        f"Executed {result.action_type} in {result.duration_ms:.1f}ms. "
+                        f"Passed: {result.passed}. Identity bound: {result.identity_bound}. "
+                        "Process isolated: False. Scientific validation: False."
+                    ),
+                    actor="agent:supra:restricted-executor",
                 )
             )
             self._persist_project(project_id)
             return p
 
     def complete_project(self, project_id: str, final_output: dict[str, Any]) -> ProjectPosture:
-        """Mark project as COMPLETED with final verifiable deliverable."""
+        """Mark workflow completion without implying verification or scientific proof."""
         with self._lock:
             p = self._get_required_project(project_id)
             p.final_output = final_output
             p.stage = TaskmasterStage.COMPLETED
             p.updated_at = time.time()
+            verification_status = str(p.verification.verdict) if p.verification else "NOT_EVALUATED"
+            latest_execution = (
+                p.restricted_execution_results[-1] if p.restricted_execution_results else None
+            )
+            execution_status = (
+                "BOUND_PASS"
+                if latest_execution and latest_execution.passed and latest_execution.identity_bound
+                else "BOUND_FAIL"
+                if latest_execution and latest_execution.identity_bound
+                else "UNBOUND"
+                if latest_execution
+                else "NOT_RUN"
+            )
             p.checkpoints.append(
                 CheckpointRecord(
                     stage=TaskmasterStage.COMPLETED,
-                    title="Taskmaster Mission Complete",
-                    evidence_summary="All 5 stages completed autonomously with verifiable proof and telemetry.",
+                    title="Taskmaster Workflow Complete",
+                    evidence_summary=(
+                        f"Workflow completed. Verification status: {verification_status}. "
+                        f"Restricted execution status: {execution_status}. "
+                        "Scientific validation: NOT_CLAIMED."
+                    ),
                     actor="agent:supra:coordinator",
                 )
             )
@@ -205,13 +301,29 @@ class ProjectStateManager:
         return p
 
     def _persist_project(self, project_id: str) -> None:
+        """Persist project to disk with proper error handling (B-6 fix)."""
         p = self._projects.get(project_id)
-        if p:
-            try:
-                p_file = self.storage_dir / f"{project_id}.json"
-                p_file.write_text(p.model_dump_json(indent=2), encoding="utf-8")
-            except Exception as exc:
-                logger.error(f"Failed to persist project {project_id}: {exc}")
+        if not p:
+            logger.error(f"Cannot persist non-existent project {project_id}")
+            return
+        try:
+            p_file = self.storage_dir / f"{project_id}.json"
+            with tempfile.NamedTemporaryFile(
+                mode="w", dir=self.storage_dir, suffix=".tmp", delete=False
+            ) as tmp:
+                tmp.write(p.model_dump_json(indent=2))
+                tmp_path = Path(tmp.name)
+            tmp_path.replace(p_file)
+        except Exception as exc:
+            error_type = type(exc).__name__
+            logger.error(
+                "Project persistence failed (%s); data-loss risk for project %s",
+                error_type,
+                project_id,
+            )
+            raise RuntimeError(
+                f"Persistence failed for project {project_id} ({error_type})"
+            ) from exc
 
 
 # Global Singleton Instance

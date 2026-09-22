@@ -1,14 +1,16 @@
 """Tests for SUPRA Project State Manager and Models."""
+
 import tempfile
-from pathlib import Path
+
 from supra_agentic.models import (
-    CheckpointRecord,
-    SandboxExecutionResult,
+    RESTRICTED_EXECUTION_SEMANTICS_VERSION,
+    RestrictedExecutionResult,
     StrategyCandidate,
     StructuredDecomposition,
     Subtask,
     TaskmasterStage,
     VerificationReport,
+    candidate_execution_identity,
 )
 from supra_agentic.state import ProjectStateManager
 
@@ -77,16 +79,22 @@ def test_project_lifecycle_transitions():
         )
         sm.record_verification(p.project_id, v_rep)
 
-        # Stage 4b: Sandbox execution
-        sb_res = SandboxExecutionResult(
-            action_type="CODE_RUN",
+        # Stage 4b: trusted restricted execution
+        expected_identity = candidate_execution_identity(cand1)
+        execution_result = RestrictedExecutionResult(
+            candidate_id=expected_identity["candidate_id"],
+            mechanism_version=expected_identity["mechanism_version"],
+            claim_id=expected_identity["claim_id"],
+            protocol_version="sha256:test-protocol",
+            execution_semantics_version=RESTRICTED_EXECUTION_SEMANTICS_VERSION,
+            action_type="RESTRICTED_CODE_RUN",
             passed=True,
-            output_log="Verified 5/5 synthetic challenge-response assertions in sandbox.",
+            output_log="Restricted internal assertions passed.",
             duration_ms=4.2,
         )
-        p4 = sm.record_sandbox_execution(p.project_id, sb_res)
-        assert p4.stage == TaskmasterStage.SANDBOX_VERIFIED
-        assert len(p4.sandbox_results) == 1
+        p4 = sm.record_restricted_execution(p.project_id, execution_result)
+        assert p4.stage == TaskmasterStage.RESTRICTED_EXECUTION_VERIFIED
+        assert len(p4.restricted_execution_results) == 1
 
         # Stage 5: Completion
         final_doc = {
@@ -104,3 +112,100 @@ def test_project_lifecycle_transitions():
         assert loaded is not None
         assert loaded.stage == TaskmasterStage.COMPLETED
         assert loaded.selected_candidate.pathway_name == "Ephemeral Asymmetric Prover"
+
+
+def test_latest_restricted_revision_replaces_prior_pass():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        sm = ProjectStateManager(storage_dir=tmpdir)
+        p = sm.create_project(objective="revision semantics")
+        cand = StrategyCandidate(
+            pathway_name="Path",
+            paradigm_type="ORTHOGONAL",
+            hypothesis="Current candidate hypothesis",
+            action_plan=["step"],
+            divergence_score=0.5,
+            feasibility_score=0.5,
+        )
+        posture = sm.add_candidates(p.project_id, [cand], select_best=True)
+        selected = posture.selected_candidate
+        assert selected is not None
+        identity = candidate_execution_identity(selected)
+
+        passed = RestrictedExecutionResult(
+            candidate_id=identity["candidate_id"],
+            mechanism_version=identity["mechanism_version"],
+            claim_id=identity["claim_id"],
+            protocol_version="sha256:test-protocol",
+            execution_semantics_version=RESTRICTED_EXECUTION_SEMANTICS_VERSION,
+            action_type="RESTRICTED_CODE_RUN",
+            passed=True,
+            output_log="pass",
+            duration_ms=1.0,
+        )
+        assert sm.record_restricted_execution(p.project_id, passed).stage == (
+            TaskmasterStage.RESTRICTED_EXECUTION_VERIFIED
+        )
+
+        failed = RestrictedExecutionResult(
+            candidate_id=identity["candidate_id"],
+            mechanism_version=identity["mechanism_version"],
+            claim_id=identity["claim_id"],
+            protocol_version="sha256:test-protocol",
+            execution_semantics_version=RESTRICTED_EXECUTION_SEMANTICS_VERSION,
+            action_type="RESTRICTED_CODE_RUN",
+            passed=False,
+            output_log="fail",
+            duration_ms=1.0,
+        )
+        revised = sm.record_restricted_execution(p.project_id, failed)
+        assert revised.stage == TaskmasterStage.STRATIFIED
+        assert [item.passed for item in revised.restricted_execution_results] == [True, False]
+
+
+def test_completed_workflow_preserves_completion_but_latest_failure_revises_execution_cache():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        sm = ProjectStateManager(storage_dir=tmpdir)
+        p = sm.create_project(objective="completed revision semantics")
+        cand = StrategyCandidate(
+            pathway_name="Path",
+            paradigm_type="ORTHOGONAL",
+            hypothesis="Current candidate hypothesis",
+            action_plan=["step"],
+            divergence_score=0.5,
+            feasibility_score=0.5,
+        )
+        posture = sm.add_candidates(p.project_id, [cand], select_best=True)
+        selected = posture.selected_candidate
+        assert selected is not None
+        identity = candidate_execution_identity(selected)
+
+        def _result(passed: bool) -> RestrictedExecutionResult:
+            return RestrictedExecutionResult(
+                candidate_id=identity["candidate_id"],
+                mechanism_version=identity["mechanism_version"],
+                claim_id=identity["claim_id"],
+                protocol_version="sha256:test-protocol",
+                execution_semantics_version=RESTRICTED_EXECUTION_SEMANTICS_VERSION,
+                action_type="RESTRICTED_CODE_RUN",
+                passed=passed,
+                output_log="pass" if passed else "fail",
+                duration_ms=1.0,
+            )
+
+        sm.record_restricted_execution(p.project_id, _result(True))
+        completed = sm.complete_project(
+            p.project_id,
+            {
+                "workflow_status": "COMPLETED",
+                "restricted_execution_identity_bound": True,
+                "restricted_execution_status": "BOUND_PASS",
+            },
+        )
+        assert completed.stage == TaskmasterStage.COMPLETED
+
+        revised = sm.record_restricted_execution(p.project_id, _result(False))
+        assert revised.stage == TaskmasterStage.COMPLETED
+        assert revised.final_output is not None
+        assert revised.final_output["restricted_execution_status"] == "BOUND_FAIL"
+        assert revised.final_output["restricted_execution_identity_bound"] is True
+        assert revised.final_output["derived_execution_state_revalidated"] is True
