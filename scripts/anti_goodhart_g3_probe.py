@@ -42,7 +42,9 @@ def _normalized(packet: dict[str, Any]) -> dict[str, Any]:
 
 
 def _digest(value: object) -> str:
-    raw = json.dumps(\n        value, ensure_ascii=False, sort_keys=True, separators=(",", ":"), allow_nan=False\n    )
+    raw = json.dumps(
+        value, ensure_ascii=False, sort_keys=True, separators=(",", ":"), allow_nan=False
+    )
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()
 
 
@@ -373,7 +375,8 @@ def main() -> int:
     }
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(
-        json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+        json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True) + "
+",
         encoding="utf-8",
     )
     print(json.dumps({"status": status, "output": str(args.output)}, sort_keys=True))
