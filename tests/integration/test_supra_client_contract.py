@@ -143,7 +143,7 @@ def test_client_rejects_legacy_fail_plus_completed_overclaim() -> None:
         )
 
     with _client(handler) as client:
-        with pytest.raises(ValueError, match="failed/unevaluated"):
+        with pytest.raises(SupraClientError, match="violated response contract"):
             client.run_project(objective="Reject contradictory SUPRA completion")
 
 
@@ -165,7 +165,7 @@ def test_client_rejects_completed_without_isolated_sandbox_proof() -> None:
         )
 
     with _client(handler) as client:
-        with pytest.raises(ValueError, match="ISOLATED_BOUND_PASS"):
+        with pytest.raises(SupraClientError, match="violated response contract"):
             client.run_project(objective="Reject completion without sandbox proof")
 
 
@@ -192,6 +192,15 @@ def test_client_accepts_completed_only_with_isolated_bound_pass() -> None:
     assert result.status == "success"
     assert result.secure_sandbox_status == "ISOLATED_BOUND_PASS"
     assert result.stage == "COMPLETED"
+
+
+def test_client_wraps_malformed_health_schema() -> None:
+    def handler(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json={"status": "healthy"})
+
+    with _client(handler) as client:
+        with pytest.raises(SupraClientError, match="health violated response contract"):
+            client.health()
 
 
 def test_gui_uses_canonical_supra_client_without_direct_http_routes() -> None:
