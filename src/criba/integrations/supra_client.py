@@ -14,7 +14,7 @@ from typing import Any, Literal
 from urllib.parse import quote
 
 import httpx
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 _PROJECT_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$")
 
@@ -52,6 +52,29 @@ class SupraProjectResult(BaseModel):
     project_id: str
     stage: str
     posture: dict[str, Any]
+
+    @model_validator(mode="after")
+    def reject_contradictory_completion(self) -> "SupraProjectResult":
+        verification_blocks = self.verification_status in {"FAIL", "NOT_EVALUATED"}
+        completed = (
+            self.status == "success"
+            and self.completion_status == "COMPLETED"
+            and self.workflow_status == "COMPLETED"
+            and self.stage == "COMPLETED"
+        )
+        blocked = (
+            self.status == "blocked"
+            and self.completion_status == "BLOCKED"
+            and self.workflow_status != "COMPLETED"
+            and self.stage != "COMPLETED"
+        )
+        if verification_blocks and completed:
+            raise ValueError(
+                "SUPRA contract violation: failed/unevaluated verification cannot be COMPLETED"
+            )
+        if not completed and not blocked:
+            raise ValueError("SUPRA contract violation: inconsistent completion fields")
+        return self
 
 
 class SupraHealth(BaseModel):
