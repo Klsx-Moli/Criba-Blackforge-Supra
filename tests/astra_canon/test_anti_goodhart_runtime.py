@@ -36,7 +36,6 @@ from supra_agentic.anti_goodhart.trace import (
 ROOT = Path(__file__).resolve().parents[2]
 
 
-
 def _posture(*, latest_pass: bool = True, stage: str = "COMPLETED") -> dict[str, object]:
     status = "BOUND_PASS" if latest_pass else "BOUND_FAIL"
     return {
@@ -110,7 +109,6 @@ def _posture(*, latest_pass: bool = True, stage: str = "COMPLETED") -> dict[str,
     }
 
 
-
 def _scope() -> str:
     return scope_fingerprint(
         runtime_version="test-runtime",
@@ -122,7 +120,6 @@ def _scope() -> str:
         ],
         isolation_profile="test-isolated-worker",
     )
-
 
 
 def _full_gate() -> GateEvidence:
