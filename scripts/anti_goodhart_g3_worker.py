@@ -115,9 +115,7 @@ def main() -> int:
                 "duplicate_diagnostics": duplicate_count,
                 "failures": list(result.failures),
                 "elapsed_ms": round(elapsed_ms, 3),
-                "injected_latency_ms": args.latency_ms
-                if args.perturbation == "latency"
-                else 0,
+                "injected_latency_ms": args.latency_ms if args.perturbation == "latency" else 0,
                 "verification_only": True,
                 "standard_release_changed": False,
             },
