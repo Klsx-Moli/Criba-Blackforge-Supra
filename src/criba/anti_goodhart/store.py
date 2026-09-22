@@ -61,16 +61,20 @@ class ObserverStore:
         details = item.get("details")
         if status not in _DIAGNOSTIC_STATUSES or not isinstance(details, dict):
             return None
-        diagnostic = Diagnostic(
-            detector_id=item["detector_id"],
-            detector_version=item["detector_version"],
-            trace_sha256=item["trace_sha256"],
-            kind=item["kind"],
-            status=cast(DiagnosticStatus, status),
-            message=item["message"],
-            details=cast(dict[str, Any], details),
-        )
-        if diagnostic.diagnostic_id != item["diagnostic_id"]:
+        try:
+            diagnostic = Diagnostic(
+                detector_id=item["detector_id"],
+                detector_version=item["detector_version"],
+                trace_sha256=item["trace_sha256"],
+                kind=item["kind"],
+                status=cast(DiagnosticStatus, status),
+                message=item["message"],
+                details=cast(dict[str, Any], details),
+            )
+            diagnostic_id = diagnostic.diagnostic_id
+        except (TypeError, ValueError):
+            return None
+        if diagnostic_id != item["diagnostic_id"]:
             return None
         return diagnostic
 
