@@ -201,3 +201,5 @@ def test_g3_probe_executes_every_local_perturbation_end_to_end(tmp_path: Path) -
     assert report["probe_complete"] is True
     assert len(report["rows"]) == 7
     assert all(row["perturbation_ok"] is True for row in report["rows"])
+    restart = next(row for row in report["rows"] if row["perturbation"] == "restart")
+    assert restart["worker"]["restart_process_distinct"] is True
