@@ -249,3 +249,38 @@ def test_g3_probe_executes_every_local_perturbation_end_to_end(tmp_path: Path) -
     assert all(row["perturbation_ok"] is True for row in report["rows"])
     restart = next(row for row in report["rows"] if row["perturbation"] == "restart")
     assert restart["worker"]["restart_process_distinct"] is True
+
+def test_incomplete_worker_cannot_create_causal_interference_claim(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    probe = _load_probe()
+    baseline = _semantic_posture()
+    mutated = copy.deepcopy(baseline)
+    mutated["stage"] = "UNRELATED_DRIFT"
+    calls = {"n": 0}
+
+    def fake_run_d(*_args):
+        calls["n"] += 1
+        value = mutated if calls["n"] == 4 else baseline
+        return copy.deepcopy(value), 1.0
+
+    def failed_worker(**kwargs):
+        return {
+            "worker_exit": 7,
+            "worker_error_type": "VERIFICATION_WORKER_FAILED",
+            "perturbation": kwargs["perturbation"],
+        }
+
+    monkeypatch.setattr(probe, "_run_d", fake_run_d)
+    monkeypatch.setattr(probe, "_worker", failed_worker)
+    output = tmp_path / "incomplete-causality.json"
+    monkeypatch.setattr(sys, "argv", [str(PROBE), "--output", str(output)])
+
+    assert probe.main() == 2
+    report = json.loads(output.read_text(encoding="utf-8"))
+    assert report["status"] == "NOT_VERIFIED"
+    assert report["reason"] == "local_probe_incomplete"
+    assert report["rows"][0]["semantic_equal"] is False
+    assert report["rows"][0]["perturbation_ok"] is False
+
