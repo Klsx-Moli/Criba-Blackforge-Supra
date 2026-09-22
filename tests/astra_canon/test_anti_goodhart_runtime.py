@@ -33,6 +33,7 @@ from supra_agentic.anti_goodhart.trace import (
 ROOT = Path(__file__).resolve().parents[2]
 
 
+
 def _posture(*, latest_pass: bool = True, stage: str = "COMPLETED") -> dict[str, object]:
     status = "BOUND_PASS" if latest_pass else "BOUND_FAIL"
     return {
@@ -106,6 +107,7 @@ def _posture(*, latest_pass: bool = True, stage: str = "COMPLETED") -> dict[str,
     }
 
 
+
 def _scope() -> str:
     return scope_fingerprint(
         runtime_version="test-runtime",
@@ -119,6 +121,7 @@ def _scope() -> str:
     )
 
 
+
 def _full_gate() -> GateEvidence:
     return GateEvidence(
         scope_fingerprint=_scope(),
@@ -130,6 +133,7 @@ def _full_gate() -> GateEvidence:
         sensitivity_controls_pass=True,
         deployment_scope_matches=True,
     )
+
 
 def test_g1_public_posture_is_deterministic_immutable_and_excludes_free_form_inputs():
     posture = _posture()
@@ -156,11 +160,13 @@ def test_g1_public_posture_is_deterministic_immutable_and_excludes_free_form_inp
     assert first.payload()["stage"] == "COMPLETED"
     assert posture != original
 
+
 def test_g1_projection_requires_stable_project_identity():
     posture = _posture()
     posture["project_id"] = ""
     with pytest.raises(ValueError, match="stable project_id"):
         project_public_posture(posture)
+
 
 def test_activation_rule_is_binary_scope_bound_and_defaults_disabled():
     scope = _scope()
@@ -181,6 +187,7 @@ def test_activation_rule_is_binary_scope_bound_and_defaults_disabled():
     )
     assert gate_evidence_satisfies(stale, current_scope_fingerprint=scope) is False
 
+
 def test_off_creates_no_observer_state(tmp_path: Path):
     trace = seal_public_posture(_posture())
     root = tmp_path / "observer"
@@ -188,6 +195,7 @@ def test_off_creates_no_observer_state(tmp_path: Path):
     assert result.inserted_diagnostics == 0
     assert result.failures == ()
     assert not root.exists()
+
 
 def test_standard_public_api_stays_disabled_even_with_complete_gate(tmp_path: Path) -> None:
     trace = seal_public_posture(_posture())
@@ -199,6 +207,7 @@ def test_standard_public_api_stays_disabled_even_with_complete_gate(tmp_path: Pa
             gate_evidence=_full_gate(),
             current_scope_fingerprint=_scope(),
         )
+
 
 def test_duplicate_delivery_is_idempotent_and_trace_is_unchanged(tmp_path: Path):
     trace = seal_public_posture(_posture())
@@ -218,6 +227,7 @@ def test_duplicate_delivery_is_idempotent_and_trace_is_unchanged(tmp_path: Path)
     assert len(store.read_diagnostics()) == 3
     assert trace.payload_json == before
 
+
 def test_detector_failure_is_confined_and_secret_message_not_persisted(tmp_path: Path):
     trace = seal_public_posture(_posture())
 
@@ -234,6 +244,7 @@ def test_detector_failure_is_confined_and_secret_message_not_persisted(tmp_path:
     persisted = (tmp_path / "observer" / "observer_failures.jsonl").read_text(encoding="utf-8")
     assert "RuntimeError" in persisted
     assert "SENTINEL_SECRET_DO_NOT_PERSIST" not in persisted
+
 
 def test_diagnostic_volume_changes_only_observer_domain(tmp_path: Path):
     trace = seal_public_posture(_posture())
@@ -261,6 +272,7 @@ def test_diagnostic_volume_changes_only_observer_domain(tmp_path: Path):
     assert result.inserted_diagnostics == 100
     assert trace.payload_json == before
 
+
 def test_observer_restart_restores_only_observer_records(tmp_path: Path):
     trace = seal_public_posture(_posture())
     root = tmp_path / "observer"
@@ -271,6 +283,7 @@ def test_observer_restart_restores_only_observer_records(tmp_path: Path):
     restarted = ObserverStore(root)
     assert len(restarted.read_diagnostics()) == 3
 
+
 def test_execution_consistency_reports_latest_fail_without_correcting_posture():
     posture = _posture(latest_pass=False, stage="RESTRICTED_EXECUTION_VERIFIED")
     original = copy.deepcopy(posture)
@@ -279,6 +292,7 @@ def test_execution_consistency_reports_latest_fail_without_correcting_posture():
     assert diagnostics[0].status == "CONFLICT"
     assert "verified_stage_without_latest_bound_pass" in diagnostics[0].details["conflicts"]
     assert posture == original
+
 
 def test_product_runtime_has_no_observer_import_path():
     critical = [
@@ -299,11 +313,13 @@ def test_product_runtime_has_no_observer_import_path():
     assert "import random" not in detector_source
     assert "from random" not in detector_source
 
+
 def test_sensitivity_control_detects_intentional_decisional_contamination():
     baseline = _posture()
     contaminated = copy.deepcopy(baseline)
     contaminated["stage"] = "FAILED"
     assert project_public_posture(baseline) != project_public_posture(contaminated)
+
 
 def test_observer_storage_failure_is_confined_to_o_domain(tmp_path: Path):
     trace = seal_public_posture(_posture())
@@ -325,12 +341,14 @@ def test_observer_storage_failure_is_confined_to_o_domain(tmp_path: Path):
     )
     assert trace.payload_json == before
 
+
 def test_sealed_trace_rejects_forged_source_identity() -> None:
     trace = seal_public_posture(_posture())
     record = sealed_trace_record(trace)
     record["source"] = "FORGED_SOURCE"
     with pytest.raises(ValueError, match="source"):
         load_sealed_trace(record)
+
 
 def test_tampered_parseable_record_cannot_suppress_valid_diagnostic(tmp_path: Path) -> None:
     trace = seal_public_posture(_posture())
@@ -358,6 +376,7 @@ def test_tampered_parseable_record_cannot_suppress_valid_diagnostic(tmp_path: Pa
     ]
     assert len(canonical) == 1
 
+
 def test_store_ignores_parseable_nonfinite_diagnostic_record(tmp_path: Path) -> None:
     store = ObserverStore(tmp_path / "observer")
     store.root.mkdir(parents=True, exist_ok=True)
@@ -375,12 +394,14 @@ def test_store_ignores_parseable_nonfinite_diagnostic_record(tmp_path: Path) -> 
 
     assert store.read_diagnostics() == []
 
+
 @pytest.mark.parametrize("value", [math.nan, math.inf, -math.inf])
 def test_public_trace_rejects_nonfinite_numbers(value: float) -> None:
     posture = _posture()
     posture["selected_candidate"]["divergence_score"] = value
     with pytest.raises(ValueError):
         seal_public_posture(posture)
+
 
 @pytest.mark.parametrize("value", [math.nan, math.inf, -math.inf])
 def test_diagnostic_identity_rejects_nonfinite_details(value: float) -> None:
