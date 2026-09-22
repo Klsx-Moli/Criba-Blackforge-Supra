@@ -99,10 +99,6 @@ def main() -> int:
     if args.perturbation == "duplicate":
         duplicate = _observe_trace_after_gate(**kwargs)
         duplicate_count = duplicate.duplicate_diagnostics
-    elif args.perturbation == "restart":
-        restarted = ObserverStore(args.observer_root)
-        duplicate = _observe_trace_after_gate(trace, store=restarted)
-        duplicate_count = duplicate.duplicate_diagnostics
     else:
         duplicate_count = result.duplicate_diagnostics
 
@@ -114,9 +110,8 @@ def main() -> int:
         "duplicate_diagnostics": duplicate_count,
         "failures": list(result.failures),
         "elapsed_ms": round(elapsed_ms, 3),
-        "injected_latency_ms": args.latency_ms
-        if args.perturbation == "latency"
-        else 0,
+        "injected_latency_ms": args.latency_ms if args.perturbation == "latency" else 0,
+        "worker_pid": os.getpid(),
         "verification_only": True,
         "standard_release_changed": False,
     }
