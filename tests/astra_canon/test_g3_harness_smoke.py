@@ -17,14 +17,12 @@ PROBE = ROOT / "scripts" / "anti_goodhart_g3_probe.py"
 WORKER = ROOT / "scripts" / "anti_goodhart_g3_worker.py"
 
 
-
 def _load_probe():
     spec = importlib.util.spec_from_file_location("supra_g3_probe_under_test", PROBE)
     assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
-
 
 
 def _semantic_posture() -> dict[str, object]:
