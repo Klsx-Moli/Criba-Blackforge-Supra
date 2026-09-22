@@ -17,12 +17,14 @@ PROBE = ROOT / "scripts" / "anti_goodhart_g3_probe.py"
 WORKER = ROOT / "scripts" / "anti_goodhart_g3_worker.py"
 
 
+
 def _load_probe():
     spec = importlib.util.spec_from_file_location("supra_g3_probe_under_test", PROBE)
     assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
+
 
 
 def _semantic_posture() -> dict[str, object]:
@@ -56,6 +58,7 @@ def _semantic_posture() -> dict[str, object]:
         "final_output": {},
     }
 
+
 def test_g3_probe_help_and_no_auto_activation_contract() -> None:
     proc = subprocess.run(
         [sys.executable, str(PROBE), "--help"],
@@ -72,6 +75,7 @@ def test_g3_probe_help_and_no_auto_activation_contract() -> None:
     assert 'STANDARD_RELEASE_STATE = "ALLOWED"' not in source
     assert '"PASS"' not in source
 
+
 def test_g3_worker_requires_verification_guard() -> None:
     env = dict(os.environ)
     env.pop("ASTRA_G3_VERIFICATION", None)
@@ -85,6 +89,7 @@ def test_g3_worker_requires_verification_guard() -> None:
     )
     assert proc.returncode != 0
     assert "ASTRA_G3_VERIFICATION=1 is required" in (proc.stdout + proc.stderr)
+
 
 def test_g3_worker_executes_synthetic_trace_without_product_release(
     tmp_path: Path,
@@ -120,6 +125,7 @@ def test_g3_worker_executes_synthetic_trace_without_product_release(
     assert payload["standard_release_changed"] is False
     assert payload["perturbation"] == "normal"
 
+
 def test_g3_worker_latency_is_inside_elapsed_measurement(tmp_path: Path) -> None:
     trace = seal_public_posture({"project_id": "g3-latency", "stage": "COMPLETED"})
     trace_path = tmp_path / "trace.json"
@@ -152,6 +158,7 @@ def test_g3_worker_latency_is_inside_elapsed_measurement(tmp_path: Path) -> None
     payload = json.loads(proc.stdout)
     assert payload["elapsed_ms"] >= 250.0
 
+
 def test_g3_probe_subprocess_is_bounded_by_timeout(monkeypatch, tmp_path: Path) -> None:
     probe = _load_probe()
 
@@ -168,6 +175,7 @@ def test_g3_probe_subprocess_is_bounded_by_timeout(monkeypatch, tmp_path: Path) 
         latency_ms=0,
     )
     assert result["worker_error_type"] == "VERIFICATION_WORKER_TIMEOUT"
+
 
 def test_g3_probe_rejects_noop_perturbation_execution(
     monkeypatch,
@@ -199,6 +207,7 @@ def test_g3_probe_rejects_noop_perturbation_execution(
     assert report["probe_complete"] is False
     assert any(row["perturbation_ok"] is False for row in report["rows"])
 
+
 def test_g3_semantic_comparator_detects_candidate_content_and_order() -> None:
     probe = _load_probe()
     baseline = _semantic_posture()
@@ -213,6 +222,7 @@ def test_g3_semantic_comparator_detects_candidate_content_and_order() -> None:
     baseline_digest = probe._digest(probe._normalized_public(baseline))
     assert probe._digest(probe._normalized_public(changed_content)) != baseline_digest
     assert probe._digest(probe._normalized_public(reordered)) != baseline_digest
+
 
 def test_g3_probe_executes_every_local_perturbation_end_to_end(tmp_path: Path) -> None:
     output = tmp_path / "g3-report.json"
@@ -241,6 +251,7 @@ def test_g3_probe_executes_every_local_perturbation_end_to_end(tmp_path: Path) -
     assert all(row["perturbation_ok"] is True for row in report["rows"])
     restart = next(row for row in report["rows"] if row["perturbation"] == "restart")
     assert restart["worker"]["restart_process_distinct"] is True
+
 
 def test_incomplete_worker_cannot_create_causal_interference_claim(
     monkeypatch,
