@@ -887,45 +887,146 @@ def on_ver_todas(win: Any) -> None:
 # ---------------------------------------------------------------------------
 # DESARROLLAR CON SUPRA (paridad con `inventar --dossier`)
 # ---------------------------------------------------------------------------
-def on_desarrollar_supra(win: Any) -> None:
-    """Prepara el dossier con PRUEBA DISCRIMINANTE de cada candidato PROPUESTA.
+def _supra_objective_from_dossier(dossier: dict[str, Any]) -> str:
+    """Map the local exchange dossier onto SUPRA's real objective contract."""
+    prueba = dossier.get("prueba_discriminante") or {}
+    fields = [
+        ("Problema", dossier.get("problema")),
+        ("Hipótesis CRIBA/BLACKFORGE", dossier.get("hipotesis")),
+        ("Mecanismo", dossier.get("mecanismo")),
+        ("Prueba discriminante", prueba.get("intervencion_prueba")),
+        ("Observable", prueba.get("observable")),
+        ("Regla de decisión", prueba.get("regla_decision")),
+        ("Condición de fracaso", prueba.get("condicion_fracaso")),
+    ]
+    body = "\n".join(f"{label}: {value}" for label, value in fields if value)
+    prefix = (
+        "Desarrolla y evalúa este dossier CRIBA/BLACKFORGE sin convertir "
+        "evidencia ausente en PASS. "
+    )
+    return (prefix + body)[:2000]
 
-    Estado honesto: SUPRA_EJECUCION_PENDIENTE — nunca PASS automático
-    (mandato ASTRA §7). Paridad con `criba inventar --dossier`.
-    """
+
+def _execute_supra_dossiers(
+    dossiers: list[dict[str, Any]],
+    client: Any | None = None,
+) -> dict[str, Any]:
+    """Execute prepared dossiers through the single canonical SupraClient."""
+    from ..integrations import SupraClient
+
+    owned = client is None
+    supra = client or SupraClient()
+    try:
+        health = supra.health()
+        runs: list[dict[str, Any]] = []
+        for dossier in dossiers:
+            result = supra.run_project(
+                objective=_supra_objective_from_dossier(dossier),
+                domain="criba_blackforge",
+                allow_disruptive=True,
+            )
+            runs.append(
+                {
+                    "dossier_id": dossier["dossier_id"],
+                    "project_id": result.project_id,
+                    "status": result.status,
+                    "completion_status": result.completion_status,
+                    "workflow_status": result.workflow_status,
+                    "verification_status": result.verification_status,
+                    "scientific_status": result.scientific_status,
+                    "stage": result.stage,
+                }
+            )
+        return {
+            "health": health.model_dump(),
+            "runs": runs,
+        }
+    finally:
+        if owned:
+            supra.close()
+
+
+def _on_supra_dossiers_done(win: Any, report: dict[str, Any]) -> None:
+    sheet = getattr(win, "invent_sheet", None)
+    if sheet is None:
+        return
+    runs = report.get("runs", [])
+    sheet["supra_runs"] = runs
+    completed = sum(1 for item in runs if item.get("completion_status") == "COMPLETED")
+    blocked = sum(1 for item in runs if item.get("completion_status") == "BLOCKED")
+    r = win.refs
+    r["ideaSummary"].setText(
+        f"SUPRA: {completed} completado(s) · {blocked} bloqueado(s) · "
+        f"{len(runs)} ejecución(es) registradas"
+    )
+    chip = "SUPRA completado" if runs and blocked == 0 else "SUPRA bloqueado"
+    set_chip(r["ideaEstadoChip"], chip, "exploracion")
+    _activity(
+        win,
+        "cyan",
+        f"SUPRA real: {completed} completado(s), {blocked} bloqueado(s); "
+        "verificación y completion conservan estados separados.",
+    )
+
+
+def _on_supra_dossiers_failed(win: Any, message: str) -> None:
+    r = win.refs
+    r["ideaSummary"].setText(
+        "Dossier SUPRA conservado localmente · ejecución remota NO CONFIRMADA"
+    )
+    set_chip(r["ideaEstadoChip"], "SUPRA pendiente", "exploracion")
+    _activity(win, "amber", "SUPRA remoto no confirmado; dossier local preservado.")
+    show_error(win, "SUPRA", message)
+
+
+def on_desarrollar_supra(win: Any) -> None:
+    """Prepare local dossiers, then execute them asynchronously through SupraClient."""
     sheet = getattr(win, "invent_sheet", None)
     if not sheet or not sheet.get("entries"):
         show_error(win, "SUPRA", "Genera candidatos con Inventar antes de desarrollar.")
         return
-    propuestas = [e for e in sheet["entries"]
-                  if e.get("estado_interpretacion") == "PROPUESTA"]
+    propuestas = [
+        entry
+        for entry in sheet["entries"]
+        if entry.get("estado_interpretacion") == "PROPUESTA"
+    ]
     if not propuestas:
         show_error(
-            win, "SUPRA",
+            win,
+            "SUPRA",
             "Sin propuestas interpretadas: los candidatos están PENDIENTES "
             "(se requiere modelo) y no hay mecanismo que desarrollar.",
         )
         return
     from ..supra_dossier import guardar_dossier, preparar_dossier
 
-    dossiers = []
+    dossier_payloads: list[dict[str, Any]] = []
     for entry in propuestas:
         dossier = preparar_dossier(
-            entry, sheet["query"], ficha_bloqueo=sheet.get("ficha_bloqueo"))
+            entry,
+            sheet["query"],
+            ficha_bloqueo=sheet.get("ficha_bloqueo"),
+        )
         path = guardar_dossier(dossier)
-        dossiers.append(dossier["dossier_id"])
-    sheet["dossiers"] = dossiers
+        dossier_payloads.append(dossier)
+
+    sheet["dossiers"] = [item["dossier_id"] for item in dossier_payloads]
     sheet["dossiers_path"] = str(path)
     r = win.refs
     r["ideaSummary"].setText(
-        f"{len(dossiers)} dossier(s) SUPRA preparados · ejecución PENDIENTE "
-        f"(prueba discriminante incluida)")
+        f"{len(dossier_payloads)} dossier(s) SUPRA preparados · enviando al servicio real…"
+    )
     set_chip(r["ideaEstadoChip"], "SUPRA pendiente", "exploracion")
     _activity(
-        win, "cyan",
-        f"Desarrollar con SUPRA: {len(dossiers)} dossier(s) preparados, "
-        f"ejecución pendiente -> {path}",
+        win,
+        "cyan",
+        f"Desarrollar con SUPRA: {len(dossier_payloads)} dossier(s) preservados -> {path}",
     )
+
+    worker = Worker(lambda: _execute_supra_dossiers(dossier_payloads))
+    worker.signals.done.connect(lambda report: _on_supra_dossiers_done(win, report))
+    worker.signals.fail.connect(lambda message: _on_supra_dossiers_failed(win, message))
+    _start_worker(win, worker)
 
 
 # ---------------------------------------------------------------------------
@@ -984,18 +1085,46 @@ def on_red(win: Any) -> None:
     _suggest(win, None)
 
 
-def on_supra(win: Any) -> None:
-    """Panel SUPRA — taskmaster orquestador."""
-    win.nav["navSupra"].setChecked(True)
-    try:
-        if not win.problem:
-            show_error(win, "SUPRA", "Define primero el problema base (Nueva idea).")
-            return
-        win.content_label.setText("SUPRA Taskmaster")
-        win.content_sub.setText("Ejecutando pipeline de 5 etapas...")
-    finally:
-        win.nav["navSupra"].setChecked(False)
+def _supra_health() -> dict[str, Any]:
+    from ..integrations import SupraClient
+
+    with SupraClient() as client:
+        return {
+            "endpoint": client.config.endpoint,
+            "health": client.health().model_dump(),
+        }
+
+
+def _on_supra_health(win: Any, report: dict[str, Any]) -> None:
+    health = report["health"]
+    win.content_label.setText("SUPRA Taskmaster")
+    win.content_sub.setText(
+        f"{health.get('status', 'unknown')} · {health.get('service', 'SUPRA')} "
+        f"{health.get('version', '')} · {report['endpoint']}"
+    )
+    win.nav["navSupra"].setChecked(False)
+    _activity(win, "cyan", f"SUPRA health OK · {report['endpoint']}")
     _suggest(win, None)
+
+
+def _on_supra_health_failed(win: Any, message: str) -> None:
+    win.nav["navSupra"].setChecked(False)
+    win.content_label.setText("SUPRA Taskmaster")
+    win.content_sub.setText("No disponible / autenticación requerida")
+    _activity(win, "amber", "SUPRA health no confirmado.")
+    show_error(win, "SUPRA", message)
+    _suggest(win, None)
+
+
+def on_supra(win: Any) -> None:
+    """Panel SUPRA backed by the same canonical client used for execution."""
+    win.nav["navSupra"].setChecked(True)
+    win.content_label.setText("SUPRA Taskmaster")
+    win.content_sub.setText("Comprobando servicio real…")
+    worker = Worker(_supra_health)
+    worker.signals.done.connect(lambda report: _on_supra_health(win, report))
+    worker.signals.fail.connect(lambda message: _on_supra_health_failed(win, message))
+    _start_worker(win, worker)
 
 
 def on_tecnicas(win: Any) -> None:
