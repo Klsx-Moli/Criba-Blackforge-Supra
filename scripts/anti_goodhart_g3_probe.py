@@ -363,12 +363,8 @@ def main() -> int:
             normalized_after = _normalized_public(after)
             before_digest = _digest(normalized_before)
             after_digest = _digest(normalized_after)
-            before_matches_control = bool(
-                control_stable and before_digest == reference_digest
-            )
-            after_matches_control = bool(
-                control_stable and after_digest == reference_digest
-            )
+            before_matches_control = bool(control_stable and before_digest == reference_digest)
+            after_matches_control = bool(control_stable and after_digest == reference_digest)
             semantic_equal = bool(before_matches_control and after_matches_control)
             row_complete = bool(perturbation_ok and before_matches_control)
             probe_complete = probe_complete and row_complete
