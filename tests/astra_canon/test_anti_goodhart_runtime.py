@@ -380,7 +380,6 @@ def test_public_trace_rejects_nonfinite_numbers(value: float) -> None:
     with pytest.raises(ValueError):
         seal_public_posture(posture)
 
-
 @pytest.mark.parametrize("value", [math.nan, math.inf, -math.inf])
 def test_diagnostic_identity_rejects_nonfinite_details(value: float) -> None:
     diagnostic = Diagnostic(
@@ -394,4 +393,3 @@ def test_diagnostic_identity_rejects_nonfinite_details(value: float) -> None:
     )
     with pytest.raises(ValueError):
         _ = diagnostic.diagnostic_id
-
