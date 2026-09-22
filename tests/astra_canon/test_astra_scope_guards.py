@@ -39,13 +39,24 @@ def test_astra_004_product_runtime_has_no_hidden_evaluation_dependency():
     assert offenders == []
 
 
-def test_astra_032_no_anti_goodhart_runtime_implementation_added():
+def test_astra_032_anti_goodhart_runtime_is_isolated_and_standard_disabled():
+    decisional_paths = [
+        SRC / "criba" / "engine.py",
+        SRC / "criba" / "lottery.py",
+        SRC / "criba" / "inventar.py",
+        SRC / "criba" / "model_runtime.py",
+        SRC / "criba" / "diversity_selector.py",
+        SRC / "criba" / "intelligence" / "outcome_store.py",
+    ]
     offenders: list[str] = []
-    for path in SRC.rglob("*.py"):
-        if "anti_goodhart" in path.as_posix().casefold():
-            offenders.append(str(path.relative_to(ROOT)))
-            continue
+    for path in decisional_paths:
         for token in _python_semantic_tokens(path):
             if "anti_goodhart" in token:
                 offenders.append(f"{path.relative_to(ROOT)}: {token[:120]}")
     assert offenders == []
+
+    status = (ROOT / "governance" / "ANTI_GOODHART_STATUS.yaml").read_text(
+        encoding="utf-8"
+    )
+    assert "STANDARD: DISABLED" in status
+    assert "G3_DEPLOYMENT_ISOLATION_NOT_VERIFIED" in status

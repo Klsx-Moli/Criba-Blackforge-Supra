@@ -36,3 +36,10 @@ src/criba/engine.py @klssxx
 src/criba/lottery.py @klssxx
 src/criba/scoring/** @klssxx
 docs/ASTRA_ANTI_GOODHART_ENTRY_GATE.md @klssxx
+src/criba/anti_goodhart/ @klssxx
+scripts/anti_goodhart_observer.py @klssxx
+governance/ANTI_GOODHART_STATUS.yaml @klssxx
+docs/ANTI_GOODHART_RUNTIME.md @klssxx
+tests/astra_canon/test_anti_goodhart_runtime.py @klssxx
+governance/ANTI_GOODHART_ACCEPTANCE_MATRIX.yaml @klssxx
+docs/ANTI_GOODHART_G3_PROTOCOL.md @klssxx
