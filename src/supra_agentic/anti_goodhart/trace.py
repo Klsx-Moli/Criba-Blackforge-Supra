@@ -156,6 +156,8 @@ def load_sealed_trace(record: Mapping[str, Any]) -> SealedTrace:
     )
     if trace.schema_version != TRACE_SCHEMA_VERSION:
         raise ValueError("unsupported public trace schema")
+    if trace.source != TRACE_SOURCE:
+        raise ValueError("unsupported public trace source")
     if not trace.run_id:
         raise ValueError("sealed trace is missing run_id")
     actual = hashlib.sha256(trace.payload_json.encode("utf-8")).hexdigest()
