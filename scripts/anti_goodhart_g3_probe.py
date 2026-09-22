@@ -210,21 +210,16 @@ def _restart_worker(
         "worker_exit": 0 if both_ok else 1,
         "perturbation": perturbation,
         "inserted_diagnostics": initial_inserted if initial_inserted is not None else -1,
-        "duplicate_diagnostics": (
-            restarted_duplicates if restarted_duplicates is not None else -1
-        ),
+        "duplicate_diagnostics": (restarted_duplicates if restarted_duplicates is not None else -1),
         "failures": failures,
         "elapsed_ms": round((initial_elapsed or 0.0) + (restarted_elapsed or 0.0), 3),
         "worker_pid": initial_pid,
         "restarted_worker_pid": restarted_pid,
         "restart_process_distinct": bool(
-            initial_pid is not None
-            and restarted_pid is not None
-            and initial_pid != restarted_pid
+            initial_pid is not None and restarted_pid is not None and initial_pid != restarted_pid
         ),
         "verification_only": (
-            initial.get("verification_only") is True
-            and restarted.get("verification_only") is True
+            initial.get("verification_only") is True and restarted.get("verification_only") is True
         ),
         "standard_release_changed": not (
             initial.get("standard_release_changed") is False
