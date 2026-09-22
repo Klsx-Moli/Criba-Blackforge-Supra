@@ -118,6 +118,75 @@ def _worker(
     return decoded
 
 
+def _restart_worker(
+    *,
+    trace_path: Path,
+    observer_root: Path,
+    perturbation: str,
+    latency_ms: int,
+) -> dict[str, Any]:
+    initial = _worker(
+        trace_path=trace_path,
+        observer_root=observer_root,
+        perturbation=perturbation,
+        latency_ms=latency_ms,
+    )
+    restarted = _worker(
+        trace_path=trace_path,
+        observer_root=observer_root,
+        perturbation=perturbation,
+        latency_ms=latency_ms,
+    )
+
+    initial_failures = initial.get("failures")
+    restarted_failures = restarted.get("failures")
+    failures: list[str] = []
+    if isinstance(initial_failures, list):
+        failures.extend(str(item) for item in initial_failures)
+    else:
+        failures.append("initial_worker:INVALID_FAILURES")
+    if isinstance(restarted_failures, list):
+        failures.extend(str(item) for item in restarted_failures)
+    else:
+        failures.append("restarted_worker:INVALID_FAILURES")
+
+    initial_elapsed = _number(initial.get("elapsed_ms"))
+    restarted_elapsed = _number(restarted.get("elapsed_ms"))
+    initial_inserted = _count(initial.get("inserted_diagnostics"))
+    restarted_duplicates = _count(restarted.get("duplicate_diagnostics"))
+    initial_pid = _count(initial.get("worker_pid"))
+    restarted_pid = _count(restarted.get("worker_pid"))
+    both_ok = initial.get("worker_exit") == 0 and restarted.get("worker_exit") == 0
+
+    return {
+        "worker_exit": 0 if both_ok else 1,
+        "perturbation": perturbation,
+        "inserted_diagnostics": initial_inserted if initial_inserted is not None else -1,
+        "duplicate_diagnostics": (
+            restarted_duplicates if restarted_duplicates is not None else -1
+        ),
+        "failures": failures,
+        "elapsed_ms": round((initial_elapsed or 0.0) + (restarted_elapsed or 0.0), 3),
+        "worker_pid": initial_pid,
+        "restarted_worker_pid": restarted_pid,
+        "restart_process_distinct": bool(
+            initial_pid is not None
+            and restarted_pid is not None
+            and initial_pid != restarted_pid
+        ),
+        "verification_only": (
+            initial.get("verification_only") is True
+            and restarted.get("verification_only") is True
+        ),
+        "standard_release_changed": not (
+            initial.get("standard_release_changed") is False
+            and restarted.get("standard_release_changed") is False
+        ),
+        "initial_worker": initial,
+        "restarted_worker": restarted,
+    }
+
+
 def _count(value: object) -> int | None:
     if isinstance(value, bool) or not isinstance(value, int):
         return None
@@ -174,7 +243,12 @@ def _perturbation_ok(
             and elapsed_ms >= latency_ms * 0.8
         )
     if perturbation == "restart":
-        return inserted >= 1 and duplicates >= 1 and not failures
+        return (
+            inserted >= 1
+            and duplicates >= 1
+            and not failures
+            and worker.get("restart_process_distinct") is True
+        )
     return False
 
 
@@ -220,7 +294,8 @@ def main() -> int:
                 encoding="utf-8",
             )
             observer_root = root / f"{perturbation}-observer"
-            worker = _worker(
+            worker_runner = _restart_worker if perturbation == "restart" else _worker
+            worker = worker_runner(
                 trace_path=trace_path,
                 observer_root=observer_root,
                 perturbation=perturbation,
