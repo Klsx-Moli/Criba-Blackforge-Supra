@@ -72,6 +72,7 @@ class TaskmasterRunner:
         max_retries: int = 2,
         use_model: bool | None = None,
         model_prompt: str | None = None,
+        criba_dossier_receipt: dict[str, Any] | None = None,
     ) -> ProjectPosture:
         """Execute the 5-stage autonomous cycle with dynamic self-correction loops."""
         start_time = time.monotonic()
@@ -113,7 +114,11 @@ class TaskmasterRunner:
                 )
 
         # Stage 1: Initialize Project (RECEIVED)
-        posture = state_manager.create_project(objective=clean_obj, project_id=project_id)
+        posture = state_manager.create_project(
+            objective=clean_obj,
+            project_id=project_id,
+            criba_dossier_receipt=criba_dossier_receipt,
+        )
         pid = posture.project_id
         logger.info(f"[{pid}] Starting Taskmaster Golden Path for: '{clean_obj[:60]}...'")
 
