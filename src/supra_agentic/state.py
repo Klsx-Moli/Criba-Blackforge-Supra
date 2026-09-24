@@ -71,7 +71,13 @@ class ProjectStateManager:
         self.storage_dir, self.storage_mode = _get_storage_configuration(storage_dir)
         self.storage_dir.mkdir(parents=True, exist_ok=True)
 
-    def create_project(self, objective: str, project_id: str | None = None) -> ProjectPosture:
+    def create_project(
+        self,
+        objective: str,
+        project_id: str | None = None,
+        *,
+        criba_dossier_receipt: dict[str, Any] | None = None,
+    ) -> ProjectPosture:
         """Create a new project session in RECEIVED stage."""
         with self._lock:
             pid = _validate_project_id(project_id) if project_id is not None else f"proj-{uuid.uuid4().hex[:8]}"
@@ -84,6 +90,7 @@ class ProjectStateManager:
                 stage=TaskmasterStage.RECEIVED,
                 created_at=now,
                 updated_at=now,
+                criba_dossier_receipt=criba_dossier_receipt,
                 checkpoints=[
                     CheckpointRecord(
                         stage=TaskmasterStage.RECEIVED,
