@@ -70,6 +70,69 @@ def test_run_project_uses_real_payload_and_preserves_blocked_status() -> None:
     assert result.stage != "COMPLETED"
 
 
+
+def test_run_project_transports_criba_dossier_without_promoting_it_to_evidence() -> None:
+    dossier = {
+        "dossier_id": "dossier-1",
+        "candidate_id": "cand-1",
+        "claim_id": "claim-1",
+        "protocol_version": "sha256:" + "a" * 64,
+        "mechanism_version": "sha256:" + "b" * 64,
+        "problema": "Reduce thermal drift",
+        "hipotesis": "Bounded calibration reduces drift",
+        "mecanismo": "Closed-loop correction",
+        "prueba_discriminante": {
+            "afirmacion_decisiva": "Compare against baseline",
+            "alternativa_explicativa": "Ambient variation",
+            "intervencion_prueba": "Run paired calibration trials",
+            "observable": "held-out drift",
+            "resultado_favorable_mecanismo": "lower drift",
+            "resultado_favorable_alternativa": "no separation",
+            "regla_decision": "prefer mechanism only with separation",
+            "condicion_fracaso": "no measurable separation",
+            "estado_prueba": "NO_EJECUTADA",
+        },
+        "estado": "SUPRA_EJECUCION_PENDIENTE",
+    }
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        payload = json.loads(request.content)
+        assert payload["criba_dossier"] == dossier
+        assert payload["criba_dossier"]["estado"] == "SUPRA_EJECUCION_PENDIENTE"
+        return httpx.Response(
+            201,
+            json={
+                "status": "blocked",
+                "completion_status": "BLOCKED",
+                "workflow_status": "RESTRICTED_EXECUTION_VERIFIED",
+                "verification_status": "FAIL",
+                "scientific_status": "NOT_VALIDATED",
+                "secure_sandbox_status": "UNVERIFIED_ISOLATION",
+                "project_id": "supra-1",
+                "stage": "RESTRICTED_EXECUTION_VERIFIED",
+                "posture": {
+                    "criba_dossier_receipt": {
+                        "receipt_scope": "PLANNED_DISCRIMINANT_PROTOCOL_ONLY",
+                        "execution_status": "NOT_EXECUTED",
+                        "scientific_status": "NOT_VALIDATED",
+                        "criba_dossier_id": dossier["dossier_id"],
+                        "criba_candidate_id": dossier["candidate_id"],
+                        "claim_id": dossier["claim_id"],
+                        "mechanism_version": dossier["mechanism_version"],
+                        "protocol_version": dossier["protocol_version"],
+                    }
+                },
+            },
+        )
+
+    with _client(handler) as client:
+        result = client.run_project(
+            objective="Evaluate bounded CRIBA dossier", criba_dossier=dossier
+        )
+    assert result.status == "blocked"
+    assert result.scientific_status == "NOT_VALIDATED"
+
+
 def test_project_id_is_validated_before_transport() -> None:
     def forbidden(_request: httpx.Request) -> httpx.Response:
         raise AssertionError("transport must not be called for unsafe ids")
@@ -233,3 +296,55 @@ def test_dossier_mapping_preserves_epistemic_language() -> None:
     assert "Closed-loop correction" in objective
     assert "no measurable separation" in objective
     assert len(objective) <= 2000
+
+
+def test_client_rejects_mismatched_criba_lineage_receipt() -> None:
+    dossier = {
+        "dossier_id": "dossier-1", "candidate_id": "cand-1", "claim_id": "claim-1",
+        "mechanism_version": "sha256:" + "b" * 64,
+        "protocol_version": "sha256:" + "a" * 64,
+    }
+    def handler(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(201, json={
+            "status": "blocked", "completion_status": "BLOCKED",
+            "workflow_status": "RESTRICTED_EXECUTION_VERIFIED",
+            "verification_status": "FAIL", "scientific_status": "NOT_VALIDATED",
+            "secure_sandbox_status": "UNVERIFIED_ISOLATION", "project_id": "supra-1",
+            "stage": "RESTRICTED_EXECUTION_VERIFIED",
+            "posture": {"criba_dossier_receipt": {
+                "receipt_scope": "PLANNED_DISCRIMINANT_PROTOCOL_ONLY",
+                "execution_status": "NOT_EXECUTED", "scientific_status": "NOT_VALIDATED",
+                "criba_dossier_id": "dossier-OTHER", "criba_candidate_id": "cand-1",
+                "claim_id": "claim-1", "mechanism_version": "sha256:" + "b" * 64,
+                "protocol_version": "sha256:" + "a" * 64,
+            }},
+        })
+    with _client(handler) as client:
+        with pytest.raises(SupraClientError, match="did not preserve CRIBA dossier lineage"):
+            client.run_project(objective="Evaluate bounded dossier", criba_dossier=dossier)
+
+
+def test_client_rejects_planning_receipt_promoted_to_execution() -> None:
+    dossier = {
+        "dossier_id": "dossier-1", "candidate_id": "cand-1", "claim_id": "claim-1",
+        "mechanism_version": "sha256:" + "b" * 64,
+        "protocol_version": "sha256:" + "a" * 64,
+    }
+    def handler(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(201, json={
+            "status": "blocked", "completion_status": "BLOCKED",
+            "workflow_status": "RESTRICTED_EXECUTION_VERIFIED",
+            "verification_status": "FAIL", "scientific_status": "NOT_VALIDATED",
+            "secure_sandbox_status": "UNVERIFIED_ISOLATION", "project_id": "supra-1",
+            "stage": "RESTRICTED_EXECUTION_VERIFIED",
+            "posture": {"criba_dossier_receipt": {
+                "receipt_scope": "PLANNED_DISCRIMINANT_PROTOCOL_ONLY",
+                "execution_status": "EXECUTED", "scientific_status": "NOT_VALIDATED",
+                "criba_dossier_id": "dossier-1", "criba_candidate_id": "cand-1",
+                "claim_id": "claim-1", "mechanism_version": "sha256:" + "b" * 64,
+                "protocol_version": "sha256:" + "a" * 64,
+            }},
+        })
+    with _client(handler) as client:
+        with pytest.raises(SupraClientError, match="promoted a planning receipt"):
+            client.run_project(objective="Evaluate bounded dossier", criba_dossier=dossier)

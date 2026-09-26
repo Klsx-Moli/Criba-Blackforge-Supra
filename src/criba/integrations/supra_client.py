@@ -208,6 +208,7 @@ class SupraClient:
         provider: str | None = None,
         model: str | None = None,
         use_model: bool = False,
+        criba_dossier: dict[str, Any] | None = None,
     ) -> SupraProjectResult:
         clean_objective = objective.strip()
         if len(clean_objective) < 5:
@@ -224,6 +225,8 @@ class SupraClient:
             payload["provider"] = provider
         if model is not None:
             payload["model"] = model
+        if criba_dossier is not None:
+            payload["criba_dossier"] = criba_dossier
 
         response = self._client.post("/api/v1/projects", json=payload)
         self._raise_for_response(response, "project execution")
@@ -233,6 +236,29 @@ class SupraClient:
             "project execution",
         )
         assert isinstance(validated, SupraProjectResult)
+        if criba_dossier is not None:
+            receipt = validated.posture.get("criba_dossier_receipt")
+            expected = {
+                "criba_dossier_id": criba_dossier.get("dossier_id"),
+                "criba_candidate_id": criba_dossier.get("candidate_id"),
+                "claim_id": criba_dossier.get("claim_id"),
+                "mechanism_version": criba_dossier.get("mechanism_version"),
+                "protocol_version": criba_dossier.get("protocol_version"),
+            }
+            if not isinstance(receipt, dict) or any(
+                receipt.get(key) != value for key, value in expected.items()
+            ):
+                raise SupraClientError(
+                    "SUPRA project execution did not preserve CRIBA dossier lineage"
+                )
+            if (
+                receipt.get("receipt_scope") != "PLANNED_DISCRIMINANT_PROTOCOL_ONLY"
+                or receipt.get("execution_status") != "NOT_EXECUTED"
+                or receipt.get("scientific_status") != "NOT_VALIDATED"
+            ):
+                raise SupraClientError(
+                    "SUPRA project execution promoted a planning receipt beyond its scope"
+                )
         return validated
 
     def get_project(self, project_id: str) -> dict[str, Any]:

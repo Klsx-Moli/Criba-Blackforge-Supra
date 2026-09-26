@@ -904,6 +904,7 @@ def _execute_supra_dossiers(
                 objective=objective_from_dossier(dossier),
                 domain="criba_blackforge",
                 allow_disruptive=True,
+                criba_dossier=dossier,
             )
             runs.append(
                 {
