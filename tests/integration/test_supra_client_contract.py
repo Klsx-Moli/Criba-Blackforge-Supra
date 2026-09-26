@@ -348,3 +348,43 @@ def test_client_rejects_planning_receipt_promoted_to_execution() -> None:
     with _client(handler) as client:
         with pytest.raises(SupraClientError, match="promoted a planning receipt"):
             client.run_project(objective="Evaluate bounded dossier", criba_dossier=dossier)
+
+@pytest.mark.parametrize("field", ["dossier_id", "candidate_id", "claim_id", "mechanism_version", "protocol_version"])
+def test_client_rejects_incomplete_criba_lineage_before_transport(field: str) -> None:
+    dossier = {
+        "dossier_id": "dossier-1", "candidate_id": "cand-1", "claim_id": "claim-1",
+        "mechanism_version": "sha256:" + "b" * 64,
+        "protocol_version": "sha256:" + "a" * 64,
+    }
+    dossier[field] = ""
+    called = False
+    def handler(_request: httpx.Request) -> httpx.Response:
+        nonlocal called
+        called = True
+        return httpx.Response(500, json={"detail": "must not transport"})
+    with _client(handler) as client:
+        with pytest.raises(ValueError, match="lineage"):
+            client.run_project(objective="Evaluate bounded dossier", criba_dossier=dossier)
+    assert called is False
+
+@pytest.mark.parametrize("field,value", [
+    ("mechanism_version", "sha256:not-a-digest"),
+    ("protocol_version", "SHA256:" + "a" * 64),
+    ("protocol_version", "sha256:" + "g" * 64),
+])
+def test_client_rejects_noncanonical_criba_hash_versions(field: str, value: str) -> None:
+    dossier = {
+        "dossier_id": "dossier-1", "candidate_id": "cand-1", "claim_id": "claim-1",
+        "mechanism_version": "sha256:" + "b" * 64,
+        "protocol_version": "sha256:" + "a" * 64,
+    }
+    dossier[field] = value
+    called = False
+    def handler(_request: httpx.Request) -> httpx.Response:
+        nonlocal called
+        called = True
+        return httpx.Response(500)
+    with _client(handler) as client:
+        with pytest.raises(ValueError, match="sha256"):
+            client.run_project(objective="Evaluate bounded dossier", criba_dossier=dossier)
+    assert called is False

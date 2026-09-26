@@ -226,6 +226,20 @@ class SupraClient:
         if model is not None:
             payload["model"] = model
         if criba_dossier is not None:
+            lineage_fields = (
+                "dossier_id", "candidate_id", "claim_id",
+                "mechanism_version", "protocol_version",
+            )
+            if any(
+                not isinstance(criba_dossier.get(field), str)
+                or not str(criba_dossier.get(field)).strip()
+                for field in lineage_fields
+            ):
+                raise ValueError("CRIBA dossier lineage fields must be non-blank strings")
+            canonical_sha256 = re.compile(r"^sha256:[0-9a-f]{64}$")
+            for field in ("mechanism_version", "protocol_version"):
+                if not canonical_sha256.fullmatch(str(criba_dossier[field])):
+                    raise ValueError(f"CRIBA {field} must be canonical sha256:<64 lowercase hex>")
             payload["criba_dossier"] = criba_dossier
 
         response = self._client.post("/api/v1/projects", json=payload)
