@@ -138,3 +138,26 @@ def test_astra_html_dossier_escapes_user_controlled_content(tmp_path):
     html = export_full_html_dossier(p)
     assert '<script>alert("x")</script>' not in html
     assert "&lt;script&gt;" in html
+
+
+def test_astra_verification_pass_must_bind_selected_candidate(tmp_path):
+    from supra_agentic.models import StrategyCandidate, VerificationReport
+    from supra_agentic.state import ProjectStateManager
+
+    sm = ProjectStateManager(tmp_path / "projects")
+    p = sm.create_project("candidate binding")
+    selected = StrategyCandidate(
+        pathway_name="selected",
+        paradigm_type="ORTHOGONAL",
+        hypothesis="selected hypothesis",
+        action_plan=["step"],
+        divergence_score=0.5,
+        feasibility_score=0.5,
+    )
+    posture = sm.add_candidates(p.project_id, [selected], select_best=True)
+    assert posture.selected_candidate is not None
+    with pytest.raises(ValueError, match="selected candidate"):
+        sm.record_verification(
+            p.project_id,
+            VerificationReport(candidate_id="other-candidate", verdict="PASS"),
+        )

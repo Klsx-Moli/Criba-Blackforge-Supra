@@ -166,6 +166,12 @@ class ProjectStateManager:
         """Store verification report."""
         with self._lock:
             p = self._get_required_project(project_id)
+            if (
+                report.verdict == "PASS"
+                and p.selected_candidate is not None
+                and report.candidate_id != p.selected_candidate.candidate_id
+            ):
+                raise ValueError("verification PASS must bind the persisted selected candidate")
             p.verification = report
             if report.verdict != "PASS" and p.stage is TaskmasterStage.COMPLETED:
                 p.stage = (
