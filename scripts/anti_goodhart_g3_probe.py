@@ -20,6 +20,11 @@ import time
 from pathlib import Path
 from typing import Any
 
+# Allow direct execution from a source checkout without requiring an editable install.
+_SRC = Path(__file__).resolve().parents[1] / "src"
+if str(_SRC) not in sys.path:
+    sys.path.insert(0, str(_SRC))
+
 from supra_agentic.anti_goodhart.trace import seal_public_posture, sealed_trace_record
 from supra_agentic.runner import TaskmasterRunner
 from supra_agentic.state import state_manager

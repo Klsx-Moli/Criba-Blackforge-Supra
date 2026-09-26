@@ -10,8 +10,14 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import sys
 import time
 from pathlib import Path
+
+# Allow direct execution from a source checkout without requiring an editable install.
+_SRC = Path(__file__).resolve().parents[1] / "src"
+if str(_SRC) not in sys.path:
+    sys.path.insert(0, str(_SRC))
 
 from supra_agentic.anti_goodhart.detectors import DetectorSpec
 from supra_agentic.anti_goodhart.observer import _observe_trace_after_gate
