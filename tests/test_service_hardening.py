@@ -129,3 +129,12 @@ def test_internal_project_error_is_generic_and_secret_not_logged(monkeypatch, ca
     assert secret not in response.text
     assert secret not in caplog.text
     assert "RuntimeError" in caplog.text
+
+
+def test_create_project_rejects_path_traversal_project_id_before_runtime():
+    local_client = TestClient(service.app)
+    response = local_client.post(
+        "/api/v1/projects",
+        json={"objective": "valid objective", "project_id": "../escape"},
+    )
+    assert response.status_code == 422

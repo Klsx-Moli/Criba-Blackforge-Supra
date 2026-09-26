@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
 import tempfile
 import threading
 import time
@@ -29,6 +30,14 @@ from .models import (
 )
 
 logger = logging.getLogger("supra_agentic.state")
+
+_PROJECT_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$")
+
+def _validate_project_id(project_id: str) -> str:
+    """Return a storage-safe project identifier or reject it."""
+    if not _PROJECT_ID_RE.fullmatch(project_id) or project_id in {".", ".."}:
+        raise ValueError("project_id must be 1-64 storage-safe ASCII characters")
+    return project_id
 
 
 def _get_storage_configuration(
@@ -60,7 +69,9 @@ class ProjectStateManager:
     def create_project(self, objective: str, project_id: str | None = None) -> ProjectPosture:
         """Create a new project session in RECEIVED stage."""
         with self._lock:
-            pid = project_id or f"proj-{uuid.uuid4().hex[:8]}"
+            pid = _validate_project_id(project_id) if project_id is not None else f"proj-{uuid.uuid4().hex[:8]}"
+            if pid in self._projects or (self.storage_dir / f"{pid}.json").exists():
+                raise ValueError(f"project_id {pid!r} already exists")
             now = time.time()
             posture = ProjectPosture(
                 project_id=pid,
@@ -84,6 +95,7 @@ class ProjectStateManager:
     def get_project(self, project_id: str) -> ProjectPosture | None:
         """Retrieve a project state by ID."""
         with self._lock:
+            _validate_project_id(project_id)
             if project_id in self._projects:
                 return self._projects[project_id]
             # Try to load from disk
@@ -155,6 +167,23 @@ class ProjectStateManager:
         with self._lock:
             p = self._get_required_project(project_id)
             p.verification = report
+            if report.verdict != "PASS" and p.stage is TaskmasterStage.COMPLETED:
+                p.stage = (
+                    TaskmasterStage.RESTRICTED_EXECUTION_VERIFIED
+                    if p.restricted_execution_results
+                    and p.restricted_execution_results[-1].passed
+                    and p.restricted_execution_results[-1].identity_bound
+                    else TaskmasterStage.STRATIFIED
+                    if p.selected_candidate is not None
+                    else TaskmasterStage.STRUCTURED
+                    if p.decomposition is not None
+                    else TaskmasterStage.RECEIVED
+                )
+                if p.final_output is not None:
+                    output = dict(p.final_output)
+                    output["workflow_status"] = "EVIDENCE_INVALIDATED"
+                    output["verification_verdict"] = report.verdict
+                    p.final_output = output
             p.updated_at = time.time()
             p.checkpoints.append(
                 CheckpointRecord(
@@ -194,13 +223,16 @@ class ProjectStateManager:
             )
             result.identity_bound = identity_matches
             p.restricted_execution_results.append(result)
-            if p.stage not in {TaskmasterStage.COMPLETED, TaskmasterStage.FAILED}:
+            if p.stage is not TaskmasterStage.FAILED:
                 if result.passed and identity_matches:
-                    p.stage = TaskmasterStage.RESTRICTED_EXECUTION_VERIFIED
+                    if p.stage is not TaskmasterStage.COMPLETED:
+                        p.stage = TaskmasterStage.RESTRICTED_EXECUTION_VERIFIED
                 elif p.selected_candidate is not None:
                     # The latest bound or unbound review replaces derived
-                    # execution state; a failed review cannot preserve PASS.
+                    # execution state; a failed review cannot preserve PASS or COMPLETED.
                     p.stage = TaskmasterStage.STRATIFIED
+                elif p.stage is TaskmasterStage.COMPLETED:
+                    p.stage = TaskmasterStage.RECEIVED
             if p.final_output is not None:
                 output = dict(p.final_output)
                 output["restricted_execution_identity_bound"] = result.identity_bound
@@ -212,6 +244,8 @@ class ProjectStateManager:
                     else "UNBOUND"
                 )
                 output["derived_execution_state_revalidated"] = True
+                if not (result.passed and result.identity_bound):
+                    output["workflow_status"] = "EVIDENCE_INVALIDATED"
                 p.final_output = output
             p.updated_at = time.time()
             p.checkpoints.append(
@@ -233,6 +267,17 @@ class ProjectStateManager:
         """Mark workflow completion without implying verification or scientific proof."""
         with self._lock:
             p = self._get_required_project(project_id)
+            verification_pass = bool(p.verification and p.verification.verdict == "PASS")
+            latest_execution = (
+                p.restricted_execution_results[-1] if p.restricted_execution_results else None
+            )
+            execution_pass = bool(
+                latest_execution and latest_execution.passed and latest_execution.identity_bound
+            )
+            if not verification_pass or not execution_pass:
+                raise ValueError(
+                    "completion gate requires verification PASS and latest bound restricted execution PASS"
+                )
             p.final_output = final_output
             p.stage = TaskmasterStage.COMPLETED
             p.updated_at = time.time()

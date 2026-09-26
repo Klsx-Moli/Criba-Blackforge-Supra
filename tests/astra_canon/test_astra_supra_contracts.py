@@ -4,7 +4,7 @@ import tempfile
 
 import pytest
 from supra_agentic.dossier import generate_svg_architecture
-from supra_agentic.models import RestrictedExecutionResult
+from supra_agentic.models import RestrictedExecutionResult, TaskmasterStage
 from supra_agentic.state import state_manager
 from supra_agentic.tools import (
     decompose_objective,
@@ -45,14 +45,15 @@ def test_astra_017_execution_identity_is_derived_from_selected_candidate():
         assert result["scientific_validation"] is False
 
 
-def test_astra_001_checkpoint_without_verification_is_not_evaluated():
+def test_astra_001_checkpoint_without_verification_cannot_complete():
     with tempfile.TemporaryDirectory() as tmpdir:
         state_manager.storage_dir = type(state_manager.storage_dir)(tmpdir)
         p = state_manager.create_project("claim")
-        final = record_checkpoint(p.project_id, "title", "summary")["final_deliverable"]
-        assert final["verification_verdict"] == "NOT_EVALUATED"
-        assert final["scientific_status"] == "NOT_VALIDATED"
-
+        with pytest.raises(ValueError, match="completion gate"):
+            record_checkpoint(p.project_id, "title", "summary")
+        current = state_manager.get_project(p.project_id)
+        assert current is not None
+        assert current.stage is not TaskmasterStage.COMPLETED
 
 def test_astra_017_svg_without_verification_never_defaults_to_pass():
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -61,3 +62,79 @@ def test_astra_017_svg_without_verification_never_defaults_to_pass():
         svg = generate_svg_architecture(p)
         assert "NOT_EVALUATED" in svg
         assert "PASS" not in svg
+
+
+def test_astra_completion_gate_rejects_not_evaluated_and_missing_execution(tmp_path):
+    state_manager.storage_dir = type(state_manager.storage_dir)(tmp_path)
+    p = state_manager.create_project("completion gate")
+    with pytest.raises(ValueError, match="completion gate"):
+        record_checkpoint(p.project_id, "title", "summary")
+    current = state_manager.get_project(p.project_id)
+    assert current is not None
+    assert current.stage is not TaskmasterStage.COMPLETED
+
+
+def test_astra_project_id_rejects_path_traversal(tmp_path):
+    from supra_agentic.state import ProjectStateManager
+
+    sm = ProjectStateManager(tmp_path / "projects")
+    outside = tmp_path / "escape.json"
+    with pytest.raises(ValueError, match="project_id"):
+        sm.create_project("safe objective", project_id="../escape")
+    assert not outside.exists()
+
+
+def test_astra_project_id_collision_cannot_overwrite_existing_project(tmp_path):
+    from supra_agentic.state import ProjectStateManager
+
+    sm = ProjectStateManager(tmp_path / "projects")
+    first = sm.create_project("first objective", project_id="stable-id")
+    with pytest.raises(ValueError, match="already exists"):
+        sm.create_project("second objective", project_id="stable-id")
+    assert sm.get_project(first.project_id).objective == "first objective"
+
+
+def test_astra_completed_project_is_revoked_by_later_verification_fail(tmp_path):
+    from supra_agentic.models import VerificationReport
+    from supra_agentic.state import ProjectStateManager
+
+    sm = ProjectStateManager(tmp_path / "projects")
+    p = sm.create_project("revocation")
+    # A completed state is legacy/corrupt input for this sentinel; a later FAIL must revoke it.
+    p.stage = TaskmasterStage.COMPLETED
+    p.final_output = {"workflow_status": "COMPLETED"}
+    sm.record_verification(
+        p.project_id,
+        VerificationReport(candidate_id="candidate", verdict="FAIL"),
+    )
+    current = sm.get_project(p.project_id)
+    assert current.stage is not TaskmasterStage.COMPLETED
+    assert current.final_output["workflow_status"] == "EVIDENCE_INVALIDATED"
+
+
+def test_astra_restart_downgrades_stale_completed_without_current_gates():
+    from supra_agentic.models import ProjectPosture
+
+    raw = {
+        "project_id": "stale-completed",
+        "objective": "stale",
+        "stage": "COMPLETED",
+        "created_at": 1.0,
+        "updated_at": 2.0,
+        "checkpoints": [],
+        "final_output": {"workflow_status": "COMPLETED"},
+    }
+    posture = ProjectPosture.model_validate(raw)
+    assert posture.stage is TaskmasterStage.RECEIVED
+    assert posture.final_output["workflow_status"] == "EVIDENCE_INVALIDATED"
+
+
+def test_astra_html_dossier_escapes_user_controlled_content(tmp_path):
+    from supra_agentic.dossier import export_full_html_dossier
+    from supra_agentic.state import ProjectStateManager
+
+    sm = ProjectStateManager(tmp_path / "projects")
+    p = sm.create_project('<script>alert("x")</script>')
+    html = export_full_html_dossier(p)
+    assert '<script>alert("x")</script>' not in html
+    assert "&lt;script&gt;" in html

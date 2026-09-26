@@ -70,7 +70,12 @@ class CreateProjectRequest(BaseModel):
         ..., min_length=5, max_length=2000, description="The challenge or problem to solve."
     )
     domain: str = Field("general", max_length=100, description="Target problem domain.")
-    project_id: str | None = Field(None, max_length=64, description="Optional custom project ID.")
+    project_id: str | None = Field(
+        None,
+        max_length=64,
+        pattern=r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+        description="Optional storage-safe custom project ID.",
+    )
     allow_disruptive: bool = Field(
         True, description="Whether to include disruptive divergent pathways."
     )

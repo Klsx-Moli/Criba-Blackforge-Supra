@@ -308,6 +308,38 @@ class ProjectPosture(BaseModel):
                     actor="system:migration_guard",
                 )
             )
+
+        verification_pass = bool(self.verification and self.verification.verdict == "PASS")
+        if self.stage is TaskmasterStage.COMPLETED and not (
+            verification_pass and latest_authoritative_bound_pass
+        ):
+            self.stage = (
+                TaskmasterStage.RESTRICTED_EXECUTION_VERIFIED
+                if latest_authoritative_bound_pass
+                else TaskmasterStage.STRATIFIED
+                if self.selected_candidate is not None
+                else TaskmasterStage.STRUCTURED
+                if self.decomposition is not None
+                else TaskmasterStage.RECEIVED
+            )
+            if self.final_output is not None:
+                output = dict(self.final_output)
+                output["workflow_status"] = "EVIDENCE_INVALIDATED"
+                output["verification_verdict"] = (
+                    self.verification.verdict if self.verification else "NOT_EVALUATED"
+                )
+                self.final_output = output
+            self.checkpoints.append(
+                CheckpointRecord(
+                    stage=self.stage,
+                    title="Persisted completion invalidated",
+                    evidence_summary=(
+                        "COMPLETED was downgraded on load because current verification "
+                        "PASS and latest bound restricted execution PASS are both required."
+                    ),
+                    actor="system:migration_guard",
+                )
+            )
         return self
 
     project_id: str

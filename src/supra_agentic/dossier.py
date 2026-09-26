@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+from html import escape
+
 from .models import ProjectPosture
 
 
 def generate_svg_architecture(posture: ProjectPosture) -> str:
     """Generate an inline SVG diagram representing the project's autonomous DAG."""
-    cand_name = (
+    cand_name = escape(
         posture.selected_candidate.pathway_name if posture.selected_candidate else "Standard"
     )
     verdict = posture.verification.verdict if posture.verification else "NOT_EVALUATED"
@@ -74,12 +76,26 @@ def export_full_html_dossier(posture: ProjectPosture) -> str:
     h0 = out.get("null_hypothesis_h0") if out else None
     h0_status = out.get("h0_evaluation_status", "NOT_EVALUATED") if out else "NOT_EVALUATED"
     scientific_status = out.get("scientific_status", "NOT_VALIDATED") if out else "NOT_VALIDATED"
+    project_id = escape(posture.project_id)
+    objective = escape(posture.objective)
+    domain = escape(decomp.domain if decomp else "general")
+    pathway_name = escape(cand.pathway_name if cand else "N/A")
+    paradigm_type = escape(cand.paradigm_type if cand else "N/A")
+    hypothesis = escape(cand.hypothesis if cand else "N/A")
+    invariants_html = "".join(
+        f"<li><strong>[INVARIANT]</strong> {escape(inv)}</li>"
+        for inv in (decomp.invariants if decomp else [])
+    )
+    h0_html = escape(str(h0 if h0 else "NOT_SPECIFIED"))
+    h0_status_html = escape(str(h0_status))
+    scientific_status_html = escape(str(scientific_status))
+    audit_hash = escape(str(out.get("audit_sha256", "NOT_AVAILABLE") if out else "NOT_AVAILABLE"))
 
     return f"""<!DOCTYPE html>
 <html>
 <head>
 <meta charset="utf-8">
-<title>SUPRA Technical Dossier — {posture.project_id}</title>
+<title>SUPRA Technical Dossier — {project_id}</title>
 <style>
   body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; max-width: 860px; margin: 40px auto; padding: 0 20px; color: #1e293b; }}
   h1, h2, h3 {{ color: #0f172a; border-bottom: 1px solid #e2e8f0; padding-bottom: 6px; }}
@@ -91,12 +107,12 @@ def export_full_html_dossier(posture: ProjectPosture) -> str:
 </head>
 <body>
   <h1>SUPRA Autonomous Taskmaster Dossier</h1>
-  <p><strong>Project ID:</strong> <span class="mono">{posture.project_id}</span> | <strong>Stage:</strong> <span class="badge">{posture.stage.value}</span></p>
+  <p><strong>Project ID:</strong> <span class="mono">{project_id}</span> | <strong>Stage:</strong> <span class="badge">{posture.stage.value}</span></p>
   
   <div class="card">
     <h3>Executive Objective</h3>
-    <p>{posture.objective}</p>
-    <p><strong>Domain:</strong> <span class="mono">{decomp.domain if decomp else "general"}</span></p>
+    <p>{objective}</p>
+    <p><strong>Domain:</strong> <span class="mono">{domain}</span></p>
   </div>
 
   <h2>Autonomous Architectural Graph</h2>
@@ -104,27 +120,27 @@ def export_full_html_dossier(posture: ProjectPosture) -> str:
 
   <h2>System Invariants & Boundary Constraints</h2>
   <ul>
-    {"".join(f"<li><strong>[INVARIANT]</strong> {inv}</li>" for inv in (decomp.invariants if decomp else []))}
+    {invariants_html}
   </ul>
 
   <h2>Selected Strategy Candidate</h2>
   <div class="card">
-    <h3>{cand.pathway_name if cand else "N/A"} <span class="badge">{cand.paradigm_type if cand else "N/A"}</span></h3>
-    <p><strong>Hypothesis:</strong> {cand.hypothesis if cand else "N/A"}</p>
+    <h3>{pathway_name} <span class="badge">{paradigm_type}</span></h3>
+    <p><strong>Hypothesis:</strong> {hypothesis}</p>
     <p><strong>Feasibility:</strong> {cand.feasibility_score if cand else 0.0:.2f} | <strong>Divergence:</strong> {cand.divergence_score if cand else 0.0:.2f}</p>
   </div>
 
   <h2>Empirical Falsification Hypothesis (H0)</h2>
   <div class="card" style="background: #fffbeb; border-color: #fef3c7;">
-    <p><strong>Null Hypothesis:</strong> {h0 if h0 else "NOT_SPECIFIED"}</p>
-    <p><strong>Evaluation Status:</strong> {h0_status}</p>
+    <p><strong>Null Hypothesis:</strong> {h0_html}</p>
+    <p><strong>Evaluation Status:</strong> {h0_status_html}</p>
   </div>
 
   <h2>Scientific Status</h2>
-  <p><strong>Status:</strong> {scientific_status}</p>
+  <p><strong>Status:</strong> {scientific_status_html}</p>
 
   <h2>Cryptographic Integrity Signature</h2>
-  <p><strong>SHA-256 Payload Integrity Hash:</strong> <span class="mono">{out.get("audit_sha256", "NOT_AVAILABLE") if out else "NOT_AVAILABLE"}</span></p>
+  <p><strong>SHA-256 Payload Integrity Hash:</strong> <span class="mono">{audit_hash}</span></p>
   <p>This hash identifies the serialized payload; it does not certify truth or scientific validity.</p>
 </body>
 </html>"""

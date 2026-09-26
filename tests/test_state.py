@@ -192,6 +192,10 @@ def test_completed_workflow_preserves_completion_but_latest_failure_revises_exec
                 duration_ms=1.0,
             )
 
+        sm.record_verification(
+            p.project_id,
+            VerificationReport(candidate_id=selected.candidate_id, verdict="PASS"),
+        )
         sm.record_restricted_execution(p.project_id, _result(True))
         completed = sm.complete_project(
             p.project_id,
@@ -204,7 +208,8 @@ def test_completed_workflow_preserves_completion_but_latest_failure_revises_exec
         assert completed.stage == TaskmasterStage.COMPLETED
 
         revised = sm.record_restricted_execution(p.project_id, _result(False))
-        assert revised.stage == TaskmasterStage.COMPLETED
+        assert revised.stage == TaskmasterStage.STRATIFIED
+        assert revised.final_output["workflow_status"] == "EVIDENCE_INVALIDATED"
         assert revised.final_output is not None
         assert revised.final_output["restricted_execution_status"] == "BOUND_FAIL"
         assert revised.final_output["restricted_execution_identity_bound"] is True
