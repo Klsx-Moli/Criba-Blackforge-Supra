@@ -140,6 +140,9 @@ class ProjectStateManager:
         """Store strategy candidates and advance stage to STRATIFIED."""
         with self._lock:
             p = self._get_required_project(project_id)
+            candidate_ids = [candidate.candidate_id for candidate in candidates]
+            if len(set(candidate_ids)) != len(candidate_ids):
+                raise ValueError("duplicate candidate_id values are not allowed")
             p.candidates = candidates
             if select_best and candidates:
                 # Select candidate with highest combined feasibility + divergence score

@@ -58,12 +58,19 @@ class StrategyCandidate(BaseModel):
     model_config = ConfigDict(extra="forbid")
     candidate_id: str = Field(default_factory=lambda: f"cand-{uuid.uuid4().hex[:6]}")
     pathway_name: str
-    paradigm_type: str  # CONSERVATIVE, ORTHOGONAL, LATERAL, DISRUPTIVE
+    paradigm_type: Literal["CONSERVATIVE", "ORTHOGONAL", "LATERAL", "DISRUPTIVE"]
     hypothesis: str
     action_plan: list[str] = Field(default_factory=list)
-    divergence_score: float = 0.5
-    feasibility_score: float = 0.8
+    divergence_score: float = Field(default=0.5, ge=0.0, le=1.0, allow_inf_nan=False)
+    feasibility_score: float = Field(default=0.8, ge=0.0, le=1.0, allow_inf_nan=False)
     is_selected: bool = False
+
+    @field_validator("candidate_id")
+    @classmethod
+    def _candidate_id_nonblank(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("candidate_id must be non-blank")
+        return value
 
 
 def candidate_execution_identity(candidate: StrategyCandidate) -> dict[str, str]:

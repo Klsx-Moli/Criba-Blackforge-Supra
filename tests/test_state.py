@@ -214,3 +214,41 @@ def test_completed_workflow_preserves_completion_but_latest_failure_revises_exec
         assert revised.final_output["restricted_execution_status"] == "BOUND_FAIL"
         assert revised.final_output["restricted_execution_identity_bound"] is True
         assert revised.final_output["derived_execution_state_revalidated"] is True
+
+
+def test_strategy_candidate_rejects_nonfinite_or_out_of_range_scores():
+    import math
+    import pytest
+    from pydantic import ValidationError
+    for field in ("feasibility_score", "divergence_score"):
+        for value in (float("nan"), float("inf"), float("-inf"), -0.01, 1.01):
+            kwargs = dict(pathway_name="x", paradigm_type="ORTHOGONAL", hypothesis="h")
+            kwargs[field] = value
+            with pytest.raises(ValidationError):
+                StrategyCandidate(**kwargs)
+
+
+def test_add_candidates_rejects_duplicate_identity_before_selection():
+    import pytest
+    with tempfile.TemporaryDirectory() as tmpdir:
+        sm = ProjectStateManager(storage_dir=tmpdir)
+        p = sm.create_project(objective="identity sentinel")
+        c1 = StrategyCandidate(candidate_id="cand-same", pathway_name="A", paradigm_type="ORTHOGONAL", hypothesis="h1")
+        c2 = StrategyCandidate(candidate_id="cand-same", pathway_name="B", paradigm_type="LATERAL", hypothesis="h2")
+        with pytest.raises(ValueError, match="duplicate candidate_id"):
+            sm.add_candidates(p.project_id, [c1, c2])
+        reloaded = sm.get_project(p.project_id)
+        assert reloaded is not None
+        assert reloaded.candidates == []
+        assert reloaded.selected_candidate is None
+        assert reloaded.stage == TaskmasterStage.RECEIVED
+
+
+def test_strategy_candidate_identity_and_enum_fail_closed():
+    import pytest
+    from pydantic import ValidationError
+    for candidate_id in ("", "   "):
+        with pytest.raises(ValidationError):
+            StrategyCandidate(candidate_id=candidate_id, pathway_name="x", paradigm_type="ORTHOGONAL", hypothesis="h")
+    with pytest.raises(ValidationError):
+        StrategyCandidate(pathway_name="x", paradigm_type="UNKNOWN", hypothesis="h")
