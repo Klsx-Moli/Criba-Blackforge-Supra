@@ -314,3 +314,73 @@ def test_astra_017_authoritative_receipt_does_not_coerce_numeric_identity(tmp_pa
     assert result["accreditation"] == "DECLARED_RESULT"
     assert result["learning_eligible"] is False
     assert lecciones_previas("", tmp_path, execution_resolver=lambda _id: receipt) == []
+
+
+def test_execution_identity_whitespace_is_not_silently_canonicalized(tmp_path):
+    d = _dossier()
+    guardar_dossier(d, tmp_path)
+    receipt = _receipt(d, execution_id="exec-space")
+
+    result = registrar_resultado(
+        d["dossier_id"],
+        "positivo",
+        directory=tmp_path,
+        execution_id=" exec-space ",
+        protocol_version=d["protocol_version"],
+        execution_resolver=lambda _execution_id: receipt,
+    )
+
+    assert result["accreditation"] == "DECLARED_RESULT"
+    assert result["learning_eligible"] is False
+    assert result["observation_id"] == ""
+    assert lecciones_previas("", tmp_path, execution_resolver=lambda _id: receipt) == []
+
+
+def test_persisted_numeric_execution_identity_cannot_reactivate_learning(tmp_path):
+    d = preparar_dossier(
+        {
+            "candidate_id": "1", "run_id": "run-persisted-numeric", "hipotesis": "claim",
+            "mecanismo": "mechanism", "mechanism_version": "mv",
+            "prueba_concreta": "apply intervention", "observable": "metric",
+            "resultado_favorable_mecanismo": "yes", "resultado_favorable_alternativa": "no",
+            "regla_decision": "positive iff metric changes",
+        },
+        "problem", alternativa_explicativa="rival",
+    )
+    guardar_dossier(d, tmp_path)
+    receipt = _receipt(d, execution_id="1")
+    result = registrar_resultado(
+        d["dossier_id"], "positivo", directory=tmp_path,
+        execution_id="1", protocol_version=d["protocol_version"],
+        execution_resolver=lambda _execution_id: receipt,
+    )
+    assert result["accreditation"] == "ACCREDITED_EXECUTION"
+
+    path = tmp_path / "dossiers.jsonl"
+    rows = [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines()]
+    for row in rows:
+        if row.get("tipo") == "resultado_observado":
+            row["execution_id"] = 1
+    path.write_text(
+        "\n".join(json.dumps(row, ensure_ascii=False) for row in rows) + "\n",
+        encoding="utf-8",
+    )
+
+    assert lecciones_previas("", tmp_path, execution_resolver=lambda _id: receipt) == []
+
+
+def test_execution_identity_unicode_is_exact_not_normalized(tmp_path):
+    d = _dossier()
+    d["candidate_id"] = "caf\u00e9"
+    guardar_dossier(d, tmp_path)
+    receipt = _receipt(d, execution_id="exec-unicode")
+    receipt["candidate_id"] = "cafe\u0301"
+
+    result = registrar_resultado(
+        d["dossier_id"], "positivo", directory=tmp_path,
+        execution_id="exec-unicode", protocol_version=d["protocol_version"],
+        execution_resolver=lambda _execution_id: receipt,
+    )
+
+    assert result["accreditation"] == "DECLARED_RESULT"
+    assert result["learning_eligible"] is False

@@ -207,6 +207,11 @@ _RECEIPT_FIELDS = (
 )
 
 
+def _exact_identity_text(value: object) -> bool:
+    """Identity text is exact authority; never coerce or trim it implicitly."""
+    return isinstance(value, str) and bool(value) and value == value.strip()
+
+
 def _normalizar_execution_receipt(receipt: dict[str, Any] | None) -> dict[str, str]:
     """Keep only the non-secret fields needed to verify execution identity."""
     if not isinstance(receipt, dict):
@@ -231,19 +236,18 @@ def _execution_receipt_matches(
     """Accredit only a receipt that independently binds the full experiment identity."""
     normalized = _normalizar_execution_receipt(receipt)
     identity_fields = ("candidate_id", "mechanism_version", "claim_id", "protocol_version")
-    if not all(
-        isinstance(dossier.get(field), str) and bool(dossier[field].strip())
-        for field in identity_fields
-    ):
+    if not all(_exact_identity_text(dossier.get(field)) for field in identity_fields):
         return False
-    if dossier["protocol_version"] != protocol_version.strip():
+    if not _exact_identity_text(protocol_version) or not _exact_identity_text(execution_id):
+        return False
+    if dossier["protocol_version"] != protocol_version:
         return False
     expected = {
         "candidate_id": dossier["candidate_id"],
         "mechanism_version": dossier["mechanism_version"],
         "claim_id": dossier["claim_id"],
-        "protocol_version": protocol_version.strip(),
-        "execution_id": execution_id.strip(),
+        "protocol_version": protocol_version,
+        "execution_id": execution_id,
         "observed_result": resultado,
         "result_scope": "EXPERIMENTAL_OBSERVATION",
     }
@@ -279,17 +283,20 @@ def registrar_resultado(
     bound_protocol = str(dossier.get("protocol_version") or "")
     declared_receipt = _normalizar_execution_receipt(execution_receipt)
     resolved_receipt: dict[str, str] = {}
-    if execution_resolver is not None and execution_id.strip():
+    execution_identity_valid = _exact_identity_text(execution_id)
+    protocol_identity_valid = _exact_identity_text(protocol_version)
+    if execution_resolver is not None and execution_identity_valid:
         try:
             resolved_receipt = _normalizar_execution_receipt(
-                execution_resolver(execution_id.strip())
+                execution_resolver(execution_id)
             )
         except Exception:  # noqa: BLE001 — resolver failure cannot fabricate accreditation
             resolved_receipt = {}
     protocol_complete = _discriminant_protocol_complete(dossier)
     accredited = bool(
         protocol_complete
-        and protocol_version.strip()
+        and execution_identity_valid
+        and protocol_identity_valid
         and protocol_version == bound_protocol
         and execution_resolver is not None
         and _execution_receipt_matches(
@@ -302,9 +309,9 @@ def registrar_resultado(
     )
     observation_id = ""
     previous_revisions: list[dict[str, Any]] = []
-    if execution_id.strip() and protocol_version.strip():
+    if execution_identity_valid and protocol_identity_valid:
         observation_id = hashlib.sha256(
-            f"{dossier_id}|{execution_id.strip()}|{protocol_version.strip()}".encode("utf-8")
+            f"{dossier_id}|{execution_id}|{protocol_version}".encode("utf-8")
         ).hexdigest()
         previous_revisions = [
             item
@@ -415,7 +422,10 @@ def lecciones_previas(
         # every learning read and fail closed if live authority is unavailable.
         if execution_resolver is None:
             continue
-        execution_id = str(res.get("execution_id") or "")
+        execution_id = res.get("execution_id")
+        protocol_version = res.get("protocol_version")
+        if not _exact_identity_text(execution_id) or not _exact_identity_text(protocol_version):
+            continue
         try:
             authoritative_receipt = _normalizar_execution_receipt(
                 execution_resolver(execution_id)
@@ -427,8 +437,8 @@ def lecciones_previas(
             d,
             authoritative_receipt,
             resultado=str(res.get("resultado") or ""),
-            execution_id=str(res.get("execution_id") or ""),
-            protocol_version=str(res.get("protocol_version") or ""),
+            execution_id=execution_id,
+            protocol_version=protocol_version,
         ):
             continue
         if res.get("resultado") not in ("positivo", "negativo", "indeterminado"):
