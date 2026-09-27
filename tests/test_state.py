@@ -545,3 +545,17 @@ def test_restart_rejects_same_execution_id_with_conflicting_semantic_payload():
             ProjectStateManager(storage_dir=tmpdir).complete_project(
                 p.project_id, {"workflow_status": "COMPLETED"}
             )
+
+
+def test_completion_gate_rejects_in_memory_ambiguous_current_attempt():
+    """Completion must use the same unique-authority rule as other consumers."""
+    from copy import deepcopy
+    with tempfile.TemporaryDirectory() as tmpdir:
+        sm, p, base = _project_with_authoritative_attempt(tmpdir)
+        first = RestrictedExecutionResult(execution_id="exec-a", passed=True, **base)
+        second = deepcopy(first)
+        second.execution_id = "exec-b"
+        posture = sm.get_project(p.project_id)
+        posture.restricted_execution_results.extend([first, second])
+        with pytest.raises(ValueError, match="completion gate"):
+            sm.complete_project(p.project_id, {"workflow_status": "COMPLETED"})

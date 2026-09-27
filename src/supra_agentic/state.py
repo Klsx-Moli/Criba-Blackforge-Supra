@@ -348,14 +348,7 @@ class ProjectStateManager:
                 and p.selected_candidate is not None
                 and p.verification.candidate_id == p.selected_candidate.candidate_id
             )
-            authoritative_executions = [
-                result
-                for result in p.restricted_execution_results
-                if result.attempt_id
-                and result.attempt_id == p.restricted_execution_attempt_id
-                and result.attempt_generation == p.restricted_execution_generation
-            ]
-            latest_execution = authoritative_executions[-1] if authoritative_executions else None
+            latest_execution = p.current_authoritative_execution()
             execution_pass = bool(
                 latest_execution and latest_execution.passed and latest_execution.identity_bound
             )
