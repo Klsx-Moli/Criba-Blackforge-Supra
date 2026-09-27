@@ -287,3 +287,30 @@ def test_astra_020_current_semantics_rejects_judge_score_without_numeric_value(t
             canon_version="c",
             now=NOW,
         ) == (0.0, 0, "sin_datos")
+
+
+def test_astra_017_authoritative_receipt_does_not_coerce_numeric_identity(tmp_path):
+    d = preparar_dossier(
+        {
+            "candidate_id": "1", "run_id": "run-numeric", "hipotesis": "claim",
+            "mecanismo": "mechanism", "mechanism_version": "mv",
+            "prueba_concreta": "apply intervention", "observable": "metric",
+            "resultado_favorable_mecanismo": "yes", "resultado_favorable_alternativa": "no",
+            "regla_decision": "positive iff metric changes",
+        },
+        "problem", alternativa_explicativa="rival",
+    )
+    guardar_dossier(d, tmp_path)
+    receipt = _receipt(d, execution_id="1")
+    receipt["candidate_id"] = 1
+    receipt["execution_id"] = 1
+
+    result = registrar_resultado(
+        d["dossier_id"], "positivo", directory=tmp_path,
+        execution_id="1", protocol_version=d["protocol_version"],
+        execution_resolver=lambda _execution_id: receipt,
+    )
+
+    assert result["accreditation"] == "DECLARED_RESULT"
+    assert result["learning_eligible"] is False
+    assert lecciones_previas("", tmp_path, execution_resolver=lambda _id: receipt) == []

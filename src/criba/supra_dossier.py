@@ -211,7 +211,13 @@ def _normalizar_execution_receipt(receipt: dict[str, Any] | None) -> dict[str, s
     """Keep only the non-secret fields needed to verify execution identity."""
     if not isinstance(receipt, dict):
         return {}
-    return {field: str(receipt.get(field) or "") for field in _RECEIPT_FIELDS}
+    # Execution identity is typed authority, not display data.  Coercing ints,
+    # bools, or arbitrary objects to text can make a malformed authoritative
+    # receipt collide with a legitimate textual identity (e.g. 1 -> "1").
+    return {
+        field: value if isinstance((value := receipt.get(field)), str) else ""
+        for field in _RECEIPT_FIELDS
+    }
 
 
 def _execution_receipt_matches(
