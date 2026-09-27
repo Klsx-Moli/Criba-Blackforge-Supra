@@ -242,3 +242,21 @@ def test_duplicate_project_id_is_conflict_not_internal_error() -> None:
     assert first.status_code == 201
     assert second.status_code == 409
     assert second.json() == {"detail": "project_id already exists."}
+
+
+def test_network_runtime_cannot_fall_back_to_loopback_without_token(monkeypatch) -> None:
+    monkeypatch.delenv("SUPRA_API_TOKEN", raising=False)
+    monkeypatch.setenv("SUPRA_REQUIRE_AUTH", "1")
+    loopback = Request(
+        {
+            "type": "http",
+            "method": "POST",
+            "path": "/api/v1/projects",
+            "headers": [],
+            "client": ("127.0.0.1", 4242),
+        }
+    )
+    with pytest.raises(HTTPException) as raised:
+        service._require_mutation_authority(loopback)
+    assert raised.value.status_code == 503
+    assert raised.value.detail == "Mutation authorization is not configured."

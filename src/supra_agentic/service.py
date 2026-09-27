@@ -51,6 +51,15 @@ def _require_mutation_authority(request: Request) -> None:
             )
         return
 
+    require_auth = bool(os.getenv("K_SERVICE")) or os.getenv(
+        "SUPRA_REQUIRE_AUTH", ""
+    ).strip().lower() in {"1", "true", "yes", "on"}
+    if require_auth:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Mutation authorization is not configured.",
+        )
+
     client_host = request.client.host if request.client is not None else None
     if client_host not in _LOOPBACK_CLIENTS:
         raise HTTPException(

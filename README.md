@@ -102,7 +102,8 @@ Open `http://127.0.0.1:8080`.
 
 Mutation endpoints are local-first. With no `SUPRA_API_TOKEN`, they accept only
 loopback clients. For any network deployment, set a non-empty `SUPRA_API_TOKEN`
-and send `Authorization: Bearer <token>`. MCP discovery/resources remain
+and send `Authorization: Bearer <token>`. Set `SUPRA_REQUIRE_AUTH=1` behind a
+local reverse proxy; Cloud Run (`K_SERVICE`) enforces this automatically. MCP discovery/resources remain
 read-only, while `tools/call` uses the same mutation authority. Cross-origin
 access is disabled by default; `SUPRA_CORS_ORIGINS` accepts only explicit
 HTTP(S) origins (no wildcard).
