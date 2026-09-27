@@ -22,6 +22,7 @@ from __future__ import annotations
 from collections import Counter
 from collections.abc import Mapping
 from dataclasses import dataclass, field
+import math
 from typing import Any
 
 from .blackforge_catalog import load as _load_catalog
@@ -136,6 +137,34 @@ def select_blackforge(
         return True
     candidates = [r for r in recs if _eligible(r)]
 
+    # Ranking signals are part of the selection contract. Missing, non-numeric
+    # or non-finite values are UNKNOWN, not zero and never a ranking advantage.
+    ranking_fields = (profile_field, "diversity_contribution_v2", "selection_weight")
+    invalid_ranking = []
+    for record in candidates:
+        for field_name in ranking_fields:
+            value = record.get(field_name)
+            if (
+                isinstance(value, bool)
+                or not isinstance(value, (int, float))
+                or not math.isfinite(float(value))
+            ):
+                invalid_ranking.append({
+                    "blackforge_id": str(record.get("blackforge_id") or ""),
+                    "field": field_name,
+                    "value_repr": repr(value)[:120],
+                })
+    if invalid_ranking:
+        return SelectionReport(
+            seed=seed, session_size=session_size, allowed_tiers=allowed_tiers,
+            selected_ids=[], compliance={}, profile_used=profile,
+            s3_count=0, s3_allowed=s3_allowed,
+            failure=SelectionFailure(
+                reason="Señal de ranking ausente, no numérica o no finita; UNKNOWN no puede ordenarse como evidencia.",
+                failed_quota="ranking_signal_integrity",
+                detail={"invalid": invalid_ranking[:20]},
+            ),
+        )
 
     # Honest pre-check: if the eligible pool is smaller than the requested
     # session size, the quota is impossible to meet — never return a silently
@@ -274,7 +303,7 @@ def select_blackforge(
         seed=seed,
         session_size=session_size,
         allowed_tiers=allowed_tiers,
-        selected_ids=[r["blackforge_id"] for r in selected],
+        selected_ids=[] if failure is not None else [r["blackforge_id"] for r in selected],
         compliance=compliance,
         profile_used=profile,
         s3_count=s3_count,

@@ -69,3 +69,28 @@ def test_astra_030_signature_projection_preserves_every_selected_axis():
     assert composition.to_signature().coordinates == {
         axis: (value,) for axis, value in selected.items()
     }
+
+
+def test_astra_unknown_or_nonfinite_blackforge_score_fails_closed(monkeypatch):
+    for bad in (None, float("nan"), float("inf"), "1.0", True):
+        meta, records = _catalog()
+        records[0]["profile_hybrid"] = bad
+        monkeypatch.setattr(blackforge_selector, "_load_catalog", lambda m=meta, r=records: (m, r))
+        report = blackforge_selector.select_blackforge(session_size=4)
+        assert not report.status_ok()
+        assert report.failure is not None
+        assert report.failure.failed_quota == "ranking_signal_integrity"
+        assert report.selected_ids == []
+
+
+def test_astra_failed_blackforge_quota_never_exposes_partial_selection(monkeypatch):
+    meta, records = _catalog()
+    # Remove one mandatory stage while keeping enough records to fill the session.
+    records[3]["pipeline_stage"] = "ROMPER"
+    monkeypatch.setattr(blackforge_selector, "_load_catalog", lambda: (meta, records))
+    report = blackforge_selector.select_blackforge(session_size=4)
+    assert not report.status_ok()
+    assert report.failure is not None
+    assert report.failure.failed_quota == "mandatory_stages"
+    assert report.selected_ids == []
+    assert report.to_dict()["selected_count"] == 0
