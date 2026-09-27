@@ -195,6 +195,27 @@ def select_blackforge(
     }
     invalid_controls: list[dict[str, Any]] = []
     for record in recs:
+        # These fields are executable policy inputs, not descriptive metadata.
+        # Accepting truthy strings/ints or inactive records would let malformed
+        # catalog state bypass safety semantics while the selector still reports OK.
+        if "status" in record and record.get("status") != "active":
+            invalid_controls.append({
+                "blackforge_id": str(record.get("blackforge_id") or "")[:80],
+                "field": "status",
+                "value_repr": repr(record.get("status"))[:120],
+            })
+        for boolean_field in (
+            "requires_sandbox",
+            "requires_explicit_authorization",
+            "external_target_prohibited",
+        ):
+            value = record.get(boolean_field)
+            if boolean_field in record and type(value) is not bool:
+                invalid_controls.append({
+                    "blackforge_id": str(record.get("blackforge_id") or "")[:80],
+                    "field": boolean_field,
+                    "value_repr": repr(value)[:120],
+                })
         for field_name, vocabulary in (
             ("activation_tier", valid_tiers),
             ("safety_class", valid_safety_classes),

@@ -163,3 +163,21 @@ def test_selector_rejects_malformed_candidate_control_fields(monkeypatch, field,
     assert report.failure is not None
     assert report.failure.failed_quota == "candidate_control_integrity"
     assert report.selected_ids == []
+
+@pytest.mark.parametrize("field,value", [
+    ("status", "disabled"),
+    ("status", "ACTIVE"),
+    ("requires_sandbox", "yes"),
+    ("requires_explicit_authorization", 1),
+    ("external_target_prohibited", "false"),
+])
+def test_selector_rejects_malformed_candidate_policy_controls(monkeypatch, field, value):
+    meta, records = _catalog()
+    for record in records:
+        record[field] = value
+    monkeypatch.setattr(blackforge_selector, "_load_catalog", lambda: (meta, records))
+    report = blackforge_selector.select_blackforge(session_size=4)
+    assert not report.status_ok()
+    assert report.failure is not None
+    assert report.failure.failed_quota == "candidate_control_integrity"
+    assert report.selected_ids == []
