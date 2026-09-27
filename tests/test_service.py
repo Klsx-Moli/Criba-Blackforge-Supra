@@ -31,7 +31,7 @@ def test_quick_run_example():
     with tempfile.TemporaryDirectory() as tmpdir:
         state_manager.storage_dir = type(state_manager.storage_dir)(tmpdir)
 
-        response = client.get("/api/v1/examples/quick-run")
+        response = client.post("/api/v1/examples/quick-run")
         assert response.status_code == 200
         data = response.json()
         assert data["status"] == "success"

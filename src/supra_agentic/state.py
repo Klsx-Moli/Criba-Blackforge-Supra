@@ -33,6 +33,11 @@ logger = logging.getLogger("supra_agentic.state")
 
 _PROJECT_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$")
 
+
+class DuplicateProjectError(ValueError):
+    """Raised when project creation would overwrite existing persisted state."""
+
+
 def _validate_project_id(project_id: str) -> str:
     """Return a storage-safe project identifier or reject it."""
     if not _PROJECT_ID_RE.fullmatch(project_id) or project_id in {".", ".."}:
@@ -71,7 +76,7 @@ class ProjectStateManager:
         with self._lock:
             pid = _validate_project_id(project_id) if project_id is not None else f"proj-{uuid.uuid4().hex[:8]}"
             if pid in self._projects or (self.storage_dir / f"{pid}.json").exists():
-                raise ValueError(f"project_id {pid!r} already exists")
+                raise DuplicateProjectError(f"project_id {pid!r} already exists")
             now = time.time()
             posture = ProjectPosture(
                 project_id=pid,

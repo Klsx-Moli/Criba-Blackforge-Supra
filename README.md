@@ -100,6 +100,13 @@ uvicorn supra_agentic.service:app --host 127.0.0.1 --port 8080
 
 Open `http://127.0.0.1:8080`.
 
+Mutation endpoints are local-first. With no `SUPRA_API_TOKEN`, they accept only
+loopback clients. For any network deployment, set a non-empty `SUPRA_API_TOKEN`
+and send `Authorization: Bearer <token>`. MCP discovery/resources remain
+read-only, while `tools/call` uses the same mutation authority. Cross-origin
+access is disabled by default; `SUPRA_CORS_ORIGINS` accepts only explicit
+HTTP(S) origins (no wildcard).
+
 ## API surface
 
 - `GET /health` — service and non-secret active-provider metadata.
@@ -108,7 +115,7 @@ Open `http://127.0.0.1:8080`.
 - `POST /api/v1/projects` — run the five-stage workflow.
 - `GET /api/v1/projects` — list persisted projects.
 - `GET /api/v1/projects/{project_id}` — retrieve full project telemetry.
-- `GET /api/v1/examples/quick-run` — deterministic local example.
+- `POST /api/v1/examples/quick-run` — deterministic local example.
 - `POST /api/v1/mcp` — JSON-RPC 2.0 tool boundary.
 - `GET /api/v1/export/dossier/{project_id}` — Markdown dossier.
 - `GET /api/v1/export/dossier/html/{project_id}` — HTML dossier.

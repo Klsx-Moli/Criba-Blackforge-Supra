@@ -53,7 +53,7 @@ async function handleExampleRun() {
     setUIState('RUNNING', 'RECEIVED');
     
     try {
-        const response = await fetch('/api/v1/examples/quick-run');
+        const response = await fetch('/api/v1/examples/quick-run', { method: 'POST' });
         if (!response.ok) throw new Error('Example endpoint failed');
         
         const data = await response.json();

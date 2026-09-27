@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import secrets
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
@@ -19,10 +20,43 @@ from .dossier import export_full_html_dossier
 from .mcp_handler import handle_mcp_jsonrpc_request
 from .providers import ProviderError, get_provider, provider_names
 from .runner import TaskmasterRunner, taskmaster_runner
-from .state import state_manager
+from .state import DuplicateProjectError, state_manager
 
 logger = logging.getLogger("supra_agentic.service")
 MAX_MCP_BODY_SIZE = 8 * 1024 * 1024
+_LOOPBACK_CLIENTS = {"127.0.0.1", "::1", "testclient"}
+
+
+def _require_mutation_authority(request: Request) -> None:
+    """Require bearer auth when configured; otherwise permit loopback only.
+
+    SUPRA is local-first. An unset token is not an open network mode: mutation
+    endpoints remain available only to loopback clients. Network deployments
+    must configure SUPRA_API_TOKEN and send ``Authorization: Bearer <token>``.
+    """
+    configured = os.getenv("SUPRA_API_TOKEN")
+    if configured is not None and configured != "":
+        authorization = request.headers.get("authorization", "")
+        scheme, separator, supplied = authorization.partition(" ")
+        if (
+            separator != " "
+            or scheme.lower() != "bearer"
+            or not supplied
+            or not secrets.compare_digest(supplied, configured)
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Mutation authorization required.",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        return
+
+    client_host = request.client.host if request.client is not None else None
+    if client_host not in _LOOPBACK_CLIENTS:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Mutation endpoints require loopback access or SUPRA_API_TOKEN.",
+        )
 
 
 def _parse_cors_origins(raw: str | None) -> list[str]:
@@ -34,7 +68,7 @@ def _parse_cors_origins(raw: str | None) -> list[str]:
         raise RuntimeError("SUPRA_CORS_ORIGINS contains an empty origin")
     for origin in origins:
         if origin == "*":
-            continue
+            raise RuntimeError("SUPRA_CORS_ORIGINS requires explicit origins; wildcard is forbidden")
         parsed = urlparse(origin)
         if parsed.scheme not in {"http", "https"} or not parsed.netloc:
             raise RuntimeError(f"Invalid CORS origin: {origin!r}")
@@ -55,8 +89,8 @@ if CORS_ORIGINS:
         CORSMiddleware,
         allow_origins=CORS_ORIGINS,
         allow_credentials=False,
-        allow_methods=["*"],
-        allow_headers=["*"],
+        allow_methods=["GET", "POST"],
+        allow_headers=["Authorization", "Content-Type"],
     )
 
 STATIC_DIR = Path(__file__).parent / "web"
@@ -164,7 +198,7 @@ def serve_ui() -> Response:
     response_model=None,
     tags=["Taskmaster"],
 )
-def create_and_run_project(req: CreateProjectRequest) -> dict[str, Any] | Response:
+def create_and_run_project(req: CreateProjectRequest, request: Request) -> dict[str, Any] | Response:
     """Execute the five-stage workflow with deterministic gates.
 
     Returns HTTP status for workflow execution. A 201 response means the
@@ -173,6 +207,7 @@ def create_and_run_project(req: CreateProjectRequest) -> dict[str, Any] | Respon
     - 201 Created + {"status": "success"} on workflow completion
     - 500 Internal Server Error + {"status": "error"} on workflow failure
     """
+    _require_mutation_authority(request)
     try:
         runner = TaskmasterRunner(provider_name=req.provider, model_name=req.model)
         posture = runner.run_golden_path(
@@ -222,14 +257,17 @@ def create_and_run_project(req: CreateProjectRequest) -> dict[str, Any] | Respon
             "stage": posture.stage.value,
             "posture": posture.model_dump(),
         }
+    except DuplicateProjectError as exc:
+        raise HTTPException(status_code=409, detail="project_id already exists.") from exc
     except Exception as exc:
         logger.error("Project execution failed (%s)", type(exc).__name__)
         raise HTTPException(status_code=500, detail="Project execution failed.") from exc
 
 
 @app.post("/api/v1/generate", tags=["Providers"])
-def generate_with_provider(req: GenerateRequest) -> dict[str, Any]:
+def generate_with_provider(req: GenerateRequest, request: Request) -> dict[str, Any]:
     """Generate model output through the selected provider boundary."""
+    _require_mutation_authority(request)
     try:
         runner = TaskmasterRunner(provider_name=req.provider, model_name=req.model)
         response = runner.generate(
@@ -280,15 +318,16 @@ def get_project_posture(project_id: str) -> dict[str, Any]:
 # Compat alias: the live Cloud Run deployment and all submission docs
 # reference /api/v1/demo/quick-run. Keep it working alongside the new
 # /api/v1/examples/quick-run route.
-@app.get("/api/v1/demo/quick-run", tags=["Examples"], include_in_schema=False)
-def demo_quick_run_alias() -> dict[str, Any]:
+@app.post("/api/v1/demo/quick-run", tags=["Examples"], include_in_schema=False)
+def demo_quick_run_alias(request: Request) -> dict[str, Any]:
     """Backwards-compatible alias for the historical demo URL."""
-    return example_quick_run()
+    return example_quick_run(request)
 
 
-@app.get("/api/v1/examples/quick-run", tags=["Examples"])
-def example_quick_run() -> dict[str, Any]:
+@app.post("/api/v1/examples/quick-run", tags=["Examples"])
+def example_quick_run(request: Request) -> dict[str, Any]:
     """Run a deterministic example without contacting a model provider."""
+    _require_mutation_authority(request)
     demo_objective = (
         "Design an autonomous secretless service mesh with real-time continuous "
         "invariant verification and automated counterfactual rollback."
@@ -351,6 +390,9 @@ async def mcp_jsonrpc_endpoint(request: Request) -> dict[str, Any]:
         raise HTTPException(status_code=400, detail="Missing 'method' in JSON-RPC request")
     if "id" not in payload:
         raise HTTPException(status_code=400, detail="Missing 'id' in JSON-RPC request")
+
+    if payload.get("method") == "tools/call":
+        _require_mutation_authority(request)
 
     return handle_mcp_jsonrpc_request(payload)
 

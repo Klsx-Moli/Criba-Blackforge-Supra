@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import tempfile
 
 import pytest
 from fastapi import HTTPException
@@ -46,13 +47,12 @@ def test_cors_absent_is_closed() -> None:
     assert service._parse_cors_origins("") == []
 
 
-def test_cors_accepts_one_multiple_and_explicit_wildcard() -> None:
+def test_cors_accepts_one_and_multiple_explicit_origins() -> None:
     assert service._parse_cors_origins("https://one.example") == ["https://one.example"]
     assert service._parse_cors_origins("https://one.example, http://localhost:3000") == [
         "https://one.example",
         "http://localhost:3000",
     ]
-    assert service._parse_cors_origins("*") == ["*"]
 
 
 @pytest.mark.parametrize("raw", ["one.example", "ftp://one.example", "https://ok.example,"])
@@ -138,3 +138,107 @@ def test_create_project_rejects_path_traversal_project_id_before_runtime():
         json={"objective": "valid objective", "project_id": "../escape"},
     )
     assert response.status_code == 422
+
+
+def test_remote_mutations_require_bearer_authority(monkeypatch) -> None:
+    monkeypatch.setenv("SUPRA_API_TOKEN", "correct-token")
+    unauthenticated = client.post(
+        "/api/v1/projects", json={"objective": "bounded remote mutation attempt"}
+    )
+    assert unauthenticated.status_code == 401
+
+    wrong = client.post(
+        "/api/v1/projects",
+        json={"objective": "bounded remote mutation attempt"},
+        headers={"Authorization": "Bearer wrong-token"},
+    )
+    assert wrong.status_code == 401
+
+
+def test_mcp_discovery_is_public_but_tool_calls_share_mutation_authority(monkeypatch) -> None:
+    monkeypatch.setenv("SUPRA_API_TOKEN", "mcp-secret")
+    discovery = client.post(
+        "/api/v1/mcp", json={"jsonrpc": "2.0", "id": 1, "method": "tools/list"}
+    )
+    assert discovery.status_code == 200
+
+    denied = client.post(
+        "/api/v1/mcp",
+        json={
+            "jsonrpc": "2.0",
+            "id": 2,
+            "method": "tools/call",
+            "params": {
+                "name": "supra_quick_run",
+                "arguments": {"objective": "bounded MCP mutation attempt"},
+            },
+        },
+    )
+    assert denied.status_code == 401
+    assert denied.json() == {"detail": "Mutation authorization required."}
+
+
+def test_mutation_token_uses_bearer_scheme_and_accepts_exact_secret(monkeypatch) -> None:
+    monkeypatch.setenv("SUPRA_API_TOKEN", "exact-secret")
+    with tempfile.TemporaryDirectory() as tmpdir:
+        service.state_manager.storage_dir = type(service.state_manager.storage_dir)(tmpdir)
+        allowed = client.post(
+            "/api/v1/projects",
+            json={"objective": "bounded authorized mutation path"},
+            headers={"Authorization": "Bearer exact-secret"},
+        )
+    assert allowed.status_code == 201
+
+
+def test_cors_rejects_wildcard_origin() -> None:
+    with pytest.raises(RuntimeError):
+        service._parse_cors_origins("*")
+
+
+def test_unconfigured_auth_is_loopback_only(monkeypatch) -> None:
+    monkeypatch.delenv("SUPRA_API_TOKEN", raising=False)
+    remote = Request(
+        {
+            "type": "http",
+            "method": "POST",
+            "path": "/api/v1/projects",
+            "headers": [],
+            "client": ("203.0.113.10", 4242),
+        }
+    )
+    with pytest.raises(HTTPException) as raised:
+        service._require_mutation_authority(remote)
+    assert raised.value.status_code == 403
+
+    loopback = Request(
+        {
+            "type": "http",
+            "method": "POST",
+            "path": "/api/v1/projects",
+            "headers": [],
+            "client": ("127.0.0.1", 4242),
+        }
+    )
+    service._require_mutation_authority(loopback)
+
+
+def test_quick_run_mutation_is_not_exposed_as_simple_get() -> None:
+    # A cross-origin browser can send a simple GET even when CORS blocks reading
+    # the response. A mutating demo endpoint therefore must not be GET.
+    assert client.get("/api/v1/examples/quick-run").status_code == 405
+    assert client.get("/api/v1/demo/quick-run").status_code == 405
+
+
+def test_duplicate_project_id_is_conflict_not_internal_error() -> None:
+    with tempfile.TemporaryDirectory() as tmpdir:
+        service.state_manager.storage_dir = type(service.state_manager.storage_dir)(tmpdir)
+        service.state_manager._projects.clear()
+        payload = {
+            "objective": "bounded duplicate project contract",
+            "project_id": "duplicate-contract",
+        }
+        first = client.post("/api/v1/projects", json=payload)
+        second = client.post("/api/v1/projects", json=payload)
+    assert first.status_code == 201
+    assert second.status_code == 409
+    assert second.json() == {"detail": "project_id already exists."}

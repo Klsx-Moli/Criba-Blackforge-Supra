@@ -37,3 +37,36 @@ def test_escape_html_blocks_markup_payload_in_actual_js_helper():
     assert "&lt;img" in escaped
     assert "&amp;" in escaped
     assert "&quot;" in escaped
+
+
+def test_blocked_ui_never_marks_stepper_completion_in_actual_js():
+    source = APP_JS.read_text(encoding="utf-8")
+    start = source.index("function setUIState")
+    end = source.index("\nfunction renderProjectPosture", start)
+    helper = source[start:end]
+    script = r'''
+const states = {};
+function element(id) {
+  if (!states[id]) states[id] = {
+    innerText: '',
+    classList: {
+      values: new Set(),
+      remove(...xs) { xs.forEach(x => this.values.delete(x)); },
+      add(x) { this.values.add(x); },
+      contains(x) { return this.values.has(x); }
+    }
+  };
+  return states[id];
+}
+const document = { getElementById: element };
+const window = {};
+''' + helper + r'''
+setUIState('BLOCKED', 'BLOCKED', {restricted_execution_results: []});
+const stepIds = ['received','structured','stratified','restricted','completed'];
+const completed = stepIds.filter(s => element(`step-${s}`).classList.contains('completed'));
+console.log(JSON.stringify({tag: element('current-stage-tag').innerText, completed}));
+'''
+    result = subprocess.run(["node", "-e", script], check=True, capture_output=True, text=True)
+    import json
+    observed = json.loads(result.stdout)
+    assert observed == {"tag": "BLOCKED", "completed": []}

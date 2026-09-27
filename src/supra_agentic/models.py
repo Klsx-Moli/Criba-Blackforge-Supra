@@ -318,6 +318,13 @@ class ProjectPosture(BaseModel):
             )
 
         verification_pass = bool(self.verification and self.verification.verdict == "PASS")
+        if self.stage is TaskmasterStage.BLOCKED:
+            # BLOCKED is an honest non-completed outcome. Persisted or legacy
+            # completion/error payloads must not survive reload and create a
+            # contradictory consumer-visible claim.
+            self.final_output = None
+            self.error_message = None
+
         if self.stage is TaskmasterStage.COMPLETED and not (
             verification_pass and latest_authoritative_bound_pass
         ):
