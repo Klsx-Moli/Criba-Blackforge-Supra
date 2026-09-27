@@ -29,6 +29,7 @@ from .models import (
     candidate_execution_identity,
     is_sha256_version,
     current_authoritative_execution,
+    MAX_SAFE_ATTEMPT_GENERATION,
 )
 
 logger = logging.getLogger("supra_agentic.state")
@@ -229,6 +230,10 @@ class ProjectStateManager:
         """Persist causal authority before restricted execution starts."""
         with self._lock:
             p = self._get_required_project(project_id)
+            if p.restricted_execution_generation >= MAX_SAFE_ATTEMPT_GENERATION:
+                raise ValueError(
+                    "restricted execution generation exhausted JavaScript-safe integer range"
+                )
             p.restricted_execution_generation += 1
             p.restricted_execution_attempt_id = f"attempt-{uuid.uuid4().hex}"
             if p.stage is TaskmasterStage.RESTRICTED_EXECUTION_VERIFIED:

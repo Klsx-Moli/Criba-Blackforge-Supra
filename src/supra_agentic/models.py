@@ -13,6 +13,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 RESTRICTED_EXECUTION_SEMANTICS_VERSION = 2
+MAX_SAFE_ATTEMPT_GENERATION = (1 << 53) - 1
 _ATTEMPT_ID_RE = re.compile(r"^attempt-[0-9a-f]{32}$")
 
 
@@ -146,7 +147,9 @@ class RestrictedExecutionResult(BaseModel):
     model_config = ConfigDict(extra="forbid")
     execution_id: str = Field(default_factory=lambda: f"exec-{uuid.uuid4().hex[:6]}")
     attempt_id: str | None = None
-    attempt_generation: int | None = Field(default=None, strict=True, ge=1)
+    attempt_generation: int | None = Field(
+        default=None, strict=True, ge=1, le=MAX_SAFE_ATTEMPT_GENERATION
+    )
     execution_semantics_version: int | None = None
     candidate_id: str | None = None
     mechanism_version: str | None = None
@@ -495,7 +498,9 @@ class ProjectPosture(BaseModel):
     selected_candidate: StrategyCandidate | None = None
     verification: VerificationReport | None = None
     restricted_execution_results: list[RestrictedExecutionResult] = Field(default_factory=list)
-    restricted_execution_generation: int = Field(default=0, strict=True, ge=0)
+    restricted_execution_generation: int = Field(
+        default=0, strict=True, ge=0, le=MAX_SAFE_ATTEMPT_GENERATION
+    )
     restricted_execution_attempt_id: str | None = None
     checkpoints: list[CheckpointRecord] = Field(default_factory=list)
     final_output: dict[str, Any] | None = None

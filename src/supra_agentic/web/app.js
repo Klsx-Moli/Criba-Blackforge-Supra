@@ -72,9 +72,9 @@ function currentAuthoritativeExecution(posture) {
     const attemptId = posture.restricted_execution_attempt_id;
     const generation = posture.restricted_execution_generation;
     if (typeof attemptId !== 'string' || !/^attempt-[0-9a-f]{32}$/.test(attemptId)) return null;
-    if (!Number.isInteger(generation) || generation < 1) return null;
+    if (!Number.isSafeInteger(generation) || generation < 1) return null;
     const matches = posture.restricted_execution_results.filter(
-        r => r.attempt_id === attemptId && r.attempt_generation === generation
+        r => Number.isSafeInteger(r.attempt_generation) && r.attempt_id === attemptId && r.attempt_generation === generation
     );
     return matches.length === 1 ? matches[0] : null;
 }

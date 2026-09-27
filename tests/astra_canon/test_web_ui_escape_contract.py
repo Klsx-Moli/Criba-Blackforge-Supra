@@ -115,3 +115,32 @@ console.log(JSON.stringify({
     import json
     observed = json.loads(result.stdout)
     assert observed == {"restrictedCompleted": True, "completedActive": True}
+
+
+
+def test_ui_rejects_generation_outside_javascript_safe_integer_range():
+    source = APP_JS.read_text(encoding="utf-8")
+    start = source.index("function currentAuthoritativeExecution")
+    end = source.index("\nfunction setUIState", start)
+    helper = source[start:end]
+    script = helper + r"""
+const id = 'attempt-' + 'a'.repeat(32);
+const unsafeA = JSON.parse('{\"g\":9007199254740992}').g;
+const unsafeB = JSON.parse('{\"g\":9007199254740993}').g;
+const posture = {
+  restricted_execution_attempt_id: id,
+  restricted_execution_generation: unsafeA,
+  restricted_execution_results: [
+    {attempt_id: id, attempt_generation: unsafeB, passed: true, identity_bound: true}
+  ]
+};
+console.log(JSON.stringify({
+  jsonCollision: unsafeA === unsafeB,
+  authority: currentAuthoritativeExecution(posture)
+}));
+"""
+    result = subprocess.run(["node", "-e", script], check=True, capture_output=True, text=True)
+    import json
+    observed = json.loads(result.stdout)
+    assert observed["jsonCollision"] is True
+    assert observed["authority"] is None

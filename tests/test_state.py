@@ -8,6 +8,7 @@ import pytest
 
 from supra_agentic.models import (
     RESTRICTED_EXECUTION_SEMANTICS_VERSION,
+    MAX_SAFE_ATTEMPT_GENERATION,
     RestrictedExecutionResult,
     StrategyCandidate,
     StructuredDecomposition,
@@ -766,3 +767,45 @@ def test_consumer_authority_ignores_last_arriving_stale_attempt():
         assert authority.execution_id == "exec-current-pass"
         assert authority.passed is True and authority.identity_bound is True
         assert sm.complete_project(p.project_id, {"workflow_status": "COMPLETED"}).stage is TaskmasterStage.COMPLETED
+
+
+
+def test_attempt_generation_rejects_values_beyond_javascript_safe_integer():
+    import time
+    import pytest
+    from pydantic import ValidationError
+    from supra_agentic.models import ProjectPosture
+
+    with pytest.raises(ValidationError):
+        ProjectPosture(
+            project_id="unsafe-generation",
+            objective="x",
+            stage=TaskmasterStage.RECEIVED,
+            created_at=time.time(),
+            updated_at=time.time(),
+            restricted_execution_generation=MAX_SAFE_ATTEMPT_GENERATION + 1,
+            restricted_execution_attempt_id="attempt-" + "a" * 32,
+        )
+
+    with pytest.raises(ValidationError):
+        RestrictedExecutionResult(
+            attempt_id="attempt-" + "a" * 32,
+            attempt_generation=MAX_SAFE_ATTEMPT_GENERATION + 1,
+            action_type="RESTRICTED_CODE_RUN",
+            passed=False,
+            output_log="unsafe generation",
+            duration_ms=1,
+        )
+
+
+def test_issue_attempt_refuses_generation_overflow_past_json_consumer_safe_range():
+    import pytest
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        sm = ProjectStateManager(storage_dir=tmpdir)
+        p = sm.create_project(objective="generation exhaustion")
+        p.restricted_execution_generation = MAX_SAFE_ATTEMPT_GENERATION
+        with pytest.raises(ValueError, match="JavaScript-safe integer range"):
+            sm.issue_restricted_execution_attempt(p.project_id)
+        assert p.restricted_execution_generation == MAX_SAFE_ATTEMPT_GENERATION
+        assert p.restricted_execution_attempt_id is None
