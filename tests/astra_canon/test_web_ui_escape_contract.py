@@ -41,7 +41,7 @@ def test_escape_html_blocks_markup_payload_in_actual_js_helper():
 
 def test_blocked_ui_never_marks_stepper_completion_in_actual_js():
     source = APP_JS.read_text(encoding="utf-8")
-    start = source.index("function setUIState")
+    start = source.index("function currentAuthoritativeExecution")
     end = source.index("\nfunction renderProjectPosture", start)
     helper = source[start:end]
     script = r'''
@@ -70,3 +70,48 @@ console.log(JSON.stringify({tag: element('current-stage-tag').innerText, complet
     import json
     observed = json.loads(result.stdout)
     assert observed == {"tag": "BLOCKED", "completed": []}
+
+
+def test_ui_restricted_step_uses_current_attempt_not_last_historical_result():
+    source = APP_JS.read_text(encoding="utf-8")
+    start = source.index("function currentAuthoritativeExecution")
+    end = source.index("\nfunction renderProjectPosture", start)
+    helper = source[start:end]
+    prefix = r"""
+const states = {};
+function element(id) {
+  if (!states[id]) states[id] = {
+    innerText: '',
+    classList: {
+      values: new Set(),
+      remove(...xs) { xs.forEach(x => this.values.delete(x)); },
+      add(x) { this.values.add(x); },
+      contains(x) { return this.values.has(x); }
+    }
+  };
+  return states[id];
+}
+const document = { getElementById: element };
+const window = {};
+"""
+    suffix = r"""
+const currentAttempt = 'attempt-' + 'a'.repeat(32);
+const staleAttempt = 'attempt-' + 'b'.repeat(32);
+const posture = {
+  restricted_execution_attempt_id: currentAttempt,
+  restricted_execution_generation: 2,
+  restricted_execution_results: [
+    {attempt_id: currentAttempt, attempt_generation: 2, passed: true, identity_bound: true},
+    {attempt_id: staleAttempt, attempt_generation: 1, passed: false, identity_bound: false}
+  ]
+};
+setUIState('COMPLETED', 'COMPLETED', posture);
+console.log(JSON.stringify({
+  restrictedCompleted: element('step-restricted').classList.contains('completed'),
+  completedActive: element('step-completed').classList.contains('active')
+}));
+"""
+    result = subprocess.run(["node", "-e", prefix + helper + suffix], check=True, capture_output=True, text=True)
+    import json
+    observed = json.loads(result.stdout)
+    assert observed == {"restrictedCompleted": True, "completedActive": True}

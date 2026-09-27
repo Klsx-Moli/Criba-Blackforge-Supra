@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from html import escape
 
-from .models import ProjectPosture
+from .models import ProjectPosture, current_authoritative_execution
 
 
 def generate_svg_architecture(posture: ProjectPosture) -> str:
@@ -13,7 +13,7 @@ def generate_svg_architecture(posture: ProjectPosture) -> str:
         posture.selected_candidate.pathway_name if posture.selected_candidate else "Standard"
     )
     verdict = posture.verification.verdict if posture.verification else "NOT_EVALUATED"
-    latest_execution = posture.current_authoritative_execution()
+    latest_execution = current_authoritative_execution(posture)
     restricted_status = (
         "BOUND_PASS"
         if latest_execution and latest_execution.passed and latest_execution.identity_bound

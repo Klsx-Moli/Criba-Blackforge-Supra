@@ -230,3 +230,45 @@ def test_astra_duplicate_execution_id_is_idempotent_only_for_same_semantic_paylo
     with pytest.raises(ValueError, match="execution_id conflict"):
         sm.record_restricted_execution(p.project_id, RestrictedExecutionResult(**conflicting))
     assert len(sm.get_project(p.project_id).restricted_execution_results) == 1
+
+
+def test_astra_consumers_use_current_attempt_not_last_historical_arrival(tmp_path):
+    from supra_agentic.dossier import generate_svg_architecture
+    from supra_agentic.models import (
+        RESTRICTED_EXECUTION_SEMANTICS_VERSION,
+        RestrictedExecutionResult,
+        StrategyCandidate,
+        VerificationReport,
+        candidate_execution_identity,
+    )
+    from supra_agentic.service import _project_execution_payload
+    from supra_agentic.state import ProjectStateManager
+
+    sm = ProjectStateManager(tmp_path / "consumer-authority")
+    p = sm.create_project("consumer authority")
+    candidate = StrategyCandidate(
+        pathway_name="real", paradigm_type="ORTHOGONAL", hypothesis="h",
+        action_plan=["step"], divergence_score=0.5, feasibility_score=0.5,
+    )
+    selected = sm.add_candidates(p.project_id, [candidate], select_best=True).selected_candidate
+    identity = candidate_execution_identity(selected)
+    sm.record_verification(p.project_id, VerificationReport(candidate_id=selected.candidate_id, verdict="PASS"))
+    old_id, old_gen = sm.issue_restricted_execution_attempt(p.project_id)
+    current_id, current_gen = sm.issue_restricted_execution_attempt(p.project_id)
+    current = RestrictedExecutionResult(
+        execution_id="exec-current", attempt_id=current_id, attempt_generation=current_gen,
+        execution_semantics_version=RESTRICTED_EXECUTION_SEMANTICS_VERSION,
+        candidate_id=identity["candidate_id"], mechanism_version=identity["mechanism_version"],
+        claim_id=identity["claim_id"], protocol_version="sha256:" + "e" * 64,
+        action_type="sentinel", passed=True, output_log="current", duration_ms=1,
+    )
+    sm.record_restricted_execution(p.project_id, current)
+    stale = current.model_copy(update={
+        "execution_id": "exec-stale", "attempt_id": old_id, "attempt_generation": old_gen,
+        "passed": False, "output_log": "stale",
+    })
+    sm.record_restricted_execution(p.project_id, stale)
+    posture = sm.complete_project(p.project_id, {"workflow_status": "COMPLETED"})
+    assert posture.restricted_execution_results[-1].execution_id == "exec-stale"
+    assert _project_execution_payload(posture)["secure_sandbox_status"] == "RESTRICTED_BOUND_PASS_NOT_ISOLATED"
+    assert "Restricted: BOUND_PASS" in generate_svg_architecture(posture)

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 import time
 import uuid
 from enum import Enum
@@ -12,6 +13,11 @@ from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 RESTRICTED_EXECUTION_SEMANTICS_VERSION = 2
+_ATTEMPT_ID_RE = re.compile(r"^attempt-[0-9a-f]{32}$")
+
+
+def _is_canonical_attempt_id(value: object) -> bool:
+    return isinstance(value, str) and bool(_ATTEMPT_ID_RE.fullmatch(value))
 
 
 def _is_server_attempt_id(value: str | None) -> bool:
@@ -295,9 +301,40 @@ class ProjectPosture(BaseModel):
             if len(selected_matches) == 1 and self.selected_candidate is not None
             else None
         )
+
+        invalid_current_attempt = bool(
+            (
+                self.restricted_execution_generation == 0
+                and self.restricted_execution_attempt_id is not None
+            )
+            or (
+                self.restricted_execution_generation > 0
+                and not _is_canonical_attempt_id(self.restricted_execution_attempt_id)
+            )
+        )
+        if invalid_current_attempt:
+            # Parseable persisted text is not authority merely because a result
+            # repeats it. Only IDs in the server-issued canonical namespace can
+            # participate in current execution accreditation.
+            self.restricted_execution_attempt_id = None
+            self.checkpoints.append(
+                CheckpointRecord(
+                    stage=self.stage,
+                    title="Malformed execution-attempt authority invalidated",
+                    evidence_summary=(
+                        "Persisted attempt authority did not match the server-issued "
+                        "attempt-<32 lowercase hex> format and was cleared on load."
+                    ),
+                    actor="system:migration_guard",
+                )
+            )
+
         for result in self.restricted_execution_results:
             matches_selected_candidate = bool(
                 result.identity_bound
+                and _is_canonical_attempt_id(result.attempt_id)
+                and isinstance(result.attempt_generation, int)
+                and result.attempt_generation >= 1
                 and expected is not None
                 and result.candidate_id == expected["candidate_id"]
                 and result.mechanism_version == expected["mechanism_version"]
@@ -306,6 +343,38 @@ class ProjectPosture(BaseModel):
                 and _is_server_attempt_id(result.attempt_id)
             )
             result.identity_bound = matches_selected_candidate
+
+        # Persisted state may be parseable yet contain multiple results for one
+        # issued attempt/generation. Such a state has no unique causal authority:
+        # fail closed by invalidating every colliding result instead of letting
+        # list order select a winner after restart.
+        attempt_groups: dict[tuple[str, int], list[RestrictedExecutionResult]] = {}
+        for result in self.restricted_execution_results:
+            if isinstance(result.attempt_id, str) and result.attempt_id and isinstance(
+                result.attempt_generation, int
+            ):
+                attempt_groups.setdefault(
+                    (result.attempt_id, result.attempt_generation), []
+                ).append(result)
+        duplicate_attempt_groups = {
+            key: results for key, results in attempt_groups.items() if len(results) > 1
+        }
+        for results in duplicate_attempt_groups.values():
+            for result in results:
+                result.identity_bound = False
+        if duplicate_attempt_groups:
+            self.checkpoints.append(
+                CheckpointRecord(
+                    stage=self.stage,
+                    title="Duplicate execution-attempt authority invalidated",
+                    evidence_summary=(
+                        "Persisted execution results reused one issued attempt/generation; "
+                        "all colliding results were invalidated because list order is not "
+                        "causal authority."
+                    ),
+                    actor="system:migration_guard",
+                )
+            )
 
         authoritative_executions = [
             result
@@ -434,28 +503,7 @@ class ProjectPosture(BaseModel):
 
     def current_authoritative_execution(self) -> RestrictedExecutionResult | None:
         """Return the unique current attempt result, or None when authority is ambiguous."""
-        if not _is_server_attempt_id(self.restricted_execution_attempt_id):
-            return None
-        current = [
-            result
-            for result in self.restricted_execution_results
-            if result.attempt_id == self.restricted_execution_attempt_id
-            and result.attempt_generation == self.restricted_execution_generation
-        ]
-        if not current:
-            return None
-        execution_ids = {result.execution_id for result in current}
-        semantic_results = {
-            json.dumps(
-                result.model_dump(exclude={"timestamp"}),
-                sort_keys=True,
-                separators=(",", ":"),
-            )
-            for result in current
-        }
-        if len(execution_ids) != 1 or len(semantic_results) != 1:
-            return None
-        return current[-1]
+        return current_authoritative_execution(self)
 
     @field_validator("criba_dossier_receipt")
     @classmethod
@@ -492,3 +540,25 @@ class ProjectPosture(BaseModel):
         ):
             raise ValueError("CRIBA dossier receipt is incomplete")
         return receipt
+
+
+def current_authoritative_execution(
+    posture: ProjectPosture,
+) -> RestrictedExecutionResult | None:
+    """Return the unique result for the currently issued execution attempt.
+
+    Historical arrival order is never authority. A missing, malformed, or
+    duplicate current attempt returns ``None`` so consumers fail closed.
+    """
+    if (
+        posture.restricted_execution_generation < 1
+        or not _is_canonical_attempt_id(posture.restricted_execution_attempt_id)
+    ):
+        return None
+    matches = [
+        result
+        for result in posture.restricted_execution_results
+        if result.attempt_id == posture.restricted_execution_attempt_id
+        and result.attempt_generation == posture.restricted_execution_generation
+    ]
+    return matches[0] if len(matches) == 1 else None

@@ -19,6 +19,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from .dossier import export_full_html_dossier
 from .mcp_handler import handle_mcp_jsonrpc_request
+from .models import current_authoritative_execution
 from .providers import ProviderError, get_provider, provider_names
 from .runner import TaskmasterRunner, taskmaster_runner
 from .state import DuplicateProjectError, state_manager
@@ -349,7 +350,7 @@ def _project_execution_payload(
         raise ValueError("project execution payload requires a terminal non-failed posture")
     final_output = posture.final_output or {}
     is_blocked = posture.stage.value == "BLOCKED"
-    latest_execution = posture.current_authoritative_execution()
+    latest_execution = current_authoritative_execution(posture)
     secure_sandbox_status = (
         "RESTRICTED_BOUND_PASS_NOT_ISOLATED"
         if latest_execution and latest_execution.passed and latest_execution.identity_bound

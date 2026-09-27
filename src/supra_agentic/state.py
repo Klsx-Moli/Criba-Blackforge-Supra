@@ -28,6 +28,7 @@ from .models import (
     VerificationReport,
     candidate_execution_identity,
     is_sha256_version,
+    current_authoritative_execution,
 )
 
 logger = logging.getLogger("supra_agentic.state")
@@ -190,9 +191,10 @@ class ProjectStateManager:
                 raise ValueError("verification PASS must bind the persisted selected candidate")
             p.verification = report
             if report.verdict != "PASS" and p.stage is TaskmasterStage.COMPLETED:
+                current_execution = current_authoritative_execution(p)
                 p.stage = (
                     TaskmasterStage.RESTRICTED_EXECUTION_VERIFIED
-                    if (current_execution := p.current_authoritative_execution()) is not None
+                    if current_execution
                     and current_execution.passed
                     and current_execution.identity_bound
                     else TaskmasterStage.STRATIFIED
@@ -284,14 +286,29 @@ class ProjectStateManager:
             # execution_id names one semantic execution event. Retries of the
             # same event are idempotent; reusing the id for different content
             # is a conflict and must never change which event is authoritative.
-            semantic_result = result.model_dump(exclude={"timestamp"})
+            semantic_result = result.model_dump(exclude={"timestamp", "identity_bound"})
             for existing in p.restricted_execution_results:
                 if existing.execution_id != result.execution_id:
                     continue
-                semantic_existing = existing.model_dump(exclude={"timestamp"})
+                semantic_existing = existing.model_dump(exclude={"timestamp", "identity_bound"})
                 if semantic_existing == semantic_result:
                     return p
                 raise ValueError("execution_id conflict: same id has different semantic payload")
+
+            # A server-issued attempt is a single causal execution slot. It may
+            # produce at most one semantic result. Allowing a second execution_id
+            # for the same attempt/generation would make arrival order decide the
+            # authoritative outcome (FAIL->PASS or PASS->FAIL), defeating the
+            # generation contract. Exact replay is already handled above.
+            if result.attempt_id is not None and result.attempt_generation is not None:
+                for existing in p.restricted_execution_results:
+                    if (
+                        existing.attempt_id == result.attempt_id
+                        and existing.attempt_generation == result.attempt_generation
+                    ):
+                        raise ValueError(
+                            "attempt result conflict: one issued attempt cannot have multiple execution results"
+                        )
 
             p.restricted_execution_results.append(result)
             if not authoritative_attempt:
@@ -348,7 +365,7 @@ class ProjectStateManager:
                 and p.selected_candidate is not None
                 and p.verification.candidate_id == p.selected_candidate.candidate_id
             )
-            latest_execution = p.current_authoritative_execution()
+            latest_execution = current_authoritative_execution(p)
             execution_pass = bool(
                 latest_execution and latest_execution.passed and latest_execution.identity_bound
             )

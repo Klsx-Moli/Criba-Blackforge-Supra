@@ -24,6 +24,7 @@ from .models import (
     TaskmasterStage,
     VerificationReport,
     candidate_execution_identity,
+    current_authoritative_execution,
 )
 from .state import state_manager
 
@@ -617,7 +618,7 @@ def record_checkpoint(
         f"fails to outperform standard baseline under stress or introduces uncontained side-effects."
     )
 
-    latest_execution = posture.current_authoritative_execution()
+    latest_execution = current_authoritative_execution(posture)
     restricted_execution_status = (
         "BOUND_PASS"
         if latest_execution and latest_execution.passed and latest_execution.identity_bound

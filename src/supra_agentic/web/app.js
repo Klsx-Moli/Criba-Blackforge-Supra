@@ -67,6 +67,18 @@ async function handleExampleRun() {
     }
 }
 
+function currentAuthoritativeExecution(posture) {
+    if (!posture || !Array.isArray(posture.restricted_execution_results)) return null;
+    const attemptId = posture.restricted_execution_attempt_id;
+    const generation = posture.restricted_execution_generation;
+    if (typeof attemptId !== 'string' || !/^attempt-[0-9a-f]{32}$/.test(attemptId)) return null;
+    if (!Number.isInteger(generation) || generation < 1) return null;
+    const matches = posture.restricted_execution_results.filter(
+        r => r.attempt_id === attemptId && r.attempt_generation === generation
+    );
+    return matches.length === 1 ? matches[0] : null;
+}
+
 function setUIState(status, stage, posture) {
     const stageTag = document.getElementById('current-stage-tag');
     stageTag.innerText = stage || status;
@@ -81,14 +93,9 @@ function setUIState(status, stage, posture) {
     };
 
     const currentIdx = stageOrder[stage] !== undefined ? stageOrder[stage] : 0;
-    const currentExecutions = posture && posture.restricted_execution_results
-        ? posture.restricted_execution_results.filter(r =>
-            r.attempt_id === posture.restricted_execution_attempt_id &&
-            r.attempt_generation === posture.restricted_execution_generation)
-        : [];
-    const currentExecution = currentExecutions.length === 1 ? currentExecutions[0] : null;
+    const authoritativeExecution = currentAuthoritativeExecution(posture);
     const restrictedVerified = Boolean(
-        currentExecution && currentExecution.passed && currentExecution.identity_bound
+        authoritativeExecution && authoritativeExecution.passed && authoritativeExecution.identity_bound
     );
 
     steps.forEach((s, idx) => {
@@ -117,12 +124,7 @@ function renderProjectPosture(posture) {
     const decomp = posture.decomposition;
     const cand = posture.selected_candidate;
     const ver = posture.verification;
-    const currentExecutions = posture.restricted_execution_results
-        ? posture.restricted_execution_results.filter(r =>
-            r.attempt_id === posture.restricted_execution_attempt_id &&
-            r.attempt_generation === posture.restricted_execution_generation)
-        : [];
-    const rex = currentExecutions.length === 1 ? currentExecutions[0] : null;
+    const rex = currentAuthoritativeExecution(posture);
     const out = posture.final_output;
 
     let html = `

@@ -559,3 +559,210 @@ def test_completion_gate_rejects_in_memory_ambiguous_current_attempt():
         posture.restricted_execution_results.extend([first, second])
         with pytest.raises(ValueError, match="completion gate"):
             sm.complete_project(p.project_id, {"workflow_status": "COMPLETED"})
+
+def test_one_issued_attempt_cannot_accept_two_distinct_execution_results():
+    import pytest
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        sm = ProjectStateManager(storage_dir=tmpdir)
+        p = sm.create_project(objective="single result per attempt")
+        cand = StrategyCandidate(
+            pathway_name="Path",
+            paradigm_type="ORTHOGONAL",
+            hypothesis="h",
+            action_plan=["step"],
+            divergence_score=0.5,
+            feasibility_score=0.5,
+        )
+        selected = sm.add_candidates(p.project_id, [cand], select_best=True).selected_candidate
+        assert selected is not None
+        identity = candidate_execution_identity(selected)
+        attempt_id, generation = sm.issue_restricted_execution_attempt(p.project_id)
+
+        first = RestrictedExecutionResult(
+            execution_id="exec-first",
+            attempt_id=attempt_id,
+            attempt_generation=generation,
+            execution_semantics_version=RESTRICTED_EXECUTION_SEMANTICS_VERSION,
+            candidate_id=identity["candidate_id"],
+            mechanism_version=identity["mechanism_version"],
+            claim_id=identity["claim_id"],
+            protocol_version="sha256:" + "a" * 64,
+            action_type="RESTRICTED_CODE_RUN",
+            passed=False,
+            output_log="first fail",
+            duration_ms=1,
+        )
+        sm.record_restricted_execution(p.project_id, first)
+        second = first.model_copy(
+            update={"execution_id": "exec-second", "passed": True, "output_log": "late pass"}
+        )
+        with pytest.raises(ValueError, match="attempt result conflict"):
+            sm.record_restricted_execution(p.project_id, second)
+        current = sm.get_project(p.project_id)
+        assert current is not None
+        assert len(current.restricted_execution_results) == 1
+        assert current.restricted_execution_results[0].passed is False
+        assert current.stage is TaskmasterStage.STRATIFIED
+
+
+def test_persisted_duplicate_current_attempt_results_fail_closed_after_restart():
+    import json
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        sm = ProjectStateManager(storage_dir=tmpdir)
+        p = sm.create_project(objective="persisted duplicate authority")
+        cand = StrategyCandidate(
+            pathway_name="Path",
+            paradigm_type="ORTHOGONAL",
+            hypothesis="h",
+            action_plan=["step"],
+            divergence_score=0.5,
+            feasibility_score=0.5,
+        )
+        selected = sm.add_candidates(p.project_id, [cand], select_best=True).selected_candidate
+        assert selected is not None
+        identity = candidate_execution_identity(selected)
+        attempt_id, generation = sm.issue_restricted_execution_attempt(p.project_id)
+        base = RestrictedExecutionResult(
+            execution_id="exec-a",
+            attempt_id=attempt_id,
+            attempt_generation=generation,
+            execution_semantics_version=RESTRICTED_EXECUTION_SEMANTICS_VERSION,
+            candidate_id=identity["candidate_id"],
+            mechanism_version=identity["mechanism_version"],
+            claim_id=identity["claim_id"],
+            protocol_version="sha256:" + "b" * 64,
+            action_type="RESTRICTED_CODE_RUN",
+            passed=True,
+            output_log="pass-a",
+            duration_ms=1,
+        )
+        sm.record_restricted_execution(p.project_id, base)
+        raw_path = sm.storage_dir / f"{p.project_id}.json"
+        raw = json.loads(raw_path.read_text(encoding="utf-8"))
+        duplicate = dict(raw["restricted_execution_results"][0])
+        duplicate["execution_id"] = "exec-b"
+        duplicate["output_log"] = "pass-b"
+        raw["restricted_execution_results"].append(duplicate)
+        raw["stage"] = "RESTRICTED_EXECUTION_VERIFIED"
+        raw_path.write_text(json.dumps(raw), encoding="utf-8")
+
+        reloaded = ProjectStateManager(storage_dir=tmpdir).get_project(p.project_id)
+        assert reloaded is not None
+        assert reloaded.stage is TaskmasterStage.STRATIFIED
+        colliding = [
+            item
+            for item in reloaded.restricted_execution_results
+            if item.attempt_id == attempt_id and item.attempt_generation == generation
+        ]
+        assert len(colliding) == 2
+        assert all(item.identity_bound is False for item in colliding)
+        assert any(
+            checkpoint.title == "Duplicate execution-attempt authority invalidated"
+            for checkpoint in reloaded.checkpoints
+        )
+
+
+def test_whitespace_attempt_authority_cannot_preserve_completed_after_restart():
+    import json
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        sm = ProjectStateManager(storage_dir=tmpdir)
+        p = sm.create_project(objective="whitespace authority")
+        cand = StrategyCandidate(
+            pathway_name="Path",
+            paradigm_type="ORTHOGONAL",
+            hypothesis="h",
+            action_plan=["step"],
+            divergence_score=0.5,
+            feasibility_score=0.5,
+        )
+        selected = sm.add_candidates(p.project_id, [cand], select_best=True).selected_candidate
+        assert selected is not None
+        identity = candidate_execution_identity(selected)
+        sm.record_verification(
+            p.project_id,
+            VerificationReport(candidate_id=selected.candidate_id, verdict="PASS"),
+        )
+        attempt_id, generation = sm.issue_restricted_execution_attempt(p.project_id)
+        sm.record_restricted_execution(
+            p.project_id,
+            RestrictedExecutionResult(
+                attempt_id=attempt_id,
+                attempt_generation=generation,
+                execution_semantics_version=RESTRICTED_EXECUTION_SEMANTICS_VERSION,
+                candidate_id=identity["candidate_id"],
+                mechanism_version=identity["mechanism_version"],
+                claim_id=identity["claim_id"],
+                protocol_version="sha256:" + "c" * 64,
+                action_type="RESTRICTED_CODE_RUN",
+                passed=True,
+                output_log="pass",
+                duration_ms=1,
+            ),
+        )
+        sm.complete_project(p.project_id, {"workflow_status": "COMPLETED"})
+        raw_path = sm.storage_dir / f"{p.project_id}.json"
+        raw = json.loads(raw_path.read_text(encoding="utf-8"))
+        raw["restricted_execution_attempt_id"] = "   "
+        raw["restricted_execution_results"][0]["attempt_id"] = "   "
+        raw_path.write_text(json.dumps(raw), encoding="utf-8")
+
+        reloaded = ProjectStateManager(storage_dir=tmpdir).get_project(p.project_id)
+        assert reloaded is not None
+        assert reloaded.stage is TaskmasterStage.STRATIFIED
+        assert reloaded.restricted_execution_attempt_id is None
+        assert reloaded.restricted_execution_results[0].identity_bound is False
+        assert reloaded.final_output is not None
+        assert reloaded.final_output["workflow_status"] == "EVIDENCE_INVALIDATED"
+        assert any(
+            checkpoint.title == "Malformed execution-attempt authority invalidated"
+            for checkpoint in reloaded.checkpoints
+        )
+
+
+def test_consumer_authority_ignores_last_arriving_stale_attempt():
+    from supra_agentic.models import current_authoritative_execution
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        sm = ProjectStateManager(storage_dir=tmpdir)
+        p = sm.create_project(objective="consumer causal authority")
+        cand = StrategyCandidate(
+            pathway_name="Path", paradigm_type="ORTHOGONAL", hypothesis="h",
+            action_plan=["step"], divergence_score=0.5, feasibility_score=0.5,
+        )
+        selected = sm.add_candidates(p.project_id, [cand], select_best=True).selected_candidate
+        assert selected is not None
+        identity = candidate_execution_identity(selected)
+        sm.record_verification(
+            p.project_id, VerificationReport(candidate_id=selected.candidate_id, verdict="PASS")
+        )
+        old_attempt, old_generation = sm.issue_restricted_execution_attempt(p.project_id)
+        current_attempt, current_generation = sm.issue_restricted_execution_attempt(p.project_id)
+        current_pass = RestrictedExecutionResult(
+            execution_id="exec-current-pass",
+            attempt_id=current_attempt,
+            attempt_generation=current_generation,
+            execution_semantics_version=RESTRICTED_EXECUTION_SEMANTICS_VERSION,
+            candidate_id=identity["candidate_id"], mechanism_version=identity["mechanism_version"],
+            claim_id=identity["claim_id"], protocol_version="sha256:" + "d" * 64,
+            action_type="RESTRICTED_CODE_RUN", passed=True, output_log="current pass", duration_ms=1,
+        )
+        sm.record_restricted_execution(p.project_id, current_pass)
+        stale_fail = current_pass.model_copy(update={
+            "execution_id": "exec-stale-fail",
+            "attempt_id": old_attempt,
+            "attempt_generation": old_generation,
+            "passed": False,
+            "output_log": "stale fail",
+        })
+        sm.record_restricted_execution(p.project_id, stale_fail)
+        current = sm.get_project(p.project_id)
+        assert current is not None
+        assert current.restricted_execution_results[-1].execution_id == "exec-stale-fail"
+        authority = current_authoritative_execution(current)
+        assert authority is not None
+        assert authority.execution_id == "exec-current-pass"
+        assert authority.passed is True and authority.identity_bound is True
+        assert sm.complete_project(p.project_id, {"workflow_status": "COMPLETED"}).stage is TaskmasterStage.COMPLETED
