@@ -112,6 +112,21 @@ def select_blackforge(
         raise ValueError(f"perfil inválido: {profile}; usar uno de {list(_ALLOWED_PROFILES)}")
     profile_field = _ALLOWED_PROFILES[profile]
 
+    # A selection session must request a positive, non-boolean integer count.
+    # Zero/negative/non-integral sizes are malformed policy input, not a valid
+    # empty selection and not evidence that downstream quotas were evaluated.
+    if isinstance(session_size, bool) or not isinstance(session_size, int) or session_size <= 0:
+        return SelectionReport(
+            seed=seed, session_size=session_size, allowed_tiers=list(allowed_tiers or []),
+            selected_ids=[], compliance={}, profile_used=profile, s3_count=0,
+            s3_allowed=False,
+            failure=SelectionFailure(
+                reason="session_size debe ser un entero positivo.",
+                failed_quota="session_size_integrity",
+                detail={"value_repr": repr(session_size)[:120]},
+            ),
+        )
+
     meta, recs = _load_catalog()
     sel_policy = meta.get("selection_policy", {})
     constraints = sel_policy.get("constraints", {})
@@ -136,6 +151,24 @@ def select_blackforge(
             return s3_allowed  # S3 only when fully approved
         return True
     candidates = [r for r in recs if _eligible(r)]
+
+    # Candidate identity is a set contract. Duplicate or missing IDs can game
+    # quotas/session size and make receipts ambiguous, so fail closed before
+    # ranking rather than selecting the same logical candidate twice.
+    candidate_ids = [r.get("blackforge_id") for r in candidates]
+    invalid_ids = [value for value in candidate_ids if not isinstance(value, str) or not value.strip()]
+    duplicate_ids = sorted({value for value in candidate_ids if isinstance(value, str) and candidate_ids.count(value) > 1})
+    if invalid_ids or duplicate_ids:
+        return SelectionReport(
+            seed=seed, session_size=session_size, allowed_tiers=allowed_tiers,
+            selected_ids=[], compliance={}, profile_used=profile, s3_count=0,
+            s3_allowed=s3_allowed,
+            failure=SelectionFailure(
+                reason="Identidad de candidato ausente o duplicada; no se puede contabilizar ni seleccionar con seguridad.",
+                failed_quota="candidate_identity_integrity",
+                detail={"missing_or_invalid_count": len(invalid_ids), "duplicate_ids": duplicate_ids[:20]},
+            ),
+        )
 
     # Ranking signals are part of the selection contract. Missing, non-numeric
     # or non-finite values are UNKNOWN, not zero and never a ranking advantage.

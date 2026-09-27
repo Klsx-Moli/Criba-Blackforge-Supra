@@ -94,3 +94,23 @@ def test_astra_failed_blackforge_quota_never_exposes_partial_selection(monkeypat
     assert report.failure.failed_quota == "mandatory_stages"
     assert report.selected_ids == []
     assert report.to_dict()["selected_count"] == 0
+
+
+def test_astra_blackforge_rejects_duplicate_candidate_identity(monkeypatch):
+    meta, records = _catalog()
+    records[1]["blackforge_id"] = records[0]["blackforge_id"]
+    monkeypatch.setattr(blackforge_selector, "_load_catalog", lambda: (meta, records))
+    report = blackforge_selector.select_blackforge(session_size=4)
+    assert not report.status_ok()
+    assert report.failure is not None
+    assert report.failure.failed_quota == "candidate_identity_integrity"
+    assert report.selected_ids == []
+
+
+def test_astra_blackforge_rejects_zero_session_size(monkeypatch):
+    monkeypatch.setattr(blackforge_selector, "_load_catalog", _catalog)
+    report = blackforge_selector.select_blackforge(session_size=0)
+    assert not report.status_ok()
+    assert report.failure is not None
+    assert report.failure.failed_quota == "session_size_integrity"
+    assert report.selected_ids == []
