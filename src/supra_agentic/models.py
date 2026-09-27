@@ -14,6 +14,22 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 RESTRICTED_EXECUTION_SEMANTICS_VERSION = 2
 
 
+def _is_server_attempt_id(value: str | None) -> bool:
+    """Recognize only attempt identifiers emitted by SUPRA itself."""
+    if not isinstance(value, str) or not value.startswith("attempt-"):
+        return False
+    suffix = value.removeprefix("attempt-")
+    return len(suffix) == 32 and all(ch in "0123456789abcdef" for ch in suffix)
+
+
+def is_sha256_version(value: str | None) -> bool:
+    """Return whether a version is a canonical lowercase SHA-256 identifier."""
+    if not isinstance(value, str) or not value.startswith("sha256:"):
+        return False
+    digest = value.removeprefix("sha256:")
+    return len(digest) == 64 and all(ch in "0123456789abcdef" for ch in digest)
+
+
 class TaskmasterStage(str, Enum):
     """5 Canonical Stages of the Taskmaster Agent Lifecycle."""
 
@@ -172,7 +188,9 @@ class RestrictedExecutionResult(BaseModel):
             )
         )
         self.identity_bound = bool(
-            complete and self.execution_semantics_version == RESTRICTED_EXECUTION_SEMANTICS_VERSION
+            complete
+            and is_sha256_version(self.protocol_version)
+            and self.execution_semantics_version == RESTRICTED_EXECUTION_SEMANTICS_VERSION
         )
         return self
 
@@ -261,9 +279,20 @@ class ProjectPosture(BaseModel):
         candidate under the current semantics. Cached/final-output execution
         labels are recomputed from that revalidated source state.
         """
+        selected_matches = (
+            [
+                candidate
+                for candidate in self.candidates
+                if self.selected_candidate is not None
+                and candidate.candidate_id == self.selected_candidate.candidate_id
+                and candidate.model_dump() == self.selected_candidate.model_dump()
+            ]
+            if self.selected_candidate is not None
+            else []
+        )
         expected = (
             candidate_execution_identity(self.selected_candidate)
-            if self.selected_candidate is not None
+            if len(selected_matches) == 1 and self.selected_candidate is not None
             else None
         )
         for result in self.restricted_execution_results:
@@ -273,18 +302,25 @@ class ProjectPosture(BaseModel):
                 and result.candidate_id == expected["candidate_id"]
                 and result.mechanism_version == expected["mechanism_version"]
                 and result.claim_id == expected["claim_id"]
-                and isinstance(result.protocol_version, str)
-                and result.protocol_version.startswith("sha256:")
+                and is_sha256_version(result.protocol_version)
+                and _is_server_attempt_id(result.attempt_id)
             )
             result.identity_bound = matches_selected_candidate
 
         authoritative_executions = [
             result
             for result in self.restricted_execution_results
-            if result.attempt_id
+            if _is_server_attempt_id(self.restricted_execution_attempt_id)
             and result.attempt_id == self.restricted_execution_attempt_id
             and result.attempt_generation == self.restricted_execution_generation
         ]
+        # Persisted duplicate results for one current attempt are ambiguous
+        # authority (corruption, replay, or a prior race). Fail closed rather
+        # than letting list order choose PASS versus FAIL after restart.
+        current_execution_ids = {result.execution_id for result in authoritative_executions}
+        if len(current_execution_ids) > 1:
+            for result in authoritative_executions:
+                result.identity_bound = False
         latest_execution = authoritative_executions[-1] if authoritative_executions else None
         latest_authoritative_bound_pass = bool(
             latest_execution and latest_execution.passed and latest_execution.identity_bound
@@ -328,6 +364,7 @@ class ProjectPosture(BaseModel):
         verification_pass = bool(
             self.verification
             and self.verification.verdict == "PASS"
+            and expected is not None
             and self.selected_candidate is not None
             and self.verification.candidate_id == self.selected_candidate.candidate_id
         )

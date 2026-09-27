@@ -1,6 +1,10 @@
 """Tests for SUPRA Project State Manager and Models."""
 
+import json
 import tempfile
+from pathlib import Path
+
+import pytest
 
 from supra_agentic.models import (
     RESTRICTED_EXECUTION_SEMANTICS_VERSION,
@@ -87,7 +91,7 @@ def test_project_lifecycle_transitions():
             candidate_id=expected_identity["candidate_id"],
             mechanism_version=expected_identity["mechanism_version"],
             claim_id=expected_identity["claim_id"],
-            protocol_version="sha256:test-protocol",
+            protocol_version="sha256:" + "0" * 64,
             execution_semantics_version=RESTRICTED_EXECUTION_SEMANTICS_VERSION,
             action_type="RESTRICTED_CODE_RUN",
             passed=True,
@@ -139,7 +143,7 @@ def test_latest_restricted_revision_replaces_prior_pass():
             candidate_id=identity["candidate_id"],
             mechanism_version=identity["mechanism_version"],
             claim_id=identity["claim_id"],
-            protocol_version="sha256:test-protocol",
+            protocol_version="sha256:" + "0" * 64,
             execution_semantics_version=RESTRICTED_EXECUTION_SEMANTICS_VERSION,
             action_type="RESTRICTED_CODE_RUN",
             passed=True,
@@ -156,7 +160,7 @@ def test_latest_restricted_revision_replaces_prior_pass():
             candidate_id=identity["candidate_id"],
             mechanism_version=identity["mechanism_version"],
             claim_id=identity["claim_id"],
-            protocol_version="sha256:test-protocol",
+            protocol_version="sha256:" + "0" * 64,
             execution_semantics_version=RESTRICTED_EXECUTION_SEMANTICS_VERSION,
             action_type="RESTRICTED_CODE_RUN",
             passed=False,
@@ -192,7 +196,7 @@ def test_completed_workflow_preserves_completion_but_latest_failure_revises_exec
                 candidate_id=identity["candidate_id"],
                 mechanism_version=identity["mechanism_version"],
                 claim_id=identity["claim_id"],
-                protocol_version="sha256:test-protocol",
+                protocol_version="sha256:" + "0" * 64,
                 execution_semantics_version=RESTRICTED_EXECUTION_SEMANTICS_VERSION,
                 action_type="RESTRICTED_CODE_RUN",
                 passed=passed,
@@ -272,11 +276,11 @@ def test_stale_distinct_execution_cannot_override_newer_authoritative_generation
         identity = candidate_execution_identity(selected)
 
         a1, g1 = sm.issue_restricted_execution_attempt(p.project_id)
-        old_pass = RestrictedExecutionResult(attempt_id=a1, attempt_generation=g1, candidate_id=identity["candidate_id"], mechanism_version=identity["mechanism_version"], claim_id=identity["claim_id"], protocol_version="sha256:p", execution_semantics_version=RESTRICTED_EXECUTION_SEMANTICS_VERSION, action_type="RESTRICTED_CODE_RUN", passed=True, output_log="old pass", duration_ms=1)
+        old_pass = RestrictedExecutionResult(attempt_id=a1, attempt_generation=g1, candidate_id=identity["candidate_id"], mechanism_version=identity["mechanism_version"], claim_id=identity["claim_id"], protocol_version="sha256:" + "0" * 64, execution_semantics_version=RESTRICTED_EXECUTION_SEMANTICS_VERSION, action_type="RESTRICTED_CODE_RUN", passed=True, output_log="old pass", duration_ms=1)
         assert sm.record_restricted_execution(p.project_id, old_pass).stage is TaskmasterStage.RESTRICTED_EXECUTION_VERIFIED
 
         a2, g2 = sm.issue_restricted_execution_attempt(p.project_id)
-        new_fail = RestrictedExecutionResult(attempt_id=a2, attempt_generation=g2, candidate_id=identity["candidate_id"], mechanism_version=identity["mechanism_version"], claim_id=identity["claim_id"], protocol_version="sha256:p", execution_semantics_version=RESTRICTED_EXECUTION_SEMANTICS_VERSION, action_type="RESTRICTED_CODE_RUN", passed=False, output_log="new fail", duration_ms=1)
+        new_fail = RestrictedExecutionResult(attempt_id=a2, attempt_generation=g2, candidate_id=identity["candidate_id"], mechanism_version=identity["mechanism_version"], claim_id=identity["claim_id"], protocol_version="sha256:" + "0" * 64, execution_semantics_version=RESTRICTED_EXECUTION_SEMANTICS_VERSION, action_type="RESTRICTED_CODE_RUN", passed=False, output_log="new fail", duration_ms=1)
         assert sm.record_restricted_execution(p.project_id, new_fail).stage is TaskmasterStage.STRATIFIED
 
         delayed_old = old_pass.model_copy(update={"execution_id": "exec-delayed"})
@@ -296,9 +300,9 @@ def test_stale_failure_after_new_pass_stays_completed_authority_after_restart():
         selected = sm.add_candidates(p.project_id, [cand], select_best=True).selected_candidate
         identity = candidate_execution_identity(selected)
         a1, g1 = sm.issue_restricted_execution_attempt(p.project_id)
-        stale_fail = RestrictedExecutionResult(attempt_id=a1, attempt_generation=g1, candidate_id=identity["candidate_id"], mechanism_version=identity["mechanism_version"], claim_id=identity["claim_id"], protocol_version="sha256:p", execution_semantics_version=RESTRICTED_EXECUTION_SEMANTICS_VERSION, action_type="RESTRICTED_CODE_RUN", passed=False, output_log="old fail", duration_ms=1)
+        stale_fail = RestrictedExecutionResult(attempt_id=a1, attempt_generation=g1, candidate_id=identity["candidate_id"], mechanism_version=identity["mechanism_version"], claim_id=identity["claim_id"], protocol_version="sha256:" + "0" * 64, execution_semantics_version=RESTRICTED_EXECUTION_SEMANTICS_VERSION, action_type="RESTRICTED_CODE_RUN", passed=False, output_log="old fail", duration_ms=1)
         a2, g2 = sm.issue_restricted_execution_attempt(p.project_id)
-        current_pass = RestrictedExecutionResult(attempt_id=a2, attempt_generation=g2, candidate_id=identity["candidate_id"], mechanism_version=identity["mechanism_version"], claim_id=identity["claim_id"], protocol_version="sha256:p", execution_semantics_version=RESTRICTED_EXECUTION_SEMANTICS_VERSION, action_type="RESTRICTED_CODE_RUN", passed=True, output_log="new pass", duration_ms=1)
+        current_pass = RestrictedExecutionResult(attempt_id=a2, attempt_generation=g2, candidate_id=identity["candidate_id"], mechanism_version=identity["mechanism_version"], claim_id=identity["claim_id"], protocol_version="sha256:" + "0" * 64, execution_semantics_version=RESTRICTED_EXECUTION_SEMANTICS_VERSION, action_type="RESTRICTED_CODE_RUN", passed=True, output_log="new pass", duration_ms=1)
         assert sm.record_restricted_execution(p.project_id, current_pass).stage is TaskmasterStage.RESTRICTED_EXECUTION_VERIFIED
         assert sm.record_restricted_execution(p.project_id, stale_fail).stage is TaskmasterStage.RESTRICTED_EXECUTION_VERIFIED
         reloaded = ProjectStateManager(storage_dir=tmpdir).get_project(p.project_id)
@@ -318,11 +322,11 @@ def test_completion_gate_uses_current_attempt_not_last_arrival_after_restart():
         sm.record_verification(p.project_id, VerificationReport(candidate_id=selected.candidate_id, verdict="PASS"))
 
         a1, g1 = sm.issue_restricted_execution_attempt(p.project_id)
-        old_pass = RestrictedExecutionResult(attempt_id=a1, attempt_generation=g1, candidate_id=identity["candidate_id"], mechanism_version=identity["mechanism_version"], claim_id=identity["claim_id"], protocol_version="sha256:p", execution_semantics_version=RESTRICTED_EXECUTION_SEMANTICS_VERSION, action_type="RESTRICTED_CODE_RUN", passed=True, output_log="old pass", duration_ms=1)
+        old_pass = RestrictedExecutionResult(attempt_id=a1, attempt_generation=g1, candidate_id=identity["candidate_id"], mechanism_version=identity["mechanism_version"], claim_id=identity["claim_id"], protocol_version="sha256:" + "0" * 64, execution_semantics_version=RESTRICTED_EXECUTION_SEMANTICS_VERSION, action_type="RESTRICTED_CODE_RUN", passed=True, output_log="old pass", duration_ms=1)
         sm.record_restricted_execution(p.project_id, old_pass)
 
         a2, g2 = sm.issue_restricted_execution_attempt(p.project_id)
-        current_fail = RestrictedExecutionResult(attempt_id=a2, attempt_generation=g2, candidate_id=identity["candidate_id"], mechanism_version=identity["mechanism_version"], claim_id=identity["claim_id"], protocol_version="sha256:p", execution_semantics_version=RESTRICTED_EXECUTION_SEMANTICS_VERSION, action_type="RESTRICTED_CODE_RUN", passed=False, output_log="current fail", duration_ms=1)
+        current_fail = RestrictedExecutionResult(attempt_id=a2, attempt_generation=g2, candidate_id=identity["candidate_id"], mechanism_version=identity["mechanism_version"], claim_id=identity["claim_id"], protocol_version="sha256:" + "0" * 64, execution_semantics_version=RESTRICTED_EXECUTION_SEMANTICS_VERSION, action_type="RESTRICTED_CODE_RUN", passed=False, output_log="current fail", duration_ms=1)
         sm.record_restricted_execution(p.project_id, current_fail)
         delayed_old = old_pass.model_copy(update={"execution_id": "exec-delayed-old-pass"})
         sm.record_restricted_execution(p.project_id, delayed_old)
@@ -342,3 +346,142 @@ def test_attempt_generation_rejects_bool_and_string_type_confusion():
     for bad in (True, False, "1", 1.0, -1):
         with pytest.raises(ValidationError):
             RestrictedExecutionResult(attempt_generation=bad, **base)
+
+
+
+def _project_with_authoritative_attempt(tmpdir: str):
+    sm = ProjectStateManager(storage_dir=tmpdir)
+    p = sm.create_project(objective="single result per attempt")
+    cand = StrategyCandidate(
+        pathway_name="Path",
+        paradigm_type="ORTHOGONAL",
+        hypothesis="Current candidate hypothesis",
+        action_plan=["step"],
+        divergence_score=0.5,
+        feasibility_score=0.5,
+    )
+    sm.add_candidates(p.project_id, [cand])
+    sm.record_verification(
+        p.project_id,
+        VerificationReport(candidate_id=cand.candidate_id, verdict="PASS"),
+    )
+    attempt_id, generation = sm.issue_restricted_execution_attempt(p.project_id)
+    identity = candidate_execution_identity(cand)
+    base = dict(
+        attempt_id=attempt_id,
+        attempt_generation=generation,
+        candidate_id=identity["candidate_id"],
+        mechanism_version=identity["mechanism_version"],
+        claim_id=identity["claim_id"],
+        protocol_version="sha256:" + "0" * 64,
+        execution_semantics_version=RESTRICTED_EXECUTION_SEMANTICS_VERSION,
+        action_type="RESTRICTED_CODE_RUN",
+        output_log="result",
+        duration_ms=1,
+    )
+    return sm, p, base
+
+
+def test_authoritative_attempt_rejects_second_distinct_result():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        sm, p, base = _project_with_authoritative_attempt(tmpdir)
+        first = RestrictedExecutionResult(execution_id="exec-first", passed=False, **base)
+        sm.record_restricted_execution(p.project_id, first)
+
+        conflicting = RestrictedExecutionResult(execution_id="exec-second", passed=True, **base)
+        with pytest.raises(ValueError, match="attempt result conflict"):
+            sm.record_restricted_execution(p.project_id, conflicting)
+
+        posture = sm.get_project(p.project_id)
+        assert posture is not None
+        assert len(posture.restricted_execution_results) == 1
+        assert posture.stage is TaskmasterStage.STRATIFIED
+        with pytest.raises(ValueError, match="completion gate"):
+            sm.complete_project(p.project_id, {"workflow_status": "COMPLETED"})
+
+
+def test_restart_fails_closed_on_duplicate_current_attempt_results():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        sm, p, base = _project_with_authoritative_attempt(tmpdir)
+        passed = RestrictedExecutionResult(execution_id="exec-pass", passed=True, **base)
+        sm.record_restricted_execution(p.project_id, passed)
+        sm.complete_project(p.project_id, {"workflow_status": "COMPLETED"})
+
+        state_path = Path(tmpdir) / f"{p.project_id}.json"
+        data = json.loads(state_path.read_text(encoding="utf-8"))
+        duplicate = dict(data["restricted_execution_results"][0])
+        duplicate["execution_id"] = "exec-conflicting-replay"
+        duplicate["passed"] = False
+        duplicate["output_log"] = "conflicting persisted replay"
+        data["restricted_execution_results"].append(duplicate)
+        state_path.write_text(json.dumps(data), encoding="utf-8")
+
+        reloaded = ProjectStateManager(storage_dir=tmpdir).get_project(p.project_id)
+        assert reloaded is not None
+        assert reloaded.stage is TaskmasterStage.STRATIFIED
+        current = [
+            result
+            for result in reloaded.restricted_execution_results
+            if result.attempt_id == reloaded.restricted_execution_attempt_id
+            and result.attempt_generation == reloaded.restricted_execution_generation
+        ]
+        assert len(current) == 2
+        assert not any(result.identity_bound for result in current)
+        assert reloaded.final_output is not None
+        assert reloaded.final_output["workflow_status"] == "EVIDENCE_INVALIDATED"
+        with pytest.raises(ValueError, match="completion gate"):
+            ProjectStateManager(storage_dir=tmpdir).complete_project(
+                p.project_id, {"workflow_status": "COMPLETED"}
+            )
+
+@pytest.mark.parametrize("malformed_attempt_id", [" ", "attempt-", "not-server-issued", "attempt-" + "g" * 32])
+def test_restart_rejects_malformed_persisted_attempt_authority(malformed_attempt_id):
+    with tempfile.TemporaryDirectory() as tmpdir:
+        sm, p, base = _project_with_authoritative_attempt(tmpdir)
+        passed = RestrictedExecutionResult(execution_id="exec-pass", passed=True, **base)
+        sm.record_restricted_execution(p.project_id, passed)
+        sm.complete_project(p.project_id, {"workflow_status": "COMPLETED"})
+
+        state_path = Path(tmpdir) / f"{p.project_id}.json"
+        data = json.loads(state_path.read_text(encoding="utf-8"))
+        data["restricted_execution_attempt_id"] = malformed_attempt_id
+        data["restricted_execution_results"][0]["attempt_id"] = malformed_attempt_id
+        state_path.write_text(json.dumps(data), encoding="utf-8")
+
+        reloaded = ProjectStateManager(storage_dir=tmpdir).get_project(p.project_id)
+        assert reloaded is not None
+        assert reloaded.stage is TaskmasterStage.STRATIFIED
+        assert not reloaded.restricted_execution_results[0].identity_bound
+        assert reloaded.final_output is not None
+        assert reloaded.final_output["workflow_status"] == "EVIDENCE_INVALIDATED"
+
+def test_restart_rejects_selected_candidate_not_present_in_candidate_set():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        sm, p, base = _project_with_authoritative_attempt(tmpdir)
+        passed = RestrictedExecutionResult(execution_id="exec-pass", passed=True, **base)
+        sm.record_restricted_execution(p.project_id, passed)
+        sm.complete_project(p.project_id, {"workflow_status": "COMPLETED"})
+
+        state_path = Path(tmpdir) / f"{p.project_id}.json"
+        data = json.loads(state_path.read_text(encoding="utf-8"))
+        data["candidates"] = []
+        state_path.write_text(json.dumps(data), encoding="utf-8")
+
+        reloaded = ProjectStateManager(storage_dir=tmpdir).get_project(p.project_id)
+        assert reloaded is not None
+        assert reloaded.stage is not TaskmasterStage.COMPLETED
+        assert not reloaded.restricted_execution_results[0].identity_bound
+        assert reloaded.final_output is not None
+        assert reloaded.final_output["workflow_status"] == "EVIDENCE_INVALIDATED"
+
+@pytest.mark.parametrize("bad_protocol", ["sha256:", "sha256:x", "sha256:" + "g" * 64, "SHA256:" + "0" * 64])
+def test_malformed_protocol_hash_never_binds_execution_authority(bad_protocol):
+    with tempfile.TemporaryDirectory() as tmpdir:
+        sm, p, base = _project_with_authoritative_attempt(tmpdir)
+        base["protocol_version"] = bad_protocol
+        result = RestrictedExecutionResult(execution_id="exec-bad-protocol", passed=True, **base)
+        posture = sm.record_restricted_execution(p.project_id, result)
+        assert posture.stage is TaskmasterStage.STRATIFIED
+        assert not posture.restricted_execution_results[-1].identity_bound
+        with pytest.raises(ValueError, match="completion gate"):
+            sm.complete_project(p.project_id, {"workflow_status": "COMPLETED"})

@@ -27,6 +27,7 @@ from .models import (
     TaskmasterStage,
     VerificationReport,
     candidate_execution_identity,
+    is_sha256_version,
 )
 
 logger = logging.getLogger("supra_agentic.state")
@@ -262,10 +263,23 @@ class ProjectStateManager:
                 and result.candidate_id == expected["candidate_id"]
                 and result.mechanism_version == expected["mechanism_version"]
                 and result.claim_id == expected["claim_id"]
-                and isinstance(result.protocol_version, str)
-                and result.protocol_version.startswith("sha256:")
+                and is_sha256_version(result.protocol_version)
             )
             result.identity_bound = bool(identity_matches and authoritative_attempt)
+
+            # One issued attempt names exactly one semantic execution event.
+            # A second execution_id for the same attempt/generation is a
+            # conflicting replay, not a newer authority-bearing result.
+            if authoritative_attempt:
+                for existing in p.restricted_execution_results:
+                    same_attempt = (
+                        existing.attempt_id == result.attempt_id
+                        and existing.attempt_generation == result.attempt_generation
+                    )
+                    if same_attempt and existing.execution_id != result.execution_id:
+                        raise ValueError(
+                            "attempt result conflict: same attempt has multiple execution ids"
+                        )
 
             # execution_id names one semantic execution event. Retries of the
             # same event are idempotent; reusing the id for different content
