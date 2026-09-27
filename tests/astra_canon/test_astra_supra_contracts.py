@@ -192,3 +192,40 @@ def test_astra_completion_gate_rechecks_verification_candidate_binding_after_rel
     assert reloaded.verification.candidate_id == "cand-forged"
     with pytest.raises(ValueError, match="completion gate"):
         sm.complete_project(p.project_id, {"workflow_status": "COMPLETED"})
+
+
+def test_astra_duplicate_execution_id_is_idempotent_only_for_same_semantic_payload(tmp_path):
+    from supra_agentic.models import RestrictedExecutionResult, StrategyCandidate, candidate_execution_identity
+    from supra_agentic.state import ProjectStateManager
+
+    sm = ProjectStateManager(tmp_path / "projects")
+    p = sm.create_project("execution replay")
+    selected = StrategyCandidate(
+        candidate_id="cand-real", pathway_name="real", paradigm_type="CONSERVATIVE",
+        hypothesis="h", action_plan=["step"], is_selected=True,
+    )
+    p = sm.add_candidates(p.project_id, [selected], select_best=True)
+    identity = candidate_execution_identity(p.selected_candidate)
+    base = dict(
+        execution_id="exec-stable", execution_semantics_version=2, **identity,
+        protocol_version="sha256:" + "1" * 64, action_type="sentinel", passed=True,
+        output_log="bound", duration_ms=1.0,
+    )
+    sm.record_restricted_execution(p.project_id, RestrictedExecutionResult(**base))
+    # A transport retry of the same semantic event must not create another event.
+    sm.record_restricted_execution(p.project_id, RestrictedExecutionResult(**base, timestamp=999.0))
+    assert len(sm.get_project(p.project_id).restricted_execution_results) == 1
+
+    # The same rule must survive persistence/restart.
+    project_id = p.project_id
+    sm._projects.clear()
+    sm.record_restricted_execution(project_id, RestrictedExecutionResult(**base, timestamp=1000.0))
+    assert len(sm.get_project(project_id).restricted_execution_results) == 1
+
+    # Reusing an execution id for different content is an identity conflict, not a retry.
+    conflicting = dict(base)
+    conflicting["passed"] = False
+    conflicting["output_log"] = "different event"
+    with pytest.raises(ValueError, match="execution_id conflict"):
+        sm.record_restricted_execution(p.project_id, RestrictedExecutionResult(**conflicting))
+    assert len(sm.get_project(p.project_id).restricted_execution_results) == 1

@@ -243,6 +243,19 @@ class ProjectStateManager:
                 and result.protocol_version.startswith("sha256:")
             )
             result.identity_bound = identity_matches
+
+            # execution_id names one semantic execution event. Retries of the
+            # same event are idempotent; reusing the id for different content
+            # is a conflict and must never change which event is authoritative.
+            semantic_result = result.model_dump(exclude={"timestamp"})
+            for existing in p.restricted_execution_results:
+                if existing.execution_id != result.execution_id:
+                    continue
+                semantic_existing = existing.model_dump(exclude={"timestamp"})
+                if semantic_existing == semantic_result:
+                    return p
+                raise ValueError("execution_id conflict: same id has different semantic payload")
+
             p.restricted_execution_results.append(result)
             if p.stage is not TaskmasterStage.FAILED:
                 if result.passed and identity_matches:
