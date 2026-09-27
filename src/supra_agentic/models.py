@@ -317,7 +317,12 @@ class ProjectPosture(BaseModel):
                 )
             )
 
-        verification_pass = bool(self.verification and self.verification.verdict == "PASS")
+        verification_pass = bool(
+            self.verification
+            and self.verification.verdict == "PASS"
+            and self.selected_candidate is not None
+            and self.verification.candidate_id == self.selected_candidate.candidate_id
+        )
         if self.stage is TaskmasterStage.BLOCKED:
             # BLOCKED is an honest non-completed outcome. Persisted or legacy
             # completion/error payloads must not survive reload and create a

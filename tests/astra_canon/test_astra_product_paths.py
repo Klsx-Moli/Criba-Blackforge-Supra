@@ -7,7 +7,7 @@ import tempfile
 import pytest
 import supra_agentic.runner as runner_module
 from pydantic import ValidationError
-from supra_agentic.models import ProjectPosture, TaskmasterStage, VerificationReport
+from supra_agentic.models import (ProjectPosture, TaskmasterStage, VerificationReport, StrategyCandidate, candidate_execution_identity)
 from supra_agentic.runner import TaskmasterRunner
 from supra_agentic.state import state_manager
 from supra_agentic.tools import (
@@ -366,3 +366,36 @@ def test_astra_b03_completed_workflow_keeps_completion_but_invalidates_stale_exe
     assert posture.final_output["restricted_execution_identity_bound"] is False
     assert posture.final_output["restricted_execution_status"] == "UNBOUND"
     assert posture.final_output["derived_execution_state_revalidated"] is True
+
+
+def test_completed_persistence_rejects_pass_verification_for_different_candidate():
+    candidate = StrategyCandidate(
+        candidate_id="cand-real", pathway_name="real", paradigm_type="CONSERVATIVE",
+        hypothesis="h", action_plan=["step"], is_selected=True,
+    )
+    identity = candidate_execution_identity(candidate)
+    raw = {
+        "project_id": "completed-wrong-verification-binding",
+        "objective": "binding sentinel",
+        "stage": "COMPLETED",
+        "created_at": 1.0,
+        "updated_at": 2.0,
+        "selected_candidate": candidate.model_dump(),
+        "verification": {"candidate_id": "cand-forged", "verdict": "PASS"},
+        "restricted_execution_results": [{
+            "execution_id": "exec-real",
+            "execution_semantics_version": 2,
+            **identity,
+            "protocol_version": "sha256:" + "1" * 64,
+            "action_type": "sentinel",
+            "passed": True,
+            "output_log": "bound",
+            "duration_ms": 1.0,
+        }],
+        "final_output": {"workflow_status": "COMPLETED"},
+        "checkpoints": [],
+    }
+    posture = ProjectPosture.model_validate(raw)
+    assert posture.stage is not TaskmasterStage.COMPLETED
+    assert posture.final_output is not None
+    assert posture.final_output["workflow_status"] == "EVIDENCE_INVALIDATED"
