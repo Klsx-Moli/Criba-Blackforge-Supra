@@ -124,7 +124,7 @@ class RestrictedExecutionResult(BaseModel):
     model_config = ConfigDict(extra="forbid")
     execution_id: str = Field(default_factory=lambda: f"exec-{uuid.uuid4().hex[:6]}")
     attempt_id: str | None = None
-    attempt_generation: int | None = None
+    attempt_generation: int | None = Field(default=None, strict=True, ge=1)
     execution_semantics_version: int | None = None
     candidate_id: str | None = None
     mechanism_version: str | None = None
@@ -381,7 +381,7 @@ class ProjectPosture(BaseModel):
     selected_candidate: StrategyCandidate | None = None
     verification: VerificationReport | None = None
     restricted_execution_results: list[RestrictedExecutionResult] = Field(default_factory=list)
-    restricted_execution_generation: int = 0
+    restricted_execution_generation: int = Field(default=0, strict=True, ge=0)
     restricted_execution_attempt_id: str | None = None
     checkpoints: list[CheckpointRecord] = Field(default_factory=list)
     final_output: dict[str, Any] | None = None

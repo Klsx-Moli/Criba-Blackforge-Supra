@@ -334,9 +334,14 @@ class ProjectStateManager:
                 and p.selected_candidate is not None
                 and p.verification.candidate_id == p.selected_candidate.candidate_id
             )
-            latest_execution = (
-                p.restricted_execution_results[-1] if p.restricted_execution_results else None
-            )
+            authoritative_executions = [
+                result
+                for result in p.restricted_execution_results
+                if result.attempt_id
+                and result.attempt_id == p.restricted_execution_attempt_id
+                and result.attempt_generation == p.restricted_execution_generation
+            ]
+            latest_execution = authoritative_executions[-1] if authoritative_executions else None
             execution_pass = bool(
                 latest_execution and latest_execution.passed and latest_execution.identity_bound
             )
@@ -348,9 +353,6 @@ class ProjectStateManager:
             p.stage = TaskmasterStage.COMPLETED
             p.updated_at = time.time()
             verification_status = str(p.verification.verdict) if p.verification else "NOT_EVALUATED"
-            latest_execution = (
-                p.restricted_execution_results[-1] if p.restricted_execution_results else None
-            )
             execution_status = (
                 "BOUND_PASS"
                 if latest_execution and latest_execution.passed and latest_execution.identity_bound

@@ -303,3 +303,42 @@ def test_stale_failure_after_new_pass_stays_completed_authority_after_restart():
         assert sm.record_restricted_execution(p.project_id, stale_fail).stage is TaskmasterStage.RESTRICTED_EXECUTION_VERIFIED
         reloaded = ProjectStateManager(storage_dir=tmpdir).get_project(p.project_id)
         assert reloaded.stage is TaskmasterStage.RESTRICTED_EXECUTION_VERIFIED
+
+
+def test_completion_gate_uses_current_attempt_not_last_arrival_after_restart():
+    """A stale PASS must not become completion authority merely by arriving last."""
+    import pytest
+    with tempfile.TemporaryDirectory() as tmpdir:
+        sm = ProjectStateManager(storage_dir=tmpdir)
+        p = sm.create_project(objective="completion causal authority")
+        cand = StrategyCandidate(pathway_name="Path", paradigm_type="ORTHOGONAL", hypothesis="h", action_plan=["step"], divergence_score=0.5, feasibility_score=0.5)
+        selected = sm.add_candidates(p.project_id, [cand], select_best=True).selected_candidate
+        assert selected is not None
+        identity = candidate_execution_identity(selected)
+        sm.record_verification(p.project_id, VerificationReport(candidate_id=selected.candidate_id, verdict="PASS"))
+
+        a1, g1 = sm.issue_restricted_execution_attempt(p.project_id)
+        old_pass = RestrictedExecutionResult(attempt_id=a1, attempt_generation=g1, candidate_id=identity["candidate_id"], mechanism_version=identity["mechanism_version"], claim_id=identity["claim_id"], protocol_version="sha256:p", execution_semantics_version=RESTRICTED_EXECUTION_SEMANTICS_VERSION, action_type="RESTRICTED_CODE_RUN", passed=True, output_log="old pass", duration_ms=1)
+        sm.record_restricted_execution(p.project_id, old_pass)
+
+        a2, g2 = sm.issue_restricted_execution_attempt(p.project_id)
+        current_fail = RestrictedExecutionResult(attempt_id=a2, attempt_generation=g2, candidate_id=identity["candidate_id"], mechanism_version=identity["mechanism_version"], claim_id=identity["claim_id"], protocol_version="sha256:p", execution_semantics_version=RESTRICTED_EXECUTION_SEMANTICS_VERSION, action_type="RESTRICTED_CODE_RUN", passed=False, output_log="current fail", duration_ms=1)
+        sm.record_restricted_execution(p.project_id, current_fail)
+        delayed_old = old_pass.model_copy(update={"execution_id": "exec-delayed-old-pass"})
+        sm.record_restricted_execution(p.project_id, delayed_old)
+
+        reloaded_sm = ProjectStateManager(storage_dir=tmpdir)
+        reloaded = reloaded_sm.get_project(p.project_id)
+        assert reloaded is not None
+        assert reloaded.stage is TaskmasterStage.STRATIFIED
+        with pytest.raises(ValueError, match="completion gate"):
+            reloaded_sm.complete_project(p.project_id, {"workflow_status": "COMPLETED"})
+
+
+def test_attempt_generation_rejects_bool_and_string_type_confusion():
+    from pydantic import ValidationError
+    import pytest
+    base = dict(action_type="RESTRICTED_CODE_RUN", passed=True, output_log="x", duration_ms=1)
+    for bad in (True, False, "1", 1.0, -1):
+        with pytest.raises(ValidationError):
+            RestrictedExecutionResult(attempt_generation=bad, **base)
