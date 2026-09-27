@@ -7,6 +7,8 @@ constructing endpoints themselves or importing SUPRA internals.
 
 from __future__ import annotations
 
+import hashlib
+import json
 import os
 import re
 from dataclasses import dataclass
@@ -17,6 +19,13 @@ import httpx
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
 
 _PROJECT_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$")
+_CRIBA_SUPRA_ENVELOPE_VERSION = "criba-supra/1"
+
+
+def _dossier_payload_fingerprint(dossier: dict[str, Any]) -> str:
+    semantic = {k: v for k, v in dossier.items() if k != "creado_at"}
+    raw = json.dumps(semantic, ensure_ascii=False, sort_keys=True, separators=(",", ":"), allow_nan=False)
+    return "sha256:" + hashlib.sha256(raw.encode("utf-8")).hexdigest()
 
 
 class SupraClientError(RuntimeError):
@@ -242,7 +251,13 @@ class SupraClient:
             for field in ("mechanism_version", "protocol_version"):
                 if not canonical_sha256.fullmatch(str(criba_dossier[field])):
                     raise ValueError(f"CRIBA {field} must be canonical sha256:<64 lowercase hex>")
+            try:
+                fingerprint = _dossier_payload_fingerprint(criba_dossier)
+            except (TypeError, ValueError) as exc:
+                raise ValueError("CRIBA dossier must be canonical JSON without NaN/Infinity") from exc
             payload["criba_dossier"] = criba_dossier
+            payload["criba_integration_version"] = _CRIBA_SUPRA_ENVELOPE_VERSION
+            payload["criba_payload_fingerprint"] = fingerprint
 
         response = self._client.post("/api/v1/projects", json=payload)
         self._raise_for_response(response, "project execution")
@@ -260,10 +275,10 @@ class SupraClient:
                 "claim_id": criba_dossier.get("claim_id"),
                 "mechanism_version": criba_dossier.get("mechanism_version"),
                 "protocol_version": criba_dossier.get("protocol_version"),
+                "integration_version": _CRIBA_SUPRA_ENVELOPE_VERSION,
+                "payload_fingerprint": fingerprint,
             }
-            if not isinstance(receipt, dict) or any(
-                receipt.get(key) != value for key, value in expected.items()
-            ):
+            if not isinstance(receipt, dict):
                 raise SupraClientError(
                     "SUPRA project execution did not preserve CRIBA dossier lineage"
                 )
@@ -276,6 +291,10 @@ class SupraClient:
             ):
                 raise SupraClientError(
                     "SUPRA project execution promoted a planning receipt beyond its scope"
+                )
+            if any(receipt.get(key) != value for key, value in expected.items()):
+                raise SupraClientError(
+                    "SUPRA project execution did not preserve CRIBA dossier lineage"
                 )
         return validated
 

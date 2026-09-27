@@ -124,6 +124,8 @@ def test_run_project_transports_criba_dossier_without_promoting_it_to_evidence()
                         "claim_id": dossier["claim_id"],
                         "mechanism_version": dossier["mechanism_version"],
                         "protocol_version": dossier["protocol_version"],
+                        "integration_version": payload["criba_integration_version"],
+                        "payload_fingerprint": payload["criba_payload_fingerprint"],
                     }
                 },
             },
