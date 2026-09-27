@@ -7,7 +7,7 @@ import logging
 import os
 import secrets
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 from urllib.parse import urlparse
 
 from fastapi import FastAPI, HTTPException, Request, Response, status
