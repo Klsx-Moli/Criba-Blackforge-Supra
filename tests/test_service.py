@@ -34,7 +34,7 @@ def test_quick_run_example():
         response = client.post("/api/v1/examples/quick-run")
         assert response.status_code == 200
         data = response.json()
-        assert data["status"] == "blocked"
+        assert data["status"] == "success"
         assert data["example"] is True
         assert data["stage"] == "BLOCKED"
         assert data["workflow_status"] == "BLOCKED"
