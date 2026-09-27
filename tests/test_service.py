@@ -3,7 +3,7 @@
 import tempfile
 
 from fastapi.testclient import TestClient
-from supra_agentic.service import app
+from supra_agentic.service import CribaDossierRequest, _criba_payload_fingerprint, app
 from supra_agentic.state import state_manager
 
 client = TestClient(app)
@@ -186,6 +186,15 @@ def _complete_criba_dossier_payload() -> dict:
     }
 
 
+def _criba_request_payload(dossier: dict) -> dict:
+    parsed = CribaDossierRequest.model_validate(dossier)
+    return {
+        "criba_dossier": dossier,
+        "criba_integration_version": "criba-supra/1",
+        "criba_payload_fingerprint": _criba_payload_fingerprint(parsed),
+    }
+
+
 def test_create_project_persists_criba_dossier_as_planning_receipt() -> None:
     with tempfile.TemporaryDirectory() as tmpdir:
         state_manager.storage_dir = type(state_manager.storage_dir)(tmpdir)
@@ -196,7 +205,7 @@ def test_create_project_persists_criba_dossier_as_planning_receipt() -> None:
                 "objective": "Evaluate a bounded thermal calibration mechanism",
                 "domain": "thermal_engineering",
                 "allow_disruptive": False,
-                "criba_dossier": _complete_criba_dossier_payload(),
+                **_criba_request_payload(_complete_criba_dossier_payload()),
             },
         )
 
@@ -232,4 +241,26 @@ def test_create_project_rejects_incomplete_criba_discriminant_protocol() -> None
         },
     )
 
+    assert response.status_code == 422
+
+
+def test_criba_envelope_rejects_same_identity_with_mutated_payload_fingerprint() -> None:
+    dossier = _complete_criba_dossier_payload()
+    envelope = _criba_request_payload(dossier)
+    dossier["mecanismo"] = "MUTATED mechanism under the same dossier_id"
+    response = client.post(
+        "/api/v1/projects",
+        json={"objective": "Reject changed content under stable dossier identity", **envelope},
+    )
+    assert response.status_code == 422
+
+
+def test_criba_envelope_rejects_version_skew() -> None:
+    dossier = _complete_criba_dossier_payload()
+    envelope = _criba_request_payload(dossier)
+    envelope["criba_integration_version"] = "criba-supra/999"
+    response = client.post(
+        "/api/v1/projects",
+        json={"objective": "Reject unsupported CRIBA integration version", **envelope},
+    )
     assert response.status_code == 422

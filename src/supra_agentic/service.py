@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 import os
@@ -14,7 +15,7 @@ from fastapi import FastAPI, HTTPException, Request, Response, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from .dossier import export_full_html_dossier
 from .mcp_handler import handle_mcp_jsonrpc_request
@@ -125,6 +126,16 @@ class CribaDiscriminantProtocolRequest(BaseModel):
     estado_prueba: Literal["NO_EJECUTADA"] = "NO_EJECUTADA"
 
 
+_CRIBA_SUPRA_ENVELOPE_VERSION = "criba-supra/1"
+
+
+def _criba_payload_fingerprint(dossier: "CribaDossierRequest") -> str:
+    semantic = dossier.model_dump()
+    semantic.pop("creado_at", None)
+    raw = json.dumps(semantic, ensure_ascii=False, sort_keys=True, separators=(",", ":"), allow_nan=False)
+    return "sha256:" + hashlib.sha256(raw.encode("utf-8")).hexdigest()
+
+
 class CribaDossierRequest(BaseModel):
     """Versioned CRIBA planning payload accepted by the project endpoint."""
 
@@ -149,13 +160,17 @@ class CribaDossierRequest(BaseModel):
     creado_at: str = Field("", max_length=80)
 
 
-def _criba_dossier_receipt(dossier: CribaDossierRequest) -> dict[str, Any]:
+def _criba_dossier_receipt(
+    dossier: CribaDossierRequest, *, integration_version: str, payload_fingerprint: str
+) -> dict[str, Any]:
     """Flatten only the discriminant planning facts SUPRA needs to preserve."""
     protocol = dossier.prueba_discriminante
     return {
         "receipt_scope": "PLANNED_DISCRIMINANT_PROTOCOL_ONLY",
         "execution_status": "NOT_EXECUTED",
         "scientific_status": "NOT_VALIDATED",
+        "integration_version": integration_version,
+        "payload_fingerprint": payload_fingerprint,
         "criba_dossier_id": dossier.dossier_id,
         "criba_candidate_id": dossier.candidate_id,
         "claim_id": dossier.claim_id,
@@ -202,6 +217,21 @@ class CreateProjectRequest(BaseModel):
             "treat receipt as execution or scientific validation."
         ),
     )
+    criba_integration_version: Literal["criba-supra/1"] | None = None
+    criba_payload_fingerprint: str | None = Field(None, pattern=r"^sha256:[0-9a-f]{64}$")
+
+    @model_validator(mode="after")
+    def validate_criba_envelope(self) -> "CreateProjectRequest":
+        if self.criba_dossier is None:
+            if self.criba_integration_version is not None or self.criba_payload_fingerprint is not None:
+                raise ValueError("CRIBA envelope metadata requires criba_dossier")
+            return self
+        if self.criba_integration_version != _CRIBA_SUPRA_ENVELOPE_VERSION:
+            raise ValueError("unsupported CRIBA integration version")
+        expected = _criba_payload_fingerprint(self.criba_dossier)
+        if self.criba_payload_fingerprint != expected:
+            raise ValueError("CRIBA payload fingerprint mismatch")
+        return self
 
 
 class GenerateRequest(BaseModel):
@@ -297,7 +327,11 @@ def create_and_run_project(req: CreateProjectRequest, request: Request) -> dict[
             allow_disruptive=req.allow_disruptive,
             use_model=req.use_model,
             criba_dossier_receipt=(
-                _criba_dossier_receipt(req.criba_dossier)
+                _criba_dossier_receipt(
+                    req.criba_dossier,
+                    integration_version=req.criba_integration_version or "",
+                    payload_fingerprint=req.criba_payload_fingerprint or "",
+                )
                 if req.criba_dossier is not None
                 else None
             ),
