@@ -131,9 +131,54 @@ def select_blackforge(
     sel_policy = meta.get("selection_policy", {})
     constraints = sel_policy.get("constraints", {})
 
+    # Policy values are executable control inputs.  Coercing malformed values
+    # (including bool, NaN/inf, strings or negatives) can silently disable a
+    # quota or turn UNKNOWN policy into selection behaviour, so fail closed.
+    constraint_names = (
+        "maximum_per_primary_category", "maximum_per_source_family",
+        "maximum_unknown_causal_axis", "minimum_source_catalogs",
+        "minimum_primary_categories", "minimum_causal_axes",
+    )
+    invalid_constraints = {
+        name: repr(constraints.get(name))[:120]
+        for name in constraint_names
+        if name in constraints and (
+            isinstance(constraints.get(name), bool)
+            or not isinstance(constraints.get(name), int)
+            or constraints.get(name) < 0
+        )
+    }
+    if invalid_constraints:
+        return SelectionReport(
+            seed=seed, session_size=session_size, allowed_tiers=[], selected_ids=[],
+            compliance={}, profile_used=profile, s3_count=0, s3_allowed=False,
+            failure=SelectionFailure(
+                reason="Cuota de selección malformada; la política debe usar enteros no negativos.",
+                failed_quota="selection_policy_integrity",
+                detail={"invalid": invalid_constraints},
+            ),
+        )
+
     # Tiers: by default essential + core. research only with explicit flag.
     if allowed_tiers is None:
         allowed_tiers = list(sel_policy.get("allowed_tiers_default", ["essential", "core"]))
+    valid_tiers = {"essential", "core", "extended", "research", "archive"}
+    if (
+        not isinstance(allowed_tiers, list)
+        or not allowed_tiers
+        or any(not isinstance(t, str) or t not in valid_tiers for t in allowed_tiers)
+        or len(set(allowed_tiers)) != len(allowed_tiers)
+    ):
+        return SelectionReport(
+            seed=seed, session_size=session_size,
+            allowed_tiers=list(allowed_tiers) if isinstance(allowed_tiers, list) else [],
+            selected_ids=[], compliance={}, profile_used=profile, s3_count=0, s3_allowed=False,
+            failure=SelectionFailure(
+                reason="allowed_tiers debe ser una lista no vacía, única y del vocabulario controlado.",
+                failed_quota="allowed_tiers_integrity",
+                detail={"value_repr": repr(allowed_tiers)[:240]},
+            ),
+        )
     if allow_research and "research" not in allowed_tiers:
         allowed_tiers = allowed_tiers + ["research"]
     # archive is NEVER selectable.

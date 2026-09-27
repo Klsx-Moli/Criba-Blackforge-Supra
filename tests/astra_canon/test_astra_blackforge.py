@@ -1,5 +1,7 @@
 """BLACKFORGE sentinels for ASTRA-011/012/013/022/026/030/031."""
 
+import pytest
+
 from criba import blackforge_selector
 from criba.blackforge_orthogonal.compositor import Composition, CompositionMode
 
@@ -113,4 +115,36 @@ def test_astra_blackforge_rejects_zero_session_size(monkeypatch):
     assert not report.status_ok()
     assert report.failure is not None
     assert report.failure.failed_quota == "session_size_integrity"
+    assert report.selected_ids == []
+
+@pytest.mark.parametrize("field,value", [
+    ("maximum_per_primary_category", -1),
+    ("maximum_per_source_family", True),
+    ("maximum_unknown_causal_axis", float("nan")),
+    ("minimum_source_catalogs", "3"),
+    ("minimum_primary_categories", None),
+    ("minimum_causal_axes", float("inf")),
+])
+def test_selector_rejects_malformed_policy_constraints(monkeypatch, field, value):
+    meta, recs = blackforge_selector._load_catalog()
+    meta = dict(meta)
+    policy = dict(meta.get("selection_policy", {}))
+    constraints = dict(policy.get("constraints", {}))
+    constraints[field] = value
+    policy["constraints"] = constraints
+    meta["selection_policy"] = policy
+    monkeypatch.setattr(blackforge_selector, "_load_catalog", lambda: (meta, recs))
+    report = blackforge_selector.select_blackforge(session_size=4)
+    assert not report.status_ok()
+    assert report.failure is not None
+    assert report.failure.failed_quota == "selection_policy_integrity"
+    assert report.selected_ids == []
+
+
+@pytest.mark.parametrize("tiers", ["core", ["core", "bogus"], ["core", "core"], ["core", 3], []])
+def test_selector_rejects_malformed_allowed_tiers(tiers):
+    report = blackforge_selector.select_blackforge(session_size=4, allowed_tiers=tiers)
+    assert not report.status_ok()
+    assert report.failure is not None
+    assert report.failure.failed_quota == "allowed_tiers_integrity"
     assert report.selected_ids == []
