@@ -5,10 +5,9 @@ import tempfile
 from pathlib import Path
 
 import pytest
-
 from supra_agentic.models import (
-    RESTRICTED_EXECUTION_SEMANTICS_VERSION,
     MAX_SAFE_ATTEMPT_GENERATION,
+    RESTRICTED_EXECUTION_SEMANTICS_VERSION,
     RestrictedExecutionResult,
     StrategyCandidate,
     StructuredDecomposition,
@@ -230,7 +229,6 @@ def test_completed_workflow_preserves_completion_but_latest_failure_revises_exec
 
 
 def test_strategy_candidate_rejects_nonfinite_or_out_of_range_scores():
-    import math
     import pytest
     from pydantic import ValidationError
     for field in ("feasibility_score", "divergence_score"):
@@ -285,8 +283,12 @@ def test_stale_distinct_execution_cannot_override_newer_authoritative_generation
         assert sm.record_restricted_execution(p.project_id, new_fail).stage is TaskmasterStage.STRATIFIED
 
         delayed_old = old_pass.model_copy(update={"execution_id": "exec-delayed"})
-        assert sm.record_restricted_execution(p.project_id, delayed_old).stage is TaskmasterStage.STRATIFIED
-        assert sm.get_project(p.project_id).restricted_execution_results[-1].identity_bound is False
+        with pytest.raises(ValueError, match="attempt result conflict"):
+            sm.record_restricted_execution(p.project_id, delayed_old)
+        current = sm.get_project(p.project_id)
+        assert current is not None
+        assert current.restricted_execution_results[-1].execution_id == new_fail.execution_id
+        assert current.restricted_execution_results[-1].passed is False
 
         reloaded = ProjectStateManager(storage_dir=tmpdir).get_project(p.project_id)
         assert reloaded is not None
@@ -330,7 +332,8 @@ def test_completion_gate_uses_current_attempt_not_last_arrival_after_restart():
         current_fail = RestrictedExecutionResult(attempt_id=a2, attempt_generation=g2, candidate_id=identity["candidate_id"], mechanism_version=identity["mechanism_version"], claim_id=identity["claim_id"], protocol_version="sha256:" + "0" * 64, execution_semantics_version=RESTRICTED_EXECUTION_SEMANTICS_VERSION, action_type="RESTRICTED_CODE_RUN", passed=False, output_log="current fail", duration_ms=1)
         sm.record_restricted_execution(p.project_id, current_fail)
         delayed_old = old_pass.model_copy(update={"execution_id": "exec-delayed-old-pass"})
-        sm.record_restricted_execution(p.project_id, delayed_old)
+        with pytest.raises(ValueError, match="attempt result conflict"):
+            sm.record_restricted_execution(p.project_id, delayed_old)
 
         reloaded_sm = ProjectStateManager(storage_dir=tmpdir)
         reloaded = reloaded_sm.get_project(p.project_id)
@@ -341,8 +344,8 @@ def test_completion_gate_uses_current_attempt_not_last_arrival_after_restart():
 
 
 def test_attempt_generation_rejects_bool_and_string_type_confusion():
-    from pydantic import ValidationError
     import pytest
+    from pydantic import ValidationError
     base = dict(action_type="RESTRICTED_CODE_RUN", passed=True, output_log="x", duration_ms=1)
     for bad in (True, False, "1", 1.0, -1):
         with pytest.raises(ValidationError):
@@ -772,6 +775,7 @@ def test_consumer_authority_ignores_last_arriving_stale_attempt():
 
 def test_attempt_generation_rejects_values_beyond_javascript_safe_integer():
     import time
+
     import pytest
     from pydantic import ValidationError
     from supra_agentic.models import ProjectPosture

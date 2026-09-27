@@ -1,5 +1,5 @@
-from pathlib import Path
 import subprocess
+from pathlib import Path
 
 APP_JS = Path(__file__).parents[2] / "src" / "supra_agentic" / "web" / "app.js"
 

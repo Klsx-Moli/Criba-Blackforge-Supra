@@ -164,7 +164,12 @@ def test_astra_verification_pass_must_bind_selected_candidate(tmp_path):
 
 
 def test_astra_completion_gate_rechecks_verification_candidate_binding_after_reload(tmp_path):
-    from supra_agentic.models import RestrictedExecutionResult, StrategyCandidate, VerificationReport, candidate_execution_identity
+    from supra_agentic.models import (
+        RestrictedExecutionResult,
+        StrategyCandidate,
+        VerificationReport,
+        candidate_execution_identity,
+    )
     from supra_agentic.state import ProjectStateManager
 
     sm = ProjectStateManager(tmp_path / "projects")
@@ -195,7 +200,11 @@ def test_astra_completion_gate_rechecks_verification_candidate_binding_after_rel
 
 
 def test_astra_duplicate_execution_id_is_idempotent_only_for_same_semantic_payload(tmp_path):
-    from supra_agentic.models import RestrictedExecutionResult, StrategyCandidate, candidate_execution_identity
+    from supra_agentic.models import (
+        RestrictedExecutionResult,
+        StrategyCandidate,
+        candidate_execution_identity,
+    )
     from supra_agentic.state import ProjectStateManager
 
     sm = ProjectStateManager(tmp_path / "projects")

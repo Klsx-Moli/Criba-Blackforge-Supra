@@ -19,6 +19,7 @@ from pathlib import Path
 from typing import Any
 
 from .models import (
+    MAX_SAFE_ATTEMPT_GENERATION,
     CheckpointRecord,
     ProjectPosture,
     RestrictedExecutionResult,
@@ -27,9 +28,8 @@ from .models import (
     TaskmasterStage,
     VerificationReport,
     candidate_execution_identity,
-    is_sha256_version,
     current_authoritative_execution,
-    MAX_SAFE_ATTEMPT_GENERATION,
+    is_sha256_version,
 )
 
 logger = logging.getLogger("supra_agentic.state")
