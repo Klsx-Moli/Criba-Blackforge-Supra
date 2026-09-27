@@ -524,6 +524,7 @@ def restricted_python_executor(
         bound_mechanism_version = None
         bound_claim_id = None
 
+    attempt_id, attempt_generation = state_manager.issue_restricted_execution_attempt(project_id)
     start_time = time.monotonic()
     try:
         parsed = ast.parse(code)
@@ -535,6 +536,8 @@ def restricted_python_executor(
         duration_ms = (time.monotonic() - start_time) * 1000
         suffix = f" Captured {len(captured)} bytes." if captured else ""
         result = RestrictedExecutionResult(
+            attempt_id=attempt_id,
+            attempt_generation=attempt_generation,
             candidate_id=bound_candidate_id,
             mechanism_version=bound_mechanism_version,
             claim_id=bound_claim_id,
@@ -554,6 +557,8 @@ def restricted_python_executor(
         error_type = type(exc).__name__
         logger.warning("Restricted internal execution rejected (%s)", error_type)
         result = RestrictedExecutionResult(
+            attempt_id=attempt_id,
+            attempt_generation=attempt_generation,
             candidate_id=bound_candidate_id,
             mechanism_version=bound_mechanism_version,
             claim_id=bound_claim_id,

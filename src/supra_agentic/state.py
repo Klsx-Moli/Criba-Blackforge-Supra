@@ -222,12 +222,35 @@ class ProjectStateManager:
             self._persist_project(project_id)
             return p
 
+    def issue_restricted_execution_attempt(self, project_id: str) -> tuple[str, int]:
+        """Persist causal authority before restricted execution starts."""
+        with self._lock:
+            p = self._get_required_project(project_id)
+            p.restricted_execution_generation += 1
+            p.restricted_execution_attempt_id = f"attempt-{uuid.uuid4().hex}"
+            if p.stage is TaskmasterStage.RESTRICTED_EXECUTION_VERIFIED:
+                p.stage = TaskmasterStage.STRATIFIED
+            if p.final_output is not None:
+                output = dict(p.final_output)
+                output["restricted_execution_status"] = "PENDING"
+                output["restricted_execution_identity_bound"] = False
+                output["workflow_status"] = "EVIDENCE_INVALIDATED"
+                p.final_output = output
+            p.updated_at = time.time()
+            self._persist_project(project_id)
+            return p.restricted_execution_attempt_id, p.restricted_execution_generation
+
     def record_restricted_execution(
         self, project_id: str, result: RestrictedExecutionResult
     ) -> ProjectPosture:
         """Record trusted restricted execution without claiming process isolation."""
         with self._lock:
             p = self._get_required_project(project_id)
+            authoritative_attempt = bool(
+                result.attempt_id
+                and result.attempt_id == p.restricted_execution_attempt_id
+                and result.attempt_generation == p.restricted_execution_generation
+            )
             expected = (
                 candidate_execution_identity(p.selected_candidate)
                 if p.selected_candidate is not None
@@ -242,7 +265,7 @@ class ProjectStateManager:
                 and isinstance(result.protocol_version, str)
                 and result.protocol_version.startswith("sha256:")
             )
-            result.identity_bound = identity_matches
+            result.identity_bound = bool(identity_matches and authoritative_attempt)
 
             # execution_id names one semantic execution event. Retries of the
             # same event are idempotent; reusing the id for different content
@@ -257,6 +280,10 @@ class ProjectStateManager:
                 raise ValueError("execution_id conflict: same id has different semantic payload")
 
             p.restricted_execution_results.append(result)
+            if not authoritative_attempt:
+                p.updated_at = time.time()
+                self._persist_project(project_id)
+                return p
             if p.stage is not TaskmasterStage.FAILED:
                 if result.passed and identity_matches:
                     if p.stage is not TaskmasterStage.COMPLETED:

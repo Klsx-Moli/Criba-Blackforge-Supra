@@ -49,6 +49,8 @@ _VOLATILE_KEYS = {
     "selected_candidate_id",
     "report_id",
     "execution_id",
+    "attempt_id",
+    "restricted_execution_attempt_id",
     "checkpoint_id",
     "audit_sha256",
     "duration_ms",

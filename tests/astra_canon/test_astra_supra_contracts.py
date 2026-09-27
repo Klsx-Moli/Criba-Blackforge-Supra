@@ -206,8 +206,9 @@ def test_astra_duplicate_execution_id_is_idempotent_only_for_same_semantic_paylo
     )
     p = sm.add_candidates(p.project_id, [selected], select_best=True)
     identity = candidate_execution_identity(p.selected_candidate)
+    attempt_id, attempt_generation = sm.issue_restricted_execution_attempt(p.project_id)
     base = dict(
-        execution_id="exec-stable", execution_semantics_version=2, **identity,
+        execution_id="exec-stable", attempt_id=attempt_id, attempt_generation=attempt_generation, execution_semantics_version=2, **identity,
         protocol_version="sha256:" + "1" * 64, action_type="sentinel", passed=True,
         output_log="bound", duration_ms=1.0,
     )

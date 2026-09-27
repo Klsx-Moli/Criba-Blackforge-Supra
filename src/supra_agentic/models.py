@@ -123,6 +123,8 @@ class RestrictedExecutionResult(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
     execution_id: str = Field(default_factory=lambda: f"exec-{uuid.uuid4().hex[:6]}")
+    attempt_id: str | None = None
+    attempt_generation: int | None = None
     execution_semantics_version: int | None = None
     candidate_id: str | None = None
     mechanism_version: str | None = None
@@ -276,24 +278,30 @@ class ProjectPosture(BaseModel):
             )
             result.identity_bound = matches_selected_candidate
 
-        latest_execution = (
-            self.restricted_execution_results[-1] if self.restricted_execution_results else None
-        )
+        authoritative_executions = [
+            result
+            for result in self.restricted_execution_results
+            if result.attempt_id
+            and result.attempt_id == self.restricted_execution_attempt_id
+            and result.attempt_generation == self.restricted_execution_generation
+        ]
+        latest_execution = authoritative_executions[-1] if authoritative_executions else None
         latest_authoritative_bound_pass = bool(
             latest_execution and latest_execution.passed and latest_execution.identity_bound
         )
+        display_execution = latest_execution or (self.restricted_execution_results[-1] if self.restricted_execution_results else None)
         if self.final_output is not None:
             output = dict(self.final_output)
             output["restricted_execution_identity_bound"] = bool(
-                latest_execution and latest_execution.identity_bound
+                display_execution and display_execution.identity_bound
             )
             output["restricted_execution_status"] = (
                 "BOUND_PASS"
-                if latest_execution and latest_execution.passed and latest_execution.identity_bound
+                if display_execution and display_execution.passed and display_execution.identity_bound
                 else "BOUND_FAIL"
-                if latest_execution and latest_execution.identity_bound
+                if display_execution and display_execution.identity_bound
                 else "UNBOUND"
-                if latest_execution
+                if display_execution
                 else "NOT_RUN"
             )
             output["derived_execution_state_revalidated"] = True
@@ -373,6 +381,8 @@ class ProjectPosture(BaseModel):
     selected_candidate: StrategyCandidate | None = None
     verification: VerificationReport | None = None
     restricted_execution_results: list[RestrictedExecutionResult] = Field(default_factory=list)
+    restricted_execution_generation: int = 0
+    restricted_execution_attempt_id: str | None = None
     checkpoints: list[CheckpointRecord] = Field(default_factory=list)
     final_output: dict[str, Any] | None = None
     error_message: str | None = None
