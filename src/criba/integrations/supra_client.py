@@ -70,6 +70,8 @@ class SupraProjectResult(BaseModel):
     verification_status: str
     scientific_status: str = "NOT_VALIDATED"
     secure_sandbox_status: str = "NOT_REPORTED"
+    criba_planning_receipt_status: str = "NOT_APPLICABLE"
+    criba_mechanism_execution_status: str = "NOT_APPLICABLE"
     project_id: str
     stage: str
     posture: dict[str, Any]
@@ -266,7 +268,9 @@ class SupraClient:
                     "SUPRA project execution did not preserve CRIBA dossier lineage"
                 )
             if (
-                receipt.get("receipt_scope") != "PLANNED_DISCRIMINANT_PROTOCOL_ONLY"
+                validated.criba_planning_receipt_status != "PRESERVED_NOT_EXECUTED"
+                or validated.criba_mechanism_execution_status != "NOT_EXECUTED"
+                or receipt.get("receipt_scope") != "PLANNED_DISCRIMINANT_PROTOCOL_ONLY"
                 or receipt.get("execution_status") != "NOT_EXECUTED"
                 or receipt.get("scientific_status") != "NOT_VALIDATED"
             ):
