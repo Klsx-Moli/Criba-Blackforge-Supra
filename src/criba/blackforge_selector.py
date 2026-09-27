@@ -184,6 +184,41 @@ def select_blackforge(
     # archive is NEVER selectable.
     allowed_tiers = [t for t in allowed_tiers if t != "archive"]
 
+    # Candidate control fields drive eligibility and quota accounting. Unknown
+    # values must not be silently treated as safe, merely ineligible, or as an
+    # unrelated quota failure: that would turn malformed catalog state into
+    # executable policy. Validate before filtering.
+    valid_safety_classes = {"S0_CONCEPTUAL", "S1_DEFENSIVE", "S2_SANDBOX", "S3_HIGH_CONTROL"}
+    valid_pipeline_stages = {
+        "CARTOGRAFIAR", "DESCOMPONER", "ROMPER", "DIVERGIR",
+        "ATACAR", "EVALUAR", "EVOLUCIONAR", "MATERIALIZAR",
+    }
+    invalid_controls: list[dict[str, Any]] = []
+    for record in recs:
+        for field_name, vocabulary in (
+            ("activation_tier", valid_tiers),
+            ("safety_class", valid_safety_classes),
+            ("pipeline_stage", valid_pipeline_stages),
+        ):
+            value = record.get(field_name)
+            if not isinstance(value, str) or value not in vocabulary:
+                invalid_controls.append({
+                    "blackforge_id": str(record.get("blackforge_id") or "")[:80],
+                    "field": field_name,
+                    "value_repr": repr(value)[:120],
+                })
+    if invalid_controls:
+        return SelectionReport(
+            seed=seed, session_size=session_size, allowed_tiers=allowed_tiers,
+            selected_ids=[], compliance={}, profile_used=profile, s3_count=0,
+            s3_allowed=False,
+            failure=SelectionFailure(
+                reason="Campo de control de candidato fuera del vocabulario canónico.",
+                failed_quota="candidate_control_integrity",
+                detail={"invalid": invalid_controls[:20]},
+            ),
+        )
+
     # S3 gating: 0 by default; max 1 only with full approval triad.
     s3_allowed = bool(explicit_high_control_approval and authorized_scope_confirmed and sandbox_available)
     s3_cap = 1 if s3_allowed else 0

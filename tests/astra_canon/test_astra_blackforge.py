@@ -6,7 +6,7 @@ from criba import blackforge_selector
 from criba.blackforge_orthogonal.compositor import Composition, CompositionMode
 
 
-def _record(identity, stage, category, source, axis, *, safety="S1_SAFE", score=1.0):
+def _record(identity, stage, category, source, axis, *, safety="S1_DEFENSIVE", score=1.0):
     return {
         "blackforge_id": identity,
         "activation_tier": "core",
@@ -147,4 +147,19 @@ def test_selector_rejects_malformed_allowed_tiers(tiers):
     assert not report.status_ok()
     assert report.failure is not None
     assert report.failure.failed_quota == "allowed_tiers_integrity"
+    assert report.selected_ids == []
+
+@pytest.mark.parametrize("field,value", [
+    ("activation_tier", "bogus"),
+    ("safety_class", "UNKNOWN_SAFE"),
+    ("pipeline_stage", "UNKNOWN_STAGE"),
+])
+def test_selector_rejects_malformed_candidate_control_fields(monkeypatch, field, value):
+    meta, records = _catalog()
+    records[0][field] = value
+    monkeypatch.setattr(blackforge_selector, "_load_catalog", lambda: (meta, records))
+    report = blackforge_selector.select_blackforge(session_size=4)
+    assert not report.status_ok()
+    assert report.failure is not None
+    assert report.failure.failed_quota == "candidate_control_integrity"
     assert report.selected_ids == []
