@@ -19,6 +19,9 @@ def _record(identity, stage, category, source, axis, *, safety="S1_DEFENSIVE", s
         "source_catalog": source,
         "causal_axis_primary": axis,
         "pipeline_stage": stage,
+        "requires_sandbox": safety in {"S2_SANDBOX", "S3_HIGH_CONTROL"},
+        "requires_explicit_authorization": safety in {"S2_SANDBOX", "S3_HIGH_CONTROL"},
+        "external_target_prohibited": safety in {"S2_SANDBOX", "S3_HIGH_CONTROL"},
     }
 
 
@@ -191,6 +194,27 @@ def test_selector_rejects_high_control_candidate_with_disabled_required_control(
     meta, records = _catalog()
     high = records[-1]
     high[field] = False
+    monkeypatch.setattr(blackforge_selector, "_load_catalog", lambda: (meta, records))
+    report = blackforge_selector.select_blackforge(
+        session_size=4,
+        explicit_high_control_approval=True,
+        authorized_scope_confirmed=True,
+        sandbox_available=True,
+    )
+    assert not report.status_ok()
+    assert report.failure is not None
+    assert report.failure.failed_quota == "candidate_control_integrity"
+    assert report.selected_ids == []
+
+@pytest.mark.parametrize("field", [
+    "requires_sandbox",
+    "requires_explicit_authorization",
+    "external_target_prohibited",
+])
+def test_selector_rejects_high_control_candidate_with_missing_required_control(monkeypatch, field):
+    meta, records = _catalog()
+    high = records[-1]
+    high.pop(field, None)
     monkeypatch.setattr(blackforge_selector, "_load_catalog", lambda: (meta, records))
     report = blackforge_selector.select_blackforge(
         session_size=4,

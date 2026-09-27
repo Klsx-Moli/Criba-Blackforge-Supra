@@ -360,7 +360,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                     profile=args.profile,
                     session_id=args.session_id,
                 )
-            if args.use_configured_model:
+            if args.use_configured_model and packet.get("status") != "SELECTION_FAILED":
                 raw_ideas = packet.get("ideas", [])
                 if isinstance(raw_ideas, list):
                     enhanced, semantic = enhance_ideas_with_model(
@@ -372,7 +372,11 @@ def main(argv: Sequence[str] | None = None) -> int:
                     packet["ideas"] = enhanced
                     packet["semantic_generation"] = semantic
             print(json.dumps(packet, ensure_ascii=False, indent=2))
-            return 0
+            # Machine-facing CLI must propagate BLACKFORGE selection failure.
+            # A JSON packet with status=SELECTION_FAILED is useful output, but
+            # exit 0 would let scripts treat a failed safety/quota gate as a
+            # successful run.
+            return 2 if packet.get("status") == "SELECTION_FAILED" else 0
         if args.command == "serve":
             from .api import serve
 

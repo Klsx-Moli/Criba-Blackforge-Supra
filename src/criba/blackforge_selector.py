@@ -222,7 +222,7 @@ def select_blackforge(
                 "requires_explicit_authorization",
                 "external_target_prohibited",
             ):
-                if required_control in record and record.get(required_control) is not True:
+                if record.get(required_control) is not True:
                     invalid_controls.append({
                         "blackforge_id": str(record.get("blackforge_id") or "")[:80],
                         "field": required_control,

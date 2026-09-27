@@ -29,6 +29,9 @@ def _catalog_record(blackforge_id: str, *, safety_class: str, tier: str,
         "functional_category_primary": fcat,
         "causal_axis_primary": axis,
         "pipeline_stage": stage,
+        "requires_sandbox": safety_class in {"S2_SANDBOX", "S3_HIGH_CONTROL"},
+        "requires_explicit_authorization": safety_class in {"S2_SANDBOX", "S3_HIGH_CONTROL"},
+        "external_target_prohibited": safety_class in {"S2_SANDBOX", "S3_HIGH_CONTROL"},
     }
 
 
