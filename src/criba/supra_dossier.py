@@ -230,10 +230,18 @@ def _execution_receipt_matches(
 ) -> bool:
     """Accredit only a receipt that independently binds the full experiment identity."""
     normalized = _normalizar_execution_receipt(receipt)
+    identity_fields = ("candidate_id", "mechanism_version", "claim_id", "protocol_version")
+    if not all(
+        isinstance(dossier.get(field), str) and bool(dossier[field].strip())
+        for field in identity_fields
+    ):
+        return False
+    if dossier["protocol_version"] != protocol_version.strip():
+        return False
     expected = {
-        "candidate_id": str(dossier.get("candidate_id") or ""),
-        "mechanism_version": str(dossier.get("mechanism_version") or ""),
-        "claim_id": str(dossier.get("claim_id") or ""),
+        "candidate_id": dossier["candidate_id"],
+        "mechanism_version": dossier["mechanism_version"],
+        "claim_id": dossier["claim_id"],
         "protocol_version": protocol_version.strip(),
         "execution_id": execution_id.strip(),
         "observed_result": resultado,

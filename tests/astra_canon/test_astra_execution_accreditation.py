@@ -109,3 +109,26 @@ def test_astra_017_learning_revalidates_receipt_authority_after_restart(tmp_path
         "", tmp_path,
         execution_resolver=lambda _execution_id: None,
     ) == []
+
+
+def test_corrupt_parseable_dossier_identity_type_cannot_be_accredited(tmp_path):
+    """Persisted dossier identity is authority data; numeric->text coercion must fail closed."""
+    d = dossier()
+    d["candidate_id"] = 1
+    guardar_dossier(d, tmp_path)
+    receipt = {
+        "candidate_id": "1",
+        "mechanism_version": d["mechanism_version"],
+        "claim_id": d["claim_id"],
+        "protocol_version": d["protocol_version"],
+        "execution_id": "exec-type-confusion",
+        "observed_result": "positivo",
+        "result_scope": "EXPERIMENTAL_OBSERVATION",
+    }
+    result = registrar_resultado(
+        d["dossier_id"], "positivo", directory=tmp_path,
+        execution_id="exec-type-confusion", protocol_version=d["protocol_version"],
+        execution_resolver=lambda _id: receipt,
+    )
+    assert result["accreditation"] == "DECLARED_RESULT"
+    assert lecciones_previas("", tmp_path, execution_resolver=lambda _id: receipt) == []
