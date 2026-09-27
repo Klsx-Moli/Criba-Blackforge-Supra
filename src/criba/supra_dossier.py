@@ -17,13 +17,13 @@ import os
 import warnings
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any, Callable, TypeGuard
 
 DOSSIER_RESULT_SEMANTICS_VERSION = 3
 from uuid import uuid4
 
 
-def _exact_identity_text(value: object) -> bool:
+def _exact_identity_text(value: object) -> TypeGuard[str]:
     """Identity text is exact authority; never coerce or trim it implicitly."""
     return isinstance(value, str) and bool(value) and value == value.strip()
 
