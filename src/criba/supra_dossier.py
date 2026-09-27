@@ -23,6 +23,11 @@ DOSSIER_RESULT_SEMANTICS_VERSION = 3
 from uuid import uuid4
 
 
+def _exact_identity_text(value: object) -> bool:
+    """Identity text is exact authority; never coerce or trim it implicitly."""
+    return isinstance(value, str) and bool(value) and value == value.strip()
+
+
 def _dossiers_dir(override: Path | None = None) -> Path:
     if override is not None:
         return override
@@ -104,22 +109,48 @@ def preparar_dossier(
     }
     claim = str(entry.get("hipotesis", ""))[:800]
     mechanism = str(entry.get("mecanismo", ""))
-    claim_id = str(entry.get("claim_id") or (
-        "claim-" + hashlib.sha256(claim.encode("utf-8")).hexdigest()[:16]
-    ))
-    mechanism_version = str(entry.get("mechanism_version") or (
-        "sha256:" + hashlib.sha256(mechanism.encode("utf-8")).hexdigest()
-    ))
-    protocol_version = str(entry.get("protocol_version") or (
-        "sha256:" + hashlib.sha256(
-            json.dumps(prueba, ensure_ascii=False, sort_keys=True).encode("utf-8")
-        ).hexdigest()
-    ))
+
+    raw_candidate_id = entry.get("candidate_id", "")
+    if raw_candidate_id in (None, ""):
+        candidate_id = ""
+    elif not _exact_identity_text(raw_candidate_id):
+        raise ValueError("candidate_id must be exact non-blank text")
+    else:
+        candidate_id = raw_candidate_id
+
+    default_claim_id = "claim-" + hashlib.sha256(claim.encode("utf-8")).hexdigest()[:16]
+    raw_claim_id = entry.get("claim_id")
+    if raw_claim_id in (None, ""):
+        claim_id = default_claim_id
+    elif not _exact_identity_text(raw_claim_id):
+        raise ValueError("claim_id must be exact non-blank text")
+    else:
+        claim_id = raw_claim_id
+
+    default_mechanism_version = "sha256:" + hashlib.sha256(mechanism.encode("utf-8")).hexdigest()
+    raw_mechanism_version = entry.get("mechanism_version")
+    if raw_mechanism_version in (None, ""):
+        mechanism_version = default_mechanism_version
+    elif not _exact_identity_text(raw_mechanism_version):
+        raise ValueError("mechanism_version must be exact non-blank text")
+    else:
+        mechanism_version = raw_mechanism_version
+
+    default_protocol_version = "sha256:" + hashlib.sha256(
+        json.dumps(prueba, ensure_ascii=False, sort_keys=True).encode("utf-8")
+    ).hexdigest()
+    raw_protocol_version = entry.get("protocol_version")
+    if raw_protocol_version in (None, ""):
+        protocol_version = default_protocol_version
+    elif not _exact_identity_text(raw_protocol_version):
+        raise ValueError("protocol_version must be exact non-blank text")
+    else:
+        protocol_version = raw_protocol_version
     delivered = list(entry.get("evidence_delivered", entry.get("evidencia_local_usada", [])))
     documented = list(entry.get("evidence_documented_as_used", []))
     return {
         "dossier_id": f"dossier-{uuid4().hex}",
-        "candidate_id": entry.get("candidate_id", ""),
+        "candidate_id": candidate_id,
         "run_id": entry.get("run_id", ""),
         "claim_id": claim_id,
         "protocol_version": protocol_version,
@@ -205,12 +236,6 @@ _RECEIPT_FIELDS = (
     "observed_result",
     "result_scope",
 )
-
-
-def _exact_identity_text(value: object) -> bool:
-    """Identity text is exact authority; never coerce or trim it implicitly."""
-    return isinstance(value, str) and bool(value) and value == value.strip()
-
 
 def _normalizar_execution_receipt(receipt: dict[str, Any] | None) -> dict[str, str]:
     """Keep only the non-secret fields needed to verify execution identity."""

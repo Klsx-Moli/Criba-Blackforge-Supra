@@ -384,3 +384,33 @@ def test_execution_identity_unicode_is_exact_not_normalized(tmp_path):
 
     assert result["accreditation"] == "DECLARED_RESULT"
     assert result["learning_eligible"] is False
+
+
+@pytest.mark.parametrize(
+    ("field", "bad_value"),
+    [
+        ("candidate_id", 1),
+        ("candidate_id", " candidate-A "),
+        ("claim_id", 1),
+        ("claim_id", " claim-A "),
+        ("mechanism_version", 2),
+        ("mechanism_version", " mv "),
+        ("protocol_version", 3),
+        ("protocol_version", " pv "),
+    ],
+)
+def test_preparar_dossier_rejects_identity_coercion_and_outer_whitespace(field, bad_value):
+    entry = {
+        "candidate_id": "candidate-A",
+        "run_id": "run-A",
+        "hipotesis": "claim-A",
+        "mecanismo": "mechanism-A",
+        "prueba_concreta": "apply intervention A",
+        "observable": "metric-A",
+        "resultado_favorable_mecanismo": "metric increases",
+        "resultado_favorable_alternativa": "metric does not increase",
+        "regla_decision": "positive iff metric increases",
+    }
+    entry[field] = bad_value
+    with pytest.raises(ValueError, match=field):
+        preparar_dossier(entry, "problem", alternativa_explicativa="rival explanation")
