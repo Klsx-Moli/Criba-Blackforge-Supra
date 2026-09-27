@@ -81,6 +81,7 @@ class SupraProjectResult(BaseModel):
     secure_sandbox_status: str = "NOT_REPORTED"
     criba_planning_receipt_status: str = "NOT_APPLICABLE"
     criba_mechanism_execution_status: str = "NOT_APPLICABLE"
+    idempotent_replay: bool = False
     project_id: str
     stage: str
     posture: dict[str, Any]
@@ -127,6 +128,74 @@ class SupraProjectList(BaseModel):
     status: str
     count: int
     projects: list[dict[str, Any]] = Field(default_factory=list)
+
+
+class SupraCribaPlanningReceipt(BaseModel):
+    """Typed persisted CRIBA planning receipt returned by SUPRA GET.
+
+    This is deliberately a planning-only record.  Loading a persisted project
+    must never promote receipt preservation into execution or validation.
+    """
+
+    model_config = ConfigDict(extra="allow")
+
+    receipt_scope: Literal["PLANNED_DISCRIMINANT_PROTOCOL_ONLY"]
+    execution_status: Literal["NOT_EXECUTED"]
+    scientific_status: Literal["NOT_VALIDATED"]
+    criba_dossier_id: str = Field(min_length=1)
+    criba_candidate_id: str = Field(min_length=1)
+    claim_id: str = Field(min_length=1)
+    mechanism_version: str = Field(pattern=r"^sha256:[0-9a-f]{64}$")
+    protocol_version: str = Field(pattern=r"^sha256:[0-9a-f]{64}$")
+    integration_version: Literal["criba-supra/1"]
+    payload_fingerprint: str = Field(pattern=r"^sha256:[0-9a-f]{64}$")
+    request_fingerprint: str | None = Field(
+        default=None, pattern=r"^sha256:[0-9a-f]{64}$"
+    )
+
+
+class SupraProjectPostureSnapshot(BaseModel):
+    """Typed minimum posture contract needed by CRIBA after restart/reload."""
+
+    model_config = ConfigDict(extra="allow")
+
+    project_id: str = Field(min_length=1)
+    stage: Literal[
+        "RECEIVED",
+        "STRUCTURED",
+        "STRATIFIED",
+        "RESTRICTED_EXECUTION_VERIFIED",
+        "BLOCKED",
+        "COMPLETED",
+        "FAILED",
+    ]
+    criba_dossier_receipt: SupraCribaPlanningReceipt | None = None
+    final_output: dict[str, Any] | None = None
+    error_message: str | None = None
+
+    @model_validator(mode="after")
+    def reject_contradictory_blocked_snapshot(self) -> "SupraProjectPostureSnapshot":
+        if self.stage == "BLOCKED" and (
+            self.final_output is not None or self.error_message is not None
+        ):
+            raise ValueError("BLOCKED posture cannot expose final output or workflow error")
+        return self
+
+
+class SupraProjectLookup(BaseModel):
+    """Typed response from GET /api/v1/projects/{project_id}."""
+
+    model_config = ConfigDict(extra="allow")
+
+    status: Literal["success"]
+    project_id: str = Field(min_length=1)
+    posture: SupraProjectPostureSnapshot
+
+    @model_validator(mode="after")
+    def require_matching_project_identity(self) -> "SupraProjectLookup":
+        if self.project_id != self.posture.project_id:
+            raise ValueError("SUPRA lookup project_id does not match posture project_id")
+        return self
 
 
 class SupraClient:
@@ -298,10 +367,16 @@ class SupraClient:
                 )
         return validated
 
-    def get_project(self, project_id: str) -> dict[str, Any]:
+    def get_project(self, project_id: str) -> SupraProjectLookup:
         response = self._client.get(self._project_path(project_id))
         self._raise_for_response(response, "project lookup")
-        return self._json_object(response, "project lookup")
+        validated = self._validate_response(
+            SupraProjectLookup,
+            self._json_object(response, "project lookup"),
+            "project lookup",
+        )
+        assert isinstance(validated, SupraProjectLookup)
+        return validated
 
     def list_projects(self, *, limit: int = 20) -> SupraProjectList:
         if not 1 <= limit <= 50:

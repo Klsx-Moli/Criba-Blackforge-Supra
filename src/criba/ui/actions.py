@@ -916,6 +916,9 @@ def _execute_supra_dossiers(
                     "verification_status": result.verification_status,
                     "secure_sandbox_status": result.secure_sandbox_status,
                     "scientific_status": result.scientific_status,
+                    "criba_mechanism_execution_status": (
+                        result.criba_mechanism_execution_status
+                    ),
                     "stage": result.stage,
                 }
             )
@@ -942,22 +945,29 @@ def _on_supra_dossiers_done(win: Any, report: dict[str, Any]) -> None:
         if item.get("completion_status") == "BLOCKED"
         and item.get("secure_sandbox_status") != "ISOLATED_BOUND_PASS"
     )
+    criba_not_executed = sum(
+        1
+        for item in runs
+        if item.get("criba_mechanism_execution_status") == "NOT_EXECUTED"
+    )
     r = win.refs
     sandbox_note = (
         f" · {sandbox_blocked} sin aislamiento acreditado" if sandbox_blocked else ""
     )
     r["ideaSummary"].setText(
-        f"SUPRA: {completed} completado(s) · {blocked} bloqueado(s)"
-        f"{sandbox_note} · {len(runs)} ejecución(es) registradas"
+        f"SUPRA workflow: {completed} completado(s) · {blocked} bloqueado(s)"
+        f"{sandbox_note} · mecanismo CRIBA NO EJECUTADO: "
+        f"{criba_not_executed}/{len(runs)}"
     )
-    chip = "SUPRA completado" if runs and blocked == 0 else "SUPRA bloqueado"
+    chip = "SUPRA workflow completado" if runs and blocked == 0 else "SUPRA bloqueado"
     set_chip(r["ideaEstadoChip"], chip, "exploracion")
     _activity(
         win,
         "cyan",
-        f"SUPRA real: {completed} completado(s), {blocked} bloqueado(s), "
-        f"{sandbox_blocked} sin sandbox aislado; verification, sandbox y "
-        "completion conservan estados separados.",
+        f"SUPRA workflow real: {completed} completado(s), {blocked} bloqueado(s), "
+        f"{sandbox_blocked} sin sandbox aislado; mecanismo CRIBA NOT_EXECUTED "
+        f"en {criba_not_executed}/{len(runs)}. Verification, sandbox, completion "
+        "y ejecución del mecanismo conservan estados separados.",
     )
 
 

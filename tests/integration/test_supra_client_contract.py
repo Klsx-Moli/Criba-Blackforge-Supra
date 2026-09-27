@@ -11,6 +11,7 @@ from criba.integrations.supra_client import (
     SupraClient,
     SupraClientConfig,
     SupraClientError,
+    SupraProjectLookup,
 )
 
 
@@ -150,6 +151,80 @@ def test_project_id_is_validated_before_transport() -> None:
             client.export_dossier("nested/path")
 
 
+def test_get_project_returns_typed_planning_receipt_snapshot() -> None:
+    fingerprint = "sha256:" + "c" * 64
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.method == "GET"
+        assert request.url.path == "/api/v1/projects/restart-contract"
+        return httpx.Response(
+            200,
+            json={
+                "status": "success",
+                "project_id": "restart-contract",
+                "posture": {
+                    "project_id": "restart-contract",
+                    "stage": "BLOCKED",
+                    "final_output": None,
+                    "error_message": None,
+                    "criba_dossier_receipt": {
+                        "receipt_scope": "PLANNED_DISCRIMINANT_PROTOCOL_ONLY",
+                        "execution_status": "NOT_EXECUTED",
+                        "scientific_status": "NOT_VALIDATED",
+                        "criba_dossier_id": "dossier-1",
+                        "criba_candidate_id": "cand-1",
+                        "claim_id": "claim-1",
+                        "mechanism_version": "sha256:" + "a" * 64,
+                        "protocol_version": "sha256:" + "b" * 64,
+                        "integration_version": "criba-supra/1",
+                        "payload_fingerprint": fingerprint,
+                    },
+                },
+            },
+        )
+
+    with _client(handler) as client:
+        loaded = client.get_project("restart-contract")
+
+    assert isinstance(loaded, SupraProjectLookup)
+    assert loaded.posture.stage == "BLOCKED"
+    assert loaded.posture.criba_dossier_receipt is not None
+    assert loaded.posture.criba_dossier_receipt.payload_fingerprint == fingerprint
+    assert loaded.posture.criba_dossier_receipt.execution_status == "NOT_EXECUTED"
+    assert loaded.posture.criba_dossier_receipt.scientific_status == "NOT_VALIDATED"
+
+
+def test_get_project_rejects_promoted_planning_receipt() -> None:
+    def handler(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            json={
+                "status": "success",
+                "project_id": "forged-restart",
+                "posture": {
+                    "project_id": "forged-restart",
+                    "stage": "BLOCKED",
+                    "criba_dossier_receipt": {
+                        "receipt_scope": "PLANNED_DISCRIMINANT_PROTOCOL_ONLY",
+                        "execution_status": "EXECUTED",
+                        "scientific_status": "NOT_VALIDATED",
+                        "criba_dossier_id": "dossier-1",
+                        "criba_candidate_id": "cand-1",
+                        "claim_id": "claim-1",
+                        "mechanism_version": "sha256:" + "a" * 64,
+                        "protocol_version": "sha256:" + "b" * 64,
+                        "integration_version": "criba-supra/1",
+                        "payload_fingerprint": "sha256:" + "c" * 64,
+                    },
+                },
+            },
+        )
+
+    with _client(handler) as client:
+        with pytest.raises(SupraClientError, match="project lookup violated response contract"):
+            client.get_project("forged-restart")
+
+
 def test_list_projects_uses_only_real_route() -> None:
     def handler(request: httpx.Request) -> httpx.Response:
         assert request.url.path == "/api/v1/projects"
@@ -280,6 +355,55 @@ def test_gui_uses_canonical_supra_client_without_direct_http_routes() -> None:
     assert "_execute_supra_dossiers" in source
     assert "httpx" not in source
     assert "/api/v1/" not in source
+    assert '"criba_mechanism_execution_status"' in source
+    assert "mecanismo CRIBA NO EJECUTADO" in source
+
+
+def test_cli_does_not_bypass_canonical_supra_transport() -> None:
+    from pathlib import Path
+
+    source = Path("src/criba/cli.py").read_text(encoding="utf-8")
+    assert "/api/v1/projects" not in source
+    assert "SUPRA_ENDPOINT" not in source
+
+
+def test_dossier_fingerprint_canonicalization_is_explicit_and_fail_closed() -> None:
+    import unicodedata
+
+    from criba.integrations.supra_client import _dossier_payload_fingerprint
+
+    first = {
+        "dossier_id": "dossier-canon",
+        "candidate_id": "cand-canon",
+        "creado_at": "old",
+        "nested": {"z": 1, "a": True},
+        "supuestos": ["café"],
+    }
+    reordered = {
+        "supuestos": ["café"],
+        "nested": {"a": True, "z": 1},
+        "creado_at": "new",
+        "candidate_id": "cand-canon",
+        "dossier_id": "dossier-canon",
+    }
+    assert _dossier_payload_fingerprint(first) == _dossier_payload_fingerprint(reordered)
+
+    bool_changed_to_number = dict(first)
+    bool_changed_to_number["nested"] = {"z": 1, "a": 1}
+    assert _dossier_payload_fingerprint(first) != _dossier_payload_fingerprint(
+        bool_changed_to_number
+    )
+
+    # Unicode normalization is deliberately NOT implicit. Canonically equivalent
+    # human text with different code points is treated as different payload bytes.
+    nfd = dict(first)
+    nfd["supuestos"] = [unicodedata.normalize("NFD", "café")]
+    assert _dossier_payload_fingerprint(first) != _dossier_payload_fingerprint(nfd)
+
+    non_finite = dict(first)
+    non_finite["nested"] = {"value": float("nan")}
+    with pytest.raises(ValueError):
+        _dossier_payload_fingerprint(non_finite)
 
 
 def test_dossier_mapping_preserves_epistemic_language() -> None:

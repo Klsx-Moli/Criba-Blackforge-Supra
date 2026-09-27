@@ -195,3 +195,28 @@ def test_desarrollar_supra_sin_sheet_error(qapp) -> None:
         assert win.errorBanner.isVisibleTo(win)
     finally:
         win.close()
+
+
+def test_supra_result_ui_does_not_call_planning_receipt_criba_execution(qapp) -> None:
+    """A completed/blocked SUPRA workflow must not imply CRIBA mechanism execution."""
+    win = CribaMainWindow()
+    try:
+        win.invent_sheet = {}
+        actions._on_supra_dossiers_done(
+            win,
+            {
+                "runs": [
+                    {
+                        "completion_status": "BLOCKED",
+                        "secure_sandbox_status": "RESTRICTED_BOUND_PASS_NOT_ISOLATED",
+                        "criba_mechanism_execution_status": "NOT_EXECUTED",
+                    }
+                ]
+            },
+        )
+        summary = win.refs["ideaSummary"].text()
+        assert "SUPRA workflow" in summary
+        assert "mecanismo CRIBA NO EJECUTADO: 1/1" in summary
+        assert "SUPRA bloqueado" in win.refs["ideaEstadoChip"].text()
+    finally:
+        win.close()
