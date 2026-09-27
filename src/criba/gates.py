@@ -245,16 +245,38 @@ def G04_authorization_valid(context: Mapping[str, Any],
             f"Se requiere authorization_state='granted'; recibido {authorization_state!r}",
         )
     # Reuse the existing safety evaluator rather than reimplementing it.
+    # Scope and stop conditions are authority-bearing context: whitespace or a
+    # malformed direct-caller payload must not become True through Python truthiness.
+    authorization_scope = context.get("authorization_scope")
+    scope_confirmed = bool(
+        isinstance(authorization_scope, str) and authorization_scope.strip()
+    )
+    stop_conditions = context.get("stop_conditions")
+    stop_condition_present = bool(
+        isinstance(stop_conditions, list)
+        and stop_conditions
+        and all(isinstance(item, str) and bool(item.strip()) for item in stop_conditions)
+    )
+    if not scope_confirmed:
+        return GateResult(
+            "G04_authorization_valid", False,
+            "Autorización concedida sin authorization_scope material.",
+        )
+    if not stop_condition_present:
+        return GateResult(
+            "G04_authorization_valid", False,
+            "Autorización concedida sin stop_conditions válidas.",
+        )
     session_ctx = {
         "explicit_authorization": True,
-        "authorized_scope_confirmed": bool(context.get("authorization_scope")),
+        "authorized_scope_confirmed": scope_confirmed,
         "sandbox": True,
         "isolated_sandbox": True,
         "rollback": True,
         "logging": True,
         "full_logging": True,
-        "human_approval": bool(context.get("authorization_scope")),
-        "stop_condition": bool(context.get("stop_conditions")),
+        "human_approval": scope_confirmed,
+        "stop_condition": stop_condition_present,
     }
     target = item or {"safety_class": "S2_SANDBOX",
                       "blackforge_id": context.get("context_id", "?"),

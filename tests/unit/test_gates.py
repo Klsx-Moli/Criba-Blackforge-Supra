@@ -263,3 +263,39 @@ def test_retry_policy_classification():
     assert policy.is_retryable(RetryClassification.TIMEOUT.value) is True
     assert policy.is_retryable(RetryClassification.PERMANENT.value) is False
     assert policy.is_retryable(RetryClassification.INVALID_OUTPUT.value) is False
+
+
+def test_G04_whitespace_scope_and_stop_conditions_fail_closed():
+    base = {
+        "context_id": "ctx-bf-whitespace",
+        "mode": "blackforge",
+        "authorization_state": "granted",
+        "authorized_environment": True,
+    }
+    assert G04_authorization_valid({
+        **base,
+        "authorization_scope": "   ",
+        "stop_conditions": ["stop"],
+    }).passed is False
+    assert G04_authorization_valid({
+        **base,
+        "authorization_scope": "internal-lab",
+        "stop_conditions": ["   "],
+    }).passed is False
+    assert G04_authorization_valid({
+        **base,
+        "authorization_scope": "   ",
+        "stop_conditions": ["   "],
+    }).passed is False
+
+
+def test_G04_malformed_direct_caller_stop_conditions_do_not_grant_authority():
+    base = {
+        "context_id": "ctx-bf-malformed-stop",
+        "mode": "blackforge",
+        "authorization_state": "granted",
+        "authorized_environment": True,
+        "authorization_scope": "internal-lab",
+    }
+    assert G04_authorization_valid({**base, "stop_conditions": "stop"}).passed is False
+    assert G04_authorization_valid({**base, "stop_conditions": ["stop", 1]}).passed is False
