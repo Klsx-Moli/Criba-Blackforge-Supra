@@ -174,20 +174,30 @@ class TaskmasterRunner:
                     f"after {retries} correction attempt(s)"
                 )
 
-            # Stage 5: Final Checkpoint & Deliverable Ledger (COMPLETED)
-            logger.info(f"[{pid}] Executing Tool 5: record_checkpoint")
+            # Stage 5: completion is a gate, not a cosmetic workflow label.
             elapsed = time.monotonic() - start_time
-            record_checkpoint(
-                project_id=pid,
-                deliverable_title=f"Autonomous Solution: {clean_obj[:50]}",
-                summary=f"Taskmaster completed all 5 stages in {elapsed:.2f}s (Self-Corrections: {retries}).",
-                provider_metadata=model_assistance,
-            )
+            current = state_manager.get_project(pid)
+            assert current is not None
+            if current.verification is None or current.verification.verdict != "PASS":
+                verdict = current.verification.verdict if current.verification else "NOT_EVALUATED"
+                state_manager.block_project(
+                    pid,
+                    "Completion blocked: verification must be PASS; "
+                    f"current verdict is {verdict}. Restricted execution telemetry is not scientific evidence.",
+                )
+            else:
+                logger.info(f"[{pid}] Executing Tool 5: record_checkpoint")
+                record_checkpoint(
+                    project_id=pid,
+                    deliverable_title=f"Autonomous Solution: {clean_obj[:50]}",
+                    summary=f"Taskmaster completed all 5 stages in {elapsed:.2f}s (Self-Corrections: {retries}).",
+                    provider_metadata=model_assistance,
+                )
 
             final_posture = state_manager.get_project(pid)
             assert final_posture is not None
             logger.info(
-                f"[{pid}] Taskmaster workflow COMPLETED in {elapsed:.2f}s; verification/scientific status remain separate."
+                f"[{pid}] Taskmaster workflow ended at {final_posture.stage.value} in {elapsed:.2f}s; verification/scientific status remain separate."
             )
             return final_posture
 

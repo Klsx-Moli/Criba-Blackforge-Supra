@@ -315,6 +315,24 @@ class ProjectStateManager:
             self._persist_project(project_id)
             return p
 
+    def block_project(self, project_id: str, reason: str) -> ProjectPosture:
+        """Persist an honest non-terminal outcome when completion gates are unmet."""
+        with self._lock:
+            p = self._get_required_project(project_id)
+            p.stage = TaskmasterStage.BLOCKED
+            p.error_message = None
+            p.updated_at = time.time()
+            p.checkpoints.append(
+                CheckpointRecord(
+                    stage=TaskmasterStage.BLOCKED,
+                    title="Completion Gate Blocked",
+                    evidence_summary=reason,
+                    actor="system:completion_gate",
+                )
+            )
+            self._persist_project(project_id)
+            return p
+
     def fail_project(self, project_id: str, error_message: str) -> ProjectPosture:
         """Mark project as FAILED."""
         with self._lock:
