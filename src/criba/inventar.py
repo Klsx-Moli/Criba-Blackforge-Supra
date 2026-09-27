@@ -280,6 +280,7 @@ def invent(
     adaptive: bool = False,
     outcome_store: Any | None = None,
     canon_version: str | None = None,
+    execution_receipt_resolver: Callable[[str], dict[str, Any] | None] | None = None,
 ) -> dict[str, Any]:
     """Ejecuta el loop completo y devuelve la ficha de invención.
 
@@ -418,7 +419,9 @@ def invent(
     if ficha_bloqueo and history_channels_enabled:
         try:
             from .supra_dossier import lecciones_previas
-            lecciones = lecciones_previas(query)
+            lecciones = lecciones_previas(
+                query, execution_resolver=execution_receipt_resolver
+            )
         except Exception:  # noqa: BLE001 — el aprendizaje nunca rompe el loop
             lecciones = []
 

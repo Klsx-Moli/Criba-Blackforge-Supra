@@ -93,7 +93,7 @@ def test_positive_does_not_migrate_to_new_mechanism(tmp_path):
         directory=tmp_path,
     )
     guardar_dossier(b, tmp_path)
-    lessons = " ".join(lecciones_previas("atencion", tmp_path))
+    lessons = " ".join(lecciones_previas("atencion", tmp_path, execution_resolver=lambda _id: receipt))
     assert "MECANISMO_ANTERIOR" in lessons
     assert "MECANISMO_NUEVO" not in lessons
 
@@ -117,7 +117,7 @@ def test_legacy_ambiguity_never_clears_and_other_history_survives(tmp_path):
     path = write_legacy(tmp_path, [a, observed(a), b, a, valid, observed(valid)])
     before = path.read_bytes()
     with pytest.warns(RuntimeWarning, match="ambigu"):
-        lessons = lecciones_previas("atencion", tmp_path)
+        lessons = lecciones_previas("atencion", tmp_path, execution_resolver=lambda _id: observed(valid)["execution_receipt"])
     assert len(lessons) == 1 and "MECANISMO_VALIDO" in lessons[0]
     assert path.read_bytes() == before
 
@@ -125,7 +125,7 @@ def test_legacy_ambiguity_never_clears_and_other_history_survives(tmp_path):
 def test_legacy_reexport_only_timestamp_change_is_unambiguous(tmp_path):
     a = dossier()
     write_legacy(tmp_path, [a, observed(a), {**a, "creado_at": "otro instante"}])
-    lessons = lecciones_previas("atencion", tmp_path)
+    lessons = lecciones_previas("atencion", tmp_path, execution_resolver=lambda _id: observed(a)["execution_receipt"])
     assert len(lessons) == 1 and "MECANISMO_ANTERIOR" in lessons[0]
 
 

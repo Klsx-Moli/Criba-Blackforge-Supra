@@ -83,7 +83,7 @@ def test_astra_017_authoritative_execution_receipt_is_required_and_rechecked(tmp
     )
     assert result["accreditation"] == "ACCREDITED_EXECUTION"
     assert result["receipt_authority"] == "EXECUTION_RESOLVER"
-    assert lecciones_previas("", tmp_path)
+    assert lecciones_previas("", tmp_path, execution_resolver=lambda _id: receipt)
 
     d2 = _dossier()
     guardar_dossier(d2, tmp_path)
@@ -251,7 +251,7 @@ def test_astra_b01_dossier_correction_same_execution_is_one_current_lesson(tmp_p
     assert second["revision_index"] == 1
     assert second["first_registered_at"] == first["first_registered_at"]
 
-    lessons = lecciones_previas("", tmp_path, limit=10)
+    lessons = lecciones_previas("", tmp_path, limit=10, execution_resolver=lambda _id: negative)
     assert len(lessons) == 1
     assert "'negativo'" in lessons[0]
     assert "'positivo'" not in lessons[0]

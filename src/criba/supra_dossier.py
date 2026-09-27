@@ -345,7 +345,10 @@ def registrar_resultado(
     return registro
 
 
-def lecciones_previas(query: str, directory: Path | None = None, limit: int = 3) -> list[str]:
+def lecciones_previas(
+    query: str, directory: Path | None = None, limit: int = 3,
+    *, execution_resolver: Callable[[str], dict[str, Any] | None] | None = None,
+) -> list[str]:
     """Lecciones registradas pertinentes a la consulta (paso 5 del circuito).
 
     Un resultado elegible vuelve a la búsqueda como aprendizaje trazable y
@@ -393,10 +396,22 @@ def lecciones_previas(query: str, directory: Path | None = None, limit: int = 3)
         if res.get("learning_eligible") is not True:
             # INDETERMINATE is an observed state, not a learning reward/lesson.
             continue
+        # Persisted accreditation records what was accepted at write time; it
+        # is not itself authority after restart. Re-resolve the execution on
+        # every learning read and fail closed if live authority is unavailable.
+        if execution_resolver is None:
+            continue
+        execution_id = str(res.get("execution_id") or "")
+        try:
+            authoritative_receipt = _normalizar_execution_receipt(
+                execution_resolver(execution_id)
+            )
+        except Exception:  # resolver failure cannot reactivate stored evidence
+            continue
         d = dossiers[identity]
         if not _execution_receipt_matches(
             d,
-            res.get("execution_receipt"),
+            authoritative_receipt,
             resultado=str(res.get("resultado") or ""),
             execution_id=str(res.get("execution_id") or ""),
             protocol_version=str(res.get("protocol_version") or ""),

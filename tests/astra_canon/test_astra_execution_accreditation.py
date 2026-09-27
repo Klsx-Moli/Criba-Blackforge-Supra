@@ -64,7 +64,7 @@ def test_astra_017_accredited_execution_binds_candidate_mechanism_claim_protocol
     assert result["claim_id"]
     assert result["protocol_version"] == d["protocol_version"]
     assert result["execution_id"] == "exec-1"
-    assert lecciones_previas("", tmp_path)
+    assert lecciones_previas("", tmp_path, execution_resolver=lambda _id: receipt)
 
 
 def test_astra_017_wrong_protocol_cannot_be_accredited_to_dossier(tmp_path):
@@ -79,3 +79,33 @@ def test_astra_017_wrong_protocol_cannot_be_accredited_to_dossier(tmp_path):
     )
     assert result["accreditation"] == "DECLARED_RESULT"
     assert lecciones_previas("", tmp_path) == []
+
+
+def test_astra_017_learning_revalidates_receipt_authority_after_restart(tmp_path):
+    d = dossier()
+    guardar_dossier(d, tmp_path)
+    receipt = {
+        "candidate_id": d["candidate_id"],
+        "mechanism_version": d["mechanism_version"],
+        "claim_id": d["claim_id"],
+        "protocol_version": d["protocol_version"],
+        "execution_id": "exec-restart",
+        "observed_result": "positivo",
+        "result_scope": "EXPERIMENTAL_OBSERVATION",
+    }
+    registrar_resultado(
+        d["dossier_id"], "positivo", directory=tmp_path,
+        execution_id="exec-restart", protocol_version=d["protocol_version"],
+        execution_receipt=receipt,
+        execution_resolver=lambda execution_id: receipt if execution_id == "exec-restart" else None,
+    )
+    # Persisted accreditation is historical metadata, not live authority.
+    assert lecciones_previas("", tmp_path, execution_resolver=None) == []
+    assert lecciones_previas(
+        "", tmp_path,
+        execution_resolver=lambda execution_id: receipt if execution_id == "exec-restart" else None,
+    )
+    assert lecciones_previas(
+        "", tmp_path,
+        execution_resolver=lambda _execution_id: None,
+    ) == []

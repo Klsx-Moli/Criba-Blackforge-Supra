@@ -150,7 +150,7 @@ def test_circuito_aprendizaje_resultado_vuelve_como_leccion(tmp_path) -> None:
         execution_resolver=lambda execution_id: receipt if execution_id == "exec-test" else None,
         directory=tmp_path,
     )
-    lecciones = lecciones_previas("cola de atención", directory=tmp_path)
+    lecciones = lecciones_previas("cola de atención", directory=tmp_path, execution_resolver=lambda _id: receipt)
     assert lecciones and "negativo" in lecciones[0] and "rotar turnos" in lecciones[0]
     # la lección llega al siguiente invent() dentro del bloqueo
     vistos = []
