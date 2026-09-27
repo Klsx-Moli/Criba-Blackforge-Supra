@@ -192,9 +192,9 @@ class ProjectStateManager:
             if report.verdict != "PASS" and p.stage is TaskmasterStage.COMPLETED:
                 p.stage = (
                     TaskmasterStage.RESTRICTED_EXECUTION_VERIFIED
-                    if p.restricted_execution_results
-                    and p.restricted_execution_results[-1].passed
-                    and p.restricted_execution_results[-1].identity_bound
+                    if (current_execution := p.current_authoritative_execution()) is not None
+                    and current_execution.passed
+                    and current_execution.identity_bound
                     else TaskmasterStage.STRATIFIED
                     if p.selected_candidate is not None
                     else TaskmasterStage.STRUCTURED

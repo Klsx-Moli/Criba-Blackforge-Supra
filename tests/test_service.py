@@ -472,3 +472,29 @@ def test_criba_envelope_rejects_version_skew() -> None:
         json={"objective": "Reject unsupported CRIBA integration version", **envelope},
     )
     assert response.status_code == 422
+
+
+def test_criba_fingerprint_uses_received_fields_not_parser_injected_defaults() -> None:
+    import hashlib
+    import json
+
+    dossier = _complete_criba_dossier_payload()
+    for field in ("comparacion", "metrica", "coste_permisos"):
+        dossier["prueba_discriminante"].pop(field)
+    semantic = {key: value for key, value in dossier.items() if key != "creado_at"}
+    raw = json.dumps(
+        semantic, ensure_ascii=False, sort_keys=True, separators=(",", ":"), allow_nan=False
+    )
+    client_fingerprint = "sha256:" + hashlib.sha256(raw.encode("utf-8")).hexdigest()
+
+    response = client.post(
+        "/api/v1/projects",
+        json={
+            "objective": "Evaluate parser-default fingerprint compatibility",
+            "project_id": "fingerprint-defaults",
+            "criba_dossier": dossier,
+            "criba_integration_version": "criba-supra/1",
+            "criba_payload_fingerprint": client_fingerprint,
+        },
+    )
+    assert response.status_code != 422, response.text

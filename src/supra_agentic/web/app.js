@@ -81,9 +81,14 @@ function setUIState(status, stage, posture) {
     };
 
     const currentIdx = stageOrder[stage] !== undefined ? stageOrder[stage] : 0;
+    const currentExecutions = posture && posture.restricted_execution_results
+        ? posture.restricted_execution_results.filter(r =>
+            r.attempt_id === posture.restricted_execution_attempt_id &&
+            r.attempt_generation === posture.restricted_execution_generation)
+        : [];
+    const currentExecution = currentExecutions.length === 1 ? currentExecutions[0] : null;
     const restrictedVerified = Boolean(
-        posture && posture.restricted_execution_results &&
-        posture.restricted_execution_results.some(r => r.passed && r.identity_bound)
+        currentExecution && currentExecution.passed && currentExecution.identity_bound
     );
 
     steps.forEach((s, idx) => {
@@ -112,7 +117,12 @@ function renderProjectPosture(posture) {
     const decomp = posture.decomposition;
     const cand = posture.selected_candidate;
     const ver = posture.verification;
-    const rex = posture.restricted_execution_results && posture.restricted_execution_results[posture.restricted_execution_results.length - 1];
+    const currentExecutions = posture.restricted_execution_results
+        ? posture.restricted_execution_results.filter(r =>
+            r.attempt_id === posture.restricted_execution_attempt_id &&
+            r.attempt_generation === posture.restricted_execution_generation)
+        : [];
+    const rex = currentExecutions.length === 1 ? currentExecutions[0] : null;
     const out = posture.final_output;
 
     let html = `

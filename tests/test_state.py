@@ -512,3 +512,36 @@ def test_restart_rejects_ambiguous_selected_candidate_membership(mutation):
         assert not any(r.identity_bound for r in reloaded.restricted_execution_results)
         assert reloaded.final_output is not None
         assert reloaded.final_output["workflow_status"] == "EVIDENCE_INVALIDATED"
+
+
+def test_restart_rejects_same_execution_id_with_conflicting_semantic_payload():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        sm, p, base = _project_with_authoritative_attempt(tmpdir)
+        failed = RestrictedExecutionResult(execution_id="exec-same", passed=False, **base)
+        sm.record_restricted_execution(p.project_id, failed)
+
+        state_path = Path(tmpdir) / f"{p.project_id}.json"
+        data = json.loads(state_path.read_text(encoding="utf-8"))
+        conflicting = dict(data["restricted_execution_results"][0])
+        conflicting["passed"] = True
+        conflicting["output_log"] = "conflicting persisted PASS with same execution id"
+        data["restricted_execution_results"].append(conflicting)
+        data["stage"] = "COMPLETED"
+        data["final_output"] = {"workflow_status": "COMPLETED"}
+        state_path.write_text(json.dumps(data), encoding="utf-8")
+
+        reloaded = ProjectStateManager(storage_dir=tmpdir).get_project(p.project_id)
+        assert reloaded is not None
+        assert reloaded.stage is TaskmasterStage.STRATIFIED
+        current = [
+            result
+            for result in reloaded.restricted_execution_results
+            if result.attempt_id == reloaded.restricted_execution_attempt_id
+            and result.attempt_generation == reloaded.restricted_execution_generation
+        ]
+        assert len(current) == 2
+        assert not any(result.identity_bound for result in current)
+        with pytest.raises(ValueError, match="completion gate"):
+            ProjectStateManager(storage_dir=tmpdir).complete_project(
+                p.project_id, {"workflow_status": "COMPLETED"}
+            )

@@ -318,7 +318,15 @@ class ProjectPosture(BaseModel):
         # authority (corruption, replay, or a prior race). Fail closed rather
         # than letting list order choose PASS versus FAIL after restart.
         current_execution_ids = {result.execution_id for result in authoritative_executions}
-        if len(current_execution_ids) > 1:
+        semantic_current_results = {
+            json.dumps(
+                result.model_dump(exclude={"timestamp"}),
+                sort_keys=True,
+                separators=(",", ":"),
+            )
+            for result in authoritative_executions
+        }
+        if len(current_execution_ids) > 1 or len(semantic_current_results) > 1:
             for result in authoritative_executions:
                 result.identity_bound = False
         latest_execution = authoritative_executions[-1] if authoritative_executions else None
@@ -423,6 +431,31 @@ class ProjectPosture(BaseModel):
     checkpoints: list[CheckpointRecord] = Field(default_factory=list)
     final_output: dict[str, Any] | None = None
     error_message: str | None = None
+
+    def current_authoritative_execution(self) -> RestrictedExecutionResult | None:
+        """Return the unique current attempt result, or None when authority is ambiguous."""
+        if not _is_server_attempt_id(self.restricted_execution_attempt_id):
+            return None
+        current = [
+            result
+            for result in self.restricted_execution_results
+            if result.attempt_id == self.restricted_execution_attempt_id
+            and result.attempt_generation == self.restricted_execution_generation
+        ]
+        if not current:
+            return None
+        execution_ids = {result.execution_id for result in current}
+        semantic_results = {
+            json.dumps(
+                result.model_dump(exclude={"timestamp"}),
+                sort_keys=True,
+                separators=(",", ":"),
+            )
+            for result in current
+        }
+        if len(execution_ids) != 1 or len(semantic_results) != 1:
+            return None
+        return current[-1]
 
     @field_validator("criba_dossier_receipt")
     @classmethod

@@ -203,7 +203,7 @@ _CRIBA_SUPRA_ENVELOPE_VERSION = "criba-supra/1"
 
 
 def _criba_payload_fingerprint(dossier: "CribaDossierRequest") -> str:
-    semantic = dossier.model_dump()
+    semantic = dossier.model_dump(exclude_unset=True)
     semantic.pop("creado_at", None)
     raw = json.dumps(semantic, ensure_ascii=False, sort_keys=True, separators=(",", ":"), allow_nan=False)
     return "sha256:" + hashlib.sha256(raw.encode("utf-8")).hexdigest()
@@ -349,11 +349,7 @@ def _project_execution_payload(
         raise ValueError("project execution payload requires a terminal non-failed posture")
     final_output = posture.final_output or {}
     is_blocked = posture.stage.value == "BLOCKED"
-    latest_execution = (
-        posture.restricted_execution_results[-1]
-        if posture.restricted_execution_results
-        else None
-    )
+    latest_execution = posture.current_authoritative_execution()
     secure_sandbox_status = (
         "RESTRICTED_BOUND_PASS_NOT_ISOLATED"
         if latest_execution and latest_execution.passed and latest_execution.identity_bound

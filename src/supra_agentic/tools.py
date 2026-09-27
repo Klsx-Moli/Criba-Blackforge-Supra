@@ -617,9 +617,7 @@ def record_checkpoint(
         f"fails to outperform standard baseline under stress or introduces uncontained side-effects."
     )
 
-    latest_execution = (
-        posture.restricted_execution_results[-1] if posture.restricted_execution_results else None
-    )
+    latest_execution = posture.current_authoritative_execution()
     restricted_execution_status = (
         "BOUND_PASS"
         if latest_execution and latest_execution.passed and latest_execution.identity_bound
