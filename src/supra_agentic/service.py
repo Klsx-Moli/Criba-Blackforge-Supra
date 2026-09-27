@@ -161,7 +161,11 @@ class CribaDossierRequest(BaseModel):
 
 
 def _criba_dossier_receipt(
-    dossier: CribaDossierRequest, *, integration_version: str, payload_fingerprint: str
+    dossier: CribaDossierRequest,
+    *,
+    integration_version: str,
+    payload_fingerprint: str,
+    request_fingerprint: str,
 ) -> dict[str, Any]:
     """Flatten only the discriminant planning facts SUPRA needs to preserve."""
     protocol = dossier.prueba_discriminante
@@ -171,6 +175,7 @@ def _criba_dossier_receipt(
         "scientific_status": "NOT_VALIDATED",
         "integration_version": integration_version,
         "payload_fingerprint": payload_fingerprint,
+        "request_fingerprint": request_fingerprint,
         "criba_dossier_id": dossier.dossier_id,
         "criba_candidate_id": dossier.candidate_id,
         "claim_id": dossier.claim_id,
@@ -232,6 +237,138 @@ class CreateProjectRequest(BaseModel):
         if self.criba_payload_fingerprint != expected:
             raise ValueError("CRIBA payload fingerprint mismatch")
         return self
+
+
+def _criba_request_fingerprint(req: CreateProjectRequest) -> str:
+    """Fingerprint execution-affecting request fields for safe retry recognition.
+
+    The dossier itself is represented by its independently verified semantic
+    fingerprint.  A caller cannot change objective/provider/model/flags under
+    the same project ID and have that request mistaken for a lost-response
+    retry.
+    """
+    payload = {
+        "project_id": req.project_id,
+        "objective": req.objective.strip(),
+        "domain": req.domain,
+        "allow_disruptive": req.allow_disruptive,
+        "provider": req.provider,
+        "model": req.model,
+        "use_model": req.use_model,
+        "criba_integration_version": req.criba_integration_version,
+        "criba_payload_fingerprint": req.criba_payload_fingerprint,
+    }
+    raw = json.dumps(
+        payload,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+        allow_nan=False,
+    )
+    return "sha256:" + hashlib.sha256(raw.encode("utf-8")).hexdigest()
+
+
+def _project_execution_payload(
+    posture: Any, *, idempotent_replay: bool = False
+) -> dict[str, Any]:
+    """Serialize the canonical workflow outcome for create and safe replay."""
+    if posture.stage.value not in {"BLOCKED", "COMPLETED"}:
+        raise ValueError("project execution payload requires a terminal non-failed posture")
+    final_output = posture.final_output or {}
+    is_blocked = posture.stage.value == "BLOCKED"
+    latest_execution = (
+        posture.restricted_execution_results[-1]
+        if posture.restricted_execution_results
+        else None
+    )
+    secure_sandbox_status = (
+        "RESTRICTED_BOUND_PASS_NOT_ISOLATED"
+        if latest_execution and latest_execution.passed and latest_execution.identity_bound
+        else "NOT_REPORTED"
+    )
+    return {
+        "status": "blocked" if is_blocked else "success",
+        "status_scope": "WORKFLOW_EXECUTION_ONLY",
+        "completion_status": "BLOCKED" if is_blocked else "COMPLETED",
+        "workflow_status": posture.stage.value,
+        "verification_status": (
+            posture.verification.verdict if posture.verification else "NOT_EVALUATED"
+        ),
+        "verification_scope": (
+            posture.verification.verification_scope
+            if posture.verification
+            else "TEXTUAL_STRATEGY_COVERAGE"
+        ),
+        "scientific_status": final_output.get("scientific_status", "NOT_VALIDATED"),
+        "secure_sandbox_status": secure_sandbox_status,
+        "criba_planning_receipt_status": (
+            "PRESERVED_NOT_EXECUTED" if posture.criba_dossier_receipt else "NOT_APPLICABLE"
+        ),
+        "criba_mechanism_execution_status": (
+            "NOT_EXECUTED" if posture.criba_dossier_receipt else "NOT_APPLICABLE"
+        ),
+        "idempotent_replay": idempotent_replay,
+        "project_id": posture.project_id,
+        "stage": posture.stage.value,
+        "posture": posture.model_dump(),
+    }
+
+
+def _failed_project_response(posture: Any, *, idempotent_replay: bool) -> Response:
+    """Return the stable failed-workflow envelope without leaking internal error text."""
+    return Response(
+        content=json.dumps(
+            {
+                "status": "error",
+                "status_scope": "WORKFLOW_EXECUTION",
+                "project_id": posture.project_id,
+                "stage": "FAILED",
+                "error": "Pipeline execution failed",
+                "verification": posture.verification.model_dump()
+                if posture.verification
+                else None,
+                "idempotent_replay": idempotent_replay,
+            }
+        ),
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        media_type="application/json",
+    )
+
+
+def _is_exact_criba_retry(req: CreateProjectRequest, existing: Any) -> bool:
+    """Return true only for the exact persisted CRIBA request contract."""
+    if req.criba_dossier is None:
+        return False
+    receipt = existing.criba_dossier_receipt
+    return bool(
+        isinstance(receipt, dict)
+        and receipt.get("integration_version") == req.criba_integration_version
+        and receipt.get("payload_fingerprint") == req.criba_payload_fingerprint
+        and receipt.get("request_fingerprint") == _criba_request_fingerprint(req)
+    )
+
+
+def _idempotent_replay_response(req: CreateProjectRequest) -> Response | None:
+    """Resolve a known project before any provider/workflow side effects."""
+    if req.project_id is None:
+        return None
+    existing = state_manager.get_project(req.project_id)
+    if existing is None:
+        return None
+    if not _is_exact_criba_retry(req, existing):
+        raise HTTPException(status_code=409, detail="project_id already exists.")
+    if existing.stage.value == "FAILED":
+        return _failed_project_response(existing, idempotent_replay=True)
+    if existing.stage.value not in {"BLOCKED", "COMPLETED"}:
+        raise HTTPException(
+            status_code=409,
+            detail="existing project is nonterminal; automatic replay unsafe.",
+        )
+    return Response(
+        content=json.dumps(_project_execution_payload(existing, idempotent_replay=True)),
+        status_code=status.HTTP_200_OK,
+        media_type="application/json",
+    )
 
 
 class GenerateRequest(BaseModel):
@@ -318,6 +455,9 @@ def create_and_run_project(req: CreateProjectRequest, request: Request) -> dict[
     - 500 Internal Server Error + {"status": "error"} on workflow failure
     """
     _require_mutation_authority(request)
+    replay = _idempotent_replay_response(req)
+    if replay is not None:
+        return replay
     try:
         runner = TaskmasterRunner(provider_name=req.provider, model_name=req.model)
         posture = runner.run_golden_path(
@@ -331,6 +471,7 @@ def create_and_run_project(req: CreateProjectRequest, request: Request) -> dict[
                     req.criba_dossier,
                     integration_version=req.criba_integration_version or "",
                     payload_fingerprint=req.criba_payload_fingerprint or "",
+                    request_fingerprint=_criba_request_fingerprint(req),
                 )
                 if req.criba_dossier is not None
                 else None
@@ -341,61 +482,27 @@ def create_and_run_project(req: CreateProjectRequest, request: Request) -> dict[
         # channels. A coverage FAIL is returned as verification state; it is not
         # converted into an execution/server failure.
         if posture.stage.value == "FAILED":
-            return Response(
-                content=json.dumps(
-                    {
-                        "status": "error",
-                        "status_scope": "WORKFLOW_EXECUTION",
-                        "project_id": posture.project_id,
-                        "stage": posture.stage.value,
-                        "error": posture.error_message or "Pipeline execution failed",
-                        "verification": posture.verification.model_dump()
-                        if posture.verification
-                        else None,
-                    }
-                ),
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                media_type="application/json",
-            )
+            return _failed_project_response(posture, idempotent_replay=False)
 
-        final_output = posture.final_output or {}
-        is_blocked = posture.stage.value == "BLOCKED"
-        latest_execution = (
-            posture.restricted_execution_results[-1]
-            if posture.restricted_execution_results
-            else None
-        )
-        secure_sandbox_status = (
-            "RESTRICTED_BOUND_PASS_NOT_ISOLATED"
-            if latest_execution and latest_execution.passed and latest_execution.identity_bound
-            else "NOT_REPORTED"
-        )
-        return {
-            "status": "blocked" if is_blocked else "success",
-            "status_scope": "WORKFLOW_EXECUTION_ONLY",
-            "completion_status": "BLOCKED" if is_blocked else "COMPLETED",
-            "workflow_status": posture.stage.value,
-            "verification_status": (
-                posture.verification.verdict if posture.verification else "NOT_EVALUATED"
-            ),
-            "verification_scope": (
-                posture.verification.verification_scope
-                if posture.verification
-                else "TEXTUAL_STRATEGY_COVERAGE"
-            ),
-            "scientific_status": final_output.get("scientific_status", "NOT_VALIDATED"),
-            "secure_sandbox_status": secure_sandbox_status,
-            "criba_planning_receipt_status": (
-                "PRESERVED_NOT_EXECUTED" if posture.criba_dossier_receipt else "NOT_APPLICABLE"
-            ),
-            "criba_mechanism_execution_status": (
-                "NOT_EXECUTED" if posture.criba_dossier_receipt else "NOT_APPLICABLE"
-            ),
-            "project_id": posture.project_id,
-            "stage": posture.stage.value,
-            "posture": posture.model_dump(),
-        }
+        return _project_execution_payload(posture)
     except DuplicateProjectError as exc:
+        if req.project_id is not None and req.criba_dossier is not None:
+            existing = state_manager.get_project(req.project_id)
+            if existing is not None and _is_exact_criba_retry(req, existing):
+                if existing.stage.value == "FAILED":
+                    return _failed_project_response(existing, idempotent_replay=True)
+                if existing.stage.value not in {"BLOCKED", "COMPLETED"}:
+                    raise HTTPException(
+                        status_code=409,
+                        detail="existing project is nonterminal; automatic replay unsafe.",
+                    )
+                return Response(
+                    content=json.dumps(
+                        _project_execution_payload(existing, idempotent_replay=True)
+                    ),
+                    status_code=status.HTTP_200_OK,
+                    media_type="application/json",
+                )
         raise HTTPException(status_code=409, detail="project_id already exists.") from exc
     except Exception as exc:
         logger.error("Project execution failed (%s)", type(exc).__name__)

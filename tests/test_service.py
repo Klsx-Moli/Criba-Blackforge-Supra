@@ -3,7 +3,15 @@
 import tempfile
 
 from fastapi.testclient import TestClient
-from supra_agentic.service import CribaDossierRequest, _criba_payload_fingerprint, app
+from supra_agentic.models import TaskmasterStage
+from supra_agentic.service import (
+    CribaDossierRequest,
+    CreateProjectRequest,
+    _criba_dossier_receipt,
+    _criba_payload_fingerprint,
+    _criba_request_fingerprint,
+    app,
+)
 from supra_agentic.state import state_manager
 
 client = TestClient(app)
@@ -227,6 +235,206 @@ def test_create_project_persists_criba_dossier_as_planning_receipt() -> None:
         assert receipt["resultado_favorable_alternativa"] == (
             "drift reduction from ambient alone"
         )
+
+
+def test_criba_receipt_survives_cache_clear_get_with_version_and_fingerprint() -> None:
+    with tempfile.TemporaryDirectory() as tmpdir:
+        state_manager.storage_dir = type(state_manager.storage_dir)(tmpdir)
+        state_manager._projects.clear()
+        dossier = _complete_criba_dossier_payload()
+        envelope = _criba_request_payload(dossier)
+        created = client.post(
+            "/api/v1/projects",
+            json={
+                "objective": "Persist exact CRIBA planning lineage across restart",
+                "project_id": "criba-restart-lineage",
+                **envelope,
+            },
+        )
+        assert created.status_code == 201
+
+        state_manager._projects.clear()
+        loaded = client.get("/api/v1/projects/criba-restart-lineage")
+        assert loaded.status_code == 200
+        receipt = loaded.json()["posture"]["criba_dossier_receipt"]
+        assert receipt["integration_version"] == "criba-supra/1"
+        assert receipt["payload_fingerprint"] == envelope["criba_payload_fingerprint"]
+        assert receipt["criba_dossier_id"] == dossier["dossier_id"]
+        assert receipt["criba_candidate_id"] == dossier["candidate_id"]
+        assert receipt["claim_id"] == dossier["claim_id"]
+        assert receipt["mechanism_version"] == dossier["mechanism_version"]
+        assert receipt["protocol_version"] == dossier["protocol_version"]
+        assert receipt["execution_status"] == "NOT_EXECUTED"
+        assert receipt["scientific_status"] == "NOT_VALIDATED"
+
+
+def test_same_criba_request_is_idempotent_after_lost_response_and_restart() -> None:
+    with tempfile.TemporaryDirectory() as tmpdir:
+        state_manager.storage_dir = type(state_manager.storage_dir)(tmpdir)
+        state_manager._projects.clear()
+        dossier = _complete_criba_dossier_payload()
+        request_payload = {
+            "objective": "Recognize exact CRIBA retry without rerunning workflow",
+            "project_id": "criba-idempotent-retry",
+            "domain": "thermal_engineering",
+            "allow_disruptive": False,
+            **_criba_request_payload(dossier),
+        }
+        first = client.post("/api/v1/projects", json=request_payload)
+        assert first.status_code == 201
+        first_body = first.json()
+
+        # Simulate caller losing the response and the server process restarting.
+        state_manager._projects.clear()
+        second = client.post("/api/v1/projects", json=request_payload)
+
+        assert second.status_code == 200
+        second_body = second.json()
+        assert second_body["idempotent_replay"] is True
+        assert second_body["project_id"] == first_body["project_id"]
+        assert second_body["stage"] == first_body["stage"]
+        first_receipt = first_body["posture"]["criba_dossier_receipt"]
+        second_receipt = second_body["posture"]["criba_dossier_receipt"]
+        assert second_receipt["payload_fingerprint"] == first_receipt["payload_fingerprint"]
+        assert second_receipt["execution_status"] == "NOT_EXECUTED"
+        assert second_receipt["scientific_status"] == "NOT_VALIDATED"
+
+
+def test_same_project_and_dossier_fingerprint_with_changed_objective_is_conflict() -> None:
+    with tempfile.TemporaryDirectory() as tmpdir:
+        state_manager.storage_dir = type(state_manager.storage_dir)(tmpdir)
+        state_manager._projects.clear()
+        dossier = _complete_criba_dossier_payload()
+        base = {
+            "project_id": "criba-retry-conflict",
+            "domain": "thermal_engineering",
+            "allow_disruptive": False,
+            **_criba_request_payload(dossier),
+        }
+        first = client.post(
+            "/api/v1/projects",
+            json={"objective": "Original bounded CRIBA request", **base},
+        )
+        assert first.status_code == 201
+        state_manager._projects.clear()
+        second = client.post(
+            "/api/v1/projects",
+            json={"objective": "Changed objective under same dossier fingerprint", **base},
+        )
+        assert second.status_code == 409
+
+
+def test_exact_criba_retry_is_resolved_before_runner_side_effects(monkeypatch) -> None:
+    with tempfile.TemporaryDirectory() as tmpdir:
+        state_manager.storage_dir = type(state_manager.storage_dir)(tmpdir)
+        state_manager._projects.clear()
+        dossier = _complete_criba_dossier_payload()
+        request_payload = {
+            "objective": "Preflight idempotent replay before any runner work",
+            "project_id": "criba-preflight-retry",
+            **_criba_request_payload(dossier),
+        }
+        first = client.post("/api/v1/projects", json=request_payload)
+        assert first.status_code == 201
+        state_manager._projects.clear()
+
+        def forbidden_runner(*_args, **_kwargs):
+            raise AssertionError("exact replay must not construct TaskmasterRunner")
+
+        monkeypatch.setattr("supra_agentic.service.TaskmasterRunner", forbidden_runner)
+        replay = client.post("/api/v1/projects", json=request_payload)
+        assert replay.status_code == 200
+        assert replay.json()["idempotent_replay"] is True
+
+
+def test_same_project_with_different_criba_payload_remains_conflict_after_restart() -> None:
+    with tempfile.TemporaryDirectory() as tmpdir:
+        state_manager.storage_dir = type(state_manager.storage_dir)(tmpdir)
+        state_manager._projects.clear()
+        original = _complete_criba_dossier_payload()
+        first_payload = {
+            "objective": "Reject semantic overwrite of persisted CRIBA request",
+            "project_id": "criba-semantic-conflict",
+            **_criba_request_payload(original),
+        }
+        first = client.post("/api/v1/projects", json=first_payload)
+        assert first.status_code == 201
+
+        state_manager._projects.clear()
+        changed = _complete_criba_dossier_payload()
+        changed["mecanismo"] = "Different closed-loop mechanism under same project ID"
+        changed_payload = {
+            "objective": first_payload["objective"],
+            "project_id": first_payload["project_id"],
+            **_criba_request_payload(changed),
+        }
+        second = client.post("/api/v1/projects", json=changed_payload)
+        assert second.status_code == 409
+
+
+def test_exact_retry_does_not_promote_partial_crash_state_to_completion() -> None:
+    with tempfile.TemporaryDirectory() as tmpdir:
+        state_manager.storage_dir = type(state_manager.storage_dir)(tmpdir)
+        state_manager._projects.clear()
+        dossier = _complete_criba_dossier_payload()
+        payload = {
+            "objective": "Crash window must stay nonterminal",
+            "project_id": "criba-partial-retry",
+            **_criba_request_payload(dossier),
+        }
+        req = CreateProjectRequest.model_validate(payload)
+        receipt = _criba_dossier_receipt(
+            req.criba_dossier,
+            integration_version=req.criba_integration_version or "",
+            payload_fingerprint=req.criba_payload_fingerprint or "",
+            request_fingerprint=_criba_request_fingerprint(req),
+        )
+        state_manager.create_project(
+            objective=req.objective,
+            project_id=req.project_id,
+            criba_dossier_receipt=receipt,
+        )
+        state_manager._projects.clear()
+
+        replay = client.post("/api/v1/projects", json=payload)
+        assert replay.status_code == 409
+        assert replay.json()["detail"] == "existing project is nonterminal; automatic replay unsafe."
+
+
+def test_exact_retry_preserves_failed_state_instead_of_claiming_completion() -> None:
+    with tempfile.TemporaryDirectory() as tmpdir:
+        state_manager.storage_dir = type(state_manager.storage_dir)(tmpdir)
+        state_manager._projects.clear()
+        dossier = _complete_criba_dossier_payload()
+        payload = {
+            "objective": "Failed workflow must remain failed on exact retry",
+            "project_id": "criba-failed-retry",
+            **_criba_request_payload(dossier),
+        }
+        req = CreateProjectRequest.model_validate(payload)
+        receipt = _criba_dossier_receipt(
+            req.criba_dossier,
+            integration_version=req.criba_integration_version or "",
+            payload_fingerprint=req.criba_payload_fingerprint or "",
+            request_fingerprint=_criba_request_fingerprint(req),
+        )
+        posture = state_manager.create_project(
+            objective=req.objective,
+            project_id=req.project_id,
+            criba_dossier_receipt=receipt,
+        )
+        posture.stage = TaskmasterStage.FAILED
+        posture.error_message = "simulated internal failure"
+        state_manager._persist_project(posture.project_id)
+        state_manager._projects.clear()
+
+        replay = client.post("/api/v1/projects", json=payload)
+        assert replay.status_code == 500
+        body = replay.json()
+        assert body["status"] == "error"
+        assert body["stage"] == "FAILED"
+        assert body["idempotent_replay"] is True
+        assert body["error"] == "Pipeline execution failed"
 
 
 def test_create_project_rejects_incomplete_criba_discriminant_protocol() -> None:
