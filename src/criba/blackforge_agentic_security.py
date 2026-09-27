@@ -287,15 +287,15 @@ class SafetyEnforcer:
     ) -> SafetyDecision:
         """Re-run the safety gate with fresh approvals context."""
         ctx: dict[str, Any] = {
-            "explicit_authorization": bool(approvals.get("explicit_authorization", False)),
-            "sandbox": bool(approvals.get("sandbox", False)),
-            "rollback": bool(approvals.get("rollback", False)),
-            "logging": bool(approvals.get("logging", False)),
-            "full_logging": bool(approvals.get("full_logging", approvals.get("logging", False))),
-            "stop_condition": bool(approvals.get("stop_condition", False)),
-            "isolated_sandbox": bool(approvals.get("isolated_sandbox", False)),
-            "human_approval": bool(approvals.get("human_approval", False)),
-            "authorized_scope_confirmed": bool(approvals.get("authorized_scope_confirmed", False)),
+            "explicit_authorization": approvals.get("explicit_authorization", False) is True,
+            "sandbox": approvals.get("sandbox", False) is True,
+            "rollback": approvals.get("rollback", False) is True,
+            "logging": approvals.get("logging", False) is True,
+            "full_logging": approvals.get("full_logging", approvals.get("logging", False)) is True,
+            "stop_condition": approvals.get("stop_condition", False) is True,
+            "isolated_sandbox": approvals.get("isolated_sandbox", False) is True,
+            "human_approval": approvals.get("human_approval", False) is True,
+            "authorized_scope_confirmed": approvals.get("authorized_scope_confirmed", False) is True,
         }
         return evaluate_blackforge_safety(item, ctx, session_id=session_id)
 

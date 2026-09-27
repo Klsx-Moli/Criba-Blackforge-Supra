@@ -159,7 +159,7 @@ def evaluate_blackforge_safety(
 
     if safety_class == "S2_SANDBOX":
         required = ["explicit_authorization", "sandbox", "rollback", "logging", "stop_condition"]
-        missing = [r for r in required if not ctx.get(r)]
+        missing = [r for r in required if ctx.get(r) is not True]
         if not missing:
             return SafetyDecision(
                 decision=REQUIRE_SANDBOX, policy_version=_SAFETY_POLICY_VERSION, item_id=item_id,
@@ -178,8 +178,8 @@ def evaluate_blackforge_safety(
 
     if safety_class == "S3_HIGH_CONTROL":
         required = ["explicit_authorization", "isolated_sandbox", "human_approval", "rollback", "full_logging", "stop_condition"]
-        missing = [r for r in required if not ctx.get(r)]
-        auth_scope_ok = bool(ctx.get("authorized_scope_confirmed"))
+        missing = [r for r in required if ctx.get(r) is not True]
+        auth_scope_ok = ctx.get("authorized_scope_confirmed") is True
         if not missing and auth_scope_ok:
             return SafetyDecision(
                 decision=REQUIRE_HUMAN_APPROVAL, policy_version=_SAFETY_POLICY_VERSION, item_id=item_id,

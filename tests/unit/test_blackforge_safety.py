@@ -87,6 +87,35 @@ def test_s3_requires_human_approval_full_triad():
     assert d1.unmet_requirements == []
 
 
+
+def test_string_false_cannot_grant_s2_or_s3_controls():
+    item = dict(get("BF-CYB-S800-0670"))
+    item["safety_class"] = "S2_SANDBOX"
+    s2_ctx = {
+        "explicit_authorization": "false",
+        "sandbox": "false",
+        "rollback": "false",
+        "logging": "false",
+        "stop_condition": "false",
+    }
+    s2 = sf.evaluate_blackforge_safety(item, s2_ctx, clock=FIXED_CLOCK)
+    assert s2.decision == sf.DENY
+    assert set(s2.unmet_requirements) == set(s2_ctx)
+
+    item["safety_class"] = "S3_HIGH_CONTROL"
+    s3_ctx = {
+        "explicit_authorization": "false",
+        "isolated_sandbox": "false",
+        "human_approval": "false",
+        "rollback": "false",
+        "full_logging": "false",
+        "stop_condition": "false",
+        "authorized_scope_confirmed": "false",
+    }
+    s3 = sf.evaluate_blackforge_safety(item, s3_ctx, clock=FIXED_CLOCK)
+    assert s3.decision == sf.DENY
+    assert set(s3_ctx).issubset(set(s3.unmet_requirements))
+
 def test_external_target_prohibited_denies():
     item = get("BF-CYB-S800-0670"); item = dict(item)
     item["external_target_prohibited"] = True
