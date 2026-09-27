@@ -34,7 +34,7 @@ def test_quick_run_example():
         response = client.post("/api/v1/examples/quick-run")
         assert response.status_code == 200
         data = response.json()
-        assert data["status"] == "success"
+        assert data["status"] == "blocked"
         assert data["example"] is True
         assert data["stage"] == "BLOCKED"
         assert data["workflow_status"] == "BLOCKED"
@@ -92,7 +92,7 @@ def test_create_and_run_project_and_html_export():
         # A strategy-coverage FAIL is not a workflow/server failure.
         assert response.status_code == 201
         data = response.json()
-        assert data["status"] == "success"
+        assert data["status"] == "blocked"
         assert data["status_scope"] == "WORKFLOW_EXECUTION_ONLY"
         assert "project_id" in data
         assert data["stage"] == "BLOCKED"
@@ -118,7 +118,7 @@ def test_create_project_records_provider_without_calling_it():
         # A strategy-coverage FAIL is not a workflow/server failure.
         assert response.status_code == 201
         data = response.json()
-        assert data["status"] == "success"
+        assert data["status"] == "blocked"
         assert data["status_scope"] == "WORKFLOW_EXECUTION_ONLY"
         assert "project_id" in data
         assert data["stage"] == "BLOCKED"
