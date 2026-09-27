@@ -485,3 +485,30 @@ def test_malformed_protocol_hash_never_binds_execution_authority(bad_protocol):
         assert not posture.restricted_execution_results[-1].identity_bound
         with pytest.raises(ValueError, match="completion gate"):
             sm.complete_project(p.project_id, {"workflow_status": "COMPLETED"})
+
+@pytest.mark.parametrize("mutation", ["duplicate", "same_id_different_semantics"])
+def test_restart_rejects_ambiguous_selected_candidate_membership(mutation):
+    with tempfile.TemporaryDirectory() as tmpdir:
+        sm, p, base = _project_with_authoritative_attempt(tmpdir)
+        sm.record_restricted_execution(
+            p.project_id,
+            RestrictedExecutionResult(execution_id="exec-pass", passed=True, **base),
+        )
+        sm.complete_project(p.project_id, {"workflow_status": "COMPLETED"})
+
+        state_path = Path(tmpdir) / f"{p.project_id}.json"
+        data = json.loads(state_path.read_text(encoding="utf-8"))
+        if mutation == "duplicate":
+            data["candidates"].append(dict(data["selected_candidate"]))
+        else:
+            for candidate in data["candidates"]:
+                if candidate["candidate_id"] == data["selected_candidate"]["candidate_id"]:
+                    candidate["hypothesis"] = "semantically different candidate"
+        state_path.write_text(json.dumps(data), encoding="utf-8")
+
+        reloaded = ProjectStateManager(storage_dir=tmpdir).get_project(p.project_id)
+        assert reloaded is not None
+        assert reloaded.stage is not TaskmasterStage.COMPLETED
+        assert not any(r.identity_bound for r in reloaded.restricted_execution_results)
+        assert reloaded.final_output is not None
+        assert reloaded.final_output["workflow_status"] == "EVIDENCE_INVALIDATED"
