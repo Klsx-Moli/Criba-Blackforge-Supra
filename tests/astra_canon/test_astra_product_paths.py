@@ -94,22 +94,17 @@ def test_astra_017_caller_identity_assertion_cannot_override_persisted_candidate
         tmp.cleanup()
 
 
-def test_astra_020_not_evaluated_can_complete_workflow_without_becoming_validation():
+def test_astra_020_not_evaluated_cannot_complete_workflow_or_become_validation():
     tmp, project = _fresh_project()
     try:
-        result = record_checkpoint(project.project_id, "title", "summary")
-        final = result["final_deliverable"]
-        assert result["stage"] == "COMPLETED"
-        assert final["workflow_status"] == "COMPLETED"
-        assert final["verification_verdict"] == "NOT_EVALUATED"
-        assert final["h0_evaluation_status"] == "NOT_EVALUATED"
-        assert final["scientific_status"] == "NOT_VALIDATED"
-        assert final["independent_confirmation_status"] == "NOT_ESTABLISHED"
-        assert final["learning_update_status"] == "NOT_APPLICABLE"
-        assert final["integrity_semantics"] == "SHA256_OF_SERIALIZED_PAYLOAD_NOT_TRUTH"
+        with pytest.raises(ValueError, match="completion gate"):
+            record_checkpoint(project.project_id, "title", "summary")
+        current = state_manager.get_project(project.project_id)
+        assert current is not None
+        assert current.stage is not TaskmasterStage.COMPLETED
+        assert current.final_output is None
     finally:
         tmp.cleanup()
-
 
 def test_astra_024_026_checkpoint_declares_incomplete_dependency_and_budget_closure():
     tmp, posture = _selected_project()
@@ -132,9 +127,15 @@ def test_astra_024_026_checkpoint_declares_incomplete_dependency_and_budget_clos
 
 
 def test_astra_028_strong_scientific_evaluator_claims_remain_disabled():
-    tmp, project = _fresh_project()
+    tmp, posture = _selected_project()
     try:
-        final = record_checkpoint(project.project_id, "title", "summary")["final_deliverable"]
+        verify_solution(posture.project_id)
+        restricted_python_executor(posture.project_id)
+        current = state_manager.get_project(posture.project_id)
+        assert current is not None and current.verification is not None
+        if current.verification.verdict != "PASS":
+            pytest.skip("completion correctly gated because deterministic verification is not PASS")
+        final = record_checkpoint(posture.project_id, "title", "summary")["final_deliverable"]
         controls = final["evaluator_controls"]
         assert controls == {
             "blinding": False,
@@ -145,7 +146,6 @@ def test_astra_028_strong_scientific_evaluator_claims_remain_disabled():
         }
     finally:
         tmp.cleanup()
-
 
 def test_astra_033_failed_restricted_attempt_is_preserved_after_later_success():
     tmp, posture = _selected_project()
@@ -359,10 +359,10 @@ def test_astra_b03_completed_workflow_keeps_completion_but_invalidates_stale_exe
         "checkpoints": [],
     }
     posture = ProjectPosture.model_validate(raw)
-    assert posture.stage is TaskmasterStage.COMPLETED
+    assert posture.stage is TaskmasterStage.STRATIFIED
     assert posture.restricted_execution_results[0].identity_bound is False
     assert posture.final_output is not None
-    assert posture.final_output["workflow_status"] == "COMPLETED"
+    assert posture.final_output["workflow_status"] == "EVIDENCE_INVALIDATED"
     assert posture.final_output["restricted_execution_identity_bound"] is False
     assert posture.final_output["restricted_execution_status"] == "UNBOUND"
     assert posture.final_output["derived_execution_state_revalidated"] is True

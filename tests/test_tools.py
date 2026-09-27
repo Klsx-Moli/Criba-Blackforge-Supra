@@ -67,16 +67,24 @@ def test_full_tool_cycle_execution():
         assert r4["stage"] == TaskmasterStage.RESTRICTED_EXECUTION_VERIFIED.value
         assert r4["restricted_execution_result"]["passed"] is True
 
-        # 5. Checkpoint / Final Deliverable
-        r5 = record_checkpoint(
-            pid,
-            deliverable_title="Multi-Region Zero-Loss Failover Plan",
-            summary="Autonomous plan synthesized and verified.",
-        )
-        assert r5["status"] == "success"
-        assert r5["stage"] == TaskmasterStage.COMPLETED.value
-        assert "audit_sha256" in r5["final_deliverable"]
-        assert len(r5["final_deliverable"]["audit_sha256"]) == 64
+        # 5. Completion is gated by both verification PASS and bound execution PASS.
+        if report["verdict"] == "PASS":
+            r5 = record_checkpoint(
+                pid,
+                deliverable_title="Multi-Region Zero-Loss Failover Plan",
+                summary="Autonomous plan synthesized and verified.",
+            )
+            assert r5["status"] == "success"
+            assert r5["stage"] == TaskmasterStage.COMPLETED.value
+            assert "audit_sha256" in r5["final_deliverable"]
+            assert len(r5["final_deliverable"]["audit_sha256"]) == 64
+        else:
+            with pytest.raises(ValueError, match="completion gate"):
+                record_checkpoint(
+                    pid,
+                    deliverable_title="Multi-Region Zero-Loss Failover Plan",
+                    summary="Autonomous plan synthesized but not verification-PASS.",
+                )
 
 
 def test_untrusted_python_source_is_rejected():

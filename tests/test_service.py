@@ -36,9 +36,9 @@ def test_quick_run_example():
         data = response.json()
         assert data["status"] == "success"
         assert data["example"] is True
-        assert data["stage"] == "COMPLETED"
-        assert "audit_sha256" in data["deliverable"]
-        assert "null_hypothesis_h0" in data["deliverable"]
+        assert data["stage"] == "BLOCKED"
+        assert data["workflow_status"] == "BLOCKED"
+        assert data["deliverable"] is None
 
 
 def test_webmcp_jsonrpc_protocol():
@@ -95,8 +95,8 @@ def test_create_and_run_project_and_html_export():
         assert data["status"] == "success"
         assert data["status_scope"] == "WORKFLOW_EXECUTION_ONLY"
         assert "project_id" in data
-        assert data["stage"] == "COMPLETED"
-        assert data["workflow_status"] == "COMPLETED"
+        assert data["stage"] == "BLOCKED"
+        assert data["workflow_status"] == "BLOCKED"
         assert data["verification_status"] == "FAIL"
         assert data["scientific_status"] == "NOT_VALIDATED"
 
@@ -121,7 +121,30 @@ def test_create_project_records_provider_without_calling_it():
         assert data["status"] == "success"
         assert data["status_scope"] == "WORKFLOW_EXECUTION_ONLY"
         assert "project_id" in data
-        assert data["stage"] == "COMPLETED"
-        assert data["workflow_status"] == "COMPLETED"
+        assert data["stage"] == "BLOCKED"
+        assert data["workflow_status"] == "BLOCKED"
         assert data["verification_status"] == "FAIL"
         assert data["scientific_status"] == "NOT_VALIDATED"
+
+
+def test_blocked_project_survives_cache_clear_and_get_without_final_output():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        state_manager.storage_dir = type(state_manager.storage_dir)(tmpdir)
+        state_manager._projects.clear()
+        response = client.post(
+            "/api/v1/projects",
+            json={"objective": "Design a bounded local automation controller"},
+        )
+        assert response.status_code == 201
+        created = response.json()
+        assert created["stage"] == "BLOCKED"
+        project_id = created["project_id"]
+
+        # Simulate a fresh process cache: authoritative state must reload from disk.
+        state_manager._projects.clear()
+        loaded = client.get(f"/api/v1/projects/{project_id}")
+        assert loaded.status_code == 200
+        posture = loaded.json()["posture"]
+        assert posture["stage"] == "BLOCKED"
+        assert posture["final_output"] is None
+        assert posture["error_message"] is None

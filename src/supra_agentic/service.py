@@ -302,7 +302,7 @@ def example_quick_run() -> dict[str, Any]:
     return {
         "status": "success",
         "example": True,
-        "stages_completed": 5,
+        "stages_completed": 5 if posture.stage.value == "COMPLETED" else 4,
         "workflow_status": posture.stage.value,
         "verification_status": (
             posture.verification.verdict if posture.verification else "NOT_EVALUATED"
