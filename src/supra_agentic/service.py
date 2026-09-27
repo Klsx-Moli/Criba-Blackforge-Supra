@@ -25,6 +25,8 @@ from .state import DuplicateProjectError, state_manager
 
 logger = logging.getLogger("supra_agentic.service")
 MAX_MCP_BODY_SIZE = 8 * 1024 * 1024
+MAX_API_BODY_SIZE = 8 * 1024 * 1024
+_BOUNDED_JSON_PATHS = {"/api/v1/projects", "/api/v1/generate"}
 _LOOPBACK_CLIENTS = {"127.0.0.1", "::1", "testclient"}
 
 
@@ -92,6 +94,77 @@ app = FastAPI(
     version="1.0.0",
     description="Provider-neutral task decomposition, scoped strategy-coverage evaluation, restricted execution telemetry, and evidence generation.",
 )
+
+class _BoundedJsonBodyMiddleware:
+    """Bound expensive JSON endpoints before framework body parsing."""
+
+    def __init__(self, app: Any) -> None:
+        self.app = app
+
+    async def __call__(self, scope: dict[str, Any], receive: Any, send: Any) -> None:
+        if (
+            scope.get("type") != "http"
+            or scope.get("method") != "POST"
+            or scope.get("path") not in _BOUNDED_JSON_PATHS
+        ):
+            await self.app(scope, receive, send)
+            return
+
+        headers = {k.lower(): v for k, v in scope.get("headers", [])}
+        raw_length = headers.get(b"content-length")
+        if raw_length is not None:
+            try:
+                declared_size = int(raw_length)
+            except ValueError:
+                await self._reject(send, 400, "Invalid Content-Length header")
+                return
+            if declared_size < 0:
+                await self._reject(send, 400, "Invalid Content-Length header")
+                return
+            if declared_size > MAX_API_BODY_SIZE:
+                await self._reject(send, 413, "Request body too large")
+                return
+
+        chunks: list[bytes] = []
+        total = 0
+        while True:
+            message = await receive()
+            if message.get("type") != "http.request":
+                await self.app(scope, receive, send)
+                return
+            chunk = message.get("body", b"")
+            total += len(chunk)
+            if total > MAX_API_BODY_SIZE:
+                await self._reject(send, 413, "Request body too large")
+                return
+            chunks.append(chunk)
+            if not message.get("more_body", False):
+                break
+
+        body = b"".join(chunks)
+        sent = False
+
+        async def replay_receive() -> dict[str, Any]:
+            nonlocal sent
+            if sent:
+                return {"type": "http.request", "body": b"", "more_body": False}
+            sent = True
+            return {"type": "http.request", "body": body, "more_body": False}
+
+        await self.app(scope, replay_receive, send)
+
+    @staticmethod
+    async def _reject(send: Any, status_code: int, detail: str) -> None:
+        body = json.dumps({"detail": detail}, separators=(",", ":")).encode("utf-8")
+        await send({
+            "type": "http.response.start",
+            "status": status_code,
+            "headers": [(b"content-type", b"application/json"), (b"content-length", str(len(body)).encode())],
+        })
+        await send({"type": "http.response.body", "body": body})
+
+
+app.add_middleware(_BoundedJsonBodyMiddleware)
 
 # Enable CORS - configurable, default restrictive (empty list = no CORS)
 if CORS_ORIGINS:

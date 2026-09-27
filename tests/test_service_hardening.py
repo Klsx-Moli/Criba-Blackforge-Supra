@@ -260,3 +260,24 @@ def test_network_runtime_cannot_fall_back_to_loopback_without_token(monkeypatch)
         service._require_mutation_authority(loopback)
     assert raised.value.status_code == 503
     assert raised.value.detail == "Mutation authorization is not configured."
+
+@pytest.mark.parametrize("path", ["/api/v1/projects", "/api/v1/generate"])
+def test_expensive_json_endpoints_reject_declared_oversize_before_handler(monkeypatch, path) -> None:
+    monkeypatch.setattr(service, "MAX_API_BODY_SIZE", 64)
+    response = client.post(path, content=b"{}", headers={"content-type": "application/json", "content-length": "65"})
+    assert response.status_code == 413
+
+
+@pytest.mark.parametrize("path", ["/api/v1/projects", "/api/v1/generate"])
+def test_expensive_json_endpoints_reject_actual_oversize_with_false_small_length(monkeypatch, path) -> None:
+    monkeypatch.setattr(service, "MAX_API_BODY_SIZE", 64)
+    body = b'{"x":"' + b'x' * 80 + b'"}'
+    response = client.post(path, content=body, headers={"content-type": "application/json", "content-length": "1"})
+    assert response.status_code == 413
+
+
+@pytest.mark.parametrize("path", ["/api/v1/projects", "/api/v1/generate"])
+def test_expensive_json_endpoints_reject_invalid_content_length(monkeypatch, path) -> None:
+    monkeypatch.setattr(service, "MAX_API_BODY_SIZE", 64)
+    response = client.post(path, content=b"{}", headers={"content-type": "application/json", "content-length": "not-a-number"})
+    assert response.status_code == 400
