@@ -325,9 +325,21 @@ def create_and_run_project(req: CreateProjectRequest, request: Request) -> dict[
             )
 
         final_output = posture.final_output or {}
+        is_blocked = posture.stage.value == "BLOCKED"
+        latest_execution = (
+            posture.restricted_execution_results[-1]
+            if posture.restricted_execution_results
+            else None
+        )
+        secure_sandbox_status = (
+            "RESTRICTED_BOUND_PASS_NOT_ISOLATED"
+            if latest_execution and latest_execution.passed and latest_execution.identity_bound
+            else "NOT_REPORTED"
+        )
         return {
-            "status": "success",
+            "status": "blocked" if is_blocked else "success",
             "status_scope": "WORKFLOW_EXECUTION_ONLY",
+            "completion_status": "BLOCKED" if is_blocked else "COMPLETED",
             "workflow_status": posture.stage.value,
             "verification_status": (
                 posture.verification.verdict if posture.verification else "NOT_EVALUATED"
@@ -338,6 +350,13 @@ def create_and_run_project(req: CreateProjectRequest, request: Request) -> dict[
                 else "TEXTUAL_STRATEGY_COVERAGE"
             ),
             "scientific_status": final_output.get("scientific_status", "NOT_VALIDATED"),
+            "secure_sandbox_status": secure_sandbox_status,
+            "criba_planning_receipt_status": (
+                "PRESERVED_NOT_EXECUTED" if posture.criba_dossier_receipt else "NOT_APPLICABLE"
+            ),
+            "criba_mechanism_execution_status": (
+                "NOT_EXECUTED" if posture.criba_dossier_receipt else "NOT_APPLICABLE"
+            ),
             "project_id": posture.project_id,
             "stage": posture.stage.value,
             "posture": posture.model_dump(),
