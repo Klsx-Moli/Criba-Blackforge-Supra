@@ -10,9 +10,17 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 import os
 import time
 from pathlib import Path
+
+# Support verification scripts executed directly from a source checkout.
+# This changes import resolution only; it does not bypass release gates.
+_REPO_ROOT = Path(__file__).resolve().parents[1]
+_SRC = _REPO_ROOT / "src"
+if str(_SRC) not in sys.path:
+    sys.path.insert(0, str(_SRC))
 
 from criba.anti_goodhart.detectors import DetectorSpec
 from criba.anti_goodhart.observer import _observe_trace_after_gate
