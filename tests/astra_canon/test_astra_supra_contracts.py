@@ -161,3 +161,34 @@ def test_astra_verification_pass_must_bind_selected_candidate(tmp_path):
             p.project_id,
             VerificationReport(candidate_id="other-candidate", verdict="PASS"),
         )
+
+
+def test_astra_completion_gate_rechecks_verification_candidate_binding_after_reload(tmp_path):
+    from supra_agentic.models import RestrictedExecutionResult, StrategyCandidate, VerificationReport, candidate_execution_identity
+    from supra_agentic.state import ProjectStateManager
+
+    sm = ProjectStateManager(tmp_path / "projects")
+    p = sm.create_project("completion rebind")
+    selected = StrategyCandidate(
+        candidate_id="cand-real", pathway_name="real", paradigm_type="CONSERVATIVE",
+        hypothesis="h", action_plan=["step"], is_selected=True,
+    )
+    p = sm.add_candidates(p.project_id, [selected], select_best=True)
+    assert p.selected_candidate is not None
+    identity = candidate_execution_identity(p.selected_candidate)
+    sm.record_restricted_execution(p.project_id, RestrictedExecutionResult(
+        execution_id="exec-real", execution_semantics_version=2, **identity,
+        protocol_version="sha256:" + "1" * 64, action_type="sentinel", passed=True,
+        output_log="bound", duration_ms=1.0, identity_bound=True,
+    ))
+    # Simulate parseable persisted tampering that survived as a non-completed posture.
+    p = sm._get_required_project(p.project_id)
+    p.verification = VerificationReport(candidate_id="cand-forged", verdict="PASS")
+    sm._persist_project(p.project_id)
+    sm._projects.clear()
+    reloaded = sm.get_project(p.project_id)
+    assert reloaded is not None
+    assert reloaded.verification is not None
+    assert reloaded.verification.candidate_id == "cand-forged"
+    with pytest.raises(ValueError, match="completion gate"):
+        sm.complete_project(p.project_id, {"workflow_status": "COMPLETED"})

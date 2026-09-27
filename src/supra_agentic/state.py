@@ -288,7 +288,12 @@ class ProjectStateManager:
         """Mark workflow completion without implying verification or scientific proof."""
         with self._lock:
             p = self._get_required_project(project_id)
-            verification_pass = bool(p.verification and p.verification.verdict == "PASS")
+            verification_pass = bool(
+                p.verification
+                and p.verification.verdict == "PASS"
+                and p.selected_candidate is not None
+                and p.verification.candidate_id == p.selected_candidate.candidate_id
+            )
             latest_execution = (
                 p.restricted_execution_results[-1] if p.restricted_execution_results else None
             )
