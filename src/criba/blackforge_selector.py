@@ -216,6 +216,19 @@ def select_blackforge(
                     "field": boolean_field,
                     "value_repr": repr(value)[:120],
                 })
+        if record.get("safety_class") in {"S2_SANDBOX", "S3_HIGH_CONTROL"}:
+            for required_control in (
+                "requires_sandbox",
+                "requires_explicit_authorization",
+                "external_target_prohibited",
+            ):
+                if required_control in record and record.get(required_control) is not True:
+                    invalid_controls.append({
+                        "blackforge_id": str(record.get("blackforge_id") or "")[:80],
+                        "field": required_control,
+                        "value_repr": repr(record.get(required_control))[:120],
+                        "reason": "high_control_requires_true",
+                    })
         for field_name, vocabulary in (
             ("activation_tier", valid_tiers),
             ("safety_class", valid_safety_classes),
