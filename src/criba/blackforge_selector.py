@@ -179,7 +179,7 @@ def select_blackforge(
                 detail={"value_repr": repr(allowed_tiers)[:240]},
             ),
         )
-    if allow_research and "research" not in allowed_tiers:
+    if allow_research is True and "research" not in allowed_tiers:
         allowed_tiers = allowed_tiers + ["research"]
     # archive is NEVER selectable.
     allowed_tiers = [t for t in allowed_tiers if t != "archive"]
@@ -254,7 +254,11 @@ def select_blackforge(
         )
 
     # S3 gating: 0 by default; max 1 only with full approval triad.
-    s3_allowed = bool(explicit_high_control_approval and authorized_scope_confirmed and sandbox_available)
+    s3_allowed = (
+        explicit_high_control_approval is True
+        and authorized_scope_confirmed is True
+        and sandbox_available is True
+    )
     s3_cap = 1 if s3_allowed else 0
 
     # Candidate pool respecting hard tier/safety gates.

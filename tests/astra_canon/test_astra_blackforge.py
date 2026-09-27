@@ -226,3 +226,32 @@ def test_selector_rejects_high_control_candidate_with_missing_required_control(m
     assert report.failure is not None
     assert report.failure.failed_quota == "candidate_control_integrity"
     assert report.selected_ids == []
+
+@pytest.mark.parametrize("field", [
+    "explicit_high_control_approval",
+    "authorized_scope_confirmed",
+    "sandbox_available",
+])
+def test_blackforge_high_control_approval_flags_require_real_booleans(monkeypatch, field):
+    meta, records = _catalog()
+    monkeypatch.setattr(blackforge_selector, "_load_catalog", lambda: (meta, records))
+    kwargs = {
+        "explicit_high_control_approval": True,
+        "authorized_scope_confirmed": True,
+        "sandbox_available": True,
+    }
+    kwargs[field] = "false"
+    report = blackforge_selector.select_blackforge(session_size=4, **kwargs)
+    assert not report.s3_allowed
+    assert "BF-S3" not in report.selected_ids
+
+def test_blackforge_allow_research_requires_literal_true(monkeypatch):
+    meta, records = _catalog()
+    for record in records:
+        record["activation_tier"] = "research"
+    monkeypatch.setattr(blackforge_selector, "_load_catalog", lambda: (meta, records))
+    report = blackforge_selector.select_blackforge(
+        session_size=4, allowed_tiers=["core"], allow_research="false"
+    )
+    assert "research" not in report.allowed_tiers
+    assert not report.status_ok()
