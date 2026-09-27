@@ -236,8 +236,17 @@ class ProjectStateManager:
                 )
             p.restricted_execution_generation += 1
             p.restricted_execution_attempt_id = f"attempt-{uuid.uuid4().hex}"
-            if p.stage is TaskmasterStage.RESTRICTED_EXECUTION_VERIFIED:
-                p.stage = TaskmasterStage.STRATIFIED
+            if p.stage in {
+                TaskmasterStage.RESTRICTED_EXECUTION_VERIFIED,
+                TaskmasterStage.COMPLETED,
+            }:
+                p.stage = (
+                    TaskmasterStage.STRATIFIED
+                    if p.selected_candidate is not None
+                    else TaskmasterStage.STRUCTURED
+                    if p.decomposition is not None
+                    else TaskmasterStage.RECEIVED
+                )
             if p.final_output is not None:
                 output = dict(p.final_output)
                 output["restricted_execution_status"] = "PENDING"

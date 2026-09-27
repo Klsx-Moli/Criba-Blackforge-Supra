@@ -809,3 +809,69 @@ def test_issue_attempt_refuses_generation_overflow_past_json_consumer_safe_range
             sm.issue_restricted_execution_attempt(p.project_id)
         assert p.restricted_execution_generation == MAX_SAFE_ATTEMPT_GENERATION
         assert p.restricted_execution_attempt_id is None
+
+
+def test_issuing_new_attempt_invalidates_completed_immediately_and_after_restart():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        sm = ProjectStateManager(storage_dir=tmpdir)
+        p = sm.create_project(objective="completed project rerun")
+        cand = StrategyCandidate(
+            pathway_name="Path",
+            paradigm_type="ORTHOGONAL",
+            hypothesis="h",
+            action_plan=["step"],
+            divergence_score=0.5,
+            feasibility_score=0.5,
+        )
+        selected = sm.add_candidates(p.project_id, [cand], select_best=True).selected_candidate
+        assert selected is not None
+        identity = candidate_execution_identity(selected)
+        sm.record_verification(
+            p.project_id,
+            VerificationReport(candidate_id=selected.candidate_id, verdict="PASS"),
+        )
+        first_attempt, first_generation = sm.issue_restricted_execution_attempt(p.project_id)
+        sm.record_restricted_execution(
+            p.project_id,
+            RestrictedExecutionResult(
+                execution_id="exec-initial-pass",
+                attempt_id=first_attempt,
+                attempt_generation=first_generation,
+                execution_semantics_version=RESTRICTED_EXECUTION_SEMANTICS_VERSION,
+                candidate_id=identity["candidate_id"],
+                mechanism_version=identity["mechanism_version"],
+                claim_id=identity["claim_id"],
+                protocol_version="sha256:" + "e" * 64,
+                action_type="RESTRICTED_CODE_RUN",
+                passed=True,
+                output_log="initial pass",
+                duration_ms=1,
+            ),
+        )
+        sm.complete_project(
+            p.project_id,
+            {"workflow_status": "COMPLETED", "restricted_execution_status": "BOUND_PASS"},
+        )
+
+        second_attempt, second_generation = sm.issue_restricted_execution_attempt(p.project_id)
+        current = sm.get_project(p.project_id)
+        assert current is not None
+        assert current.stage is TaskmasterStage.STRATIFIED
+        assert current.final_output is not None
+        assert current.final_output["workflow_status"] == "EVIDENCE_INVALIDATED"
+        assert current.final_output["restricted_execution_status"] == "PENDING"
+        assert current.final_output["restricted_execution_identity_bound"] is False
+        assert second_generation == first_generation + 1
+        assert second_attempt != first_attempt
+
+        reloaded = ProjectStateManager(storage_dir=tmpdir).get_project(p.project_id)
+        assert reloaded is not None
+        assert reloaded.stage is TaskmasterStage.STRATIFIED
+        assert reloaded.final_output is not None
+        assert reloaded.final_output["workflow_status"] == "EVIDENCE_INVALIDATED"
+        assert reloaded.final_output["restricted_execution_status"] == "PENDING"
+        assert reloaded.final_output["restricted_execution_identity_bound"] is False
+        assert reloaded.restricted_execution_results[0].passed is True
+        assert reloaded.restricted_execution_results[0].attempt_id == first_attempt
+        assert reloaded.restricted_execution_attempt_id == second_attempt
+        assert reloaded.restricted_execution_generation == second_generation

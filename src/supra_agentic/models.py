@@ -405,19 +405,26 @@ class ProjectPosture(BaseModel):
         latest_authoritative_bound_pass = bool(
             latest_execution and latest_execution.passed and latest_execution.identity_bound
         )
-        display_execution = latest_execution or (self.restricted_execution_results[-1] if self.restricted_execution_results else None)
+        current_attempt_issued = bool(
+            self.restricted_execution_generation >= 1
+            and _is_canonical_attempt_id(self.restricted_execution_attempt_id)
+        )
         if self.final_output is not None:
             output = dict(self.final_output)
             output["restricted_execution_identity_bound"] = bool(
-                display_execution and display_execution.identity_bound
+                latest_execution and latest_execution.identity_bound
             )
             output["restricted_execution_status"] = (
                 "BOUND_PASS"
-                if display_execution and display_execution.passed and display_execution.identity_bound
+                if latest_execution and latest_execution.passed and latest_execution.identity_bound
                 else "BOUND_FAIL"
-                if display_execution and display_execution.identity_bound
+                if latest_execution and latest_execution.identity_bound
                 else "UNBOUND"
-                if display_execution
+                if latest_execution
+                else "PENDING"
+                if current_attempt_issued
+                else "UNBOUND"
+                if self.restricted_execution_results
                 else "NOT_RUN"
             )
             output["derived_execution_state_revalidated"] = True
