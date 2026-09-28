@@ -230,6 +230,7 @@ class ProjectStateManager:
         """Persist causal authority before restricted execution starts."""
         with self._lock:
             p = self._get_required_project(project_id)
+            before = p.model_copy(deep=True)
             if p.restricted_execution_generation >= MAX_SAFE_ATTEMPT_GENERATION:
                 raise ValueError(
                     "restricted execution generation exhausted JavaScript-safe integer range"
@@ -254,7 +255,7 @@ class ProjectStateManager:
                 output["workflow_status"] = "EVIDENCE_INVALIDATED"
                 p.final_output = output
             p.updated_at = time.time()
-            self._persist_project(project_id)
+            self._persist_transition_or_rollback(project_id, before)
             return p.restricted_execution_attempt_id, p.restricted_execution_generation
 
     def record_restricted_execution(
@@ -324,10 +325,11 @@ class ProjectStateManager:
                             "attempt result conflict: one issued attempt cannot have multiple execution results"
                         )
 
+            before = p.model_copy(deep=True)
             p.restricted_execution_results.append(result)
             if not authoritative_attempt:
                 p.updated_at = time.time()
-                self._persist_project(project_id)
+                self._persist_transition_or_rollback(project_id, before)
                 return p
             if p.stage is not TaskmasterStage.FAILED:
                 if result.passed and identity_matches:
@@ -366,7 +368,7 @@ class ProjectStateManager:
                     actor="agent:supra:restricted-executor",
                 )
             )
-            self._persist_project(project_id)
+            self._persist_transition_or_rollback(project_id, before)
             return p
 
     def complete_project(self, project_id: str, final_output: dict[str, Any]) -> ProjectPosture:
@@ -387,6 +389,7 @@ class ProjectStateManager:
                 raise ValueError(
                     "completion gate requires verification PASS and latest bound restricted execution PASS"
                 )
+            before = p.model_copy(deep=True)
             p.final_output = final_output
             p.stage = TaskmasterStage.COMPLETED
             p.updated_at = time.time()
@@ -412,7 +415,7 @@ class ProjectStateManager:
                     actor="agent:supra:coordinator",
                 )
             )
-            self._persist_project(project_id)
+            self._persist_transition_or_rollback(project_id, before)
             return p
 
     def block_project(self, project_id: str, reason: str) -> ProjectPosture:
@@ -475,12 +478,15 @@ class ProjectStateManager:
         if not p:
             logger.error(f"Cannot persist non-existent project {project_id}")
             return
+        tmp_path: Path | None = None
         try:
             p_file = self.storage_dir / f"{project_id}.json"
             with tempfile.NamedTemporaryFile(
                 mode="w", dir=self.storage_dir, suffix=".tmp", delete=False
             ) as tmp:
                 tmp.write(p.model_dump_json(indent=2))
+                tmp.flush()
+                os.fsync(tmp.fileno())
                 tmp_path = Path(tmp.name)
             tmp_path.replace(p_file)
         except Exception as exc:
@@ -493,6 +499,19 @@ class ProjectStateManager:
             raise RuntimeError(
                 f"Persistence failed for project {project_id} ({error_type})"
             ) from exc
+        finally:
+            if tmp_path is not None:
+                tmp_path.unlink(missing_ok=True)
+
+    def _persist_transition_or_rollback(
+        self, project_id: str, before: ProjectPosture
+    ) -> None:
+        """Persist one authority transition or restore its prior in-memory state."""
+        try:
+            self._persist_project(project_id)
+        except Exception:
+            self._projects[project_id] = before
+            raise
 
 
 # Global Singleton Instance

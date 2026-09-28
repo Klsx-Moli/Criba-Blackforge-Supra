@@ -19,6 +19,79 @@ from supra_agentic.models import (
 from supra_agentic.state import ProjectStateManager
 
 
+def _fail_persistence(_project_id: str) -> None:
+    raise RuntimeError("injected persistence failure")
+
+
+def test_issue_attempt_rolls_back_memory_when_persistence_fails(
+    monkeypatch, tmp_path
+):
+    sm = ProjectStateManager(storage_dir=tmp_path)
+    p = sm.create_project(objective="attempt persistence rollback")
+    before = p.model_copy(deep=True)
+
+    monkeypatch.setattr(sm, "_persist_project", _fail_persistence)
+    with pytest.raises(RuntimeError, match="injected persistence failure"):
+        sm.issue_restricted_execution_attempt(p.project_id)
+
+    current = sm.get_project(p.project_id)
+    assert current is not None
+    assert (
+        current.restricted_execution_generation
+        == before.restricted_execution_generation
+    )
+    assert current.restricted_execution_attempt_id == before.restricted_execution_attempt_id
+    assert current.stage is before.stage
+    reloaded = ProjectStateManager(storage_dir=tmp_path).get_project(p.project_id)
+    assert reloaded is not None
+    assert reloaded.model_dump() == before.model_dump()
+
+
+def test_record_execution_rolls_back_memory_when_persistence_fails(
+    monkeypatch, tmp_path
+):
+    sm, p, base = _project_with_authoritative_attempt(str(tmp_path))
+    before = p.model_copy(deep=True)
+    result = RestrictedExecutionResult(
+        execution_id="exec-uncommitted", passed=True, **base
+    )
+
+    monkeypatch.setattr(sm, "_persist_project", _fail_persistence)
+    with pytest.raises(RuntimeError, match="injected persistence failure"):
+        sm.record_restricted_execution(p.project_id, result)
+
+    current = sm.get_project(p.project_id)
+    assert current is not None
+    assert current.model_dump() == before.model_dump()
+    assert current.current_authoritative_execution() is None
+    reloaded = ProjectStateManager(storage_dir=tmp_path).get_project(p.project_id)
+    assert reloaded is not None
+    assert reloaded.model_dump() == before.model_dump()
+
+
+def test_complete_rolls_back_memory_when_persistence_fails(
+    monkeypatch, tmp_path
+):
+    sm, p, base = _project_with_authoritative_attempt(str(tmp_path))
+    sm.record_restricted_execution(
+        p.project_id,
+        RestrictedExecutionResult(execution_id="exec-durable", passed=True, **base),
+    )
+    before = p.model_copy(deep=True)
+
+    monkeypatch.setattr(sm, "_persist_project", _fail_persistence)
+    with pytest.raises(RuntimeError, match="injected persistence failure"):
+        sm.complete_project(p.project_id, {"workflow_status": "COMPLETED"})
+
+    current = sm.get_project(p.project_id)
+    assert current is not None
+    assert current.model_dump() == before.model_dump()
+    assert current.stage is TaskmasterStage.RESTRICTED_EXECUTION_VERIFIED
+    reloaded = ProjectStateManager(storage_dir=tmp_path).get_project(p.project_id)
+    assert reloaded is not None
+    assert reloaded.model_dump() == before.model_dump()
+
+
 def test_project_lifecycle_transitions():
     with tempfile.TemporaryDirectory() as tmpdir:
         sm = ProjectStateManager(storage_dir=tmpdir)
@@ -437,6 +510,32 @@ def test_restart_fails_closed_on_duplicate_current_attempt_results():
             ProjectStateManager(storage_dir=tmpdir).complete_project(
                 p.project_id, {"workflow_status": "COMPLETED"}
             )
+
+
+@pytest.mark.parametrize("skewed_version", ["2", 2.0, True])
+def test_restart_does_not_coerce_version_skew_into_execution_authority(
+    skewed_version,
+):
+    with tempfile.TemporaryDirectory() as tmpdir:
+        sm, p, base = _project_with_authoritative_attempt(tmpdir)
+        sm.record_restricted_execution(
+            p.project_id,
+            RestrictedExecutionResult(execution_id="exec-pass", passed=True, **base),
+        )
+        sm.complete_project(p.project_id, {"workflow_status": "COMPLETED"})
+
+        state_path = Path(tmpdir) / f"{p.project_id}.json"
+        data = json.loads(state_path.read_text(encoding="utf-8"))
+        data["restricted_execution_results"][0]["execution_semantics_version"] = skewed_version
+        state_path.write_text(json.dumps(data), encoding="utf-8")
+
+        reloaded = ProjectStateManager(storage_dir=tmpdir).get_project(p.project_id)
+        assert reloaded is not None
+        assert reloaded.stage is TaskmasterStage.STRATIFIED
+        assert reloaded.restricted_execution_results[0].execution_semantics_version is None
+        assert reloaded.restricted_execution_results[0].identity_bound is False
+        assert reloaded.final_output is not None
+        assert reloaded.final_output["workflow_status"] == "EVIDENCE_INVALIDATED"
 
 @pytest.mark.parametrize("malformed_attempt_id", [" ", "attempt-", "not-server-issued", "attempt-" + "g" * 32])
 def test_restart_rejects_malformed_persisted_attempt_authority(malformed_attempt_id):

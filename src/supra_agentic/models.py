@@ -150,7 +150,7 @@ class RestrictedExecutionResult(BaseModel):
     attempt_generation: int | None = Field(
         default=None, strict=True, ge=1, le=MAX_SAFE_ATTEMPT_GENERATION
     )
-    execution_semantics_version: int | None = None
+    execution_semantics_version: int | None = Field(default=None, strict=True)
     candidate_id: str | None = None
     mechanism_version: str | None = None
     claim_id: str | None = None
@@ -240,6 +240,18 @@ class ProjectPosture(BaseModel):
             migrated["restricted_execution_results"] = migrated_results
 
         raw_results = migrated.get("restricted_execution_results")
+        if isinstance(raw_results, list):
+            normalized_results = []
+            for result in raw_results:
+                if isinstance(result, dict):
+                    normalized = dict(result)
+                    if type(normalized.get("execution_semantics_version")) is not int:
+                        normalized["execution_semantics_version"] = None
+                    normalized_results.append(normalized)
+                else:
+                    normalized_results.append(result)
+            migrated["restricted_execution_results"] = normalized_results
+            raw_results = normalized_results
         has_bound_pass = False
         for result in raw_results if isinstance(raw_results, list) else []:
             if not isinstance(result, dict) or result.get("passed") is not True:
