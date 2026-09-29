@@ -481,8 +481,18 @@ class ProjectStateManager:
         tmp_path: Path | None = None
         try:
             p_file = self.storage_dir / f"{project_id}.json"
+            # The reader (`get_project`) decodes strictly as UTF-8, so the writer
+            # must not defer to the host locale: text mode without an explicit
+            # encoding emits the ANSI code page on Windows and any project with
+            # a non-ASCII field becomes unreadable after restart. newline="\n"
+            # additionally keeps the artifact byte-identical across hosts.
             with tempfile.NamedTemporaryFile(
-                mode="w", dir=self.storage_dir, suffix=".tmp", delete=False
+                mode="w",
+                encoding="utf-8",
+                newline="\n",
+                dir=self.storage_dir,
+                suffix=".tmp",
+                delete=False,
             ) as tmp:
                 tmp.write(p.model_dump_json(indent=2))
                 tmp.flush()
