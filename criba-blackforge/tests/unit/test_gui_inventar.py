@@ -165,17 +165,82 @@ def test_desarrollar_con_supra_prepara_dossier_pendiente(qapp, tmp_path, monkeyp
                         lambda d, directory=None: (rutas.append(d), tmp_path / "d.jsonl")[1])
     monkeypatch.setattr(sd, "_dossiers_dir", lambda override=None: tmp_path)
 
+    # El despacho SUPRA se sustituye por un resultado controlado: este test
+    # verifica la preparación del dossier y la presentación honesta, no la red.
+    # Sin esto el worker real puede reescribir ideaSummary antes de la
+    # aserción (dependencia del orden de hilo) y la aserción sería flaky.
+    dispatched: list[list[dict]] = []
+
+    def fake_execute(dossiers, client=None):
+        dispatched.append(dossiers)
+        return {
+            "health": {"status": "ok", "service": "SUPRA"},
+            "runs": [
+                {
+                    "dossier_id": dossiers[0]["dossier_id"],
+                    "project_id": "proj-gui-test",
+                    "status": "blocked",
+                    "completion_status": "BLOCKED",
+                    "workflow_status": "BLOCKED",
+                    "verification_status": "FAIL",
+                    "secure_sandbox_status": "RESTRICTED_BOUND_PASS_NOT_ISOLATED",
+                    "scientific_status": "NOT_VALIDATED",
+                    "criba_mechanism_execution_status": "NOT_EXECUTED",
+                    "stage": "BLOCKED",
+                }
+            ],
+        }
+
+    monkeypatch.setattr(actions, "_execute_supra_dossiers", fake_execute)
+
     win = CribaMainWindow()
     try:
         win.invent_sheet = sheet
         actions.on_desarrollar_supra(win)
-        qapp.processEvents()
+
         assert sheet["dossiers"] and sheet["dossiers"][0].startswith("dossier-")
-        assert "PENDIENTE" in win.refs["ideaSummary"].text().upper()
         dossier_guardado = rutas[0]
         assert dossier_guardado["estado"] == "SUPRA_EJECUCION_PENDIENTE"
         assert dossier_guardado["prueba_discriminante"]["estado_prueba"] == "NO_EJECUTADA"
         assert dossier_guardado["prueba_discriminante"]["afirmacion_decisiva"]
+
+        # Estado de despacho (B02): la UI declara PENDIENTE y no afirma que el
+        # mecanismo se haya ejecutado o validado.
+        assert "PENDIENTE" in win.refs["ideaEstadoChip"].text().upper()
+        assert "PENDIENTE" not in win.refs["ideaSummary"].text().upper()
+        for claimed in ("EJECUTADO", "VALIDADO", "COMPLETADO", "CONFIRMADO"):
+            assert claimed not in win.refs["ideaSummary"].text().upper()
+
+        # Estado posterior al despacho: un resultado SUPRA BLOCKED /
+        # NOT_VALIDATED / NOT_EXECUTED jamás debe presentarse como mecanismo
+        # ejecutado, validado, completado o confirmado (B02). La invariante es
+        # de conteo porque "NO EJECUTADO" contiene legítimamente "EJECUTADO":
+        # toda mención de EJECUTADO debe estar negada por NO.
+        for _ in range(1000):
+            qapp.processEvents()
+            if not getattr(win, "_live_workers", []):
+                break
+            QTest.qWait(10)
+        assert dispatched, "el dossier nunca se despachó a SUPRA"
+        summary = win.refs["ideaSummary"].text().upper()
+        assert "MECANISMO CRIBA NO EJECUTADO: 1/1" in summary
+        assert summary.count("EJECUTADO") > 0, "el resumen debe declarar el estado de ejecución"
+        assert summary.count("NO EJECUTADO") == summary.count("EJECUTADO"), (
+            f"B02: el resumen afirma ejecución del mecanismo CRIBA sin negarla -> {summary!r}"
+        )
+        # "VALIDADO"/"CONFIRMADO" nunca aparecen en un run NOT_VALIDATED.
+        # Ojo: NO se veta la palabra "ACREDITADO" porque el texto honesto dice
+        # "sin aislamiento acreditado", que es una negación conservadora y no
+        # una elevación; se fija esa negación explícitamente.
+        for claimed in ("VALIDADO", "CONFIRMADO"):
+            assert claimed not in summary, (
+                f"B02: el resumen eleva un resultado NOT_VALIDATED a {claimed} -> {summary!r}"
+            )
+        assert "SIN AISLAMIENTO ACREDITADO" in summary, (
+            f"B02: se perdió la marca de aislamiento no acreditado -> {summary!r}"
+        )
+        assert "SUPRA bloqueado" in win.refs["ideaEstadoChip"].text()
+
         # sin propuesta no hay dossier y hay aviso honesto
         sheet2 = _sheet_stub("x")
         sheet2["entries"][0]["estado_interpretacion"] = "PENDIENTE_INTERPRETACION"
