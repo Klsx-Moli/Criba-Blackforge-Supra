@@ -40,6 +40,32 @@ ROOT = os.path.join(os.path.dirname(__file__), "..", "..")
 REPORT = os.path.join(ROOT, "verification", "blackforge_causal_report.json")
 
 
+def _tracked_golden_blob() -> bytes:
+    """Read the golden artifact from the TRACKED blob, not the working tree.
+
+    A `HEAD:<path>` spec is always relative to the repository root, which is not
+    the component root once this component lives inside the monorepo. Resolving
+    the repository root explicitly keeps the sentinel correct in both layouts:
+    as a standalone checkout and as `criba-blackforge/` under the monorepo.
+    """
+    import subprocess
+
+    repo_root = subprocess.run(
+        ["git", "rev-parse", "--show-toplevel"],
+        cwd=ROOT,
+        capture_output=True,
+        check=True,
+        text=True,
+    ).stdout.strip()
+    tracked = os.path.relpath(REPORT, repo_root).replace(os.sep, "/")
+    return subprocess.run(
+        ["git", "cat-file", "blob", f"HEAD:{tracked}"],
+        cwd=ROOT,
+        capture_output=True,
+        check=True,
+    ).stdout
+
+
 @pytest.fixture
 def model():
     return {
@@ -180,7 +206,10 @@ def test_emits_report(model):
             "sensitivity analysis +/-10% per feature",
         ],
     }
-    with open(REPORT, "w", encoding="utf-8") as f:
+    # newline="\n" matches .gitattributes (*.json text eol=lf) and keeps the
+    # regenerated canon byte-identical on Windows, so running the suite does not
+    # dirty the tracked artifact with CRLF.
+    with open(REPORT, "w", encoding="utf-8", newline="\n") as f:
         json.dump(report, f, ensure_ascii=False, indent=2)
     assert os.path.exists(REPORT)
     with open(REPORT, encoding="utf-8") as f:
@@ -210,14 +239,10 @@ def test_emitted_report_is_byte_identical_to_tracked_golden(model):
     Compara contra el blob TRACKED (git rev-parse HEAD:path), no contra el
     working tree, para que una regeneración previa no pueda auto-validarse.
     """
-    import subprocess
     a = proposal([{"variable_id": "CV-001", "operation": "replace", "from": "central_authority", "to": "distributed_quorum"}], proposal_id="A")
     b = proposal([{"variable_id": "CV-001", "operation": "replace", "from": "central_authority", "to": "rule_engine"}], proposal_id="B")
     c = proposal([{"variable_id": "CV-001", "operation": "replace", "from": "central_authority", "to": "distributed_quorum"}], proposal_id="A2")
-    expected = subprocess.run(
-        ["git", "cat-file", "blob", "HEAD:verification/blackforge_causal_report.json"],
-        capture_output=True, check=True,
-    ).stdout
+    expected = _tracked_golden_blob()
     # Regenerar y comparar byte a byte contra el blob tracked
     report = {
         "phase": "FASE 4 — CAUSAL",
