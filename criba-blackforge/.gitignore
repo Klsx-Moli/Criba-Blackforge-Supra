@@ -1,0 +1,82 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Local configuration and credentials. Keep only documented templates in Git.
+.env
+.env.*
+!.env.example
+!.env.sample
+!.env.template
+*key*.json
+*credential*.json
+*service-account*.json
+.hermes/supra_state/
+.hermes/state/
+
+# Caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage.json
+htmlcov/
+
+# Controlled pytest temp dirs
+.tmp_pytest/
+.pytest-tmp/
+.pytest-temp/
+
+# Build outputs (PyInstaller / setuptools)
+build/
+dist/
+
+# Local runtime and generated verification artifacts. Evidence already tracked
+# by an intentional release commit remains tracked; new runs stay local/remote.
+artifacts/
+verification/compose_run/
+verification/lottery_results/
+verification/benchmark_real_results.json
+verification/capture_blackforge_standalone.py
+
+# Local backups, captures, research prompts, and orchestration scratch
+*.bak
+/nul
+/_cap_*.py
+/r.txt
+/we.txt
+/leeahora*.txt
+/.mimocode/
+/docs/ui-reference/
+/CRIBA_MODAL_HY3_EXECUTABLE_V1/
+/CRIBA-Current-Engine.spec.obsolete
+/HIPERMEGAPROMPT_CRIBA_BLACKFORGE_COMPLETO.txt
+/MISION_CALIDAD.md
+/NEXT_SESSION_HANDOFF_*.md
+/PERPLEXITY_BRIEF_CRIBA_BLACKFORGE.md
+/PROMPT_MEJORA_QUERY_DRIVEN.md
+
+# Editor / OS
+.DS_Store
+*.swp
+
+# Hermes tmp
+.hermes-tmp.*
+src/**/.hermes-tmp.*
+
+# Local agent tooling (personal config, not part of the product)
+.agents/
+.codex/
+.pytest_tmp*/
+
+# Runtime sidecars of the IIE STATE tool (atomic write + mutex)
+.hermes/iie/STATE.json.lock
+.hermes/iie/STATE.json.tmp

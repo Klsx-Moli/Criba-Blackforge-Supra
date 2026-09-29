@@ -1,0 +1,61 @@
+# Guía de usuario — CRIBA + BLACKFORGE (Español)
+
+## ¿Qué es?
+Un motor de innovación estructural determinista. Toma una consulta, aplica
+operadores de ruptura sobre 5 ejes causales, genera ideas, las evalúa por
+`value_score = evidence * novelty / cost`, y emite un paquete con decisión.
+BLACKFORGE es una especialización que usa un catálogo inmutable de 723
+registros con un gate de seguridad (S0–S3).
+
+## Uso básico (GUI portable)
+Doble clic en `CRIBA-Blackforge.exe` abre la interfaz de escritorio:
+1. Escribe tu consulta en el cuadro inferior.
+2. Pulsa **▶ EJECUTAR CRIBA** (o elige el modo en el desplegable *Balanced*).
+3. Revisa a la derecha: *Resumen de activación*, *Métricas clave* y
+   *Decisión recomendada*.
+4. **Copiar para el modelo** lleva el prompt a tu LLM; **Ver paquete completo
+   (JSON)** muestra el resultado íntegro; el historial se guarda solo.
+
+La base de datos se guarda en `%LOCALAPPDATA%\CRIBA-Blackforge\criba.sqlite3`.
+
+## Uso avanzado (CLI, opcional)
+Cuando ejecutes CRIBA desde el código fuente, prepara el entorno con `uv sync --all-extras --locked` y usa `uv run criba`:
+```text
+uv sync --all-extras --locked
+uv run --locked criba list-currents
+uv run --locked criba activate --query "tu pregunta de innovación"
+uv run --locked criba activate --file samples\query_example.txt
+uv run --locked criba --database mi.sqlite3 explain --session <activation_id>
+```
+
+## Inventa con evidencia (v0.3.0)
+
+El comando estrella ejecuta el loop completo: lotería estratificada por clases
+de pensamiento → juez → verificación de prior-art honesta:
+
+```text
+uv run criba inventar "aprobaciones seguras para agentes autónomos" --seed 42
+uv run criba inventar "tu problema" --seed 7 --top 3 --offline
+```
+
+- La misma `--seed` produce siempre las mismas ideas (reproducible, auditable).
+- Cada idea recibe un veredicto honesto: `UNRESOLVED` (sin cobertura),
+  `PARTIAL_PRIOR_ART` (hay coincidencias) o `SURVIVED_SEARCH` (sobrevivió la
+  búsqueda). Nunca afirma novedad.
+- `--offline` funciona sin red ni claves (juez offline, veredictos UNRESOLVED).
+- Cada corrida se registra en `%LOCALAPPDATA%\CRIBA-Blackforge\invention_ledger\verdicts.jsonl`.
+
+## Flujos
+- **Nueva idea**: `activate` genera 12 ideas por defecto.
+- **Generar**: implícito en `activate` (divergencia + cross-consistency).
+- **Evaluar**: el paquete incluye `value_score`, `pipeline_action`, `recommended_status`.
+- **Guardar**: `activate` persiste en SQLite (vía `--database`).
+- **Historial**: `explain --session <id>`, `compare --session-a A --session-b B`.
+- **Blackforge**: se ejecuta internamente como librería (213 tests lo verifican).
+
+## Buenas prácticas
+- Usa `--database` para no tocar la base por defecto (`artifacts/criba.sqlite3`).
+- Para automatizar, captura `activation_id` del JSON de salida.
+
+## Requisitos
+Windows 10/11 x64, 16 GB RAM (corre en CPU). No requiere instalación.

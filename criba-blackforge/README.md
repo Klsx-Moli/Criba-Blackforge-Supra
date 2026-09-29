@@ -1,0 +1,124 @@
+# CRIBA
+
+**A reproducible-by-contract ideation engine.** Deterministic, auditable, local-first: fixed inputs plus the same code/catalog/policy and the same relevant state reproduce deterministic core paths; external/history/model dependencies must also be fixed when they participate.
+
+CRIBA is a self-contained engine for combinatorial exploration, causal analysis and defensive cybersecurity ideation. It couples an immutable, versioned catalog of innovation and security methods with a repeatable, seed-based selector, a SQLite audit trail for every idea, and (optional) LLM interpretation through configurable cloud or local providers (OpenAI-compatible endpoints).
+
+> Read this in [Español](./README.es.md).
+
+---
+
+## Why CRIBA?
+
+Most "AI ideation" tools are black boxes: prompt in, text out, no way to know why or to reproduce the same answer twice.
+
+- **Deterministic core paths** — an explicit seed makes seeded selection repeatable when the same code, catalog, configuration, ordering and relevant state are fixed. It is not a universal cross-machine guarantee for model/network/history-dependent paths.
+- **Every idea is audited** — SQLite trail per activation: methods used, scores, order, and the exact catalog version.
+- **Zero-friction local** — no API key, no network, no telemetry to run the core engine.
+- **Optional model interpretation** — bring your own provider (local GGUF/Ollama or an OpenAI-compatible cloud endpoint); without one, deterministic local scoring runs and interpretation is marked PENDING instead of fabricated.
+- **Integrated method catalog** — 130+ innovation/security techniques (TRIZ, Design Thinking, JTBD, FMEA, MITRE ATT&CK, OWASP, STRIDE, Kill Chain…), frozen in JSON with a versioned schema.
+- **Provably tried** — 866 passing tests and the release pipeline builds a signed portable Windows bundle with SLSA provenance.
+
+## Features
+
+| Capability | Description |
+|---|---|
+| `criba run` / `activate` | Deterministic method selection for a query, with reproducible scoring and session persistence. |
+| `criba lottery` | Double-lottery ideation (associative + pure randomness) with explicit seed. |
+| `criba blackforge` | Defensive-cybersecurity pipeline: threat analysis, causal reasoning, proposals and S0–S3 security gates. |
+| `criba hybrid` | Ensemble → chain → adversarial full pipeline, with optional semantics enhancement. |
+| `criba explain` / `compare` | Inspect why a session produced a result; diff two sessions. |
+| `criba serve` | Loopback-only JSON API (Swagger at `/docs`). |
+| `criba mcp` | MCP server over stdio: `activate_current`, `list_currents`, `explain_selection`, `build_model_prompt`, `record_decision`, `compare_runs`. |
+| `criba gui` / `blackforge-gui` | Native PySide6 desktop for CRIBA and BLACKFORGE. |
+| Modelos IA dialog | Register local GGUF (llama.cpp) / Ollama profiles; option to expand ideas with free cloud models. |
+
+## Installation
+
+### From PyPI
+
+```bash
+pip install criba
+```
+
+or run without installing:
+
+```bash
+uvx --from criba criba --help
+```
+
+> The optional desktop and model features pull extra dependencies:
+> `pip install "criba[gui,api]"`
+
+### From source
+
+```bash
+git clone https://github.com/klssxx/Criba-Blackforge.git
+cd Criba-Blackforge
+uv sync --all-extras --locked
+uv run criba --help
+```
+
+> On Windows you can also launch the included portable prebuilt (see
+> [Releases](https://github.com/klssxx/Criba-Blackforge/releases)).
+
+## 60-second demo
+
+```bash
+criba lottery --query "how can we design secure approvals for autonomous agents?" --seed 42 --rounds 3 --batch-size 5
+```
+
+Run it twice under the same code/catalog/configuration and without changing relevant history or external/model state. The seeded deterministic path should reproduce its selection. That scoped dependency closure—not the seed alone—is the reproducibility contract.
+
+Deterministic single activation:
+
+```bash
+criba run --query "reduce cold-store energy in data centers" --current auto --mode balanced --json
+```
+
+Dashboard / workbench on Windows:
+
+```powershell
+scripts\launch_workbench.bat
+```
+
+## Reproducibility contract
+
+- Catalog files are versioned (`CURRENT_CATALOG_VERSION`, `SELECTOR_VERSION`).
+- Seeded deterministic selectors use stable ordering, but a seed is only one dependency.
+- Runs that depend on history, clock/evaluation time, provider/model, corpus, configuration, code version or external state require those dependencies to be fixed or recorded before claiming reproduction.
+- Every activation writes an auditable record in the SQLite store (`artifacts/criba.sqlite3` by default).
+
+## Free cloud expansion (optional, 0€)
+
+When you configure a local GGUF/Ollama profile *or* set the free cloud routes, CRIBA
+keeps its deterministic core and uses the model only to draft coherent ideas:
+
+- **Any OpenAI-compatible endpoint** — set the base URL, model name and API key in the model settings dialog or via environment variables (e.g. `NOUS_API_KEY` for the Nous endpoint).
+
+If the model is unavailable, CRIBA degrades to its offline deterministic fallback —
+the output never blocks on the network. Cloud keys are read from environment
+variables only and are never stored in the repository.
+
+## Expansion intelligence (IIE)
+
+The engine ships free, key-less prior-art adapters — OpenAlex, Crossref,
+EPO patents, NSF grants, GitHub, Wikipedia — designed to connect generated ideas
+to the evidence that supports or disproves them, carefully guarded by budget and
+rate-limit controls (no network in CI runs).
+
+## Development
+
+```bash
+uv run pytest -q            # 866 tests
+uv run mypy src/criba       # strict typing over the engine
+uv run ruff check src       # lint
+```
+
+Contributions are welcome — see [CONTRIBUTING](./CONTRIBUTING.md) and the
+[security policy](./SECURITY.md). Releases are built from tags and published
+automatically with SLSA provenance and an SBOM.
+
+## License
+
+Apache License 2.0. See [LICENSE](./LICENSE) and [THIRD_PARTY_NOTICES](./THIRD_PARTY_NOTICES.md).

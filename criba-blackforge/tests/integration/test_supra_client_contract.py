@@ -1,0 +1,524 @@
+"""Contract tests for the single CRIBA -> SUPRA HTTP client."""
+
+from __future__ import annotations
+
+import json
+
+import httpx
+import pytest
+
+from criba.integrations.supra_client import (
+    SupraClient,
+    SupraClientConfig,
+    SupraClientError,
+    SupraProjectLookup,
+)
+
+
+def _client(handler, *, api_key: str = "") -> SupraClient:
+    return SupraClient(
+        SupraClientConfig(endpoint="https://supra.test", api_key=api_key, timeout=2.0),
+        transport=httpx.MockTransport(handler),
+    )
+
+
+def test_health_uses_real_root_health_route_and_auth_header() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.method == "GET"
+        assert request.url.path == "/health"
+        assert request.headers["authorization"] == "Bearer secret"
+        return httpx.Response(
+            200,
+            json={"status": "healthy", "service": "supra-agentic-taskmaster", "version": "1.0.0"},
+        )
+
+    with _client(handler, api_key="secret") as client:
+        assert client.health().status == "healthy"
+
+
+def test_run_project_uses_real_payload_and_preserves_blocked_status() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.url.path == "/api/v1/projects"
+        payload = json.loads(request.content)
+        assert set(payload) == {
+            "objective", "domain", "allow_disruptive", "use_model", "project_id"
+        }
+        assert payload["project_id"] == "criba-run-1"
+        return httpx.Response(
+            201,
+            json={
+                "status": "blocked",
+                "status_scope": "WORKFLOW_EXECUTION_ONLY",
+                "completion_status": "BLOCKED",
+                "workflow_status": "RESTRICTED_EXECUTION_VERIFIED",
+                "verification_status": "FAIL",
+                "scientific_status": "NOT_VALIDATED",
+                "secure_sandbox_status": "UNVERIFIED_ISOLATION",
+                "criba_planning_receipt_status": "PRESERVED_NOT_EXECUTED",
+                "criba_mechanism_execution_status": "NOT_EXECUTED",
+                "project_id": "criba-run-1",
+                "stage": "RESTRICTED_EXECUTION_VERIFIED",
+                "posture": {"project_id": "criba-run-1"},
+            },
+        )
+
+    with _client(handler) as client:
+        result = client.run_project(
+            objective="Evaluate this bounded CRIBA candidate",
+            project_id="criba-run-1",
+        )
+    assert result.status == "blocked"
+    assert result.verification_status == "FAIL"
+    assert result.secure_sandbox_status == "UNVERIFIED_ISOLATION"
+    assert result.stage != "COMPLETED"
+
+
+
+def test_run_project_transports_criba_dossier_without_promoting_it_to_evidence() -> None:
+    dossier = {
+        "dossier_id": "dossier-1",
+        "candidate_id": "cand-1",
+        "claim_id": "claim-1",
+        "protocol_version": "sha256:" + "a" * 64,
+        "mechanism_version": "sha256:" + "b" * 64,
+        "problema": "Reduce thermal drift",
+        "hipotesis": "Bounded calibration reduces drift",
+        "mecanismo": "Closed-loop correction",
+        "prueba_discriminante": {
+            "afirmacion_decisiva": "Compare against baseline",
+            "alternativa_explicativa": "Ambient variation",
+            "intervencion_prueba": "Run paired calibration trials",
+            "observable": "held-out drift",
+            "resultado_favorable_mecanismo": "lower drift",
+            "resultado_favorable_alternativa": "no separation",
+            "regla_decision": "prefer mechanism only with separation",
+            "condicion_fracaso": "no measurable separation",
+            "estado_prueba": "NO_EJECUTADA",
+        },
+        "estado": "SUPRA_EJECUCION_PENDIENTE",
+    }
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        payload = json.loads(request.content)
+        assert payload["criba_dossier"] == dossier
+        assert payload["criba_dossier"]["estado"] == "SUPRA_EJECUCION_PENDIENTE"
+        return httpx.Response(
+            201,
+            json={
+                "status": "blocked",
+                "completion_status": "BLOCKED",
+                "workflow_status": "RESTRICTED_EXECUTION_VERIFIED",
+                "verification_status": "FAIL",
+                "scientific_status": "NOT_VALIDATED",
+                "secure_sandbox_status": "UNVERIFIED_ISOLATION",
+                "criba_planning_receipt_status": "PRESERVED_NOT_EXECUTED",
+                "criba_mechanism_execution_status": "NOT_EXECUTED",
+                "project_id": "supra-1",
+                "stage": "RESTRICTED_EXECUTION_VERIFIED",
+                "posture": {
+                    "criba_dossier_receipt": {
+                        "receipt_scope": "PLANNED_DISCRIMINANT_PROTOCOL_ONLY",
+                        "execution_status": "NOT_EXECUTED",
+                        "scientific_status": "NOT_VALIDATED",
+                        "criba_dossier_id": dossier["dossier_id"],
+                        "criba_candidate_id": dossier["candidate_id"],
+                        "claim_id": dossier["claim_id"],
+                        "mechanism_version": dossier["mechanism_version"],
+                        "protocol_version": dossier["protocol_version"],
+                        "integration_version": payload["criba_integration_version"],
+                        "payload_fingerprint": payload["criba_payload_fingerprint"],
+                    }
+                },
+            },
+        )
+
+    with _client(handler) as client:
+        result = client.run_project(
+            objective="Evaluate bounded CRIBA dossier", criba_dossier=dossier
+        )
+    assert result.status == "blocked"
+    assert result.scientific_status == "NOT_VALIDATED"
+
+
+def test_project_id_is_validated_before_transport() -> None:
+    def forbidden(_request: httpx.Request) -> httpx.Response:
+        raise AssertionError("transport must not be called for unsafe ids")
+
+    with _client(forbidden) as client:
+        with pytest.raises(ValueError):
+            client.get_project("../escape")
+        with pytest.raises(ValueError):
+            client.export_dossier("nested/path")
+
+
+def test_get_project_returns_typed_planning_receipt_snapshot() -> None:
+    fingerprint = "sha256:" + "c" * 64
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.method == "GET"
+        assert request.url.path == "/api/v1/projects/restart-contract"
+        return httpx.Response(
+            200,
+            json={
+                "status": "success",
+                "project_id": "restart-contract",
+                "posture": {
+                    "project_id": "restart-contract",
+                    "stage": "BLOCKED",
+                    "final_output": None,
+                    "error_message": None,
+                    "criba_dossier_receipt": {
+                        "receipt_scope": "PLANNED_DISCRIMINANT_PROTOCOL_ONLY",
+                        "execution_status": "NOT_EXECUTED",
+                        "scientific_status": "NOT_VALIDATED",
+                        "criba_dossier_id": "dossier-1",
+                        "criba_candidate_id": "cand-1",
+                        "claim_id": "claim-1",
+                        "mechanism_version": "sha256:" + "a" * 64,
+                        "protocol_version": "sha256:" + "b" * 64,
+                        "integration_version": "criba-supra/1",
+                        "payload_fingerprint": fingerprint,
+                    },
+                },
+            },
+        )
+
+    with _client(handler) as client:
+        loaded = client.get_project("restart-contract")
+
+    assert isinstance(loaded, SupraProjectLookup)
+    assert loaded.posture.stage == "BLOCKED"
+    assert loaded.posture.criba_dossier_receipt is not None
+    assert loaded.posture.criba_dossier_receipt.payload_fingerprint == fingerprint
+    assert loaded.posture.criba_dossier_receipt.execution_status == "NOT_EXECUTED"
+    assert loaded.posture.criba_dossier_receipt.scientific_status == "NOT_VALIDATED"
+
+
+def test_get_project_rejects_promoted_planning_receipt() -> None:
+    def handler(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            json={
+                "status": "success",
+                "project_id": "forged-restart",
+                "posture": {
+                    "project_id": "forged-restart",
+                    "stage": "BLOCKED",
+                    "criba_dossier_receipt": {
+                        "receipt_scope": "PLANNED_DISCRIMINANT_PROTOCOL_ONLY",
+                        "execution_status": "EXECUTED",
+                        "scientific_status": "NOT_VALIDATED",
+                        "criba_dossier_id": "dossier-1",
+                        "criba_candidate_id": "cand-1",
+                        "claim_id": "claim-1",
+                        "mechanism_version": "sha256:" + "a" * 64,
+                        "protocol_version": "sha256:" + "b" * 64,
+                        "integration_version": "criba-supra/1",
+                        "payload_fingerprint": "sha256:" + "c" * 64,
+                    },
+                },
+            },
+        )
+
+    with _client(handler) as client:
+        with pytest.raises(SupraClientError, match="project lookup violated response contract"):
+            client.get_project("forged-restart")
+
+
+def test_list_projects_uses_only_real_route() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.url.path == "/api/v1/projects"
+        assert request.url.params["limit"] == "5"
+        return httpx.Response(200, json={"status": "success", "count": 0, "projects": []})
+
+    with _client(handler) as client:
+        result = client.list_projects(limit=5)
+    assert result.projects == []
+
+
+def test_mcp_uses_real_jsonrpc_endpoint() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.url.path == "/api/v1/mcp"
+        payload = json.loads(request.content)
+        assert payload == {"jsonrpc": "2.0", "id": 7, "method": "tools/list"}
+        return httpx.Response(200, json={"jsonrpc": "2.0", "id": 7, "result": {"tools": []}})
+
+    with _client(handler) as client:
+        result = client.mcp("tools/list", request_id=7)
+    assert result["result"]["tools"] == []
+
+
+def test_client_has_no_historical_fabricated_routes() -> None:
+    source = __import__("inspect").getsource(SupraClient)
+    for forbidden in (
+        "/api/v1/health",
+        "/api/v1/dossiers",
+        "/api/v1/dossiers/run",
+        "/logs",
+    ):
+        assert forbidden not in source
+
+
+def test_http_failure_does_not_become_success() -> None:
+    def handler(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(401, json={"detail": "Invalid or missing API credentials."})
+
+    with _client(handler) as client:
+        with pytest.raises(SupraClientError, match="HTTP 401"):
+            client.list_projects()
+
+
+
+def test_client_rejects_legacy_fail_plus_completed_overclaim() -> None:
+    def handler(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            201,
+            json={
+                "status": "success",
+                "status_scope": "WORKFLOW_EXECUTION_ONLY",
+                "completion_status": "COMPLETED",
+                "workflow_status": "COMPLETED",
+                "verification_status": "FAIL",
+                "scientific_status": "NOT_VALIDATED",
+                "project_id": "legacy-overclaim",
+                "stage": "COMPLETED",
+                "posture": {"project_id": "legacy-overclaim"},
+            },
+        )
+
+    with _client(handler) as client:
+        with pytest.raises(SupraClientError, match="violated response contract"):
+            client.run_project(objective="Reject contradictory SUPRA completion")
+
+
+def test_client_rejects_completed_without_isolated_sandbox_proof() -> None:
+    def handler(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            201,
+            json={
+                "status": "success",
+                "status_scope": "WORKFLOW_EXECUTION_ONLY",
+                "completion_status": "COMPLETED",
+                "workflow_status": "COMPLETED",
+                "verification_status": "PASS",
+                "scientific_status": "NOT_VALIDATED",
+                "project_id": "legacy-no-sandbox",
+                "stage": "COMPLETED",
+                "posture": {"project_id": "legacy-no-sandbox"},
+            },
+        )
+
+    with _client(handler) as client:
+        with pytest.raises(SupraClientError, match="violated response contract"):
+            client.run_project(objective="Reject completion without sandbox proof")
+
+
+def test_client_accepts_completed_only_with_isolated_bound_pass() -> None:
+    def handler(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            201,
+            json={
+                "status": "success",
+                "status_scope": "WORKFLOW_EXECUTION_ONLY",
+                "completion_status": "COMPLETED",
+                "workflow_status": "COMPLETED",
+                "verification_status": "PASS",
+                "scientific_status": "NOT_VALIDATED",
+                "secure_sandbox_status": "ISOLATED_BOUND_PASS",
+                "project_id": "sandbox-complete",
+                "stage": "COMPLETED",
+                "posture": {"project_id": "sandbox-complete"},
+            },
+        )
+
+    with _client(handler) as client:
+        result = client.run_project(objective="Accept isolated completion")
+    assert result.status == "success"
+    assert result.secure_sandbox_status == "ISOLATED_BOUND_PASS"
+    assert result.stage == "COMPLETED"
+
+
+def test_client_wraps_malformed_health_schema() -> None:
+    def handler(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json={"status": "healthy"})
+
+    with _client(handler) as client:
+        with pytest.raises(SupraClientError, match="health violated response contract"):
+            client.health()
+
+
+def test_gui_uses_canonical_supra_client_without_direct_http_routes() -> None:
+    from pathlib import Path
+
+    source = Path("src/criba/ui/actions.py").read_text(encoding="utf-8")
+    assert "from ..integrations import SupraClient" in source
+    assert "_execute_supra_dossiers" in source
+    assert "httpx" not in source
+    assert "/api/v1/" not in source
+    assert '"criba_mechanism_execution_status"' in source
+    assert "mecanismo CRIBA NO EJECUTADO" in source
+
+
+def test_cli_does_not_bypass_canonical_supra_transport() -> None:
+    from pathlib import Path
+
+    source = Path("src/criba/cli.py").read_text(encoding="utf-8")
+    assert "/api/v1/projects" not in source
+    assert "SUPRA_ENDPOINT" not in source
+
+
+def test_dossier_fingerprint_canonicalization_is_explicit_and_fail_closed() -> None:
+    import unicodedata
+
+    from criba.integrations.supra_client import _dossier_payload_fingerprint
+
+    first = {
+        "dossier_id": "dossier-canon",
+        "candidate_id": "cand-canon",
+        "creado_at": "old",
+        "nested": {"z": 1, "a": True},
+        "supuestos": ["café"],
+    }
+    reordered = {
+        "supuestos": ["café"],
+        "nested": {"a": True, "z": 1},
+        "creado_at": "new",
+        "candidate_id": "cand-canon",
+        "dossier_id": "dossier-canon",
+    }
+    assert _dossier_payload_fingerprint(first) == _dossier_payload_fingerprint(reordered)
+
+    bool_changed_to_number = dict(first)
+    bool_changed_to_number["nested"] = {"z": 1, "a": 1}
+    assert _dossier_payload_fingerprint(first) != _dossier_payload_fingerprint(
+        bool_changed_to_number
+    )
+
+    # Unicode normalization is deliberately NOT implicit. Canonically equivalent
+    # human text with different code points is treated as different payload bytes.
+    nfd = dict(first)
+    nfd["supuestos"] = [unicodedata.normalize("NFD", "café")]
+    assert _dossier_payload_fingerprint(first) != _dossier_payload_fingerprint(nfd)
+
+    non_finite = dict(first)
+    non_finite["nested"] = {"value": float("nan")}
+    with pytest.raises(ValueError):
+        _dossier_payload_fingerprint(non_finite)
+
+
+def test_dossier_mapping_preserves_epistemic_language() -> None:
+    from criba.integrations import objective_from_dossier
+
+    objective = objective_from_dossier(
+        {
+            "problema": "Reduce thermal drift",
+            "hipotesis": "A bounded calibration loop reduces drift",
+            "mecanismo": "Closed-loop correction",
+            "prueba_discriminante": {
+                "intervencion_prueba": "Compare calibrated and baseline runs",
+                "observable": "temperature-adjusted error",
+                "regla_decision": "prefer lower held-out error",
+                "condicion_fracaso": "no measurable separation",
+            },
+        }
+    )
+    assert "sin convertir evidencia ausente en PASS" in objective
+    assert "Closed-loop correction" in objective
+    assert "no measurable separation" in objective
+    assert len(objective) <= 2000
+
+
+def test_client_rejects_mismatched_criba_lineage_receipt() -> None:
+    dossier = {
+        "dossier_id": "dossier-1", "candidate_id": "cand-1", "claim_id": "claim-1",
+        "mechanism_version": "sha256:" + "b" * 64,
+        "protocol_version": "sha256:" + "a" * 64,
+    }
+    def handler(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(201, json={
+            "status": "blocked", "completion_status": "BLOCKED",
+            "workflow_status": "RESTRICTED_EXECUTION_VERIFIED",
+            "verification_status": "FAIL", "scientific_status": "NOT_VALIDATED",
+            "secure_sandbox_status": "UNVERIFIED_ISOLATION",
+            "criba_planning_receipt_status": "PRESERVED_NOT_EXECUTED",
+            "criba_mechanism_execution_status": "NOT_EXECUTED", "project_id": "supra-1",
+            "stage": "RESTRICTED_EXECUTION_VERIFIED",
+            "posture": {"criba_dossier_receipt": {
+                "receipt_scope": "PLANNED_DISCRIMINANT_PROTOCOL_ONLY",
+                "execution_status": "NOT_EXECUTED", "scientific_status": "NOT_VALIDATED",
+                "criba_dossier_id": "dossier-OTHER", "criba_candidate_id": "cand-1",
+                "claim_id": "claim-1", "mechanism_version": "sha256:" + "b" * 64,
+                "protocol_version": "sha256:" + "a" * 64,
+            }},
+        })
+    with _client(handler) as client:
+        with pytest.raises(SupraClientError, match="did not preserve CRIBA dossier lineage"):
+            client.run_project(objective="Evaluate bounded dossier", criba_dossier=dossier)
+
+
+def test_client_rejects_planning_receipt_promoted_to_execution() -> None:
+    dossier = {
+        "dossier_id": "dossier-1", "candidate_id": "cand-1", "claim_id": "claim-1",
+        "mechanism_version": "sha256:" + "b" * 64,
+        "protocol_version": "sha256:" + "a" * 64,
+    }
+    def handler(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(201, json={
+            "status": "blocked", "completion_status": "BLOCKED",
+            "workflow_status": "RESTRICTED_EXECUTION_VERIFIED",
+            "verification_status": "FAIL", "scientific_status": "NOT_VALIDATED",
+            "secure_sandbox_status": "UNVERIFIED_ISOLATION",
+            "criba_planning_receipt_status": "PRESERVED_NOT_EXECUTED",
+            "criba_mechanism_execution_status": "NOT_EXECUTED", "project_id": "supra-1",
+            "stage": "RESTRICTED_EXECUTION_VERIFIED",
+            "posture": {"criba_dossier_receipt": {
+                "receipt_scope": "PLANNED_DISCRIMINANT_PROTOCOL_ONLY",
+                "execution_status": "EXECUTED", "scientific_status": "NOT_VALIDATED",
+                "criba_dossier_id": "dossier-1", "criba_candidate_id": "cand-1",
+                "claim_id": "claim-1", "mechanism_version": "sha256:" + "b" * 64,
+                "protocol_version": "sha256:" + "a" * 64,
+            }},
+        })
+    with _client(handler) as client:
+        with pytest.raises(SupraClientError, match="promoted a planning receipt"):
+            client.run_project(objective="Evaluate bounded dossier", criba_dossier=dossier)
+
+@pytest.mark.parametrize("field", ["dossier_id", "candidate_id", "claim_id", "mechanism_version", "protocol_version"])
+def test_client_rejects_incomplete_criba_lineage_before_transport(field: str) -> None:
+    dossier = {
+        "dossier_id": "dossier-1", "candidate_id": "cand-1", "claim_id": "claim-1",
+        "mechanism_version": "sha256:" + "b" * 64,
+        "protocol_version": "sha256:" + "a" * 64,
+    }
+    dossier[field] = ""
+    called = False
+    def handler(_request: httpx.Request) -> httpx.Response:
+        nonlocal called
+        called = True
+        return httpx.Response(500, json={"detail": "must not transport"})
+    with _client(handler) as client:
+        with pytest.raises(ValueError, match="lineage"):
+            client.run_project(objective="Evaluate bounded dossier", criba_dossier=dossier)
+    assert called is False
+
+@pytest.mark.parametrize("field,value", [
+    ("mechanism_version", "sha256:not-a-digest"),
+    ("protocol_version", "SHA256:" + "a" * 64),
+    ("protocol_version", "sha256:" + "g" * 64),
+])
+def test_client_rejects_noncanonical_criba_hash_versions(field: str, value: str) -> None:
+    dossier = {
+        "dossier_id": "dossier-1", "candidate_id": "cand-1", "claim_id": "claim-1",
+        "mechanism_version": "sha256:" + "b" * 64,
+        "protocol_version": "sha256:" + "a" * 64,
+    }
+    dossier[field] = value
+    called = False
+    def handler(_request: httpx.Request) -> httpx.Response:
+        nonlocal called
+        called = True
+        return httpx.Response(500)
+    with _client(handler) as client:
+        with pytest.raises(ValueError, match="sha256"):
+            client.run_project(objective="Evaluate bounded dossier", criba_dossier=dossier)
+    assert called is False

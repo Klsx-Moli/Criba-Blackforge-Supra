@@ -1,0 +1,7 @@
+# DEPRECATED: uv.lock + pyproject.toml are the only dependency sources.
+# Do not install this file with pip. Use one of these commands from the repo root:
+#   uv sync --all-extras --locked
+#   uv sync --extra gui --locked
+#   uv sync --extra api --locked
+# This compatibility marker is retained so old links fail closed instead of
+# silently creating an unmanaged environment.

@@ -1,0 +1,346 @@
+from __future__ import annotations
+
+import hashlib
+import json
+import sqlite3
+import uuid
+from collections.abc import Mapping, Sequence
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any
+
+from .constants import (
+    DEFAULT_DB,
+    VALID_DECISIONS,
+)
+
+SCHEMA_VERSION = 1
+
+
+class Storage:
+    def __init__(self, path: Path | str | None = DEFAULT_DB) -> None:
+        self.path = Path(path or DEFAULT_DB)
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        self.initialize()
+
+    def connect(self) -> sqlite3.Connection:
+        con = sqlite3.connect(self.path, timeout=3)
+        con.row_factory = sqlite3.Row
+        con.execute("PRAGMA foreign_keys = ON")
+        con.execute("PRAGMA journal_mode = WAL")
+        return con
+
+    def initialize(self) -> None:
+        con = self.connect()
+        try:
+            current_version = int(con.execute("PRAGMA user_version").fetchone()[0])
+            if current_version > SCHEMA_VERSION:
+                raise RuntimeError(
+                    f"La base usa una versión de esquema más nueva ({current_version}) "
+                    f"que la soportada ({SCHEMA_VERSION})."
+                )
+            with con:
+                con.execute('''CREATE TABLE IF NOT EXISTS sessions (
+                  id TEXT PRIMARY KEY, created_at TEXT NOT NULL, query_hash TEXT NOT NULL,
+                  query TEXT NOT NULL, current_id TEXT NOT NULL, status TEXT NOT NULL,
+                  config_json TEXT NOT NULL, packet_json TEXT NOT NULL, evidence_json TEXT NOT NULL DEFAULT '[]')''')
+                con.execute('''CREATE TABLE IF NOT EXISTS decisions (
+                  id TEXT PRIMARY KEY, session_id TEXT NOT NULL, created_at TEXT NOT NULL,
+                  status TEXT NOT NULL, evidence_json TEXT NOT NULL, note TEXT NOT NULL,
+                  FOREIGN KEY(session_id) REFERENCES sessions(id))''')
+                con.execute('''CREATE TABLE IF NOT EXISTS chain_sessions (
+                  chain_id TEXT PRIMARY KEY, created_at TEXT NOT NULL, original_objective TEXT NOT NULL,
+                  current_stage INTEGER NOT NULL, status TEXT NOT NULL)''')
+                con.execute('''CREATE TABLE IF NOT EXISTS chain_memory (
+                  id INTEGER PRIMARY KEY AUTOINCREMENT, chain_id TEXT NOT NULL, stage INTEGER NOT NULL,
+                  field_name TEXT NOT NULL, field_value TEXT NOT NULL,
+                  FOREIGN KEY(chain_id) REFERENCES chain_sessions(chain_id))''')
+                con.execute('''CREATE TABLE IF NOT EXISTS chain_outputs (
+                  id INTEGER PRIMARY KEY AUTOINCREMENT, chain_id TEXT NOT NULL, stage INTEGER NOT NULL,
+                  output_json TEXT NOT NULL,
+                  FOREIGN KEY(chain_id) REFERENCES chain_sessions(chain_id))''')
+                con.execute('''CREATE TABLE IF NOT EXISTS chain_reviews (
+                  review_id TEXT PRIMARY KEY, chain_id TEXT NOT NULL, stage INTEGER NOT NULL,
+                  decision TEXT NOT NULL, review_json TEXT NOT NULL,
+                  FOREIGN KEY(chain_id) REFERENCES chain_sessions(chain_id))''')
+                con.execute('''CREATE TABLE IF NOT EXISTS lottery_used_combinations (
+                  catalog_fingerprint TEXT NOT NULL,
+                  combo_key TEXT NOT NULL,
+                  first_seen_at TEXT NOT NULL,
+                  run_id TEXT NOT NULL,
+                  mode TEXT NOT NULL,
+                  seed INTEGER,
+                  PRIMARY KEY (catalog_fingerprint, combo_key))''')
+                if current_version < SCHEMA_VERSION:
+                    con.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
+        finally:
+            con.close()
+
+    def save(self, query: str, packet: Mapping[str, Any], config: Mapping[str, Any]) -> str:
+        ident = str(packet["activation_id"])
+        now = str(packet["timestamp"])
+        digest = hashlib.sha256(query.encode("utf-8")).hexdigest()
+        con = self.connect()
+        try:
+            with con:
+                con.execute("INSERT INTO sessions VALUES(?,?,?,?,?,?,?,?,?)", (ident, now, digest, query, packet["selected_current"]["id"], "ACTIVATED", json.dumps(config, ensure_ascii=False), json.dumps(packet, ensure_ascii=False), "[]"))
+            return ident
+        finally:
+            con.close()
+
+    def get(self, ident: str) -> dict[str, Any]:
+        con = self.connect()
+        try:
+            row = con.execute("SELECT * FROM sessions WHERE id=?", (ident,)).fetchone()
+            if not row:
+                raise ValueError(f"Sesión inexistente: {ident}")
+            result: dict[str, Any] = {str(key): row[key] for key in row.keys()}
+            for key in ("config_json", "packet_json", "evidence_json"):
+                result[key[:-5]] = json.loads(result.pop(key))
+            return result
+        finally:
+            con.close()
+
+    def list_sessions(self, limit: int = 100) -> list[dict[str, Any]]:
+        con = self.connect()
+        try:
+            rows = con.execute("SELECT id,created_at,query,current_id,status FROM sessions ORDER BY created_at DESC LIMIT ?", (limit,)).fetchall()
+            return [{str(key): row[key] for key in row.keys()} for row in rows]
+        finally:
+            con.close()
+
+    def record_decision(self, session_id: str, status: str, evidence: list[Any] | dict[str, Any], note: str = "") -> dict[str, Any]:
+        if status not in VALID_DECISIONS:
+            raise ValueError("Estado de decisión inválido.")
+        if not isinstance(evidence, (list, dict)):
+            raise ValueError("evidence debe ser una lista o un objeto.")
+
+        entry: dict[str, Any] = {
+            "id": str(uuid.uuid4()),
+            "session_id": session_id,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "status": status,
+            "evidence": evidence,
+            "note": note,
+        }
+        con = self.connect()
+        try:
+            with con:
+                row = con.execute(
+                    "SELECT evidence_json FROM sessions WHERE id=?", (session_id,)
+                ).fetchone()
+                if not row:
+                    raise ValueError(f"Sesión inexistente: {session_id}")
+                existing = json.loads(row["evidence_json"])
+                if not isinstance(existing, list):
+                    raise ValueError("evidence_json almacenado debe ser una lista.")
+                updated = [*existing, entry]
+                con.execute(
+                    "INSERT INTO decisions VALUES(?,?,?,?,?,?)",
+                    (
+                        entry["id"],
+                        session_id,
+                        entry["timestamp"],
+                        status,
+                        json.dumps(evidence, ensure_ascii=False),
+                        note,
+                    ),
+                )
+                con.execute(
+                    "UPDATE sessions SET status=?, evidence_json=? WHERE id=?",
+                    (status, json.dumps(updated, ensure_ascii=False), session_id),
+                )
+            return entry
+        finally:
+            con.close()
+
+    def compare(self, a: str, b: str) -> dict[str, Any]:
+        left, right = self.get(a), self.get(b)
+        lp, rp = left["packet"], right["packet"]
+        return {"session_a": a, "session_b": b, "same_query_hash": left["query_hash"] == right["query_hash"], "currents": {"a": lp["selected_current"]["id"], "b": rp["selected_current"]["id"]}, "methods": {"a": [x["id"] for x in lp["supporting_methods"]], "b": [x["id"] for x in rp["supporting_methods"]]}, "decisions": {"a": lp["decision"], "b": rp["decision"]}}
+
+    def save_chain_session(self, chain_id: str, original_objective: str, current_stage: int, status: str) -> None:
+        now = str(datetime.now(timezone.utc).isoformat())
+        con = self.connect()
+        try:
+            with con:
+                con.execute(
+                    "INSERT OR REPLACE INTO chain_sessions VALUES(?,?,?,?,?)",
+                    (chain_id, now, original_objective, current_stage, status),
+                )
+        finally:
+            con.close()
+
+    def save_chain_memory(self, chain_id: str, stage: int, memory: Mapping[str, Any]) -> None:
+        con = self.connect()
+        try:
+            with con:
+                for field_name, value in memory.items():
+                    if isinstance(value, (list, dict)):
+                        field_value = json.dumps(value, ensure_ascii=False)
+                    else:
+                        field_value = str(value)
+                    already_saved = con.execute(
+                        "SELECT 1 FROM chain_memory WHERE chain_id=? AND stage=? "
+                        "AND field_name=? AND field_value=? LIMIT 1",
+                        (chain_id, stage, field_name, field_value),
+                    ).fetchone()
+                    if already_saved:
+                        continue
+                    con.execute(
+                        "INSERT INTO chain_memory(chain_id, stage, field_name, field_value) VALUES(?,?,?,?)",
+                        (chain_id, stage, field_name, field_value),
+                    )
+        finally:
+            con.close()
+
+    def save_chain_output(self, chain_id: str, stage: int, output: Mapping[str, Any]) -> None:
+        """Persist a typed stage output for cold reconstruction."""
+        con = self.connect()
+        try:
+            with con:
+                con.execute(
+                    "INSERT INTO chain_outputs(chain_id, stage, output_json) VALUES(?,?,?)",
+                    (chain_id, stage, json.dumps(dict(output), ensure_ascii=False)),
+                )
+        finally:
+            con.close()
+
+    def load_chain_outputs(self, chain_id: str) -> list[dict[str, Any]]:
+        """Load stage outputs in execution order."""
+        con = self.connect()
+        try:
+            rows = con.execute(
+                "SELECT id, chain_id, stage, output_json FROM chain_outputs "
+                "WHERE chain_id=? ORDER BY stage, id",
+                (chain_id,),
+            ).fetchall()
+            return [
+                {"id": row["id"], "chain_id": row["chain_id"], "stage": row["stage"],
+                 "output": json.loads(row["output_json"])}
+                for row in rows
+            ]
+        finally:
+            con.close()
+
+    def save_chain_review(self, review_id: str, chain_id: str, stage: int,
+                          decision: str, review: Mapping[str, Any]) -> None:
+        """Persist one human decision record idempotently by review_id."""
+        con = self.connect()
+        try:
+            with con:
+                con.execute(
+                    "INSERT OR IGNORE INTO chain_reviews "
+                    "(review_id, chain_id, stage, decision, review_json) VALUES(?,?,?,?,?)",
+                    (review_id, chain_id, stage, decision,
+                     json.dumps(dict(review), ensure_ascii=False)),
+                )
+        finally:
+            con.close()
+
+    def load_chain_reviews(self, chain_id: str) -> list[dict[str, Any]]:
+        """Load persisted human decisions in stage order."""
+        con = self.connect()
+        try:
+            rows = con.execute(
+                "SELECT review_id, chain_id, stage, decision, review_json FROM chain_reviews "
+                "WHERE chain_id=? ORDER BY stage, review_id",
+                (chain_id,),
+            ).fetchall()
+            return [
+                {"review_id": row["review_id"], "chain_id": row["chain_id"],
+                 "stage": row["stage"], "decision": row["decision"],
+                 "review": json.loads(row["review_json"])}
+                for row in rows
+            ]
+        finally:
+            con.close()
+
+    def load_chain_session(self, chain_id: str) -> dict[str, Any]:
+        con = self.connect()
+        try:
+            row = con.execute("SELECT * FROM chain_sessions WHERE chain_id=?", (chain_id,)).fetchone()
+            if not row:
+                raise ValueError(f"Chain inexistente: {chain_id}")
+            return {k: row[k] for k in row.keys()}
+        finally:
+            con.close()
+
+    def load_chain_memory(self, chain_id: str) -> list[dict[str, Any]]:
+        con = self.connect()
+        try:
+            rows = con.execute(
+                "SELECT id, chain_id, stage, field_name, field_value FROM chain_memory WHERE chain_id=? ORDER BY stage, id",
+                (chain_id,),
+            ).fetchall()
+            return [{k: row[k] for k in row.keys()} for row in rows]
+        finally:
+            con.close()
+
+    def save_lottery_combinations(
+        self,
+        catalog_fingerprint: str,
+        combinations_list: Sequence[tuple[str, str]],
+        run_id: str = "lottery-run",
+        mode: str = "alternating",
+        seed: int | None = None,
+    ) -> int:
+        """Persist used method pairs to SQLite for cross-session deduplication."""
+        now = datetime.now(timezone.utc).isoformat()
+        saved = 0
+        con = self.connect()
+        try:
+            with con:
+                for left, right in combinations_list:
+                    combo_key = f"{min(str(left), str(right))}::{max(str(left), str(right))}"
+                    try:
+                        con.execute(
+                            "INSERT OR IGNORE INTO lottery_used_combinations VALUES(?,?,?,?,?,?)",
+                            (catalog_fingerprint, combo_key, now, run_id, mode, seed),
+                        )
+                        saved += 1
+                    except sqlite3.IntegrityError:
+                        pass
+            return saved
+        finally:
+            con.close()
+
+    def load_used_lottery_combinations(self, catalog_fingerprint: str) -> set[tuple[str, str]]:
+        """Load all historically used method pairs for this catalog fingerprint."""
+        con = self.connect()
+        try:
+            rows = con.execute(
+                "SELECT combo_key FROM lottery_used_combinations WHERE catalog_fingerprint=?",
+                (catalog_fingerprint,),
+            ).fetchall()
+            combos: set[tuple[str, str]] = set()
+            for r in rows:
+                parts = str(r[0]).split("::")
+                if len(parts) == 2:
+                    combos.add((parts[0], parts[1]))
+            return combos
+        finally:
+            con.close()
+
+    def load_combination_first_seen(self, catalog_fingerprint: str) -> dict[tuple[str, str], str]:
+        """Primer uso registrado por combinación (fatiga por decaimiento).
+
+        La PK (fingerprint, combo_key) impide contar usos sin migración; el
+        cooldown honesto usa first_seen_at: uso reciente = penalización
+        fuerte, uso antiguo = débil, nunca prohibición permanente.
+        """
+        con = self.connect()
+        try:
+            rows = con.execute(
+                "SELECT combo_key, first_seen_at FROM lottery_used_combinations "
+                "WHERE catalog_fingerprint=?",
+                (catalog_fingerprint,),
+            ).fetchall()
+            out: dict[tuple[str, str], str] = {}
+            for r in rows:
+                parts = str(r[0]).split("::")
+                if len(parts) == 2:
+                    out[(parts[0], parts[1])] = str(r[1])
+            return out
+        finally:
+            con.close()
