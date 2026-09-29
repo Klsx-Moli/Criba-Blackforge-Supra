@@ -1,0 +1,27 @@
+# ASTRA canon: changes require explicit owner review.
+.github/workflows/** @klssxx
+.github/CODEOWNERS @klssxx
+governance/ASTRA_CANON.yaml @klssxx
+docs/ASTRA_CANON.md @klssxx
+docs/ASTRA_COVERAGE_MATRIX.md @klssxx
+tests/astra_canon/** @klssxx
+src/supra_agentic/models.py @klssxx
+src/supra_agentic/state.py @klssxx
+src/supra_agentic/tools.py @klssxx
+src/supra_agentic/dossier.py @klssxx
+src/supra_agentic/integrations/criba_bridge.py @klssxx
+README.md @klssxx
+docs/ASTRA_AGENT_POLICY.md @klssxx
+docs/ARCHITECTURE.md @klssxx
+src/supra_agentic/runner.py @klssxx
+src/supra_agentic/service.py @klssxx
+src/supra_agentic/mcp_handler.py @klssxx
+src/supra_agentic/web/** @klssxx
+src/supra_agentic/anti_goodhart/ @klssxx
+scripts/anti_goodhart_observer.py @klssxx
+governance/ANTI_GOODHART_STATUS.yaml @klssxx
+docs/ANTI_GOODHART_RUNTIME.md @klssxx
+governance/ANTI_GOODHART_ACCEPTANCE_MATRIX.yaml @klssxx
+docs/ANTI_GOODHART_G3_PROTOCOL.md @klssxx
+scripts/anti_goodhart_g3_worker.py @klssxx
+scripts/anti_goodhart_g3_probe.py @klssxx
