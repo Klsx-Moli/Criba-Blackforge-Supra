@@ -5,8 +5,8 @@ import tempfile
 from fastapi.testclient import TestClient
 from supra_agentic.models import TaskmasterStage
 from supra_agentic.service import (
-    CribaDossierRequest,
     CreateProjectRequest,
+    CribaDossierRequest,
     _criba_dossier_receipt,
     _criba_payload_fingerprint,
     _criba_request_fingerprint,

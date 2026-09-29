@@ -203,7 +203,7 @@ class CribaDiscriminantProtocolRequest(BaseModel):
 _CRIBA_SUPRA_ENVELOPE_VERSION = "criba-supra/1"
 
 
-def _criba_payload_fingerprint(dossier: "CribaDossierRequest") -> str:
+def _criba_payload_fingerprint(dossier: CribaDossierRequest) -> str:
     semantic = dossier.model_dump(exclude_unset=True)
     semantic.pop("creado_at", None)
     raw = json.dumps(semantic, ensure_ascii=False, sort_keys=True, separators=(",", ":"), allow_nan=False)
@@ -300,7 +300,7 @@ class CreateProjectRequest(BaseModel):
     criba_payload_fingerprint: str | None = Field(None, pattern=r"^sha256:[0-9a-f]{64}$")
 
     @model_validator(mode="after")
-    def validate_criba_envelope(self) -> "CreateProjectRequest":
+    def validate_criba_envelope(self) -> CreateProjectRequest:
         if self.criba_dossier is None:
             if self.criba_integration_version is not None or self.criba_payload_fingerprint is not None:
                 raise ValueError("CRIBA envelope metadata requires criba_dossier")
@@ -565,7 +565,7 @@ def create_and_run_project(req: CreateProjectRequest, request: Request) -> dict[
                     raise HTTPException(
                         status_code=409,
                         detail="existing project is nonterminal; automatic replay unsafe.",
-                    )
+                    ) from exc
                 return Response(
                     content=json.dumps(
                         _project_execution_payload(existing, idempotent_replay=True)

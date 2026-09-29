@@ -7,7 +7,13 @@ import tempfile
 import pytest
 import supra_agentic.runner as runner_module
 from pydantic import ValidationError
-from supra_agentic.models import (ProjectPosture, TaskmasterStage, VerificationReport, StrategyCandidate, candidate_execution_identity)
+from supra_agentic.models import (
+    ProjectPosture,
+    StrategyCandidate,
+    TaskmasterStage,
+    VerificationReport,
+    candidate_execution_identity,
+)
 from supra_agentic.runner import TaskmasterRunner
 from supra_agentic.state import state_manager
 from supra_agentic.tools import (

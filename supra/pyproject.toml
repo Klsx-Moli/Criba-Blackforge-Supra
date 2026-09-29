@@ -53,6 +53,12 @@ unfixable = []
 # Ejemplo: ignora warnings en módulos muy experimentales
 # "agents/experimental/*.py" = ["F401", "F841"]
 # "scripts/*.py" = ["E501"]
+#
+# E402 en scripts/: los probes G3 se ejecutan directamente desde un checkout
+# sin install editable, así que insertan src/ en sys.path ANTES de importar
+# supra_agentic. Reordenar los imports rompería esa ejecución directa; la
+# excepción es del script, no una relajación global de la regla.
+"scripts/*.py" = ["E402"]
 
 [tool.ruff.format]
 quote-style = "double"
