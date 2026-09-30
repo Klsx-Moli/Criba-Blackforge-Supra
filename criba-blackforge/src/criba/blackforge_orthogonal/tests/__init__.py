@@ -29,53 +29,53 @@ from criba.blackforge_orthogonal.genealogy import GenealogyGraph
 # ══════════════════════════════════════════════════════════════════════
 
 class TestAxes:
-    def test_12_axes_exist(self):
+    def test_12_axes_exist(self) -> None:
         assert len(AXES) == 12
 
-    def test_axis_ids(self):
+    def test_axis_ids(self) -> None:
         expected = {f"AX-{i:02d}" for i in range(1, 13)}
         assert set(AXES.keys()) == expected
 
-    def test_all_axes_in_order(self):
+    def test_all_axes_in_order(self) -> None:
         axes = all_axes()
         assert len(axes) == 12
         assert axes[0].id == "AX-01"
         assert axes[-1].id == "AX-12"
 
-    def test_get_axis(self):
+    def test_get_axis(self) -> None:
         ax = get_axis("AX-01")
         assert ax is not None
         assert ax.name == "TRANSFORMACION"
 
-    def test_get_axis_invalid(self):
+    def test_get_axis_invalid(self) -> None:
         assert get_axis("AX-99") is None
 
-    def test_get_axis_by_name(self):
+    def test_get_axis_by_name(self) -> None:
         ax = get_axis_by_name("TRANSFORMACION")
         assert ax is not None
         assert ax.id == "AX-01"
 
-    def test_validate_coordinate_valid(self):
+    def test_validate_coordinate_valid(self) -> None:
         assert validate_coordinate("AX-01", "INVERTIR") is True
 
-    def test_validate_coordinate_invalid_value(self):
+    def test_validate_coordinate_invalid_value(self) -> None:
         assert validate_coordinate("AX-01", "INVALID") is False
 
-    def test_validate_coordinate_invalid_axis(self):
+    def test_validate_coordinate_invalid_axis(self) -> None:
         assert validate_coordinate("AX-99", "INVERTIR") is False
 
-    def test_total_cells(self):
+    def test_total_cells(self) -> None:
         total = total_cells()
         expected = sum(len(ax.values) for ax in AXES.values())
         assert total == expected
         assert total > 100  # Hay más de 100 celdas en el espacio
 
-    def test_axis_is_frozen(self):
+    def test_axis_is_frozen(self) -> None:
         ax = AXES["AX-01"]
         with pytest.raises(AttributeError):
-            ax.id = "AX-99"
+            setattr(ax, "id", "AX-99")
 
-    def test_axis_hash(self):
+    def test_axis_hash(self) -> None:
         ax1 = AXES["AX-01"]
         ax2 = AXES["AX-01"]
         assert hash(ax1) == hash(ax2)
@@ -87,12 +87,12 @@ class TestAxes:
 # ══════════════════════════════════════════════════════════════════════
 
 class TestOrthogonalSignature:
-    def test_empty_signature(self):
+    def test_empty_signature(self) -> None:
         sig = OrthogonalSignature()
         assert len(sig) == 0
         assert not sig
 
-    def test_basic_construction(self):
+    def test_basic_construction(self) -> None:
         sig = OrthogonalSignature(coordinates={
             "AX-01": ("INVERTIR",),
             "AX-02": ("OBJETIVO",),
@@ -101,7 +101,7 @@ class TestOrthogonalSignature:
         assert ("AX-01", "INVERTIR") in sig.pairs
         assert ("AX-02", "OBJETIVO") in sig.pairs
 
-    def test_invalid_values_ignored(self):
+    def test_invalid_values_ignored(self) -> None:
         sig = OrthogonalSignature(coordinates={
             "AX-01": ("INVERTIR", "INVALID"),
             "AX-99": ("OBJETIVO",),  # eje no existe
@@ -109,7 +109,7 @@ class TestOrthogonalSignature:
         assert len(sig) == 1
         assert ("AX-01", "INVERTIR") in sig.pairs
 
-    def test_identical_signatures_similarity_1(self):
+    def test_identical_signatures_similarity_1(self) -> None:
         sig_a = OrthogonalSignature(coordinates={
             "AX-01": ("INVERTIR",),
             "AX-02": ("OBJETIVO",),
@@ -120,7 +120,7 @@ class TestOrthogonalSignature:
         })
         assert sig_a.similarity(sig_b) == 1.0
 
-    def test_different_signatures_similarity_lt_1(self):
+    def test_different_signatures_similarity_lt_1(self) -> None:
         sig_a = OrthogonalSignature(coordinates={
             "AX-01": ("INVERTIR",),
             "AX-02": ("OBJETIVO",),
@@ -131,17 +131,17 @@ class TestOrthogonalSignature:
         })
         assert sig_a.similarity(sig_b) < 1.0
 
-    def test_empty_signatures_similarity(self):
+    def test_empty_signatures_similarity(self) -> None:
         sig_a = OrthogonalSignature()
         sig_b = OrthogonalSignature()
         assert sig_a.similarity(sig_b) == 1.0
 
-    def test_one_empty_similarity(self):
+    def test_one_empty_similarity(self) -> None:
         sig_a = OrthogonalSignature(coordinates={"AX-01": ("INVERTIR",)})
         sig_b = OrthogonalSignature()
         assert sig_a.similarity(sig_b) == 0.0
 
-    def test_partial_overlap(self):
+    def test_partial_overlap(self) -> None:
         sig_a = OrthogonalSignature(coordinates={
             "AX-01": ("INVERTIR",),
             "AX-02": ("OBJETIVO",),
@@ -155,7 +155,7 @@ class TestOrthogonalSignature:
         # 2 de 4 pares coinciden
         assert sig_a.similarity(sig_b) == 0.5
 
-    def test_to_string(self):
+    def test_to_string(self) -> None:
         sig = OrthogonalSignature(coordinates={
             "AX-01": ("INVERTIR",),
             "AX-02": ("OBJETIVO",),
@@ -164,26 +164,26 @@ class TestOrthogonalSignature:
         assert "AX-01:INVERTIR" in s
         assert "AX-02:OBJETIVO" in s
 
-    def test_to_hash(self):
+    def test_to_hash(self) -> None:
         sig = OrthogonalSignature(coordinates={"AX-01": ("INVERTIR",)})
         h = sig.to_hash()
         assert len(h) == 64  # SHA-256 hex
 
-    def test_axes_covered(self):
+    def test_axes_covered(self) -> None:
         sig = OrthogonalSignature(coordinates={
             "AX-01": ("INVERTIR", "ELIMINAR"),
             "AX-02": ("OBJETIVO",),
         })
         assert sig.axes_covered() == {"AX-01", "AX-02"}
 
-    def test_values_for_axis(self):
+    def test_values_for_axis(self) -> None:
         sig = OrthogonalSignature(coordinates={
             "AX-01": ("INVERTIR", "ELIMINAR"),
         })
         vals = sig.values_for_axis("AX-01")
         assert set(vals) == {"INVERTIR", "ELIMINAR"}
 
-    def test_coordinates_roundtrip(self):
+    def test_coordinates_roundtrip(self) -> None:
         coords = {
             "AX-01": ("INVERTIR", "ELIMINAR"),
             "AX-02": ("OBJETIVO",),
@@ -199,7 +199,7 @@ class TestOrthogonalSignature:
 # ══════════════════════════════════════════════════════════════════════
 
 class TestOrthogonalComposer:
-    def test_random_balanced(self):
+    def test_random_balanced(self) -> None:
         composer = OrthogonalComposer(seed=42)
         request = CompositionRequest(
             problem="test",
@@ -213,7 +213,7 @@ class TestOrthogonalComposer:
         assert len(comp.selected_axes) == 7
         assert comp.mode == CompositionMode.RANDOM_BALANCED
 
-    def test_max_distance(self):
+    def test_max_distance(self) -> None:
         composer = OrthogonalComposer(seed=42)
         history = [
             OrthogonalSignature(coordinates={
@@ -233,7 +233,7 @@ class TestOrthogonalComposer:
         assert len(comp.selected_axes) == 7
         assert comp.distance_score >= 0.0
 
-    def test_adversarial_forces_axes(self):
+    def test_adversarial_forces_axes(self) -> None:
         composer = OrthogonalComposer(seed=42)
         request = CompositionRequest(
             problem="test",
@@ -248,7 +248,7 @@ class TestOrthogonalComposer:
         assert "AX-11" in comp.selected_axes
         assert "AX-12" in comp.selected_axes
 
-    def test_counterfactual_forces_axes(self):
+    def test_counterfactual_forces_axes(self) -> None:
         composer = OrthogonalComposer(seed=42)
         request = CompositionRequest(
             problem="test",
@@ -262,7 +262,7 @@ class TestOrthogonalComposer:
         assert comp.selected_axes.get("AX-01") == "INVERTIR"
         assert comp.selected_axes.get("AX-07") == "CONTRAFACTUAL"
 
-    def test_minimal_axes(self):
+    def test_minimal_axes(self) -> None:
         composer = OrthogonalComposer(seed=42)
         request = CompositionRequest(
             problem="test",
@@ -275,7 +275,7 @@ class TestOrthogonalComposer:
         comp = composer.compose(request)
         assert len(comp.selected_axes) == 3
 
-    def test_reproducibility(self):
+    def test_reproducibility(self) -> None:
         """Mismo seed → misma composición."""
         composer1 = OrthogonalComposer(seed=42)
         composer2 = OrthogonalComposer(seed=42)
@@ -291,7 +291,7 @@ class TestOrthogonalComposer:
         comp2 = composer2.compose(request)
         assert comp1.selected_axes == comp2.selected_axes
 
-    def test_no_duplicate_values_in_signature(self):
+    def test_no_duplicate_values_in_signature(self) -> None:
         """La composición no debe tener valores duplicados en la firma."""
         composer = OrthogonalComposer(seed=42)
         request = CompositionRequest(
@@ -308,7 +308,7 @@ class TestOrthogonalComposer:
         for axis_id, vals in sig.coordinates.items():
             assert len(vals) == len(set(vals))
 
-    def test_all_modes_produce_valid_composition(self):
+    def test_all_modes_produce_valid_composition(self) -> None:
         """Todos los modos deben producir composiciones válidas."""
         composer = OrthogonalComposer(seed=42)
         for mode in CompositionMode:
@@ -330,26 +330,26 @@ class TestOrthogonalComposer:
 # ══════════════════════════════════════════════════════════════════════
 
 class TestRedundancyChecker:
-    def test_identical_texts_redundant(self):
+    def test_identical_texts_redundant(self) -> None:
         checker = RedundancyChecker()
         sig = OrthogonalSignature(coordinates={"AX-01": ("INVERTIR",)})
         result = checker.check(sig, sig, "texto identico", "texto identico")
         assert result.decision == RedundancyDecision.REDUNDANT
 
-    def test_different_ideas_new(self):
+    def test_different_ideas_new(self) -> None:
         checker = RedundancyChecker()
         sig_a = OrthogonalSignature(coordinates={"AX-01": ("INVERTIR",)})
         sig_b = OrthogonalSignature(coordinates={"AX-01": ("ELIMINAR",)})
         result = checker.check(sig_a, sig_b, "texto a", "texto b")
         assert result.decision == RedundancyDecision.NEW
 
-    def test_identical_structures_derivative(self):
+    def test_identical_structures_derivative(self) -> None:
         checker = RedundancyChecker()
         sig = OrthogonalSignature(coordinates={"AX-01": ("INVERTIR",)})
         result = checker.check(sig, sig, "texto a", "texto b diferente")
         assert result.decision == RedundancyDecision.DERIVATIVE
 
-    def test_merge_candidate(self):
+    def test_merge_candidate(self) -> None:
         checker = RedundancyChecker()
         sig_a = OrthogonalSignature(coordinates={
             "AX-01": ("INVERTIR",),
@@ -362,7 +362,7 @@ class TestRedundancyChecker:
         result = checker.check(sig_a, sig_b, "texto similar", "texto similar")
         assert result.decision == RedundancyDecision.MERGE_CANDIDATE
 
-    def test_causal_variant(self):
+    def test_causal_variant(self) -> None:
         checker = RedundancyChecker()
         sig_a = OrthogonalSignature(coordinates={
             "AX-01": ("INVERTIR",),
@@ -383,12 +383,12 @@ class TestRedundancyChecker:
 # ══════════════════════════════════════════════════════════════════════
 
 class TestGenealogyGraph:
-    def test_add_technique(self):
+    def test_add_technique(self) -> None:
         graph = GenealogyGraph()
         graph.add_technique("IDEA_001")
         assert "IDEA_001" in graph
 
-    def test_add_relationship(self):
+    def test_add_relationship(self) -> None:
         graph = GenealogyGraph()
         graph.add_technique("IDEA_001")
         graph.add_technique("IDEA_002", parents=["IDEA_001"])
@@ -396,7 +396,7 @@ class TestGenealogyGraph:
         assert "IDEA_002" in graph.get_children("IDEA_001")
         assert "IDEA_001" in graph.get_parents("IDEA_002")
 
-    def test_get_ancestors(self):
+    def test_get_ancestors(self) -> None:
         graph = GenealogyGraph()
         graph.add_technique("A")
         graph.add_technique("B", parents=["A"])
@@ -405,7 +405,7 @@ class TestGenealogyGraph:
         assert "A" in ancestors
         assert "B" in ancestors
 
-    def test_get_descendants(self):
+    def test_get_descendants(self) -> None:
         graph = GenealogyGraph()
         graph.add_technique("A")
         graph.add_technique("B", parents=["A"])
@@ -414,7 +414,7 @@ class TestGenealogyGraph:
         assert "B" in descendants
         assert "C" in descendants
 
-    def test_get_lineage(self):
+    def test_get_lineage(self) -> None:
         graph = GenealogyGraph()
         graph.add_technique("A")
         graph.add_technique("B", parents=["A"])
@@ -422,7 +422,7 @@ class TestGenealogyGraph:
         assert lineage["ancestors"] == ["A"]
         assert lineage["descendants"] == []
 
-    def test_generation(self):
+    def test_generation(self) -> None:
         graph = GenealogyGraph()
         graph.add_technique("A")
         graph.add_technique("B", parents=["A"])
@@ -431,13 +431,13 @@ class TestGenealogyGraph:
         assert graph.get_generation("B") == 1
         assert graph.get_generation("C") == 2
 
-    def test_len(self):
+    def test_len(self) -> None:
         graph = GenealogyGraph()
         graph.add_technique("A")
         graph.add_technique("B")
         assert len(graph) == 2
 
-    def test_contains(self):
+    def test_contains(self) -> None:
         graph = GenealogyGraph()
         graph.add_technique("A")
         assert "A" in graph
