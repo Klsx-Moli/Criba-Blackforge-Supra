@@ -13,7 +13,7 @@ from urllib.parse import urlparse
 
 from fastapi import FastAPI, HTTPException, Request, Response, status
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -22,7 +22,7 @@ from .mcp_handler import handle_mcp_jsonrpc_request
 from .models import current_authoritative_execution
 from .providers import ProviderError, get_provider, provider_names
 from .runner import TaskmasterRunner, taskmaster_runner
-from .state import DuplicateProjectError, state_manager
+from .state import DuplicateProjectError, ProjectStateLoadError, state_manager
 
 logger = logging.getLogger("supra_agentic.service")
 MAX_MCP_BODY_SIZE = 8 * 1024 * 1024
@@ -95,6 +95,22 @@ app = FastAPI(
     version="1.0.0",
     description="Provider-neutral task decomposition, scoped strategy-coverage evaluation, restricted execution telemetry, and evidence generation.",
 )
+
+
+@app.exception_handler(ProjectStateLoadError)
+async def _handle_project_state_load_error(
+    _request: Request, exc: ProjectStateLoadError
+) -> JSONResponse:
+    """Do not degrade corrupt persisted authority into a false 404."""
+    logger.error(
+        "Persisted project state is corrupt or incompatible: %s (%s)",
+        exc.project_id,
+        exc.error_type,
+    )
+    return JSONResponse(
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        content={"detail": "Persisted project state is corrupt or incompatible."},
+    )
 
 class _BoundedJsonBodyMiddleware:
     """Bound expensive JSON endpoints before framework body parsing."""
@@ -614,6 +630,7 @@ def list_projects(limit: int = 20) -> dict[str, Any]:
         "status": "success",
         "count": len(projects),
         "projects": [p.model_dump() for p in projects],
+        "storage_errors": state_manager.last_list_load_errors,
     }
 
 
