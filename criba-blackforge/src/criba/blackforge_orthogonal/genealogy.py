@@ -30,7 +30,7 @@ class GenealogyGraph:
         descendants = graph.get_descendants("IDEA_001")
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.nodes: Dict[str, IdeaNode] = {}
 
     def add_technique(
@@ -153,7 +153,7 @@ class GenealogyGraph:
 
         return descendants
 
-    def get_lineage(self, technique_id: str) -> Dict:
+    def get_lineage(self, technique_id: str) -> Dict[str, object]:
         """Obtiene linaje completo (ancestros + descendientes)."""
         node = self.nodes.get(technique_id)
         return {
