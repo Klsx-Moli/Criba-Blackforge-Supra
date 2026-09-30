@@ -133,7 +133,7 @@ class FamilySpec:
     preconditions: tuple[str, ...] = ()
     description: str = ""
     
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         # Validar que strength está en [0, 1]
         if not 0.0 <= self.strength <= 1.0:
             raise ValueError(f"strength debe estar en [0,1], got {self.strength}")
