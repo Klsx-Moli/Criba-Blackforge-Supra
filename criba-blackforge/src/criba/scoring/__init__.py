@@ -45,7 +45,7 @@ def mutual_information(joint: list[list[float]], marginal_x: list[float], margin
     for i, row in enumerate(joint):
         for j, pxy in enumerate(row):
             if pxy > 0 and marginal_x[i] > 0 and marginal_y[j] > 0:
-                mi += pxy * math.log2(pxy / (miscal_x[i] * marginal_y[j]))
+                mi += pxy * math.log2(pxy / (marginal_x[i] * marginal_y[j]))
     return round(mi, 4)
 
 
@@ -124,13 +124,13 @@ class InformationTheoryScorer:
     Returns:
         lista de dicts con 'novelty', 'relevance', 'surprise', 'info_gain'
         """
-        results = []
+        results: list[dict[str, float]] = []
         ref_probs = reference.get('probs', []) if reference else []
         
         for cand in candidates:
             cand_probs = cand.get('probs', [])
             if not cand_probs:
-                results.append({'novelty': 0, 'relevance': 0, 'surprise': 0, 'info_gain': 0})
+                results.append({'novelty': 0.0, 'relevance': 0.0, 'surprise': 0.0, 'info_gain': 0.0})
                 continue
             
             # Normalizar

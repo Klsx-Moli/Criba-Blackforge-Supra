@@ -135,6 +135,8 @@ class OrthogonalComposer:
                 best_distance = avg_distance
                 best_composition = composition
 
+        if best_composition is None:
+            return self._random_balanced(request)
         return best_composition
 
     def _least_visited(self, request: CompositionRequest) -> Composition:

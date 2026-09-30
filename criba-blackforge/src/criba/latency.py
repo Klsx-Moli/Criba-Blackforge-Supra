@@ -10,7 +10,7 @@ from __future__ import annotations
 import math
 import threading
 import time
-from collections.abc import Mapping, Sequence
+from collections.abc import Iterator, Mapping, Sequence
 from contextlib import contextmanager
 from enum import Enum
 from typing import Any
@@ -409,7 +409,7 @@ class LatencyScheduler:
         return 0 <= queued <= self.parallelism.queue_depth
 
     @contextmanager
-    def generator_slot(self, timeout_ms: int = 0):
+    def generator_slot(self, timeout_ms: int = 0) -> Iterator[None]:
         """Acquire/release a bounded generator slot cooperatively."""
         if timeout_ms < 0:
             raise ValueError("timeout_ms no puede ser negativo")
