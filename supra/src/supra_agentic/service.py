@@ -112,6 +112,7 @@ async def _handle_project_state_load_error(
         content={"detail": "Persisted project state is corrupt or incompatible."},
     )
 
+
 class _BoundedJsonBodyMiddleware:
     """Bound expensive JSON endpoints before framework body parsing."""
 
