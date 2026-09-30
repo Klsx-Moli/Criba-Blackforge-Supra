@@ -23,6 +23,103 @@ def _fail_persistence(_project_id: str) -> None:
     raise RuntimeError("injected persistence failure")
 
 
+def _assert_transition_rolls_back(monkeypatch, sm, project_id, transition) -> None:
+    before = sm.get_project(project_id)
+    assert before is not None
+    before_dump = before.model_dump()
+
+    monkeypatch.setattr(sm, "_persist_project", _fail_persistence)
+    with pytest.raises(RuntimeError, match="injected persistence failure"):
+        transition()
+
+    current = sm.get_project(project_id)
+    assert current is not None
+    assert current.model_dump() == before_dump
+    reloaded = ProjectStateManager(storage_dir=sm.storage_dir).get_project(project_id)
+    assert reloaded is not None
+    assert reloaded.model_dump() == before_dump
+
+
+def test_create_project_rolls_back_memory_when_persistence_fails(monkeypatch, tmp_path):
+    sm = ProjectStateManager(storage_dir=tmp_path)
+    monkeypatch.setattr(sm, "_persist_project", _fail_persistence)
+
+    with pytest.raises(RuntimeError, match="injected persistence failure"):
+        sm.create_project("create rollback", project_id="create-rollback")
+
+    assert sm.get_project("create-rollback") is None
+    assert not (tmp_path / "create-rollback.json").exists()
+
+
+def test_update_decomposition_rolls_back_memory_when_persistence_fails(monkeypatch, tmp_path):
+    sm = ProjectStateManager(storage_dir=tmp_path)
+    p = sm.create_project("decomposition rollback")
+    decomp = StructuredDecomposition(
+        domain="test",
+        core_objective="rollback",
+        invariants=[],
+        mutable_assumptions=[],
+        risk_factors=[],
+        subtasks=[],
+    )
+    _assert_transition_rolls_back(
+        monkeypatch,
+        sm,
+        p.project_id,
+        lambda: sm.update_decomposition(p.project_id, decomp),
+    )
+
+
+def test_add_candidates_rolls_back_memory_when_persistence_fails(monkeypatch, tmp_path):
+    sm = ProjectStateManager(storage_dir=tmp_path)
+    p = sm.create_project("candidate rollback")
+    candidate = StrategyCandidate(
+        pathway_name="Rollback candidate",
+        paradigm_type="ORTHOGONAL",
+        hypothesis="persistence failure must not advance memory",
+    )
+    _assert_transition_rolls_back(
+        monkeypatch,
+        sm,
+        p.project_id,
+        lambda: sm.add_candidates(p.project_id, [candidate]),
+    )
+
+
+def test_record_verification_rolls_back_memory_when_persistence_fails(monkeypatch, tmp_path):
+    sm = ProjectStateManager(storage_dir=tmp_path)
+    p = sm.create_project("verification rollback")
+    report = VerificationReport(candidate_id="cand-rollback", verdict="FAIL")
+    _assert_transition_rolls_back(
+        monkeypatch,
+        sm,
+        p.project_id,
+        lambda: sm.record_verification(p.project_id, report),
+    )
+
+
+def test_block_project_rolls_back_memory_when_persistence_fails(monkeypatch, tmp_path):
+    sm = ProjectStateManager(storage_dir=tmp_path)
+    p = sm.create_project("block rollback")
+    _assert_transition_rolls_back(
+        monkeypatch,
+        sm,
+        p.project_id,
+        lambda: sm.block_project(p.project_id, "gate unavailable"),
+    )
+
+
+def test_fail_project_rolls_back_memory_when_persistence_fails(monkeypatch, tmp_path):
+    sm = ProjectStateManager(storage_dir=tmp_path)
+    p = sm.create_project("failure rollback")
+    _assert_transition_rolls_back(
+        monkeypatch,
+        sm,
+        p.project_id,
+        lambda: sm.fail_project(p.project_id, "boom"),
+    )
+
+
 def test_issue_attempt_rolls_back_memory_when_persistence_fails(
     monkeypatch, tmp_path
 ):
