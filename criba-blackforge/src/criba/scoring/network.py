@@ -27,13 +27,13 @@ class IdeaNode:
         self.score = score
         self.tags = tags or []
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"IdeaNode({self.id}, {self.family}, {self.score})"
 
-    def __eq__(self, other):
+    def __eq__(self, other: object) -> bool:
         return isinstance(other, IdeaNode) and self.id == other.id
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return hash(self.id)
 
 
@@ -50,21 +50,21 @@ class IdeaEdge:
 class IdeaNetwork:
     """Graph of ideas with network analysis capabilities."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.nodes: dict[str, IdeaNode] = {}
         self.edges: list[IdeaEdge] = []
 
-    def add_idea(self, idea_id: str, family: str, score: float, tags: list[str] | None = None):
+    def add_idea(self, idea_id: str, family: str, score: float, tags: list[str] | None = None) -> None:
         """Add an idea node to the network."""
         if idea_id not in self.nodes:
             self.nodes[idea_id] = IdeaNode(idea_id, family, score, tags)
 
-    def add_edge(self, source: str, target: str, weight: float = 1.0, relationship: str = "related"):
+    def add_edge(self, source: str, target: str, weight: float = 1.0, relationship: str = "related") -> None:
         """Add a relationship edge between two ideas."""
         if source in self.nodes and target in self.nodes:
             self.edges.append(IdeaEdge(source, target, weight, relationship))
 
-    def build_from_ideas(self, ideas: list[dict[str, Any]]):
+    def build_from_ideas(self, ideas: list[dict[str, Any]]) -> None:
         """Build network from a list of CRIBA ideas."""
         for idea in ideas:
             idea_id = idea.get("id", "")
