@@ -17,6 +17,33 @@ from .constants import (
 SCHEMA_VERSION = 1
 
 
+def _encode_combo_key(left: object, right: object) -> str:
+    """Encode an unordered method pair without breaking legacy safe keys."""
+    first, second = sorted((str(left), str(right)))
+    if "::" not in first and "::" not in second:
+        return f"{first}::{second}"
+    return json.dumps([first, second], ensure_ascii=False, separators=(",", ":"))
+
+
+def _decode_combo_key(raw_value: object) -> tuple[str, str] | None:
+    """Decode canonical JSON keys and unambiguous legacy delimiter keys."""
+    raw = str(raw_value)
+    try:
+        parsed = json.loads(raw)
+    except (json.JSONDecodeError, TypeError):
+        parsed = None
+    if (
+        isinstance(parsed, list)
+        and len(parsed) == 2
+        and all(isinstance(item, str) for item in parsed)
+    ):
+        return parsed[0], parsed[1]
+    parts = raw.split("::")
+    if len(parts) == 2:
+        return parts[0], parts[1]
+    return None
+
+
 class Storage:
     def __init__(self, path: Path | str | None = DEFAULT_DB) -> None:
         self.path = Path(path or DEFAULT_DB)
@@ -292,13 +319,13 @@ class Storage:
         try:
             with con:
                 for left, right in combinations_list:
-                    combo_key = f"{min(str(left), str(right))}::{max(str(left), str(right))}"
+                    combo_key = _encode_combo_key(left, right)
                     try:
-                        con.execute(
+                        cursor = con.execute(
                             "INSERT OR IGNORE INTO lottery_used_combinations VALUES(?,?,?,?,?,?)",
                             (catalog_fingerprint, combo_key, now, run_id, mode, seed),
                         )
-                        saved += 1
+                        saved += max(cursor.rowcount, 0)
                     except sqlite3.IntegrityError:
                         pass
             return saved
@@ -315,9 +342,9 @@ class Storage:
             ).fetchall()
             combos: set[tuple[str, str]] = set()
             for r in rows:
-                parts = str(r[0]).split("::")
-                if len(parts) == 2:
-                    combos.add((parts[0], parts[1]))
+                pair = _decode_combo_key(r[0])
+                if pair is not None:
+                    combos.add(pair)
             return combos
         finally:
             con.close()
@@ -338,9 +365,9 @@ class Storage:
             ).fetchall()
             out: dict[tuple[str, str], str] = {}
             for r in rows:
-                parts = str(r[0]).split("::")
-                if len(parts) == 2:
-                    out[(parts[0], parts[1])] = str(r[1])
+                pair = _decode_combo_key(r[0])
+                if pair is not None:
+                    out[pair] = str(r[1])
             return out
         finally:
             con.close()
