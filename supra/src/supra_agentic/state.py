@@ -104,7 +104,7 @@ class ProjectStateManager:
                 ],
             )
             self._projects[pid] = posture
-            self._persist_project(pid)
+            self._persist_transition_or_rollback(pid, None)
             return posture
 
     def get_project(self, project_id: str) -> ProjectPosture | None:
@@ -135,6 +135,7 @@ class ProjectStateManager:
         """Store decomposition and advance stage to STRUCTURED."""
         with self._lock:
             p = self._get_required_project(project_id)
+            before = p.model_copy(deep=True)
             p.decomposition = decomp
             p.stage = TaskmasterStage.STRUCTURED
             p.updated_at = time.time()
@@ -146,7 +147,7 @@ class ProjectStateManager:
                     actor="agent:supra:decompose",
                 )
             )
-            self._persist_project(project_id)
+            self._persist_transition_or_rollback(project_id, before)
             return p
 
     def add_candidates(
@@ -155,6 +156,7 @@ class ProjectStateManager:
         """Store strategy candidates and advance stage to STRATIFIED."""
         with self._lock:
             p = self._get_required_project(project_id)
+            before = p.model_copy(deep=True)
             candidate_ids = [candidate.candidate_id for candidate in candidates]
             if len(set(candidate_ids)) != len(candidate_ids):
                 raise ValueError("duplicate candidate_id values are not allowed")
@@ -177,13 +179,14 @@ class ProjectStateManager:
                     actor="agent:supra:strategy",
                 )
             )
-            self._persist_project(project_id)
+            self._persist_transition_or_rollback(project_id, before)
             return p
 
     def record_verification(self, project_id: str, report: VerificationReport) -> ProjectPosture:
         """Store verification report."""
         with self._lock:
             p = self._get_required_project(project_id)
+            before = p.model_copy(deep=True)
             if (
                 report.verdict == "PASS"
                 and p.selected_candidate is not None
@@ -223,7 +226,7 @@ class ProjectStateManager:
                     actor="agent:supra:verifier",
                 )
             )
-            self._persist_project(project_id)
+            self._persist_transition_or_rollback(project_id, before)
             return p
 
     def issue_restricted_execution_attempt(self, project_id: str) -> tuple[str, int]:
@@ -422,6 +425,7 @@ class ProjectStateManager:
         """Persist an honest non-terminal outcome when completion gates are unmet."""
         with self._lock:
             p = self._get_required_project(project_id)
+            before = p.model_copy(deep=True)
             p.stage = TaskmasterStage.BLOCKED
             p.error_message = None
             p.updated_at = time.time()
@@ -433,13 +437,14 @@ class ProjectStateManager:
                     actor="system:completion_gate",
                 )
             )
-            self._persist_project(project_id)
+            self._persist_transition_or_rollback(project_id, before)
             return p
 
     def fail_project(self, project_id: str, error_message: str) -> ProjectPosture:
         """Mark project as FAILED."""
         with self._lock:
             p = self._get_required_project(project_id)
+            before = p.model_copy(deep=True)
             p.error_message = error_message
             p.stage = TaskmasterStage.FAILED
             p.updated_at = time.time()
@@ -451,7 +456,7 @@ class ProjectStateManager:
                     actor="system:safety_guard",
                 )
             )
-            self._persist_project(project_id)
+            self._persist_transition_or_rollback(project_id, before)
             return p
 
     def list_projects(self, limit: int = 50) -> list[ProjectPosture]:
@@ -514,13 +519,16 @@ class ProjectStateManager:
                 tmp_path.unlink(missing_ok=True)
 
     def _persist_transition_or_rollback(
-        self, project_id: str, before: ProjectPosture
+        self, project_id: str, before: ProjectPosture | None
     ) -> None:
         """Persist one authority transition or restore its prior in-memory state."""
         try:
             self._persist_project(project_id)
         except Exception:
-            self._projects[project_id] = before
+            if before is None:
+                self._projects.pop(project_id, None)
+            else:
+                self._projects[project_id] = before
             raise
 
 
