@@ -41,6 +41,17 @@ class DuplicateProjectError(ValueError):
     """Raised when project creation would overwrite existing persisted state."""
 
 
+class ProjectStateLoadError(RuntimeError):
+    """Raised when a persisted project exists but cannot be trusted or decoded."""
+
+    def __init__(self, project_id: str, error_type: str) -> None:
+        self.project_id = project_id
+        self.error_type = error_type
+        super().__init__(
+            f"persisted project {project_id!r} is corrupt or incompatible ({error_type})"
+        )
+
+
 def _validate_project_id(project_id: str) -> str:
     """Return a storage-safe project identifier or reject it."""
     if not _PROJECT_ID_RE.fullmatch(project_id) or project_id in {".", ".."}:
@@ -71,6 +82,7 @@ class ProjectStateManager:
     def __init__(self, storage_dir: Path | str | None = None) -> None:
         self._lock = threading.RLock()
         self._projects: dict[str, ProjectPosture] = {}
+        self._last_list_load_errors: list[dict[str, str]] = []
         self.storage_dir, self.storage_mode = _get_storage_configuration(storage_dir)
         self.storage_dir.mkdir(parents=True, exist_ok=True)
 
@@ -122,11 +134,13 @@ class ProjectStateManager:
                     self._projects[project_id] = posture
                     return posture
                 except Exception as exc:
+                    error_type = type(exc).__name__
                     logger.error(
                         "Failed to load project %s from disk (%s)",
                         project_id,
-                        type(exc).__name__,
+                        error_type,
                     )
+                    raise ProjectStateLoadError(project_id, error_type) from exc
             return None
 
     def update_decomposition(
@@ -460,16 +474,39 @@ class ProjectStateManager:
             return p
 
     def list_projects(self, limit: int = 50) -> list[ProjectPosture]:
-        """List recent projects sorted by update time."""
+        """List healthy projects while surfacing per-file storage load errors."""
         with self._lock:
-            # Sync any disk projects
+            load_errors: list[dict[str, str]] = []
             for p_file in self.storage_dir.glob("*.json"):
                 pid = p_file.stem
+                try:
+                    _validate_project_id(pid)
+                except ValueError:
+                    logger.error("Ignoring project file with invalid storage id: %s", p_file.name)
+                    load_errors.append(
+                        {"project_id": pid, "error": "INVALID_PROJECT_FILENAME"}
+                    )
+                    continue
                 if pid not in self._projects:
-                    self.get_project(pid)
+                    try:
+                        self.get_project(pid)
+                    except ProjectStateLoadError:
+                        load_errors.append(
+                            {
+                                "project_id": pid,
+                                "error": "PERSISTED_STATE_CORRUPT_OR_INCOMPATIBLE",
+                            }
+                        )
+            self._last_list_load_errors = load_errors
             items = list(self._projects.values())
             items.sort(key=lambda x: x.updated_at, reverse=True)
             return items[:limit]
+
+    @property
+    def last_list_load_errors(self) -> list[dict[str, str]]:
+        """Return sanitized errors from the most recent project listing."""
+        with self._lock:
+            return [dict(item) for item in self._last_list_load_errors]
 
     def _get_required_project(self, project_id: str) -> ProjectPosture:
         p = self.get_project(project_id)
