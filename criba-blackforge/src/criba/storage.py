@@ -199,22 +199,26 @@ class Storage:
         }
         con = self.connect()
         try:
-            with con:
-                row = con.execute(
-                    "SELECT evidence_json FROM sessions WHERE id=?",
-                    (session_id,),
-                ).fetchone()
-                if not row:
-                    raise ValueError(f"Sesión inexistente: {session_id}")
-                existing = json.loads(row["evidence_json"])
-                if not isinstance(existing, list):
-                    raise ValueError("evidence_json almacenado debe ser una lista.")
-                updated = [*existing, entry]
-                con.execute(
-                    "UPDATE sessions SET evidence_json=? WHERE id=?",
-                    (json.dumps(updated, ensure_ascii=False), session_id),
-                )
+            con.execute("BEGIN IMMEDIATE")
+            row = con.execute(
+                "SELECT evidence_json FROM sessions WHERE id=?",
+                (session_id,),
+            ).fetchone()
+            if not row:
+                raise ValueError(f"Sesión inexistente: {session_id}")
+            existing = json.loads(row["evidence_json"])
+            if not isinstance(existing, list):
+                raise ValueError("evidence_json almacenado debe ser una lista.")
+            updated = [*existing, entry]
+            con.execute(
+                "UPDATE sessions SET evidence_json=? WHERE id=?",
+                (json.dumps(updated, ensure_ascii=False), session_id),
+            )
+            con.commit()
             return entry
+        except Exception:
+            con.rollback()
+            raise
         finally:
             con.close()
 
