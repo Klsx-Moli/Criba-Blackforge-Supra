@@ -58,8 +58,10 @@ def test_list_snapshot_errors_cannot_be_overwritten_by_later_listing(tmp_path) -
     projects, errors = reader.list_projects_with_errors()
     broken.unlink()
     reader.list_projects_with_errors()
+    reader.fail_project("healthy", "later concurrent mutation")
 
     assert [project.project_id for project in projects] == ["healthy"]
+    assert projects[0].error_message is None
     assert errors == [
         {
             "project_id": "broken",
