@@ -95,7 +95,7 @@ def test_record_event_preserves_session_status_and_rolls_back_atomically(tmp_pat
         "activation_id": "activation-1",
         "timestamp": "2026-10-01T00:00:00+00:00",
         "status": "OK",
-        "schema": "criba-blackforge-packet-2.1",
+        "schema": "blackforge_headless_packet",
         "selection": {"selected_ids": ["BF-1"]},
     }
     store.save_blackforge_session(
