@@ -473,8 +473,10 @@ class ProjectStateManager:
             self._persist_transition_or_rollback(project_id, before)
             return p
 
-    def list_projects(self, limit: int = 50) -> list[ProjectPosture]:
-        """List healthy projects while surfacing per-file storage load errors."""
+    def list_projects_with_errors(
+        self, limit: int = 50
+    ) -> tuple[list[ProjectPosture], list[dict[str, str]]]:
+        """Return projects and storage errors from one locked filesystem snapshot."""
         with self._lock:
             load_errors: list[dict[str, str]] = []
             for p_file in self.storage_dir.glob("*.json"):
@@ -497,10 +499,15 @@ class ProjectStateManager:
                                 "error": "PERSISTED_STATE_CORRUPT_OR_INCOMPATIBLE",
                             }
                         )
-            self._last_list_load_errors = load_errors
+            self._last_list_load_errors = [dict(item) for item in load_errors]
             items = list(self._projects.values())
             items.sort(key=lambda x: x.updated_at, reverse=True)
-            return items[:limit]
+            return items[:limit], [dict(item) for item in load_errors]
+
+    def list_projects(self, limit: int = 50) -> list[ProjectPosture]:
+        """Compatibility wrapper returning only the project snapshot."""
+        projects, _load_errors = self.list_projects_with_errors(limit=limit)
+        return projects
 
     @property
     def last_list_load_errors(self) -> list[dict[str, str]]:
