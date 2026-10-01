@@ -511,23 +511,24 @@ class BlackforgeCapabilityLayer:
                     "evidence": stored.get("evidence", []),
                 })
 
-        current_session_id = self.get_context().get("session_id", "")
-        current = next(
-            (
-                item
-                for item in results
-                if item.get("session_id") == current_session_id
-            ),
-            None,
-        )
-        live_details = {
-            "findings": self.get_findings(),
-            "proposals": [p.model_dump() for p in self._proposals.values()],
-        }
-        if current is not None:
-            current.update(live_details)
-        elif current_session_id:
-            results.append({"session_id": current_session_id, **live_details})
+        if self._current_context is not None:
+            current_session_id = self._current_context.session_id
+            current = next(
+                (
+                    item
+                    for item in results
+                    if item.get("session_id") == current_session_id
+                ),
+                None,
+            )
+            live_details = {
+                "findings": self.get_findings(),
+                "proposals": [p.model_dump() for p in self._proposals.values()],
+            }
+            if current is not None:
+                current.update(live_details)
+            else:
+                results.append({"session_id": current_session_id, **live_details})
         return results
 
     def get_security_score(self) -> dict[str, Any]:
