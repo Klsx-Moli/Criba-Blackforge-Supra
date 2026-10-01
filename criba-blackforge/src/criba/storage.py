@@ -176,7 +176,7 @@ class Storage:
         evidence: list[Any] | dict[str, Any],
         note: str = "",
     ) -> dict[str, Any]:
-        """Append an audit event without rewriting the session decision status."""
+        """Append a BLACKFORGE audit event without touching CRIBA decisions."""
         valid_events = {"mitigation_proposed", "mitigation_applied"}
         if event_type not in valid_events:
             raise ValueError("Tipo de evento BLACKFORGE inválido.")
@@ -204,17 +204,6 @@ class Storage:
                 if not isinstance(existing, list):
                     raise ValueError("evidence_json almacenado debe ser una lista.")
                 updated = [*existing, entry]
-                con.execute(
-                    "INSERT INTO decisions VALUES(?,?,?,?,?,?)",
-                    (
-                        entry["id"],
-                        session_id,
-                        entry["timestamp"],
-                        event_type,
-                        json.dumps(evidence, ensure_ascii=False),
-                        note,
-                    ),
-                )
                 con.execute(
                     "UPDATE sessions SET evidence_json=? WHERE id=?",
                     (json.dumps(updated, ensure_ascii=False), session_id),
