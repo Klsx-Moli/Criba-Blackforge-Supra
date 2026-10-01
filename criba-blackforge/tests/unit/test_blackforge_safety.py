@@ -190,3 +190,68 @@ def test_emits_report():
     with open(REPORT, encoding="utf-8") as f:
         back = json.load(f)
     assert back["decision_distribution_default_context"]["DENY"] >= 0
+
+
+@pytest.mark.parametrize("authorization_state", ["denied", "expired"])
+def test_denied_or_expired_authorization_cannot_be_overridden_by_s2_controls(
+    authorization_state,
+):
+    item = dict(get("BF-CYB-S800-0670"))
+    item["safety_class"] = "S2_SANDBOX"
+    item["external_target_prohibited"] = False
+
+    decision = sf.evaluate_blackforge_safety(
+        item,
+        _ctx(
+            authorization_state=authorization_state,
+            explicit_authorization=True,
+            sandbox=True,
+            rollback=True,
+            logging=True,
+            stop_condition=True,
+        ),
+        clock=FIXED_CLOCK,
+    )
+
+    assert decision.decision == sf.DENY
+    assert decision.authorization_state.value == authorization_state
+    assert decision.unmet_requirements == ["active_authorization_state"]
+
+
+def test_expired_authorization_cannot_be_overridden_by_full_s3_controls():
+    item = dict(get("BF-CYB-S800-0670"))
+    item["safety_class"] = "S3_HIGH_CONTROL"
+    item["external_target_prohibited"] = False
+
+    decision = sf.evaluate_blackforge_safety(
+        item,
+        _ctx(
+            authorization_state="expired",
+            explicit_authorization=True,
+            isolated_sandbox=True,
+            human_approval=True,
+            rollback=True,
+            full_logging=True,
+            stop_condition=True,
+            authorized_scope_confirmed=True,
+        ),
+        clock=FIXED_CLOCK,
+    )
+
+    assert decision.decision == sf.DENY
+    assert decision.authorization_state is AuthorizationState.EXPIRED
+
+
+def test_denied_authorization_still_allows_pure_conceptual_analysis():
+    item = dict(get("BF-CYB-S800-0670"))
+    item["safety_class"] = "S0_CONCEPTUAL"
+    item["requires_explicit_authorization"] = False
+
+    decision = sf.evaluate_blackforge_safety(
+        item,
+        _ctx(authorization_state="denied"),
+        clock=FIXED_CLOCK,
+    )
+
+    assert decision.decision == sf.ALLOW_CONCEPTUAL
+
