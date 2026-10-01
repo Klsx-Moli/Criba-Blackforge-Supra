@@ -531,3 +531,17 @@ def test_project_list_surfaces_storage_errors_without_dropping_healthy_projects(
         errors = {item["project_id"]: item["error"] for item in payload["storage_errors"]}
         assert errors["broken-list"] == "PERSISTED_STATE_CORRUPT_OR_INCOMPATIBLE"
         assert errors["bad name"] == "INVALID_PROJECT_FILENAME"
+
+
+def test_project_list_limit_rejects_nonpositive_and_excessive_values():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        state_manager.storage_dir = Path(tmpdir)
+        state_manager._projects.clear()
+
+        for invalid in (0, -1, 101, 1_000_000):
+            response = client.get(f"/api/v1/projects?limit={invalid}")
+            assert response.status_code == 422
+
+        response = client.get("/api/v1/projects?limit=1")
+        assert response.status_code == 200
+        assert response.json()["count"] <= 1
