@@ -63,9 +63,9 @@ dev = [
 build = ["pyinstaller>=6.0"]
 
 [project.urls]
-Homepage = "https://github.com/klssxx/Criba-Blackforge"
-Repository = "https://github.com/klssxx/Criba-Blackforge.git"
-Issues = "https://github.com/klssxx/Criba-Blackforge/issues"
+Homepage = "https://github.com/Klsx-Moli/Criba-Blackforge-Supra"
+Repository = "https://github.com/Klsx-Moli/Criba-Blackforge-Supra.git"
+Issues = "https://github.com/Klsx-Moli/Criba-Blackforge-Supra/issues"
 
 [project.scripts]
 criba = "criba.cli:main"
