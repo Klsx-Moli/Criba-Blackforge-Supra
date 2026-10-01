@@ -96,6 +96,8 @@ def test_record_event_preserves_session_status_and_rolls_back_atomically(tmp_pat
         "timestamp": "2026-10-01T00:00:00+00:00",
         "status": "OK",
         "schema": "blackforge_headless_packet",
+        "session_id": "bf-session",
+        "query": "query",
         "selection": {"selected_ids": ["BF-1"]},
     }
     store.save_blackforge_session(
@@ -139,4 +141,32 @@ def test_record_event_preserves_session_status_and_rolls_back_atomically(tmp_pat
         ).fetchall()
     assert decisions == []
     assert store.get("bf-session")["evidence"] == [first]
+
+def test_blackforge_session_rejects_identity_mismatch(tmp_path) -> None:
+    store = Storage(tmp_path / "identity.sqlite3")
+    packet = {
+        "activation_id": "activation-1",
+        "timestamp": "2026-10-01T00:00:00+00:00",
+        "status": "OK",
+        "schema": "blackforge_headless_packet",
+        "session_id": "packet-session",
+        "query": "packet-query",
+        "selection": {"selected_ids": ["BF-1"]},
+    }
+
+    with pytest.raises(ValueError, match="session_id"):
+        store.save_blackforge_session(
+            "different-session",
+            "packet-query",
+            packet,
+            {},
+        )
+    with pytest.raises(ValueError, match="query"):
+        store.save_blackforge_session(
+            "packet-session",
+            "different-query",
+            packet,
+            {},
+        )
+    assert store.list_sessions() == []
 
