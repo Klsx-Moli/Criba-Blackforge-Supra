@@ -131,6 +131,12 @@ class Storage:
         status = packet.get("status")
         if not isinstance(status, str) or not status.strip():
             raise ValueError("El packet BLACKFORGE requiere status.")
+        packet_session_id = packet.get("session_id")
+        if packet_session_id != session_id:
+            raise ValueError("session_id no coincide con el packet BLACKFORGE.")
+        packet_query = packet.get("query")
+        if packet_query != query:
+            raise ValueError("query no coincide con el packet BLACKFORGE.")
 
         selection = packet.get("selection")
         selected_ids: object = []
