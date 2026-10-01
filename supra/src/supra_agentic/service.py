@@ -626,12 +626,12 @@ def generate_with_provider(req: GenerateRequest, request: Request) -> dict[str, 
 @app.get("/api/v1/projects", tags=["Taskmaster"])
 def list_projects(limit: int = 20) -> dict[str, Any]:
     """List recent Taskmaster projects."""
-    projects = state_manager.list_projects(limit=limit)
+    projects, storage_errors = state_manager.list_projects_with_errors(limit=limit)
     return {
         "status": "success",
         "count": len(projects),
         "projects": [p.model_dump() for p in projects],
-        "storage_errors": state_manager.last_list_load_errors,
+        "storage_errors": storage_errors,
     }
 
 

@@ -39,11 +39,34 @@ def test_list_projects_keeps_healthy_entries_and_surfaces_bad_files(tmp_path) ->
     (tmp_path / "bad name.json").write_text("{}", encoding="utf-8")
 
     reader = ProjectStateManager(tmp_path)
-    projects = reader.list_projects()
+    projects, load_errors = reader.list_projects_with_errors()
 
     assert [project.project_id for project in projects] == [healthy.project_id]
-    errors = {item["project_id"]: item["error"] for item in reader.last_list_load_errors}
+    errors = {item["project_id"]: item["error"] for item in load_errors}
     assert errors == {
         "broken": "PERSISTED_STATE_CORRUPT_OR_INCOMPATIBLE",
         "bad name": "INVALID_PROJECT_FILENAME",
     }
+
+
+def test_list_snapshot_errors_cannot_be_overwritten_by_later_listing(tmp_path) -> None:
+    writer = ProjectStateManager(tmp_path)
+    writer.create_project("healthy persisted project", project_id="healthy")
+    broken = tmp_path / "broken.json"
+    broken.write_text("{bad", encoding="utf-8")
+
+    reader = ProjectStateManager(tmp_path)
+    projects, errors = reader.list_projects_with_errors()
+    broken.unlink()
+    reader.list_projects_with_errors()
+    reader.fail_project("healthy", "later concurrent mutation")
+
+    assert [project.project_id for project in projects] == ["healthy"]
+    assert projects[0].error_message is None
+    assert errors == [
+        {
+            "project_id": "broken",
+            "error": "PERSISTED_STATE_CORRUPT_OR_INCOMPATIBLE",
+        }
+    ]
+
