@@ -257,11 +257,11 @@ class TestCapabilityLayerPersistence:
             store=Storage(db_path),
             allow_mutation=False,
         )
-        durable = next(
-            item
-            for item in restarted.get_history()
-            if item["session_id"] == "bf-durable-session"
-        )
+        restarted_history = restarted.get_history()
+        assert {
+            item["session_id"] for item in restarted_history
+        } == {"bf-durable-session"}
+        durable = restarted_history[0]
         assert [event["status"] for event in durable["evidence"]] == [
             "mitigation_proposed",
             "mitigation_applied",
@@ -309,4 +309,11 @@ class TestCapabilityLayerPersistence:
         assert finding is not None
         assert finding["approved"] is False
         assert finding["proposed_mitigation"] is None
+
+def test_empty_layer_history_does_not_fabricate_default_session(tmp_path):
+    layer = BlackforgeCapabilityLayer(
+        store=Storage(tmp_path / "empty-history.sqlite3"),
+        allow_mutation=False,
+    )
+    assert layer.get_history() == []
 
