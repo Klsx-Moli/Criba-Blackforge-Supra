@@ -101,9 +101,12 @@ def _parse_ts(value: Any) -> datetime | None:
     if not isinstance(value, str) or not value.strip():
         return None
     try:
-        return datetime.fromisoformat(value.replace("Z", "+00:00"))
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
     except ValueError:
         return None
+    if parsed.tzinfo is None or parsed.utcoffset() is None:
+        return None
+    return parsed
 
 
 class TechniqueOutcomeStore:
@@ -171,7 +174,10 @@ class TechniqueOutcomeStore:
             value = float(value)
             if not 0.0 <= value <= 1.0:
                 raise ValueError(f"value fuera de [0,1]: {value}")
-        ts = (recorded_at or _now()).astimezone(timezone.utc)
+        ts = recorded_at or _now()
+        if ts.tzinfo is None or ts.utcoffset() is None:
+            raise ValueError("recorded_at debe incluir zona horaria")
+        ts = ts.astimezone(timezone.utc)
         record = {
             "profile": profile,
             "family": family,
