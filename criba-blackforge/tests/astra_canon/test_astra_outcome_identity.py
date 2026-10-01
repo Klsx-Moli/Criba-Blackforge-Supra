@@ -209,3 +209,43 @@ def test_astra_b01_summary_does_not_count_unidentified_rows_as_samples(tmp_path)
     assert summary[0]["n"] == 0
     assert summary[0]["unidentified_records"] == 1
     assert summary[0]["value"] is None
+
+
+def test_astra_b03_naive_timestamp_is_preserved_but_excluded_after_restart(tmp_path):
+    path = tmp_path / "naive-timestamp.jsonl"
+    row = {
+        "profile": "CRIBA",
+        "family": "f",
+        "technique_id": "T1",
+        "channel": CHANNEL_OBSERVED,
+        "outcome": "positivo",
+        "value": 1.0,
+        "learning_eligible": True,
+        "canon_version": "c",
+        "outcome_semantics_version": 2,
+        "run_id": "naive-run",
+        "recorded_at": "2026-01-02T00:00:00",
+    }
+    raw = json.dumps(row) + "\n"
+    path.write_text(raw, encoding="utf-8")
+
+    restarted = TechniqueOutcomeStore(path)
+    with pytest.warns(RuntimeWarning, match="malformadas"):
+        assert restarted.prior(
+            profile="CRIBA",
+            family="f",
+            technique_id="T1",
+            channel=CHANNEL_OBSERVED,
+            canon_version="c",
+            now=BASE + timedelta(days=1),
+        ) == (0.0, 0, "sin_datos")
+
+    assert path.read_text(encoding="utf-8") == raw
+
+
+def test_astra_b03_writer_rejects_naive_recorded_at(tmp_path):
+    store = TechniqueOutcomeStore(tmp_path / "writer-naive.jsonl")
+    with pytest.raises(ValueError, match="zona horaria"):
+        record(store, "positivo", datetime(2026, 1, 2))
+    assert not store.path.exists()
+
