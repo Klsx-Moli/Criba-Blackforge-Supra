@@ -221,9 +221,44 @@ _CRIBA_SUPRA_ENVELOPE_VERSION = "criba-supra/1"
 
 
 def _criba_payload_fingerprint(dossier: CribaDossierRequest) -> str:
-    semantic = dossier.model_dump(exclude_unset=True)
+    """Fingerprint the VALIDATED semantics of a CRIBA dossier.
+
+    Identity must follow what the dossier means, not which keys the client
+    happened to serialize. ``exclude_unset=True`` recorded the serialization
+    accident instead: one dossier that omitted its defaults and one that sent
+    them explicitly hashed differently despite identical validated content, so
+    a legitimate retry was answered with 409 CONFLICT instead of the idempotent
+    replay it was.
+
+    The dump is taken from the validated model with every default applied, so
+    omitted and explicit defaults are one payload. This preserves the intent of
+    the rule it replaces — a client that sends the minimum is not penalized for
+    not knowing the server's defaults — while removing the ability of the wire
+    shape to alter identity.
+
+    ``creado_at`` is excluded because it is non-semantic metadata, not part of
+    the work.
+
+    The dump stays in python mode on purpose. ``model_dump(mode="json")``
+    rewrites NaN and +/-Infinity to ``None``, which would collapse "this value
+    is not representable" into "this value is absent" and give a dossier
+    carrying NaN the same identity as one carrying null. In python mode the
+    non-finite value reaches ``json.dumps(allow_nan=False)``, which refuses it,
+    so such a dossier has no fingerprint instead of a misleading one.
+
+    Unicode is deliberately NOT normalized. The dossier is transmitted and
+    persisted as given; folding NFC into NFD would make the fingerprint
+    describe bytes the system never received.
+    """
+    semantic = dossier.model_dump()
     semantic.pop("creado_at", None)
-    raw = json.dumps(semantic, ensure_ascii=False, sort_keys=True, separators=(",", ":"), allow_nan=False)
+    raw = json.dumps(
+        semantic,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+        allow_nan=False,
+    )
     return "sha256:" + hashlib.sha256(raw.encode("utf-8")).hexdigest()
 
 

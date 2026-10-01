@@ -475,7 +475,23 @@ def test_criba_envelope_rejects_version_skew() -> None:
     assert response.status_code == 422
 
 
-def test_criba_fingerprint_uses_received_fields_not_parser_injected_defaults() -> None:
+def test_criba_fingerprint_uses_validated_semantics_not_serialization_shape() -> None:
+    """Identity follows the validated dossier, not which keys the client sent.
+
+    HISTORY: this test asserted the opposite rule — that the fingerprint is
+    computed over the fields actually RECEIVED, so that parser-injected defaults
+    never enter the identity. That rule made identity depend on a serialization
+    accident: a dossier that omitted its defaults and the same dossier that sent
+    them explicitly were two different causal identities, and a semantically
+    identical retry was answered with 409 CONFLICT instead of the idempotent
+    replay it was. B01 requires a stable identity, and identity has to follow
+    meaning.
+
+    The rule kept from the original test still holds and is still asserted: a
+    client that computes its fingerprint over the received fields (the legacy
+    serialization) is REJECTED rather than silently accommodated, because that
+    fingerprint does not describe the payload SUPRA validated.
+    """
     import hashlib
     import json
 
@@ -486,8 +502,10 @@ def test_criba_fingerprint_uses_received_fields_not_parser_injected_defaults() -
     raw = json.dumps(
         semantic, ensure_ascii=False, sort_keys=True, separators=(",", ":"), allow_nan=False
     )
-    client_fingerprint = "sha256:" + hashlib.sha256(raw.encode("utf-8")).hexdigest()
+    legacy_client_fingerprint = "sha256:" + hashlib.sha256(raw.encode("utf-8")).hexdigest()
 
+    # A fingerprint over the received fields does not describe the validated
+    # payload and must be refused, not accommodated.
     response = client.post(
         "/api/v1/projects",
         json={
@@ -495,10 +513,33 @@ def test_criba_fingerprint_uses_received_fields_not_parser_injected_defaults() -
             "project_id": "fingerprint-defaults",
             "criba_dossier": dossier,
             "criba_integration_version": "criba-supra/1",
-            "criba_payload_fingerprint": client_fingerprint,
+            "criba_payload_fingerprint": legacy_client_fingerprint,
         },
     )
-    assert response.status_code != 422, response.text
+    assert response.status_code == 422
+    assert "fingerprint mismatch" in response.text
+
+    # The same dossier with its defaults materialized is the SAME payload, and is
+    # accepted when the client fingerprints the validated semantics.
+    from supra_agentic.service import (
+        CribaDossierRequest,
+        _criba_payload_fingerprint,
+    )
+
+    complete = _complete_criba_dossier_payload()
+    accepted = client.post(
+        "/api/v1/projects",
+        json={
+            "objective": "Evaluate parser-default fingerprint compatibility",
+            "project_id": "fingerprint-defaults-accepted",
+            "criba_dossier": complete,
+            "criba_integration_version": "criba-supra/1",
+            "criba_payload_fingerprint": _criba_payload_fingerprint(
+                CribaDossierRequest(**complete)
+            ),
+        },
+    )
+    assert accepted.status_code != 422, accepted.text
 
 
 def test_corrupt_persisted_project_returns_500_not_false_404():

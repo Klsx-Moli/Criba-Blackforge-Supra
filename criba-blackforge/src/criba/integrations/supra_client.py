@@ -11,6 +11,7 @@ import hashlib
 import json
 import os
 import re
+from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any, Literal
 from urllib.parse import quote
@@ -22,9 +23,67 @@ _PROJECT_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$")
 _CRIBA_SUPRA_ENVELOPE_VERSION = "criba-supra/1"
 
 
-def _dossier_payload_fingerprint(dossier: dict[str, Any]) -> str:
-    semantic = {k: v for k, v in dossier.items() if k != "creado_at"}
-    raw = json.dumps(semantic, ensure_ascii=False, sort_keys=True, separators=(",", ":"), allow_nan=False)
+# SUPRA's CribaDossierRequest defaults. A dossier that omits one of these must
+# still be the same payload as one that sends it explicitly, so CRIBA fills them
+# before hashing. Keep this in step with the SUPRA model: the golden vectors in
+# test_b01_client_server_agreement.py fail on any drift.
+_DOSSIER_DEFAULTS: dict[str, Any] = {
+    "run_id": "",
+    "bloqueo": "",
+    "origen_bloqueo": "",
+    "evidence_delivered": [],
+    "evidence_documented_as_used": [],
+    "evidencia_utilizada": [],
+    "supuestos": [],
+}
+_PROTOCOL_DEFAULTS: dict[str, Any] = {
+    "comparacion": "",
+    "metrica": "",
+    "coste_permisos": "",
+    "estado_prueba": "NO_EJECUTADA",
+}
+
+
+def _with_declared_defaults(dossier: Mapping[str, Any]) -> dict[str, Any]:
+    """Return the semantic payload with every declared SUPRA default applied."""
+    semantic: dict[str, Any] = {
+        key: value for key, value in dossier.items() if key != "creado_at"
+    }
+    for key, default in _DOSSIER_DEFAULTS.items():
+        semantic.setdefault(key, default)
+    protocol = semantic.get("prueba_discriminante")
+    if isinstance(protocol, dict):
+        completed = {key: value for key, value in protocol.items() if key != "creado_at"}
+        for key, default in _PROTOCOL_DEFAULTS.items():
+            completed.setdefault(key, default)
+        semantic["prueba_discriminante"] = completed
+    return semantic
+
+
+def _dossier_payload_fingerprint(dossier: Mapping[str, Any]) -> str:
+    """Fingerprint the semantic content of a CRIBA dossier for SUPRA.
+
+    The value must equal what SUPRA recomputes from its validated
+    ``CribaDossierRequest``; the golden vectors in
+    ``tests/integration/test_b01_client_server_agreement.py`` pin both sides.
+
+    Identity follows validated semantics, so a default that was sent explicitly
+    and the same default that was omitted are one payload. The optional keys
+    above are filled from this module's declared defaults before hashing.
+    ``creado_at`` is excluded because it is non-semantic metadata.
+
+    Unicode is deliberately NOT normalized: the dossier travels and is stored as
+    given, so folding NFC into NFD would make the fingerprint describe bytes the
+    server never received.
+    """
+    semantic = _with_declared_defaults(dossier)
+    raw = json.dumps(
+        semantic,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+        allow_nan=False,
+    )
     return "sha256:" + hashlib.sha256(raw.encode("utf-8")).hexdigest()
 
 
