@@ -123,8 +123,7 @@ class TestCapabilityLayerMutationSafety:
     """Phase 1: mutation requires approval + safety gate."""
 
     def test_mutation_rejected_without_allow_mutation(self):
-        store = Storage.__new__(Storage)
-        layer = BlackforgeCapabilityLayer(store=store, allow_mutation=False)
+        layer = BlackforgeCapabilityLayer(store=None, allow_mutation=False)
         layer.analyze_security_problem("Test problem", seed=1)
         findings = layer.get_findings()
         proposal_id = layer.propose_mutation(findings[0]["blackforge_id"]) if hasattr(layer, "propose_mutation") else layer.propose_mitigation(findings[0]["blackforge_id"])
@@ -215,3 +214,98 @@ class TestCapabilityLayerRegression:
         assert direct["status"] == "OK"
         assert direct["selection"]["seed"] == seed
         assert direct["selection"]["session_size"] == 12
+
+class TestCapabilityLayerPersistence:
+    def test_session_and_mitigation_events_survive_restart(self, tmp_path):
+        db_path = tmp_path / "durable_agentic.sqlite3"
+        store = Storage(db_path)
+        layer = BlackforgeCapabilityLayer(store=store, allow_mutation=True)
+
+        packet = layer.analyze_security_problem(
+            "Durable audit test",
+            seed=7,
+            session_id="bf-durable-session",
+        )
+        finding_id = layer.get_findings()[0]["blackforge_id"]
+        proposal_id = layer.propose_mitigation(finding_id)
+        result = layer.apply_approved_mitigation(
+            proposal_id,
+            approver="reviewer@example.com",
+            approvals={
+                "human_approval": True,
+                "explicit_authorization": True,
+                "sandbox": True,
+                "rollback": True,
+                "logging": True,
+                "stop_condition": True,
+                "isolated_sandbox": True,
+                "authorized_scope_confirmed": True,
+            },
+        )
+
+        assert result["status"] == "APPLIED"
+        stored = Storage(db_path).get("bf-durable-session")
+        assert stored["packet"]["activation_id"] == packet["activation_id"]
+        assert stored["status"] == "OK"
+        assert [event["status"] for event in stored["evidence"]] == [
+            "mitigation_proposed",
+            "mitigation_applied",
+        ]
+
+        restarted = BlackforgeCapabilityLayer(
+            store=Storage(db_path),
+            allow_mutation=False,
+        )
+        durable = next(
+            item
+            for item in restarted.get_history()
+            if item["session_id"] == "bf-durable-session"
+        )
+        assert [event["status"] for event in durable["evidence"]] == [
+            "mitigation_proposed",
+            "mitigation_applied",
+        ]
+        applied = durable["evidence"][-1]["evidence"]
+        assert applied["proposal_id"] == proposal_id
+        assert applied["finding_id"] == finding_id
+        assert applied["approved_by"] == "reviewer@example.com"
+
+    def test_failed_audit_write_does_not_claim_applied(self, tmp_path, monkeypatch):
+        store = Storage(tmp_path / "failed_audit.sqlite3")
+        layer = BlackforgeCapabilityLayer(store=store, allow_mutation=True)
+        layer.analyze_security_problem(
+            "Durability failure",
+            session_id="bf-failure-session",
+        )
+        finding_id = layer.get_findings()[0]["blackforge_id"]
+        proposal_id = layer.propose_mitigation(finding_id)
+
+        def fail_record_event(*args, **kwargs):
+            raise OSError("forced audit write failure")
+
+        monkeypatch.setattr(store, "record_event", fail_record_event)
+
+        with pytest.raises(OSError, match="forced audit write failure"):
+            layer.apply_approved_mitigation(
+                proposal_id,
+                approver="reviewer@example.com",
+                approvals={
+                    "human_approval": True,
+                    "explicit_authorization": True,
+                    "sandbox": True,
+                    "rollback": True,
+                    "logging": True,
+                    "stop_condition": True,
+                    "isolated_sandbox": True,
+                    "authorized_scope_confirmed": True,
+                },
+            )
+
+        proposal = layer._proposals[proposal_id]
+        assert proposal.approved_by is None
+        assert proposal.approved_at is None
+        finding = layer.get_finding(finding_id)
+        assert finding is not None
+        assert finding["approved"] is False
+        assert finding["proposed_mitigation"] is None
+
