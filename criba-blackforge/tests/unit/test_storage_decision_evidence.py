@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
+from concurrent.futures import ThreadPoolExecutor
 
 import pytest
 
@@ -169,4 +170,34 @@ def test_blackforge_session_rejects_identity_mismatch(tmp_path) -> None:
             {},
         )
     assert store.list_sessions() == []
+
+def test_blackforge_events_are_not_lost_under_concurrent_appends(tmp_path) -> None:
+    db_path = tmp_path / "concurrent-events.sqlite3"
+    store = Storage(db_path)
+    packet = {
+        "activation_id": "activation-concurrent",
+        "timestamp": "2026-10-01T00:00:00+00:00",
+        "status": "OK",
+        "schema": "blackforge_headless_packet",
+        "session_id": "bf-concurrent",
+        "query": "query",
+        "selection": {"selected_ids": ["BF-1"]},
+    }
+    store.save_blackforge_session("bf-concurrent", "query", packet, {})
+
+    def append(index: int) -> None:
+        Storage(db_path).record_event(
+            "bf-concurrent",
+            "mitigation_proposed",
+            {"proposal_id": f"prop-{index}"},
+        )
+
+    with ThreadPoolExecutor(max_workers=4) as pool:
+        list(pool.map(append, range(8)))
+
+    evidence = Storage(db_path).get("bf-concurrent")["evidence"]
+    assert len(evidence) == 8
+    assert {item["evidence"]["proposal_id"] for item in evidence} == {
+        f"prop-{index}" for index in range(8)
+    }
 
