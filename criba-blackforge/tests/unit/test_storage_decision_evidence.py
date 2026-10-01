@@ -186,7 +186,7 @@ def test_blackforge_events_are_not_lost_under_concurrent_appends(tmp_path) -> No
     store.save_blackforge_session("bf-concurrent", "query", packet, {})
 
     def append(index: int) -> None:
-        Storage(db_path).record_event(
+        store.record_event(
             "bf-concurrent",
             "mitigation_proposed",
             {"proposal_id": f"prop-{index}"},
