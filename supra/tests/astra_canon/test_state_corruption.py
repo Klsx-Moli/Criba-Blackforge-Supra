@@ -48,6 +48,7 @@ def test_list_projects_keeps_healthy_entries_and_surfaces_bad_files(tmp_path) ->
         "bad name": "INVALID_PROJECT_FILENAME",
     }
 
+
 def test_list_snapshot_errors_cannot_be_overwritten_by_later_listing(tmp_path) -> None:
     writer = ProjectStateManager(tmp_path)
     writer.create_project("healthy persisted project", project_id="healthy")
