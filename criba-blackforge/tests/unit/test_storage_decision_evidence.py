@@ -133,10 +133,10 @@ def test_record_event_preserves_session_status_and_rolls_back_atomically(tmp_pat
         )
 
     with store.connect() as con:
-        events = con.execute(
-            "SELECT status FROM decisions WHERE session_id=? ORDER BY created_at",
+        decisions = con.execute(
+            "SELECT status FROM decisions WHERE session_id=?",
             ("bf-session",),
         ).fetchall()
-    assert [row["status"] for row in events] == ["mitigation_proposed"]
+    assert decisions == []
     assert store.get("bf-session")["evidence"] == [first]
 
