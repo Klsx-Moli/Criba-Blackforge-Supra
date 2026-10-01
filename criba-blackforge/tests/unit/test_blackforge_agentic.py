@@ -215,6 +215,7 @@ class TestCapabilityLayerRegression:
         assert direct["selection"]["seed"] == seed
         assert direct["selection"]["session_size"] == 12
 
+
 class TestCapabilityLayerPersistence:
     def test_session_and_mitigation_events_survive_restart(self, tmp_path):
         db_path = tmp_path / "durable_agentic.sqlite3"
