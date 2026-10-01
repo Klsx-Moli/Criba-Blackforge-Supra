@@ -1,6 +1,7 @@
 """Tests for the SUPRA FastAPI service and provider-neutral endpoints."""
 
 import tempfile
+from pathlib import Path
 
 from fastapi.testclient import TestClient
 from supra_agentic.models import TaskmasterStage
@@ -498,3 +499,35 @@ def test_criba_fingerprint_uses_received_fields_not_parser_injected_defaults() -
         },
     )
     assert response.status_code != 422, response.text
+
+
+def test_corrupt_persisted_project_returns_500_not_false_404():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        state_manager.storage_dir = Path(tmpdir)
+        state_manager._projects.clear()
+        (Path(tmpdir) / "broken.json").write_text("{bad", encoding="utf-8")
+
+        response = client.get("/api/v1/projects/broken")
+
+        assert response.status_code == 500
+        assert response.json() == {
+            "detail": "Persisted project state is corrupt or incompatible."
+        }
+
+
+def test_project_list_surfaces_storage_errors_without_dropping_healthy_projects():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        state_manager.storage_dir = Path(tmpdir)
+        state_manager._projects.clear()
+        healthy = state_manager.create_project("healthy", project_id="healthy-list")
+        (Path(tmpdir) / "broken-list.json").write_text("{bad", encoding="utf-8")
+        (Path(tmpdir) / "bad name.json").write_text("{}", encoding="utf-8")
+
+        response = client.get("/api/v1/projects")
+
+        assert response.status_code == 200
+        payload = response.json()
+        assert healthy.project_id in {item["project_id"] for item in payload["projects"]}
+        errors = {item["project_id"]: item["error"] for item in payload["storage_errors"]}
+        assert errors["broken-list"] == "PERSISTED_STATE_CORRUPT_OR_INCOMPATIBLE"
+        assert errors["bad name"] == "INVALID_PROJECT_FILENAME"
