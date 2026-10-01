@@ -8,10 +8,10 @@ import logging
 import os
 import secrets
 from pathlib import Path
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 from urllib.parse import urlparse
 
-from fastapi import FastAPI, HTTPException, Request, Response, status
+from fastapi import FastAPI, HTTPException, Query, Request, Response, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -624,7 +624,7 @@ def generate_with_provider(req: GenerateRequest, request: Request) -> dict[str, 
 
 
 @app.get("/api/v1/projects", tags=["Taskmaster"])
-def list_projects(limit: int = 20) -> dict[str, Any]:
+def list_projects(limit: Annotated[int, Query(ge=1, le=100)] = 20) -> dict[str, Any]:
     """List recent Taskmaster projects."""
     projects, storage_errors = state_manager.list_projects_with_errors(limit=limit)
     return {
