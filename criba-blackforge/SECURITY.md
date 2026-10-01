@@ -15,7 +15,7 @@ If you believe you found a security issue — including leaked credentials in an
 public artifact, unsafe defaults in the local API, or unintended network behaviour —
 please report it privately so it stays out of public issue threads:
 
-1. Open a [private vulnerability report](https://github.com/klssxx/Criba-Blackforge/security/advisories/new)
+1. Open a [private vulnerability report](https://github.com/Klsx-Moli/Criba-Blackforge-Supra/security/advisories/new)
    on this repository, or
 2. Open a normal issue marked `security` if you prefer a lighter path.
 
