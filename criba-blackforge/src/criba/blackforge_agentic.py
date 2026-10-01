@@ -35,7 +35,7 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from .blackforge_pipeline import run_headless
+from .blackforge_pipeline import PACKET_SCHEMA, run_headless
 from .blackforge_safety import (
     ALLOW_CONCEPTUAL,
     ALLOW_DEFENSIVE_DESIGN,
@@ -129,8 +129,9 @@ class BlackforgeCapabilityLayer:
     """Semantic capability surface over the BLACKFORGE pipeline.
 
     All mutations route through ``evaluate_blackforge_safety``; none bypass it.
-    The layer is stateless across calls except for the persisted SQLite store,
-    which records findings, proposals, and approvals for auditability.
+    The persisted SQLite store records BLACKFORGE session packets plus proposal
+    and approval audit events. Working proposal objects remain process-local;
+    durable history is read back through get_history().
     """
 
     def __init__(
@@ -201,8 +202,7 @@ class BlackforgeCapabilityLayer:
         Returns the raw pipeline packet.
         """
         sid = session_id or f"agentic-{uuid.uuid4().hex[:8]}"
-        self._session_counter += 1
-        self._current_context = AgentContext(
+        next_context = AgentContext(
             objective=objective,
             seed=seed,
             session_size=session_size,
@@ -255,7 +255,25 @@ class BlackforgeCapabilityLayer:
                     convergence=idea.get("convergence", {}),
                 )
             )
+        if self._store is not None:
+            self._store.save_blackforge_session(
+                sid,
+                objective,
+                packet,
+                {
+                    "seed": seed,
+                    "session_size": session_size,
+                    "profile": profile,
+                    "allow_research": allow_research,
+                    "explicit_high_control_approval": explicit_high_control_approval,
+                    "authorized_scope_confirmed": authorized_scope_confirmed,
+                    "sandbox_available": sandbox_available,
+                },
+            )
+
+        self._current_context = next_context
         self._last_findings = findings
+        self._session_counter += 1
 
         return packet
 
@@ -361,6 +379,14 @@ class BlackforgeCapabilityLayer:
             safety_scope=option.get("safety_scope", ALLOW_CONCEPTUAL),
             evidence=[],
         )
+        if self._store is not None:
+            sid = self.get_context().get("session_id", "")
+            self._store.record_event(
+                sid,
+                "mitigation_proposed",
+                proposal.model_dump(),
+                note=f"Proposed {proposal.title}",
+            )
         self._proposals[proposal.proposal_id] = proposal
         return proposal.proposal_id
 
@@ -426,8 +452,24 @@ class BlackforgeCapabilityLayer:
                 "unmet_requirements": decision.unmet_requirements,
             }
 
-        # Record the approval + apply
+        # Persist approval before mutating process-local state. If durability
+        # fails, the caller sees the exception and no APPLIED state is claimed.
         now = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+        if self._store is not None:
+            sid = self.get_context().get("session_id", "")
+            self._store.record_event(
+                sid,
+                "mitigation_applied",
+                {
+                    "proposal_id": proposal_id,
+                    "finding_id": proposal.finding_id,
+                    "approved_by": approver,
+                    "approved_at": now,
+                    "safety_decision": decision.to_dict(),
+                },
+                note=f"Applied {proposal.title}",
+            )
+
         proposal.approved_by = approver
         proposal.approved_at = now
         for f in self._last_findings:
@@ -435,21 +477,6 @@ class BlackforgeCapabilityLayer:
                 f.approved = True
                 f.proposed_mitigation = proposal.title
                 break
-
-        # Persist to store if available — record_decision requires a saved session
-        if self._store is not None:
-            sid = self.get_context().get("session_id", "")
-            try:
-                self._store.record_decision(
-                    sid,
-                    "mitigation_applied",
-                    [{"proposal_id": proposal_id, "finding_id": proposal.finding_id, "approved_by": approver}],
-                    note=f"Applied {proposal.title}",
-                )
-            except (ValueError, Exception):
-                # Session may not be persisted in store; the in-memory
-                # proposal approval above is the authoritative state.
-                pass
 
         return {
             "status": "APPLIED",
@@ -465,22 +492,42 @@ class BlackforgeCapabilityLayer:
     # ------------------------------------------------------------------
 
     def get_history(self) -> list[dict[str, Any]]:
-        """Return chronological record of prior analyses + proposals."""
+        """Return durable BLACKFORGE sessions plus current process-local details."""
         results: list[dict[str, Any]] = []
         if self._store is not None:
-            sessions = self._store.list_sessions()
-            for session in sessions:
+            for summary in self._store.list_sessions():
+                session_id = summary.get("id")
+                if not isinstance(session_id, str):
+                    continue
+                stored = self._store.get(session_id)
+                packet = stored.get("packet")
+                if not isinstance(packet, Mapping) or packet.get("schema") != PACKET_SCHEMA:
+                    continue
                 results.append({
-                    "session_id": session.get("session_id", ""),
-                    "timestamp": session.get("timestamp", ""),
-                    "status": session.get("status", ""),
-                    "summary": session.get("summary", ""),
+                    "session_id": session_id,
+                    "timestamp": stored.get("created_at", ""),
+                    "status": stored.get("status", ""),
+                    "query": stored.get("query", ""),
+                    "evidence": stored.get("evidence", []),
                 })
-        results.append({
-            "session_id": self.get_context().get("session_id", ""),
+
+        current_session_id = self.get_context().get("session_id", "")
+        current = next(
+            (
+                item
+                for item in results
+                if item.get("session_id") == current_session_id
+            ),
+            None,
+        )
+        live_details = {
             "findings": self.get_findings(),
             "proposals": [p.model_dump() for p in self._proposals.values()],
-        })
+        }
+        if current is not None:
+            current.update(live_details)
+        elif current_session_id:
+            results.append({"session_id": current_session_id, **live_details})
         return results
 
     def get_security_score(self) -> dict[str, Any]:
