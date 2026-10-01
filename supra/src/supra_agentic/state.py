@@ -502,7 +502,8 @@ class ProjectStateManager:
             self._last_list_load_errors = [dict(item) for item in load_errors]
             items = list(self._projects.values())
             items.sort(key=lambda x: x.updated_at, reverse=True)
-            return items[:limit], [dict(item) for item in load_errors]
+            project_snapshot = [item.model_copy(deep=True) for item in items[:limit]]
+            return project_snapshot, [dict(item) for item in load_errors]
 
     def list_projects(self, limit: int = 50) -> list[ProjectPosture]:
         """Compatibility wrapper returning only the project snapshot."""
