@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any, cast
 from urllib.parse import urlparse
 
+from . import __version__
 from .catalog import currents, methods
 from .constants import MAX_QUERY_CHARS
 from .engine import activate, build_prompt
@@ -57,7 +58,7 @@ def _evidence(data: Mapping[str, Any]) -> list[Any] | dict[str, Any]:
 class Handler(BaseHTTPRequestHandler):
     """Standard-library HTTP handler for CRIBA's loopback API."""
 
-    server_version = "CRIBA/0.1"
+    server_version = f"CRIBA/{__version__}"
 
     def _json(self, status: int, payload: Any) -> None:
         body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
@@ -214,7 +215,7 @@ def create_app(database: DatabasePath = None) -> Any:
 
     app = FastAPI(
         title="CRIBA Current Engine",
-        version="0.1.0",
+        version=__version__,
         description="Local loopback CRIBA API. No external provider or keys.",
     )
 
