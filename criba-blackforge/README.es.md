@@ -1,6 +1,6 @@
 # CRIBA
 
-**El motor de ideación reproducible.** Determinista, auditable y local-first: la misma semilla siempre produce las mismas ideas — sin APIs de pago para obtener resultados útiles.
+**Motor de ideación reproducible por contrato.** Determinista, auditable y local-first: las rutas deterministas se reproducen cuando se mantienen fijos código, catálogo, configuración, orden y estado relevante; las dependencias externas también deben fijarse cuando intervienen.
 
 Motor local y determinista para exploración combinatoria, análisis causal e ideación de ciberseguridad defensiva. CRIBA combina un catálogo inmutable y versionado de métodos de innovación y seguridad con un selector reproducible basado en semilla, una pista de auditoría SQLite para cada idea y una interpretación opcional mediante proveedores configurables de modelo (endpoints compatibles con OpenAI, locales o de nube).
 
@@ -12,12 +12,12 @@ Motor local y determinista para exploración combinatoria, análisis causal e id
 
 La mayoría de herramientas de "ideación con IA" son cajas negras: pides, sale texto, sin forma de saber por qué ni de reproducir el mismo resultado dos veces.
 
-- **Determinista por defecto** — `--seed 42` produce resultados idénticos byte a byte en cualquier máquina.
+- **Rutas deterministas acotadas** — una semilla explícita hace repetible la selección cuando permanecen fijos código, catálogo, configuración, orden y estado relevante; no es una garantía universal entre máquinas para rutas dependientes de modelos, red o historial.
 - **Cada idea queda auditada** — traza SQLite por activación: métodos usados, puntuaciones, orden y versión exacta del catálogo.
 - **Local sin fricción** — sin API key, sin red y sin telemetría para ejecutar el núcleo.
 - **Interpretación opcional con modelo** — trae tu propio proveedor (GGUF/Ollama local o endpoint de nube compatible con OpenAI); sin proveedor, scoring determinista local y la interpretación queda PENDIENTE en lugar de fabricarse.
 - **Catálogo integrado** — más de 130 técnicas de innovación y seguridad (TRIZ, Design Thinking, JTBD, FMEA, MITRE ATT&CK, OWASP, STRIDE, Kill Chain…) congeladas en JSON con esquema versionado.
-- **Probado a conciencia** — 866 tests verificados; el pipeline de release construye un ejecutable portable de Windows firmado con procedencia SLSA.
+- **Verificado continuamente** — la suite completa de tests y las comprobaciones estáticas del repositorio se ejecutan en CI.
 
 ## Funcionalidades
 
@@ -53,14 +53,14 @@ uvx --from criba criba --help
 ### Desde el código fuente
 
 ```bash
-git clone https://github.com/klssxx/Criba-Blackforge.git
-cd Criba-Blackforge
+git clone https://github.com/Klsx-Moli/Criba-Blackforge-Supra.git
+cd Criba-Blackforge-Supra/criba-blackforge
 uv sync --all-extras --locked
 uv run criba --help
 ```
 
 > En Windows también puedes usar el ejecutable portable precompilado (ver
-> [Releases](https://github.com/klssxx/Criba-Blackforge/releases)).
+> [Releases](https://github.com/Klsx-Moli/Criba-Blackforge-Supra/releases)).
 
 ## Demo de 60 segundos
 
@@ -68,8 +68,7 @@ uv run criba --help
 criba lottery --query "¿cómo diseñar aprobaciones seguras para agentes autónomos?" --seed 42 --rounds 3 --batch-size 5
 ```
 
-Ejecútalo dos veces. La misma semilla, las mismas rondas y el mismo batch producen **las mismas ideas**
-— ese es el contrato de reproducibilidad sobre el que se construye todo.
+Ejecútalo dos veces bajo el mismo código, catálogo, configuración y estado relevante. La ruta determinista sembrada debe reproducir la selección; la semilla por sí sola no fija dependencias externas, de modelo o de historial.
 
 Activación determinista simple:
 
@@ -86,7 +85,7 @@ scripts\launch_workbench.bat
 ## Garantía de reproducibilidad
 
 - Los catálogos están congelados y versionados (`CURRENT_CATALOG_VERSION`, `SELECTOR_VERSION`).
-- El selector usa semilla y orden canónico; el resultado es estable entre ejecuciones y máquinas.
+- Los selectores deterministas usan semilla y orden estable, pero una semilla es solo una de las dependencias del resultado.
 - Cada activación escribe un registro auditable en SQLite (`artifacts/criba.sqlite3` por defecto).
 
 ## Expansión cloud gratis (opcional, 0€)
