@@ -191,6 +191,7 @@ def test_emits_report():
         back = json.load(f)
     assert back["decision_distribution_default_context"]["DENY"] >= 0
 
+
 @pytest.mark.parametrize("authorization_state", ["denied", "expired"])
 def test_denied_or_expired_authorization_cannot_be_overridden_by_s2_controls(
     authorization_state,
@@ -239,4 +240,17 @@ def test_expired_authorization_cannot_be_overridden_by_full_s3_controls():
 
     assert decision.decision == sf.DENY
     assert decision.authorization_state is AuthorizationState.EXPIRED
+
+def test_denied_authorization_still_allows_pure_conceptual_analysis():
+    item = dict(get("BF-CYB-S800-0670"))
+    item["safety_class"] = "S0_CONCEPTUAL"
+    item["requires_explicit_authorization"] = False
+
+    decision = sf.evaluate_blackforge_safety(
+        item,
+        _ctx(authorization_state="denied"),
+        clock=FIXED_CLOCK,
+    )
+
+    assert decision.decision == sf.ALLOW_CONCEPTUAL
 
