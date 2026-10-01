@@ -241,6 +241,7 @@ def test_expired_authorization_cannot_be_overridden_by_full_s3_controls():
     assert decision.decision == sf.DENY
     assert decision.authorization_state is AuthorizationState.EXPIRED
 
+
 def test_denied_authorization_still_allows_pure_conceptual_analysis():
     item = dict(get("BF-CYB-S800-0670"))
     item["safety_class"] = "S0_CONCEPTUAL"
