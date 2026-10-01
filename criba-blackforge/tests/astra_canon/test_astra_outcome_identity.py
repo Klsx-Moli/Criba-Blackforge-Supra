@@ -210,6 +210,7 @@ def test_astra_b01_summary_does_not_count_unidentified_rows_as_samples(tmp_path)
     assert summary[0]["unidentified_records"] == 1
     assert summary[0]["value"] is None
 
+
 def test_astra_b03_naive_timestamp_is_preserved_but_excluded_after_restart(tmp_path):
     path = tmp_path / "naive-timestamp.jsonl"
     row = {
