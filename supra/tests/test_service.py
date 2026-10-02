@@ -37,16 +37,25 @@ def test_serve_ui():
 
 
 def test_quick_run_example():
+    # Inverted on 2026-10-02 (B03, card K1). The old rule asserted
+    # status == "success" for this endpoint. That rule was wrong: the example
+    # deterministically ends BLOCKED with a FAIL coverage verdict, no
+    # deliverable and scientific_status NOT_VALIDATED, so a hardcoded
+    # "success" contradicted the same payload's other channels and told a
+    # reader the workflow had succeeded. What it actually protected was "the
+    # endpoint answered", which is what HTTP 200 plus a JSON body already say.
+    # The new rule preserves that and adds the demarcation the old one hid.
     with tempfile.TemporaryDirectory() as tmpdir:
         state_manager.storage_dir = type(state_manager.storage_dir)(tmpdir)
 
         response = client.post("/api/v1/examples/quick-run")
         assert response.status_code == 200
         data = response.json()
-        assert data["status"] == "success"
         assert data["example"] is True
         assert data["stage"] == "BLOCKED"
         assert data["workflow_status"] == "BLOCKED"
+        assert data["status"] == "blocked"
+        assert data["status_scope"] == "WORKFLOW_EXECUTION_ONLY"
         assert data["deliverable"] is None
 
 
