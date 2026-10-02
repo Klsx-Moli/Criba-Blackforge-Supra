@@ -22,7 +22,7 @@ from typing import Any
 from pydantic import BaseModel, ConfigDict, Field
 
 from .adversarial_self import AdversarialSelfReinforcement
-from .blackforge_causal import canonical_hash
+from .canonical import canonical_hash
 
 # ---------------------------------------------------------------------------
 # Stage status (§7.9)
