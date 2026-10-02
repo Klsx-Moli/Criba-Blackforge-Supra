@@ -1097,6 +1097,190 @@ def _supra_health() -> dict[str, Any]:
         }
 
 
+# ---------------------------------------------------------------------------
+# M2 · SLICE VERTICAL REAL: CRIBA core -> dossier -> SUPRA real -> GET -> UI
+# ---------------------------------------------------------------------------
+def _selected_idea(win: Any) -> dict[str, Any] | None:
+    """The REAL core idea the user selected, or the top-ranked one.
+
+    Selection is by the stable idea id the ranking table already carries, so the
+    dossier always describes the candidate the interface is showing. Falling back
+    to the first ranked row is deterministic, not a guess.
+    """
+    packet = getattr(win, "packet", None)
+    if not packet:
+        return None
+    ideas = (packet.get("innovation") or {}).get("ideas") or []
+    if not ideas:
+        return None
+    selected = getattr(win._ctx, "selected_candidate_id", None) if hasattr(win, "_ctx") else None
+    if selected:
+        for idea in ideas:
+            if str(idea.get("id")) == str(selected):
+                return idea
+    return ideas[0]
+
+
+def _prepare_dossier_for_selected_idea(win: Any) -> dict[str, Any]:
+    """Build the dossier from the selected core idea, without inventing fields."""
+    from ..supra_dossier import preparar_dossier_desde_idea
+
+    idea = _selected_idea(win)
+    if idea is None:
+        raise ValueError(
+            "no hay candidatos del núcleo: pulsa «Generar ideas» antes de SUPRA"
+        )
+    return preparar_dossier_desde_idea(idea, str(getattr(win, "problem", "") or ""))
+
+
+def _execute_supra_vertical(
+    dossier: dict[str, Any],
+    project_id: str,
+    client: Any | None = None,
+) -> dict[str, Any]:
+    """POST the dossier, then GET it back from SUPRA's real read path.
+
+    The GET is not decoration: it is the only proof that the state survived
+    persistence, and it is the path a consumer uses after a restart. Its
+    channels are reported separately and are never collapsed into success.
+    """
+    from ..integrations import SupraClient, objective_from_dossier
+
+    owned = client is None
+    supra = client or SupraClient()
+    try:
+        health = supra.health()
+        posted = supra.run_project(
+            objective=objective_from_dossier(dossier),
+            domain="criba_blackforge",
+            allow_disruptive=True,
+            project_id=project_id,
+            criba_dossier=dossier,
+        )
+        lookup = supra.get_project(project_id)
+        return {
+            "endpoint": supra.config.endpoint,
+            "health": health.model_dump(),
+            "project_id": project_id,
+            "post": posted.model_dump(),
+            "read": {
+                "status": lookup.status,
+                "status_scope": lookup.status_scope,
+                "completion_status": lookup.completion_status,
+                "workflow_status": lookup.workflow_status,
+                "verification_status": lookup.verification_status,
+                "scientific_status": lookup.scientific_status,
+                "secure_sandbox_status": lookup.secure_sandbox_status,
+                "criba_planning_receipt_status": lookup.criba_planning_receipt_status,
+                "criba_mechanism_execution_status": lookup.criba_mechanism_execution_status,
+                "status_source": lookup.status_source,
+                "stage": lookup.stage,
+                "receipt": lookup.posture.criba_dossier_receipt.model_dump()
+                if lookup.posture.criba_dossier_receipt
+                else None,
+            },
+        }
+    finally:
+        if owned:
+            supra.close()
+
+
+def _on_supra_vertical_done(win: Any, report: dict[str, Any]) -> None:
+    """Show the real SUPRA read-back state. BLOCKED stays BLOCKED."""
+    r = win.refs
+    read = report["read"]
+    receipt = read.get("receipt") or {}
+    r["ideaTitle"].setText(f"SUPRA {report['project_id']}")
+    r["ideaSummary"].setText(
+        f"SUPRA leído del estado persistido ({read['status_source']}): "
+        f"status {read['status']} · stage {read['stage']} · "
+        f"workflow {read['workflow_status']} · "
+        f"verification {read['verification_status']} · "
+        f"scientific {read['scientific_status']} · "
+        f"sandbox {read['secure_sandbox_status']} · "
+        f"dossier {read['criba_planning_receipt_status']} · "
+        f"mecanismo CRIBA {read['criba_mechanism_execution_status']}"
+    )
+    if receipt:
+        set_chip(
+            r["ideaEstadoChip"],
+            f"SUPRA {read['status']} ·Receipt preservado",
+            "exploracion",
+        )
+    else:
+        set_chip(r["ideaEstadoChip"], f"SUPRA {read['status']} ·Sin receipt", "exploracion")
+    # El chip es el indicador de estado del panel. Sin encenderlo, el estado
+    # real se escribía en un widget oculto y no llegaba a verse: el arranque
+    # llama a set_detail_empty(True), que oculta el chip porque aún no hay
+    # candidato. Se llama al método DECLARADO del widget, no a un getattr
+    # inventado (un _reveal_state inexistente convertía el bug en un no-op
+    # silencioso y la prueba pasaba igual, porque text() lee también lo oculto).
+    candidates = getattr(win, "candidates", None)
+    if candidates is not None:
+        candidates.show_state_only()
+    _activity(
+        win,
+        "cyan",
+        f"SUPRA real {report['endpoint']}: {read['status']}/{read['stage']} "
+        f"(verificación {read['verification_status']}, científico "
+        f"{read['scientific_status']}); estado leído de {read['status_source']}",
+    )
+    win.nav["navSupra"].set_state("done", f"{read['status']}/{read['stage']}")
+
+
+def _on_supra_vertical_failed(win: Any, message: str) -> None:
+    """Failure is shown as failure. No fabricated state on the error path."""
+    win.nav["navSupra"].set_state("error", "SUPRA no disponible")
+    set_chip(win.refs["ideaEstadoChip"], "SUPRA no confirmado", "exploracion")
+    # El fallo Tambien tiene que verse: un chip de error escrito sobre un
+    # widget oculto seria un fallo silencioso, que es peor que no avisar.
+    candidates = getattr(win, "candidates", None)
+    if candidates is not None:
+        candidates.show_state_only()
+    win.refs["ideaSummary"].setText(
+        "Dossier local preservado · ejecución SUPRA NO CONFIRMADA"
+    )
+    _activity(win, "error", f"SUPRA no confirmado: {message.splitlines()[0][:120]}")
+    show_error(win, "SUPRA", message)
+
+
+def on_supra_vertical(win: Any) -> None:
+    """One real vertical slice, pressed from the interface.
+
+    CRIBA core (real) -> dossier (real) -> SupraClient (real) -> SUPRA API
+    (real) -> persistence -> GET -> this window. No mock anywhere on the path.
+    """
+    import uuid
+
+    if not getattr(win, "problem", ""):
+        show_error(win, "SUPRA", "Define primero el problema base (Nueva idea).")
+        return
+    try:
+        dossier = _prepare_dossier_for_selected_idea(win)
+    except Exception as exc:  # noqa: BLE001 — el motivo real se muestra
+        show_error(win, "SUPRA", f"No se pudo preparar el dossier: {exc}")
+        return
+
+    # SUPRA persists projects across runs, so the id must be unique per slice.
+    project_id = "astram2" + uuid.uuid4().hex[:10]
+    r = win.refs
+    r["ideaSummary"].setText(
+        f"Dossier {dossier['dossier_id']} preparado · enviando a SUPRA real ({project_id})…"
+    )
+    set_chip(r["ideaEstadoChip"], "SUPRA pendiente", "exploracion")
+    _activity(
+        win,
+        "cyan",
+        f"Slice vertical: dossier {dossier['dossier_id']} -> proyecto SUPRA {project_id}",
+    )
+    win.nav["navSupra"].set_state("running", "Enviando a SUPRA…")
+
+    worker = Worker(lambda: _execute_supra_vertical(dossier, project_id))
+    worker.signals.done.connect(lambda report: _on_supra_vertical_done(win, report))
+    worker.signals.fail.connect(lambda message: _on_supra_vertical_failed(win, message))
+    _start_worker(win, worker)
+
+
 def _on_supra_health(win: Any, report: dict[str, Any]) -> None:
     health = report["health"]
     win.content_label.setText("SUPRA Taskmaster")

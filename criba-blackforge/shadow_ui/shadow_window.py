@@ -951,7 +951,7 @@ class CandidatesWidget(QWidget):
         self.set_detail_empty(True)
 
     def set_detail_empty(self, empty: bool) -> None:
-        """Detalle sin candidato: texto honesto y sin chips que afirmen estado.
+        """Detalle sin candidato: texto honesto y sin chips que affirmen estado.
 
         §9: el componente se conserva; sólo cambia el valor (nunca se borra).
         """
@@ -962,6 +962,18 @@ class CandidatesWidget(QWidget):
         if empty:
             self.detail_title.setText(_t("shadow.detail.vacio"))
             self.detail_desc.setText(_t("shadow.detail.vacio.desc"))
+
+    def show_state_only(self) -> None:
+        """Muestra SOLO el chip de estado, sin fingir una idea seleccionada.
+
+        El resultado de SUPRA no es un candidato: no hay «idea seleccionada»
+        que anunciar. El chip sí es el indicador de estado del panel, así que
+        se enciende; la cabecera de «idea seleccionada» se mantiene oculta
+        porque sería una afirmación falsa sobre lo que el panel describe.
+        """
+        self.detail_empty = False
+        self.detail_caption.setVisible(False)
+        self.detail_chip.setVisible(True)
 
 
 # ---------------------------------------------------------------------------
@@ -1016,6 +1028,22 @@ class RightPanelWidget(QWidget):
         note.setProperty("caption", True); note.setAlignment(Qt.AlignmentFlag.AlignCenter)
         bind_text(note, "shadow.supra_nota")
         l1.addWidget(note)
+        # M2 · slice vertical REAL: núcleo determinista -> dossier -> SUPRA real
+        # -> persistencia -> GET -> esta ventana. Botón propio para que la
+        # ruta real no compita con la preparación de dossiers de sesión.
+        supra_e2e = QPushButton("▶ Ejecutar en SUPRA (real)")
+        supra_e2e.setProperty("accent", True)
+        supra_e2e.setFixedHeight(36)
+        bind_text(supra_e2e, "shadow.supra_e2e_btn")
+        self.supra_e2e = supra_e2e
+        supra_e2e.clicked.connect(lambda: actions.on_supra_vertical(win))
+        l1.addWidget(supra_e2e)
+        note_e2e = QLabel("Núcleo → dossier → SUPRA → estado persistido.")
+        note_e2e.setWordWrap(True)
+        note_e2e.setProperty("caption", True)
+        note_e2e.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        bind_text(note_e2e, "shadow.supra_e2e_nota")
+        l1.addWidget(note_e2e)
         lay.addWidget(f1)
 
         # Actividad reciente

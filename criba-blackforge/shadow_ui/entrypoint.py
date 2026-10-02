@@ -48,7 +48,9 @@ def _audit_old(window) -> dict:
     report["other_buttons"] = len(SHADOW_BINDINGS) - 12
     report["ranking_tabs"] = 4
     report["blackforge_card"] = True
-    report["targets_total"] = 12 + report["other_buttons"] + 4 + 1  # = 25
+    # El número se deriva de SHADOW_BINDINGS y de las constantes del panel,
+    # no de un literal: por eso los comentarios no repiten el total.
+    report["targets_total"] = 12 + report["other_buttons"] + 4 + 1
     return report
 
 
@@ -61,7 +63,7 @@ def _audit_shadow(window) -> dict:
     report["other_buttons"] = len(SHADOW_BINDINGS) - 12  # nav son 12, resto son otros
     report["ranking_tabs"] = 4
     report["blackforge_card"] = True
-    report["targets_total"] = 12 + report["other_buttons"] + 4 + 1  # = 25
+    report["targets_total"] = 12 + report["other_buttons"] + 4 + 1
     return report
 
 

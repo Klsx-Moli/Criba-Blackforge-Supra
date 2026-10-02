@@ -40,6 +40,8 @@ SHADOW_BINDINGS: list[ShadowBinding] = [
     ShadowBinding("irBlackforgeBtn", "on_blackforge", "Acceso directo a BLACKFORGE"),
     ShadowBinding("actualizarFuentesBtn", "on_actualizar", "Refrescar fuentes"),
     ShadowBinding("supraBtn", "on_desarrollar_supra", "Desarrollar con SUPRA (prepara dossiers)"),
+    ShadowBinding("supraE2eBtn", "on_supra_vertical",
+                  "Slice vertical real: núcleo → dossier → SUPRA API → GET"),
     ShadowBinding("historialCompletoBtn", "on_historial", "Historial completo"),
     ShadowBinding("btnGuardar", "on_guardar", "Guardar idea seleccionada"),
     ShadowBinding("btnHibrido", "on_hibrido", "Generación híbrida"),
@@ -51,5 +53,8 @@ RANKING_TABS = ["top", "evaluacion", "exploracion", "todas"]
 # 1 tarjeta BLACKFORGE (build_motor_card) → puente a blackforge bridge
 BLACKFORGE_CARD = "build_motor_card"
 
-# Verificación: 12 nav + 8 otros + 4 tabs + 1 card = 25
-STATIC_TARGETS_EXPECTED = 25
+# Verificación: 12 nav + 9 otros + 4 tabs + 1 card = 26
+# El control 26 es el botón del slice vertical real (M2), añadido a los 25
+# que la ventana ya tenía; el número se deriva de SHADOW_BINDINGS, no de un
+# literal dispersionado.
+STATIC_TARGETS_EXPECTED = 26

@@ -126,6 +126,70 @@ class SupraClientConfig:
         )
 
 
+#: Workflow stages that terminate a project. Anything else is nonterminal, and a
+#: nonterminal read is a real state the consumer must be able to reconstruct.
+_TERMINAL_STAGES = frozenset({"COMPLETED", "BLOCKED", "FAILED"})
+
+
+def _check_outcome_channels(
+    *,
+    status: str,
+    completion_status: str,
+    workflow_status: str,
+    stage: str,
+    verification_status: str,
+    secure_sandbox_status: str,
+    require_terminal: bool,
+) -> None:
+    """Enforce one completion rule for both the write and the read path.
+
+    Reproduced by execution against the real server on 2026-10-02: the write
+    path published four separated channels while the read path declared
+    ``status: Literal["success"]``. A genuinely BLOCKED project therefore came
+    back as ``{"status": "blocked"}`` and the client raised
+    ``project lookup violated response contract`` — the client could not
+    reconstruct the very state it was built to reconstruct after a restart.
+    The rule now lives here once, so the two paths cannot drift apart.
+
+    ``require_terminal`` is True only for POST, which cannot return a
+    nonterminal outcome; the read path must be able to describe one.
+    """
+    completed = (
+        status == "success"
+        and completion_status == "COMPLETED"
+        and workflow_status == "COMPLETED"
+        and stage == "COMPLETED"
+    )
+    blocked = (
+        status == "blocked"
+        and completion_status == "BLOCKED"
+        and workflow_status != "COMPLETED"
+        and stage != "COMPLETED"
+    )
+    failed = status == "error" and stage == "FAILED"
+    pending = (
+        status == "pending"
+        and completion_status == "NOT_COMPLETED"
+        and stage not in _TERMINAL_STAGES
+    )
+
+    if verification_status in {"FAIL", "NOT_EVALUATED"} and completed:
+        raise ValueError(
+            "SUPRA contract violation: failed/unevaluated verification cannot be COMPLETED"
+        )
+    if completed and secure_sandbox_status != "ISOLATED_BOUND_PASS":
+        raise ValueError(
+            "SUPRA contract violation: COMPLETED requires ISOLATED_BOUND_PASS"
+        )
+    if completed or blocked or failed or pending:
+        return
+    if require_terminal:
+        raise ValueError("SUPRA contract violation: inconsistent completion fields")
+    raise ValueError(
+        "SUPRA contract violation: inconsistent completion fields for a persisted read"
+    )
+
+
 class SupraProjectResult(BaseModel):
     """Stable subset returned by POST /api/v1/projects."""
 
@@ -147,29 +211,15 @@ class SupraProjectResult(BaseModel):
 
     @model_validator(mode="after")
     def reject_contradictory_completion(self) -> "SupraProjectResult":
-        verification_blocks = self.verification_status in {"FAIL", "NOT_EVALUATED"}
-        completed = (
-            self.status == "success"
-            and self.completion_status == "COMPLETED"
-            and self.workflow_status == "COMPLETED"
-            and self.stage == "COMPLETED"
+        _check_outcome_channels(
+            status=self.status,
+            completion_status=self.completion_status,
+            workflow_status=self.workflow_status,
+            stage=self.stage,
+            verification_status=self.verification_status,
+            secure_sandbox_status=self.secure_sandbox_status,
+            require_terminal=True,
         )
-        blocked = (
-            self.status == "blocked"
-            and self.completion_status == "BLOCKED"
-            and self.workflow_status != "COMPLETED"
-            and self.stage != "COMPLETED"
-        )
-        if verification_blocks and completed:
-            raise ValueError(
-                "SUPRA contract violation: failed/unevaluated verification cannot be COMPLETED"
-            )
-        if completed and self.secure_sandbox_status != "ISOLATED_BOUND_PASS":
-            raise ValueError(
-                "SUPRA contract violation: COMPLETED requires ISOLATED_BOUND_PASS"
-            )
-        if not completed and not blocked:
-            raise ValueError("SUPRA contract violation: inconsistent completion fields")
         return self
 
 
@@ -242,18 +292,57 @@ class SupraProjectPostureSnapshot(BaseModel):
 
 
 class SupraProjectLookup(BaseModel):
-    """Typed response from GET /api/v1/projects/{project_id}."""
+    """Typed response from GET /api/v1/projects/{project_id}.
+
+    This is the read path a consumer uses to reconstruct state after a restart,
+    so it must be able to describe every state the server can persist — not only
+    the completed one. ``status`` used to be ``Literal["success"]``, which made
+    a genuinely blocked project unreadable through the canonical client: the
+    server answered ``{"status": "blocked", ...}`` (measured against the real
+    API) and the client refused the response as a contract violation. The
+    channels stay separated exactly as on the write path; collapsing them is
+    what this model must never do.
+    """
 
     model_config = ConfigDict(extra="allow")
 
-    status: Literal["success"]
+    status: Literal["success", "blocked", "error", "pending"]
+    status_scope: str = "WORKFLOW_EXECUTION_ONLY"
+    completion_status: Literal["COMPLETED", "BLOCKED", "NOT_COMPLETED"]
+    workflow_status: str
+    verification_status: str
+    scientific_status: str = "NOT_VALIDATED"
+    secure_sandbox_status: str = "NOT_REPORTED"
+    criba_planning_receipt_status: str = "NOT_APPLICABLE"
+    criba_mechanism_execution_status: str = "NOT_APPLICABLE"
+    idempotent_replay: bool = False
+    status_source: str = "PERSISTED_STATE"
     project_id: str = Field(min_length=1)
+    stage: str
     posture: SupraProjectPostureSnapshot
 
     @model_validator(mode="after")
     def require_matching_project_identity(self) -> "SupraProjectLookup":
         if self.project_id != self.posture.project_id:
             raise ValueError("SUPRA lookup project_id does not match posture project_id")
+        if self.stage != self.posture.stage:
+            # The summary stage and the persisted stage are two statements about
+            # the same fact. If they disagree, a consumer could report the
+            # summary's stage while the persisted posture says otherwise.
+            raise ValueError("SUPRA lookup stage does not match persisted posture stage")
+        _check_outcome_channels(
+            status=self.status,
+            completion_status=self.completion_status,
+            workflow_status=self.workflow_status,
+            stage=self.stage,
+            verification_status=self.verification_status,
+            secure_sandbox_status=self.secure_sandbox_status,
+            require_terminal=False,
+        )
+        if self.status_source != "PERSISTED_STATE":
+            raise ValueError(
+                "SUPRA lookup must report its state as read from persisted state"
+            )
         return self
 
 
