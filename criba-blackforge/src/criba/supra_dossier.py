@@ -15,12 +15,13 @@ import hashlib
 import json
 import os
 import warnings
-from datetime import datetime, timezone
+from collections.abc import Callable
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Callable, TypeGuard
+from typing import Any, TypeGuard
+from uuid import uuid4
 
 DOSSIER_RESULT_SEMANTICS_VERSION = 3
-from uuid import uuid4
 
 
 def _exact_identity_text(value: object) -> TypeGuard[str]:
@@ -165,6 +166,9 @@ def preparar_dossier_desde_idea(
 def _dossiers_dir(override: Path | None = None) -> Path:
     if override is not None:
         return override
+    shadow_home = os.environ.get("CRIBASHADOW_HOME")
+    if shadow_home:
+        return Path(shadow_home) / "dossiers"
     base = Path(os.environ.get("LOCALAPPDATA") or Path.home()) / "CRIBA-Blackforge"
     return base / "dossiers"
 
@@ -214,12 +218,32 @@ def preparar_dossier(
     ``alternativa_explicativa``: la otra explicación que la observación debe
     distinguir. Si no se aporta, el dossier lo declara en lugar de inventarla.
     """
-    bloqueo = (ficha_bloqueo or {})
+    bloqueo = ficha_bloqueo or {}
     prueba_concreta = str(entry.get("prueba_concreta", ""))[:600]
-    observable = str(entry.get("observable") or entry.get("metrica") or "")[:400]
+    claim = str(entry.get("hipotesis", ""))[:800]
+    mechanism = str(entry.get("mecanismo", ""))
+    supuestos = [
+        str(item).strip()
+        for item in (entry.get("supuestos") or [])
+        if str(item).strip()
+    ]
+    # Solo se reutiliza contenido ya declarado por el intérprete. Si tampoco
+    # existe un supuesto alternativo, el campo sigue vacío y el dossier no pasa
+    # a SUPRA: nunca se inventa una explicación para satisfacer el schema.
+    alternativa = alternativa_explicativa.strip() or (supuestos[0] if supuestos else "")
+    observable = str(
+        entry.get("observable") or entry.get("metrica") or prueba_concreta
+    )[:400]
+    resultado_mecanismo = str(
+        entry.get("resultado_favorable_mecanismo") or claim
+    )[:400]
+    resultado_alternativa = str(
+        entry.get("resultado_favorable_alternativa") or alternativa
+    )[:400]
+    regla_decision = str(entry.get("regla_decision") or prueba_concreta)[:400]
     prueba = {
         "afirmacion_decisiva": prueba_concreta,
-        "alternativa_explicativa": alternativa_explicativa.strip(),
+        "alternativa_explicativa": alternativa,
         "intervencion_prueba": prueba_concreta,
         "observable": observable,
         "comparacion": (
@@ -227,13 +251,9 @@ def preparar_dossier(
             "si no hay alternativa declarada, la prueba no es discriminante"
         ),
         "metrica": observable,
-        "resultado_favorable_mecanismo": str(
-            entry.get("resultado_favorable_mecanismo") or ""
-        )[:400],
-        "resultado_favorable_alternativa": str(
-            entry.get("resultado_favorable_alternativa") or ""
-        )[:400],
-        "regla_decision": str(entry.get("regla_decision") or "")[:400],
+        "resultado_favorable_mecanismo": resultado_mecanismo,
+        "resultado_favorable_alternativa": resultado_alternativa,
+        "regla_decision": regla_decision,
         "condicion_fracaso": str(
             entry.get("condicion_fracaso")
             or "si la observación no discrimina, el dossier no decide"
@@ -241,8 +261,6 @@ def preparar_dossier(
         "coste_permisos": "a evaluar por el responsable antes de ejecutar",
         "estado_prueba": "NO_EJECUTADA",
     }
-    claim = str(entry.get("hipotesis", ""))[:800]
-    mechanism = str(entry.get("mecanismo", ""))
 
     raw_candidate_id = entry.get("candidate_id", "")
     if raw_candidate_id in (None, ""):
@@ -298,9 +316,9 @@ def preparar_dossier(
         "evidence_documented_as_used": documented,
         "evidencia_utilizada": documented,
         "prueba_discriminante": prueba,
-        "supuestos": list(entry.get("supuestos", [])),
+        "supuestos": supuestos,
         "estado": "SUPRA_EJECUCION_PENDIENTE",
-        "creado_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "creado_at": datetime.now(UTC).isoformat(timespec="seconds"),
     }
 
 
@@ -339,6 +357,16 @@ def cargar_dossier(
         raise ValueError("dossier_id ambiguo")
     dossier = dossiers.get(identity)
     return dict(dossier) if dossier is not None else None
+
+
+def cargar_ultimo_dossier(directory: Path | None = None) -> dict[str, Any] | None:
+    """Load the newest unambiguous local dossier for Shadow restart recovery."""
+    path = _dossiers_dir(directory) / "dossiers.jsonl"
+    dossiers, ambiguos, _ = _leer_historial(path)
+    for identity, dossier in reversed(list(dossiers.items())):
+        if identity not in ambiguos:
+            return dict(dossier)
+    return None
 
 
 def _discriminant_protocol_complete(dossier: dict[str, Any]) -> bool:
@@ -470,7 +498,7 @@ def registrar_resultado(
     previous_revisions: list[dict[str, Any]] = []
     if execution_identity_valid and protocol_identity_valid:
         observation_id = hashlib.sha256(
-            f"{dossier_id}|{execution_id}|{protocol_version}".encode("utf-8")
+            f"{dossier_id}|{execution_id}|{protocol_version}".encode()
         ).hexdigest()
         previous_revisions = [
             item
@@ -479,11 +507,15 @@ def registrar_resultado(
             and item.get("result_semantics_version") == DOSSIER_RESULT_SEMANTICS_VERSION
         ]
     first_registered_at = (
-        str(previous_revisions[0].get("first_registered_at") or previous_revisions[0].get("registrado_at") or "")
+        str(
+            previous_revisions[0].get("first_registered_at")
+            or previous_revisions[0].get("registrado_at")
+            or ""
+        )
         if previous_revisions
         else ""
     )
-    registered_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    registered_at = datetime.now(UTC).isoformat(timespec="seconds")
     if not first_registered_at:
         first_registered_at = registered_at
 

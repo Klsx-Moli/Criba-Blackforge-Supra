@@ -5,6 +5,7 @@ Deriva ambos de sha256 para que la deduplicación de InterpreteStore
 (PK combo_key+run_id+seed) dispare en repeticiones con misma seed,
 como exige el contrato de reproducibilidad documentado en store.py.
 """
+
 from __future__ import annotations
 
 import hashlib

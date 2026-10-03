@@ -172,6 +172,9 @@ def test_real_server_starts_without_a_console(launcher, tmp_path):
             "http://127.0.0.1:8765", tmp_path / "state", tmp_path / "sin-consola-real.log")
         ok, info = server.start(wait_s=90.0)
         assert ok, info
+        assert os.environ["SUPRA_ENDPOINT"] == info, (
+            "el SupraClient debe recibir el endpoint real, incluido un puerto alternativo"
+        )
         with urllib.request.urlopen(f"{info}/health", timeout=10) as response:
             assert json.loads(response.read().decode())["status"] == "healthy"
     finally:

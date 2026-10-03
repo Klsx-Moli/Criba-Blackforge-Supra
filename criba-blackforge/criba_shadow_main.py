@@ -244,6 +244,9 @@ class SupraServer:
         if not health_ok(self.endpoint):
             port = free_port()  # el puerto pedido esta ocupado: usa uno libre y no chocas
             self.endpoint = f"http://127.0.0.1:{port}"
+        # SupraClient lee este valor. Sin publicarlo, la UI podía arrancar el
+        # servidor en un puerto real y enviar el dossier al 8000 por defecto.
+        os.environ["SUPRA_ENDPOINT"] = self.endpoint
         os.environ["SUPRA_STORAGE_DIR"] = str(self.storage)
         os.environ["SUPRA_USE_MODEL"] = "false"
 
@@ -348,6 +351,7 @@ def main() -> int:
 
         endpoint = os.getenv("SUPRA_ENDPOINT", "http://127.0.0.1:8765").strip()
         if health_ok(endpoint):
+            os.environ["SUPRA_ENDPOINT"] = endpoint
             print(f"[{APP_NAME}] SUPRA ya responde en {endpoint}; no se arranca otro.")
         else:
             supra = SupraServer(endpoint, root / "supra_state", log_path)
@@ -356,6 +360,7 @@ def main() -> int:
                 return _fatal("No se pudo arrancar SUPRA", info)
             print(f"[{APP_NAME}] SUPRA arrancado en {info}")
 
+        from criba.ui import actions as ui_actions
         from PySide6.QtWidgets import QApplication
         from shadow_window import ShadowWindow
 
@@ -365,6 +370,7 @@ def main() -> int:
         window = ShadowWindow(database=str(root / "criba.sqlite3"))
         window.showMaximized()
         window.show()
+        ui_actions.on_restore_latest_supra(window)
         return int(app.exec())
     except Exception as exc:  # noqa: BLE001 - aqui el error real es el producto
         import traceback

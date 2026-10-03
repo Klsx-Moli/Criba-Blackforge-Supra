@@ -14,6 +14,7 @@ Contrato:
 - Cualquier fallo del interprete NO rompe el pipeline: el bloque se
   degrada a ``{"applied": True, "error": "interprete_no_disponible"}``.
 """
+
 from __future__ import annotations
 
 from typing import Any
@@ -67,7 +68,9 @@ def build_interprete_block(
                 for r in interp_result["interpretados"]
             ],
             "prefiltrado_stats": interp_result["prefiltrado"]["stats"],
-            "top_interprete": interp_result["interpretados"][0] if interp_result["interpretados"] else None,
+            "top_interprete": interp_result["interpretados"][0]
+            if interp_result["interpretados"]
+            else None,
         }
     except Exception:
         return {"applied": True, "error": "interprete_no_disponible"}

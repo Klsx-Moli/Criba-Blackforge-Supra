@@ -6,6 +6,7 @@ la GUI nunca se congela (WIDGET_TREE §3).
 
 from __future__ import annotations
 
+import json
 import traceback
 from collections.abc import Callable
 from datetime import datetime
@@ -25,6 +26,7 @@ MUTATORS = ("navNuevaIdea", "navGenerar", "navInventar", "navEvaluar", "navRed")
 class _Signals(QObject):
     done = Signal(object)
     fail = Signal(str)
+    progress = Signal(object)
 
 
 class Worker(QRunnable):
@@ -132,7 +134,6 @@ def enter_s1(win: Any) -> None:
             "navGenerar": False,
             "navInventar": False,
             "navEvaluar": False,
-            "navRed": False,
             "navRed": True,
             "navHistorial": True,
             "navBlackforge": True,
@@ -167,9 +168,28 @@ def on_nueva_idea_no_dialog(win: Any, problem: str) -> None:
     _apply_new_problem(win, problem)
 
 
+def _clear_journey_outputs(win: Any) -> None:
+    candidates = getattr(win, "candidates", None)
+    if candidates is None:
+        return
+    for widget in (
+        candidates.raw_output,
+        candidates.interpretation_output,
+        candidates.dossier_output,
+        candidates.supra_output,
+    ):
+        widget.clear()
+    candidates.output_tabs.setCurrentWidget(candidates.raw_output)
+
+
 def _apply_new_problem(win: Any, problem: str) -> None:
     win.problem = problem
     win.packet = None
+    win.invent_sheet = None
+    _clear_journey_outputs(win)
+    right_panel = getattr(win, "right_panel", None)
+    if right_panel is not None:
+        right_panel.supra.setEnabled(False)
     r = win.refs
     _session_badge(win, True)
     win.greetingSub.setText("Listo para transformar ideas en impacto")
@@ -231,11 +251,11 @@ def on_generar(win: Any) -> None:
     win.nav["navGenerar"].set_state("running", "Ejecutando operadores...")
     r["stages"]["stageGenerar"].set_state("active", spinning=True)
     _activity(win, "blue", "Generación iniciada (16 operadores)")
-    
+
     # Crear/mostrar label de progreso
     if not hasattr(win, '_progress_label') or not win._progress_label:
-        from PySide6.QtWidgets import QLabel, QVBoxLayout
         from PySide6.QtCore import Qt
+        from PySide6.QtWidgets import QLabel
         win._progress_label = QLabel("⏳ Generando ideas...")
         win._progress_label.setObjectName("progressLabel")
         win._progress_label.setAlignment(Qt.AlignCenter)
@@ -243,7 +263,7 @@ def on_generar(win: Any) -> None:
         if hasattr(win, 'content_layout'):
             win.content_layout.insertWidget(0, win._progress_label)
     win._progress_label.show()
-    
+
     worker = Worker(lambda: _generate_criba_packet(win.problem))
     worker.signals.done.connect(lambda packet: _on_generated(win, packet))
     worker.signals.fail.connect(
@@ -298,7 +318,6 @@ def _on_generated(win: Any, packet: dict[str, Any]) -> None:
             "navGenerar": True,
             "navInventar": True,
             "navEvaluar": True,
-            "navRed": False,
             "navRed": True,
             "navHistorial": True,
             "navBlackforge": True,
@@ -310,20 +329,68 @@ def _on_generated(win: Any, packet: dict[str, Any]) -> None:
 # ---------------------------------------------------------------------------
 # S3b — INVENTAR (mismo servicio criba.inventar.invent que la CLI)
 # ---------------------------------------------------------------------------
-def _run_inventar(problem: str) -> dict[str, Any]:
-    """Ejecuta el servicio compartido `invent` y registra el ledger.
+def _run_inventar(
+    problem: str,
+    *,
+    backend: str | None = None,
+    progress: Callable[[dict[str, Any]], None] | None = None,
+    cancel_requested: Callable[[], bool] | None = None,
+) -> dict[str, Any]:
+    """Ejecuta ``invent`` con UNA instancia de intérprete fijada para el run.
 
-    Misma ruta que `criba inventar` (CLI): interfaz y CLI usan el mismo
-    servicio, sin duplicar lógica — incluido el almacén de evidencia por
-    defecto, para que el intérprete reciba evidencia local también desde
-    la interfaz.
+    El selector solo afecta a la siguiente ejecución. Cambiar el combo mientras
+    una tarea está activa no cambia proveedor/modelo a mitad de candidatos.
+    Cancelar es cooperativo: se aplica al terminar la petición HTTP en curso y
+    evita nuevas llamadas remotas.
     """
-    from ..inventar import append_ledger, invent
     from ..intelligence.refresh import default_store
+    from ..interprete.seleccion import (
+        construir_interprete,
+        estado_interprete,
+        seleccion_por_defecto,
+    )
+    from ..inventar import _default_proponer, append_ledger, invent
 
-    sheet = invent(problem, store=default_store())
+    chosen = backend or seleccion_por_defecto()
+    interpreter = construir_interprete(chosen)
+    interpreter_state = estado_interprete(interpreter)
+    completed = 0
+
+    def _proponer(
+        query: str,
+        idea: dict[str, Any],
+        domain: dict[str, Any] | None,
+        evidence: list[dict[str, Any]] | None = None,
+    ) -> dict[str, Any]:
+        nonlocal completed
+        if cancel_requested is not None and cancel_requested():
+            from ..inventar import _pending_proposal
+
+            result = _pending_proposal("cancelado por operador")
+        else:
+            result = _default_proponer(
+                query,
+                idea,
+                domain,
+                evidence=evidence,
+                interprete=interpreter,
+            )
+        completed += 1
+        if progress is not None:
+            progress(
+                {
+                    "completed": completed,
+                    "candidate": str(idea.get("title") or "")[:100],
+                    "status": result.get("estado", "PENDIENTE_INTERPRETACION"),
+                }
+            )
+        return result
+
+    sheet = invent(problem, store=default_store(), proponer=_proponer)
     ledger = append_ledger(sheet)
     sheet["ledger_path"] = str(ledger)
+    sheet["interpreter"] = interpreter_state
+    sheet["cancel_requested"] = bool(cancel_requested and cancel_requested())
     return sheet
 
 
@@ -336,37 +403,176 @@ def on_inventar(win: Any) -> None:
     _suggest(win, None)
     win.nav["navInventar"].set_state("running", "Cruce → hipótesis → antecedentes...")
     _activity(win, "blue", "Inventar iniciado (cruce → interpretación → antecedentes)")
-    worker = Worker(lambda: _run_inventar(win.problem))
+
+    selector = getattr(getattr(win, "topcards", None), "interpreter_selector", None)
+    backend = str(selector.currentData() if selector is not None else "openai_compatible")
+    win.interpreter_cancel_requested = False
+    topcards = getattr(win, "topcards", None)
+    if topcards is not None:
+        topcards.interpreter_selector.setEnabled(False)
+        topcards.cancel_interpretation.setEnabled(True)
+        topcards.cancel_interpretation.setText("Cancelar interpretación")
+        topcards.cancel_interpretation.show()
+        topcards.interpreter_status.setText(
+            f"{topcards.interpreter_selector.currentText()} · comprobando disponibilidad…"
+        )
+
+    holder: dict[str, Worker] = {}
+
+    def _task() -> dict[str, Any]:
+        return _run_inventar(
+            win.problem,
+            backend=backend,
+            progress=lambda payload: holder["worker"].signals.progress.emit(payload),
+            cancel_requested=lambda: bool(win.interpreter_cancel_requested),
+        )
+
+    worker = Worker(_task)
+    holder["worker"] = worker
+    worker.signals.progress.connect(lambda payload: _on_invent_progress(win, payload))
     worker.signals.done.connect(lambda sheet: _on_invented(win, sheet))
-    worker.signals.fail.connect(
-        lambda msg: on_operation_error(win, "navInventar", None, msg)
-    )
+    worker.signals.fail.connect(lambda msg: _on_invent_failed(win, msg))
     _start_worker(win, worker)
+
+
+def _finish_invent_controls(win: Any) -> None:
+    topcards = getattr(win, "topcards", None)
+    if topcards is None:
+        return
+    topcards.interpreter_selector.setEnabled(True)
+    topcards.cancel_interpretation.hide()
+
+
+def _on_invent_progress(win: Any, payload: dict[str, Any]) -> None:
+    topcards = getattr(win, "topcards", None)
+    if topcards is None:
+        return
+    topcards.interpreter_status.setText(
+        f"Interpretación {payload.get('completed', 0)} · "
+        f"{payload.get('status', 'PENDIENTE')} · "
+        f"{payload.get('candidate', '')}"
+    )
+
+
+def on_cancel_inventar(win: Any) -> None:
+    """Solicita cancelación cooperativa tras la petición HTTP en curso."""
+    win.interpreter_cancel_requested = True
+    topcards = getattr(win, "topcards", None)
+    if topcards is not None:
+        topcards.cancel_interpretation.setEnabled(False)
+        topcards.cancel_interpretation.setText("Cancelación solicitada…")
+        topcards.interpreter_status.setText(
+            "Cancelación solicitada; se aplicará al terminar la petición en curso."
+        )
+    _activity(win, "amber", "Cancelación de interpretación solicitada")
+
+
+def _on_invent_failed(win: Any, message: str) -> None:
+    _finish_invent_controls(win)
+    on_operation_error(win, "navInventar", None, message)
+
+
+def _render_interpreter_outputs(win: Any, sheet: dict[str, Any]) -> None:
+    """Muestra bruto y parseado completos sin confundirlos con SUPRA."""
+    candidates = getattr(win, "candidates", None)
+    if candidates is None:
+        return
+    raw_sections: list[str] = []
+    parsed_sections: list[str] = []
+    for index, entry in enumerate(sheet.get("entries", []), 1):
+        title = str(entry.get("title") or f"candidato {index}")
+        raw = str(entry.get("interpretacion_raw_output") or "")
+        error = str(entry.get("interpretacion_error") or "")
+        raw_sections.append(
+            f"=== {index}. {title} ===\n"
+            + (raw if raw else f"[SIN CONTENIDO] {error or 'sin motivo declarado'}")
+        )
+        parsed_sections.append(
+            json.dumps(
+                {
+                    "title": title,
+                    "estado": entry.get("estado_interpretacion"),
+                    "hipotesis": entry.get("hipotesis", ""),
+                    "mecanismo": entry.get("mecanismo", ""),
+                    "aportacion_por_tecnica": entry.get("aportacion_por_tecnica", []),
+                    "supuestos": entry.get("supuestos", []),
+                    "prueba_concreta": entry.get("prueba_concreta", ""),
+                    "ruta_desbloqueo": entry.get("ruta_desbloqueo", ""),
+                    "error": error,
+                    "finish_reason": entry.get("interpretacion_finish_reason", ""),
+                    "usage": entry.get("interpretacion_usage", {}),
+                    "provenance": entry.get("interpretacion_provenance", {}),
+                },
+                ensure_ascii=False,
+                indent=2,
+            )
+        )
+    candidates.raw_output.setPlainText("\n\n".join(raw_sections))
+    candidates.interpretation_output.setPlainText("\n\n".join(parsed_sections))
 
 
 def _on_invented(win: Any, sheet: dict[str, Any]) -> None:
     """Muestra la ficha honesta: pendientes como pendientes, sin fabricar."""
+    _finish_invent_controls(win)
     win.invent_sheet = sheet
-    win.nav["navInventar"].set_state("done")
     r = win.refs
     totals = sheet["totals"]
     n_entries = len(sheet["entries"])
     pending = totals["pending_interpretation"]
+    valid = sum(
+        1
+        for entry in sheet["entries"]
+        if entry.get("estado_interpretacion") == "PROPUESTA"
+        and str(entry.get("mecanismo") or "").strip()
+    )
+    win.nav["navInventar"].set_state(
+        "done",
+        f"operación terminada: {valid}/{n_entries} propuestas válidas; SUPRA no ejecutado",
+    )
+    interpreter_state = sheet.get("interpreter") or {}
+    topcards = getattr(win, "topcards", None)
+    if topcards is not None:
+        connected = bool(interpreter_state.get("conectado"))
+        provider = str(interpreter_state.get("provider") or "desconocido")
+        model = str(interpreter_state.get("model_requested") or "desconocido")
+        reason = str(interpreter_state.get("motivo") or "sin motivo declarado")
+        topcards.interpreter_status.setText(
+            f"{'Disponible' if connected else 'No disponible'} · "
+            f"proveedor {provider} · modelo {model} · {reason} · "
+            f"interpretación válida {valid}/{n_entries}"
+        )
+    _render_interpreter_outputs(win, sheet)
+    right_panel = getattr(win, "right_panel", None)
+    if right_panel is not None:
+        right_panel.supra.setEnabled(valid > 0)
 
     r["ideaTitle"].setText(f"Inventar · {sheet['query'][:100]}")
     r["ideaSummary"].setText(
-        f"{n_entries} candidatos · interpretación pendiente: {pending} · "
-        f"UNRESOLVED: {totals['unresolved']} · PARTIAL: {totals['partial_prior_art']} · "
-        f"SURVIVED: {totals['survived_search']}"
+        f"Operación terminada · {n_entries} candidatos · {valid} propuestas válidas · "
+        f"interpretación pendiente: {pending} · SUPRA no ejecutado · "
+        f"UNRESOLVED: {totals['unresolved']} · "
+        f"PARTIAL: {totals['partial_prior_art']} · SURVIVED: {totals['survived_search']}"
     )
-    if pending == n_entries:
-        set_chip(r["ideaEstadoChip"], "Interpretación pendiente", "exploracion")
+    if valid == 0:
+        set_chip(
+            r["ideaEstadoChip"],
+            f"0 propuestas válidas · {pending} pendientes",
+            "exploracion",
+        )
+        candidates = getattr(win, "candidates", None)
+        if candidates is not None:
+            candidates.output_tabs.setCurrentWidget(candidates.interpretation_output)
     else:
-        set_chip(r["ideaEstadoChip"], "Propuestas emitidas", "ideacion")
+        set_chip(
+            r["ideaEstadoChip"],
+            f"{valid} propuestas válidas · {pending} pendientes",
+            "ideacion",
+        )
     _activity(
         win,
-        "cyan",
-        f"Inventar completo: {n_entries} candidatos · pendientes: {pending}",
+        "cyan" if valid else "amber",
+        f"Inventar terminó: {valid}/{n_entries} propuestas válidas · "
+        f"{pending} pendientes · SUPRA no ejecutado",
     )
 
     lines = [
@@ -462,7 +668,6 @@ def _on_evaluated(win: Any, rows: list[dict[str, Any]]) -> None:
         r["scoreGauge"].set_percentile(f"Alto impacto · Top {pct}% del set")
         r["mBestScore"].set_value(f"{best['value_score']:.2f}")
         r["rankingTable"].selectRow(0)
-    mean = packet["innovation"].get("mean_value_score", 0.0)
     conv_global = packet["metrics"].get("divergence", 0)
     r["mConvergencia"].set_value(f"{conv_global}%")
     _update_charts(win, rows)
@@ -615,6 +820,7 @@ def _refresh_store():
     """Almacén de evidencia del perfil activo (fuera del repo del usuario)."""
     import os
     from pathlib import Path
+
     from ..intelligence.storage.store import IntelligenceStore
 
     base = Path(os.environ.get("LOCALAPPDATA") or Path.home()) / "CRIBA-Blackforge"
@@ -660,7 +866,6 @@ def on_actualizar(win: Any) -> None:
 
 
 def _on_sources_updated(win: Any, report: dict[str, Any]) -> None:
-    from ..intelligence.refresh import format_report
 
     r = win.refs
     win.sources_report = report
@@ -734,7 +939,6 @@ def _restore_buttons_after_op(win: Any) -> None:
             "navGenerar": has_problem,
             "navInventar": has_problem,
             "navEvaluar": has_packet,
-            "navRed": has_packet,
             "navRed": True,
             "navHistorial": True,
             "navBlackforge": True,
@@ -769,7 +973,11 @@ def on_hibrido(win: Any) -> None:
         "success_criteria": win.packet.get("success_criteria", []) if win.packet else [],
         "protected_assets": win.packet.get("protected_assets", []) if win.packet else [],
         "threat_actors": win.packet.get("threat_actors", []) if win.packet else [],
-        "authorization_state": win.packet.get("authorization_state", "pending") if win.packet else "pending",
+        "authorization_state": (
+            win.packet.get("authorization_state", "pending")
+            if win.packet
+            else "pending"
+        ),
         "innovation": win.packet.get("innovation", {}) if win.packet else {},
     }
 
@@ -887,6 +1095,26 @@ def on_ver_todas(win: Any) -> None:
 # ---------------------------------------------------------------------------
 # DESARROLLAR CON SUPRA (paridad con `inventar --dossier`)
 # ---------------------------------------------------------------------------
+def _supra_lookup_read(lookup: Any) -> dict[str, Any]:
+    """Serialize the canonical GET response without collapsing state channels."""
+    receipt = getattr(getattr(lookup, "posture", None), "criba_dossier_receipt", None)
+    return {
+        "status": lookup.status,
+        "status_scope": lookup.status_scope,
+        "completion_status": lookup.completion_status,
+        "workflow_status": lookup.workflow_status,
+        "verification_status": lookup.verification_status,
+        "scientific_status": lookup.scientific_status,
+        "secure_sandbox_status": lookup.secure_sandbox_status,
+        "criba_planning_receipt_status": lookup.criba_planning_receipt_status,
+        "criba_mechanism_execution_status": lookup.criba_mechanism_execution_status,
+        "status_source": lookup.status_source,
+        "persisted_artifact_status": lookup.persisted_artifact_status,
+        "stage": lookup.stage,
+        "receipt": receipt.model_dump() if receipt else None,
+    }
+
+
 def _execute_supra_dossiers(
     dossiers: list[dict[str, Any]],
     client: Any | None = None,
@@ -906,6 +1134,9 @@ def _execute_supra_dossiers(
                 allow_disruptive=True,
                 criba_dossier=dossier,
             )
+            # GET is mandatory: POST success alone does not prove durable
+            # readback, and is not what a reopened Shadow instance consumes.
+            lookup = supra.get_project(result.project_id)
             runs.append(
                 {
                     "dossier_id": dossier["dossier_id"],
@@ -920,10 +1151,13 @@ def _execute_supra_dossiers(
                         result.criba_mechanism_execution_status
                     ),
                     "stage": result.stage,
+                    "read": _supra_lookup_read(lookup),
                 }
             )
         return {
+            "endpoint": supra.config.endpoint,
             "health": health.model_dump(),
+            "dossiers": dossiers,
             "runs": runs,
         }
     finally:
@@ -937,6 +1171,18 @@ def _on_supra_dossiers_done(win: Any, report: dict[str, Any]) -> None:
         return
     runs = report.get("runs", [])
     sheet["supra_runs"] = runs
+    readbacks = sum(1 for item in runs if isinstance(item.get("read"), dict))
+    candidates = getattr(win, "candidates", None)
+    if candidates is not None:
+        dossiers = report.get("dossiers", [])
+        if dossiers:
+            candidates.dossier_output.setPlainText(
+                json.dumps(dossiers, ensure_ascii=False, indent=2)
+            )
+        candidates.supra_output.setPlainText(
+            json.dumps(report, ensure_ascii=False, indent=2, default=str)
+        )
+        candidates.output_tabs.setCurrentWidget(candidates.supra_output)
     completed = sum(1 for item in runs if item.get("completion_status") == "COMPLETED")
     blocked = sum(1 for item in runs if item.get("completion_status") == "BLOCKED")
     sandbox_blocked = sum(
@@ -956,8 +1202,8 @@ def _on_supra_dossiers_done(win: Any, report: dict[str, Any]) -> None:
     )
     r["ideaSummary"].setText(
         f"SUPRA workflow: {completed} completado(s) · {blocked} bloqueado(s)"
-        f"{sandbox_note} · mecanismo CRIBA NO EJECUTADO: "
-        f"{criba_not_executed}/{len(runs)}"
+        f"{sandbox_note} · GET/readback: {readbacks}/{len(runs)} · "
+        f"mecanismo CRIBA NO EJECUTADO: {criba_not_executed}/{len(runs)}"
     )
     chip = "SUPRA workflow completado" if runs and blocked == 0 else "SUPRA bloqueado"
     set_chip(r["ideaEstadoChip"], chip, "exploracion")
@@ -1014,6 +1260,13 @@ def on_desarrollar_supra(win: Any) -> None:
 
     sheet["dossiers"] = [item["dossier_id"] for item in dossier_payloads]
     sheet["dossiers_path"] = str(path)
+    candidates = getattr(win, "candidates", None)
+    if candidates is not None:
+        candidates.dossier_output.setPlainText(
+            json.dumps(dossier_payloads, ensure_ascii=False, indent=2)
+        )
+        candidates.supra_output.clear()
+        candidates.output_tabs.setCurrentWidget(candidates.dossier_output)
     r = win.refs
     r["ideaSummary"].setText(
         f"{len(dossier_payloads)} dossier(s) SUPRA preparados · enviando al servicio real…"
@@ -1028,6 +1281,94 @@ def on_desarrollar_supra(win: Any) -> None:
     worker = Worker(lambda: _execute_supra_dossiers(dossier_payloads))
     worker.signals.done.connect(lambda report: _on_supra_dossiers_done(win, report))
     worker.signals.fail.connect(lambda message: _on_supra_dossiers_failed(win, message))
+    _start_worker(win, worker)
+
+
+def _load_latest_supra(client: Any | None = None) -> dict[str, Any]:
+    """Recover the latest persisted SUPRA project through LIST + canonical GET."""
+    from ..integrations import SupraClient
+    from ..supra_dossier import cargar_ultimo_dossier
+
+    owned = client is None
+    supra = client or SupraClient()
+    try:
+        health = supra.health()
+        listed = supra.list_projects(limit=1)
+        if not listed.projects:
+            return {
+                "empty": True,
+                "endpoint": supra.config.endpoint,
+                "health": health.model_dump(),
+            }
+        newest = listed.projects[0]
+        project_id = (
+            newest.get("project_id")
+            if isinstance(newest, dict)
+            else getattr(newest, "project_id", "")
+        )
+        if not isinstance(project_id, str) or not project_id:
+            raise ValueError("SUPRA listó un proyecto sin project_id")
+        lookup = supra.get_project(project_id)
+        return {
+            "empty": False,
+            "endpoint": supra.config.endpoint,
+            "health": health.model_dump(),
+            "project_id": project_id,
+            "dossier": cargar_ultimo_dossier(),
+            "read": _supra_lookup_read(lookup),
+        }
+    finally:
+        if owned:
+            supra.close()
+
+
+def _on_supra_restore_done(win: Any, report: dict[str, Any]) -> None:
+    if report.get("empty"):
+        _activity(win, "blue", "SUPRA disponible · sin proyecto previo que recuperar")
+        return
+    candidates = getattr(win, "candidates", None)
+    dossier = report.get("dossier")
+    if candidates is not None:
+        if dossier:
+            candidates.dossier_output.setPlainText(
+                json.dumps(dossier, ensure_ascii=False, indent=2)
+            )
+        candidates.supra_output.setPlainText(
+            json.dumps(report, ensure_ascii=False, indent=2, default=str)
+        )
+        candidates.output_tabs.setCurrentWidget(candidates.supra_output)
+        candidates.show_state_only()
+    read = report["read"]
+    win.refs["ideaTitle"].setText(f"SUPRA recuperado · {report['project_id']}")
+    win.refs["ideaSummary"].setText(
+        f"Resultado PREVIO recuperado mediante GET de {_provenance_text(read)} · "
+        f"status {read['status']} · stage {read['stage']} · "
+        f"copia durable {_artifact_text(read)}"
+    )
+    set_chip(
+        win.refs["ideaEstadoChip"],
+        f"SUPRA previo {read['status']} · GET",
+        "exploracion",
+    )
+    win.nav["navSupra"].set_state("done", "resultado previo recuperado mediante GET")
+    _activity(
+        win,
+        "cyan",
+        f"Reapertura: proyecto {report['project_id']} recuperado mediante GET; "
+        f"fuente {read['status_source']}, artefacto {read['persisted_artifact_status']}",
+    )
+
+
+def _on_supra_restore_failed(win: Any, message: str) -> None:
+    _activity(win, "amber", f"No se pudo recuperar SUPRA al reabrir: {message[:120]}")
+    show_error(win, "Recuperación SUPRA", message)
+
+
+def on_restore_latest_supra(win: Any) -> None:
+    """Start non-blocking recovery after launcher connected the real endpoint."""
+    worker = Worker(_load_latest_supra)
+    worker.signals.done.connect(lambda report: _on_supra_restore_done(win, report))
+    worker.signals.fail.connect(lambda message: _on_supra_restore_failed(win, message))
     _start_worker(win, worker)
 
 
@@ -1163,23 +1504,7 @@ def _execute_supra_vertical(
             "health": health.model_dump(),
             "project_id": project_id,
             "post": posted.model_dump(),
-            "read": {
-                "status": lookup.status,
-                "status_scope": lookup.status_scope,
-                "completion_status": lookup.completion_status,
-                "workflow_status": lookup.workflow_status,
-                "verification_status": lookup.verification_status,
-                "scientific_status": lookup.scientific_status,
-                "secure_sandbox_status": lookup.secure_sandbox_status,
-                "criba_planning_receipt_status": lookup.criba_planning_receipt_status,
-                "criba_mechanism_execution_status": lookup.criba_mechanism_execution_status,
-                "status_source": lookup.status_source,
-                "persisted_artifact_status": lookup.persisted_artifact_status,
-                "stage": lookup.stage,
-                "receipt": lookup.posture.criba_dossier_receipt.model_dump()
-                if lookup.posture.criba_dossier_receipt
-                else None,
-            },
+            "read": _supra_lookup_read(lookup),
         }
     finally:
         if owned:
@@ -1245,6 +1570,10 @@ def _on_supra_vertical_done(win: Any, report: dict[str, Any]) -> None:
     # silencioso y la prueba pasaba igual, porque text() lee también lo oculto).
     candidates = getattr(win, "candidates", None)
     if candidates is not None:
+        candidates.supra_output.setPlainText(
+            json.dumps(report, ensure_ascii=False, indent=2, default=str)
+        )
+        candidates.output_tabs.setCurrentWidget(candidates.supra_output)
         candidates.show_state_only()
     _activity(
         win,
@@ -1292,6 +1621,13 @@ def on_supra_vertical(win: Any) -> None:
 
     # SUPRA persists projects across runs, so the id must be unique per slice.
     project_id = "astram2" + uuid.uuid4().hex[:10]
+    candidates = getattr(win, "candidates", None)
+    if candidates is not None:
+        candidates.dossier_output.setPlainText(
+            json.dumps(dossier, ensure_ascii=False, indent=2)
+        )
+        candidates.supra_output.clear()
+        candidates.output_tabs.setCurrentWidget(candidates.dossier_output)
     r = win.refs
     r["ideaSummary"].setText(
         f"Dossier {dossier['dossier_id']} preparado · enviando a SUPRA real ({project_id})…"

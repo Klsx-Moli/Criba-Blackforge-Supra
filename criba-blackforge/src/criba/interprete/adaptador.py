@@ -6,6 +6,7 @@ lanza un fallback que marca la idea como ``PENDIENTE`` (para reinterpretar
 después) sin romper el pipeline. El prefiltrado es siempre determinista y no
 requiere el modelo.
 """
+
 from __future__ import annotations
 
 import json
@@ -15,7 +16,7 @@ from typing import Any
 
 import httpx
 
-from .protocolo import PREGUNTAS, protocolo_para
+from .protocolo import protocolo_para
 
 log = logging.getLogger(__name__)
 
@@ -44,7 +45,10 @@ class LocalInterprete:
         payload = {
             "model": self.model,
             "messages": [
-                {"role": "system", "content": "Eres un interprete de serendipia epistemológica. Respondes solo JSON válido."},
+                {
+                    "role": "system",
+                    "content": "Eres un interprete de serendipia epistemológica. Respondes solo JSON válido.",
+                },
                 {"role": "user", "content": prompt},
             ],
             "temperature": 0.2,
@@ -76,7 +80,10 @@ class LocalInterprete:
             return self._offline_fallback(query, idea)
 
     def proponer(
-        self, query: str, idea: dict[str, Any], domain: dict[str, Any] | None = None,
+        self,
+        query: str,
+        idea: dict[str, Any],
+        domain: dict[str, Any] | None = None,
         evidence: list[dict[str, Any]] | None = None,
     ) -> dict[str, Any]:
         """Genera hipótesis con mecanismo a partir del cruce aplicado al problema.
@@ -87,9 +94,15 @@ class LocalInterprete:
         sin fabricar contenido: una plantilla nunca se presenta como propuesta.
         """
         if self._offline:
-            return {"estado": "PENDIENTE_INTERPRETACION", "hipotesis": "",
-                    "mecanismo": "", "aportacion_por_tecnica": [], "supuestos": [],
-                    "prueba_concreta": "", "error": "sin NOUS_API_KEY"}
+            return {
+                "estado": "PENDIENTE_INTERPRETACION",
+                "hipotesis": "",
+                "mecanismo": "",
+                "aportacion_por_tecnica": [],
+                "supuestos": [],
+                "prueba_concreta": "",
+                "error": "sin NOUS_API_KEY",
+            }
         domain_title = str((domain or {}).get("title") or "general")
         evidence_block = ""
         for i, ev in enumerate((evidence or [])[:3], 1):
@@ -109,19 +122,21 @@ class LocalInterprete:
             for i, lec in enumerate((bloqueo.get("lecciones_previas") or [])[:3], 1):
                 lecciones += f"  {i}. {str(lec)[:200]}\n"
             if lecciones:
-                lecciones = ("RESULTADOS PREVIOS REGISTRADOS (pueden cambiar la "
-                             "decisión; cítalos si los usas):\n" + lecciones)
+                lecciones = (
+                    "RESULTADOS PREVIOS REGISTRADOS (pueden cambiar la "
+                    "decisión; cítalos si los usas):\n" + lecciones
+                )
             bloqueo_block = f"""
 
-BLOQUEO IDENTIFICADO (origen declarado: {bloqueo.get('origen_bloqueo', 'hipotesis')}):
-{str(bloqueo.get('bloqueo'))[:400]}
-Explicación: {str(bloqueo.get('explicacion_bloqueo', ''))[:300]}
-Resultado buscado: {str(bloqueo.get('resultado_buscado', ''))[:200]}
+BLOQUEO IDENTIFICADO (origen declarado: {bloqueo.get("origen_bloqueo", "hipotesis")}):
+{str(bloqueo.get("bloqueo"))[:400]}
+Explicación: {str(bloqueo.get("explicacion_bloqueo", ""))[:300]}
+Resultado buscado: {str(bloqueo.get("resultado_buscado", ""))[:200]}
 {lecciones}
 Tu propuesta debe atacar ESTA relación concreta. Cuando el bloqueo lo permita,
 elige y declara UNA ruta de desbloqueo entre: eliminar_necesidad |
 sustituir_mecanismo | desacoplar_dependencia. No cuestiones las restricciones
-obligatorias: {str(bloqueo.get('restricciones_obligatorias', []))[:200]}.
+obligatorias: {str(bloqueo.get("restricciones_obligatorias", []))[:200]}.
 Añade "ruta_desbloqueo" al JSON con la ruta elegida y su justificación."""
         prompt = f"""Aplica el cruce de técnicas a este problema concreto.
 
@@ -129,9 +144,9 @@ PROBLEMA: {query}
 DOMINIO DE ACOPLAMIENTO: {domain_title}
 
 CRUCE (dos operadores):
-Técnica A: {idea.get('method1', idea.get('title', ''))}
-Técnica B: {idea.get('method2', '')}
-Título del cruce: {idea.get('title', '')}
+Técnica A: {idea.get("method1", idea.get("title", ""))}
+Técnica B: {idea.get("method2", "")}
+Título del cruce: {idea.get("title", "")}
 {bloqueo_block}{evidence_block}
 Responde ÚNICAMENTE con JSON válido (nada de markdown) con esta estructura:
 {{
@@ -147,16 +162,25 @@ de las técnicas. Si el cruce no produce nada pertinente, dilo en hipótesis."""
         payload = {
             "model": self.model,
             "messages": [
-                {"role": "system", "content": "Eres un intérprete de cruces de técnicas. Respondes solo JSON válido."},
+                {
+                    "role": "system",
+                    "content": "Eres un intérprete de cruces de técnicas. Respondes solo JSON válido.",
+                },
                 {"role": "user", "content": prompt},
             ],
             "temperature": 0.2,
             "max_tokens": 2048,
         }
         headers = {"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"}
-        pending = {"estado": "PENDIENTE_INTERPRETACION", "hipotesis": "",
-                   "mecanismo": "", "aportacion_por_tecnica": [], "supuestos": [],
-                   "prueba_concreta": "", "error": ""}
+        pending = {
+            "estado": "PENDIENTE_INTERPRETACION",
+            "hipotesis": "",
+            "mecanismo": "",
+            "aportacion_por_tecnica": [],
+            "supuestos": [],
+            "prueba_concreta": "",
+            "error": "",
+        }
         try:
             with httpx.Client(timeout=TIMEOUT) as client:
                 resp = client.post(f"{self.base}/chat/completions", json=payload, headers=headers)
@@ -199,18 +223,27 @@ de las técnicas. Si el cruce no produce nada pertinente, dilo en hipótesis."""
         if any(w in text for w in ("contraintuit", "invertir", "al revés", "opuesto")):
             labels.append("contraintuitivo")
         local_vocab = {
-            "imposible": "arriesgado", "utópico": "arriesgado",
-            "absurdo": "arriesgado", "no obvio": "serendipia_forzada",
+            "imposible": "arriesgado",
+            "utópico": "arriesgado",
+            "absurdo": "arriesgado",
+            "no obvio": "serendipia_forzada",
         }
         for term, label in local_vocab.items():
             if term in text and label not in labels:
                 labels.append(label)
         if "arriesgado" in labels and dh >= 0.7:
             labels.append("serendipia_forzada")
-        score = round(0.5 + 0.15 * len(moved) + 0.1 * (1 if "novedad_fronteriza" in labels else 0), 3)
+        score = round(
+            0.5 + 0.15 * len(moved) + 0.1 * (1 if "novedad_fronteriza" in labels else 0), 3
+        )
         score = min(0.99, score)
         verdict = "tangible"
-        for priority in ("novedad_fronteriza", "contraintuitivo", "serendipia_forzada", "arriesgado"):
+        for priority in (
+            "novedad_fronteriza",
+            "contraintuitivo",
+            "serendipia_forzada",
+            "arriesgado",
+        ):
             if priority in labels:
                 verdict = priority
                 break
@@ -226,15 +259,15 @@ de las técnicas. Si el cruce no produce nada pertinente, dilo en hipótesis."""
 
     def _build_prompt(self, query: str, idea: dict[str, Any], protocolo: dict[str, Any]) -> str:
         preguntas = [p["pregunta"] for p in protocolo["preguntas"]]
-        preguntas_texto = "\n".join(f"{i+1}. {p}" for i, p in enumerate(preguntas))
+        preguntas_texto = "\n".join(f"{i + 1}. {p}" for i, p in enumerate(preguntas))
         return f"""Analiza esta idea bajo el protocolo de expansión epistemológica.
 
 QUERY ORIGINAL: {query}
-IDEA: {idea.get('title', 'N/A')}
-DESCRIPCIÓN: {idea.get('description', 'N/A')}
-MECANISMO CAUSAL: {idea.get('mechanism_causal', 'N/A')}
-EJES CAUSALES MUTADOS: {idea.get('causal_axes_changed', [])}
-DOMINIO: {idea.get('domain', 'general')}
+IDEA: {idea.get("title", "N/A")}
+DESCRIPCIÓN: {idea.get("description", "N/A")}
+MECANISMO CAUSAL: {idea.get("mechanism_causal", "N/A")}
+EJES CAUSALES MUTADOS: {idea.get("causal_axes_changed", [])}
+DOMINIO: {idea.get("domain", "general")}
 
 Responde ÚNICAMENTE con JSON válido (nada de markdown) con esta estructura:
 {{
@@ -299,7 +332,10 @@ PREGUNTAS DE EXPANSIÓN:
         payload = {
             "model": self.model,
             "messages": [
-                {"role": "system", "content": "Eres un interprete de serendipia epistemológica. Respondes solo JSON válido."},
+                {
+                    "role": "system",
+                    "content": "Eres un interprete de serendipia epistemológica. Respondes solo JSON válido.",
+                },
                 {"role": "user", "content": self._build_prompt(query, idea, protocolo)},
             ],
             "temperature": 0.2,

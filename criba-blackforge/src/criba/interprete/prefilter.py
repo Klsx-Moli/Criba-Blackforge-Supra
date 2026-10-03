@@ -9,14 +9,15 @@ garantiza que las candidatas tengan tangibilidad causal real:
 
 NO promete EXTRAORDINARIA: promete candidatos con tangibilidad causal.
 """
+
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 from typing import Any
 
 from criba.core.adjacent_possible import (
-    AdjacentPossibleGovernor,
     SOTA_TABOO_PATTERNS,
+    AdjacentPossibleGovernor,
 )
 
 
@@ -93,8 +94,7 @@ class PreFilter:
             v = sota_taboo_violations(idea)
             if v:
                 tabu_rejected += 1
-                dropped.append({"id": idea.get("id"), "reason": "sota_taboo",
-                                "violations": v[:3]})
+                dropped.append({"id": idea.get("id"), "reason": "sota_taboo", "violations": v[:3]})
                 continue
             # 2. Dh governor (rango causal [0.45, 0.85])
             dh = dh_out_of_range(idea)

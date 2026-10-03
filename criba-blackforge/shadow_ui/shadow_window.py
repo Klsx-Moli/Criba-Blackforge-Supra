@@ -7,27 +7,48 @@ Estructura exacta de la imagen de referencia:
 """
 from __future__ import annotations
 
+import math
+import random
 from pathlib import Path
 from typing import Any
-
-from PySide6.QtCore import QPoint, QPointF, QRectF, Qt
-from PySide6.QtGui import (
-    QColor, QFont, QIcon, QLinearGradient, QPainter, QPainterPath, QPen,
-    QPixmap, QPolygonF,
-)
-from PySide6.QtWidgets import (
-    QAbstractItemView, QApplication, QComboBox, QFrame, QGraphicsDropShadowEffect,
-    QGridLayout, QHBoxLayout, QLabel, QLineEdit, QMainWindow, QMenu, QPushButton,
-    QScrollArea, QSplitter, QTabWidget, QTableView, QVBoxLayout,
-    QWidget, QHeaderView,
-)
 
 import criba.ui.actions as actions
 from criba.ui.i18n import on_change as _i18n_on_change
 from criba.ui.i18n import t as _t
 from criba.ui.i18n import toggle as _i18n_toggle
 from criba.ui.ranking import RankingModel
-
+from PySide6.QtCore import QPoint, QPointF, QRectF, Qt
+from PySide6.QtGui import (
+    QColor,
+    QIcon,
+    QLinearGradient,
+    QPainter,
+    QPainterPath,
+    QPen,
+    QPixmap,
+    QPolygonF,
+)
+from PySide6.QtWidgets import (
+    QAbstractItemView,
+    QComboBox,
+    QFrame,
+    QGraphicsDropShadowEffect,
+    QGridLayout,
+    QHBoxLayout,
+    QHeaderView,
+    QLabel,
+    QLineEdit,
+    QMainWindow,
+    QMenu,
+    QPlainTextEdit,
+    QPushButton,
+    QScrollArea,
+    QSplitter,
+    QTableView,
+    QTabWidget,
+    QVBoxLayout,
+    QWidget,
+)
 from shadow_context import (
     ShadowActionContext,
     ShadowRankingProxy,
@@ -182,7 +203,9 @@ def build_shadow_qss() -> str:
         background: {BG_CARD}; color: {TEXT_SUB}; padding: 7px 18px;
         font-size: 12px; border: 1px solid {BORDER}; border-radius: 6px; margin-right: 6px;
     }}
-    QTabBar::tab:selected {{ color: {ACCENT}; border-color: {BORDER_ACTIVE}; background: {ACCENT_SOFT}; }}
+    QTabBar::tab:selected {{
+        color: {ACCENT}; border-color: {BORDER_ACTIVE}; background: {ACCENT_SOFT};
+    }}
     QTabBar::tab:hover {{ color: {TEXT}; }}
     QTableWidget, QTableView {{
         background: transparent; border: none; gridline-color: transparent;
@@ -199,6 +222,12 @@ def build_shadow_qss() -> str:
         padding: 10px 16px; color: {TEXT}; font-size: 13px;
     }}
     QLineEdit:focus {{ border-color: {BORDER_ACTIVE}; }}
+    QPlainTextEdit {{
+        background: {BG_INPUT}; border: 1px solid {BORDER}; border-radius: 6px;
+        padding: 8px; color: {TEXT_SUB};
+        font-family: 'Cascadia Code', 'Consolas', monospace; font-size: 11px;
+    }}
+    QPlainTextEdit:focus {{ border-color: {BORDER_ACTIVE}; }}
     QScrollArea {{ border: none; background: transparent; }}
     QSplitter::handle {{ background: {BORDER}; width: 1px; }}
     """
@@ -241,23 +270,22 @@ def _paint_landscape(w: int, h: int) -> QPixmap:
     grad.setColorAt(0.6, QColor("#0A141E"))
     grad.setColorAt(1, QColor("#0A1E1E"))
     p.fillRect(0, 0, w, h, grad)
-    import math
     for layer, (color, y_off, alpha) in enumerate([
         ("#0C1A20", 0.50, 0.5), ("#0E2428", 0.65, 0.7),
         ("#0A2A24", 0.78, 0.9), ("#082220", 0.90, 1.0),
     ]):
-        c = QColor(color); c.setAlphaF(alpha)
-        p.setBrush(c); p.setPen(Qt.PenStyle.NoPen)
+        c = QColor(color)
+        c.setAlphaF(alpha)
+        p.setBrush(c)
+        p.setPen(Qt.PenStyle.NoPen)
         pts = [(0, h)]
         for i in range(w + 1):
             y = h * y_off + math.sin(i * 0.015 + layer * 2.5) * h * 0.07 \
                 + math.sin(i * 0.004 + layer) * h * 0.04
             pts.append((i, y))
         pts.append((w, h))
-        from PySide6.QtGui import QPolygonF
-        from PySide6.QtCore import QPointF
         p.drawPolygon(QPolygonF([QPointF(x, y) for x, y in pts]))
-    import random; random.seed(7)
+    random.seed(7)
     p.setPen(QColor(ACCENT))
     for _ in range(30):
         x, y = random.randint(0, w), random.randint(int(h * 0.4), h - 2)
@@ -459,7 +487,7 @@ class _ClickableCard(QFrame):
 
 
 class SidebarWidget(QWidget):
-    def __init__(self, win: "ShadowWindow") -> None:
+    def __init__(self, win: ShadowWindow) -> None:
         super().__init__()
         self.win = win
         self.setFixedWidth(264)
@@ -471,14 +499,23 @@ class SidebarWidget(QWidget):
         logo_row = QHBoxLayout()
         logo_row.setContentsMargins(14, 16, 14, 4)
         hex_l = QLabel("⟨C⟩")
-        hex_l.setStyleSheet(f"color: {ACCENT}; font-size: 26px; font-weight: 800; background: transparent;")
+        hex_l.setStyleSheet(
+            f"color: {ACCENT}; font-size: 26px; font-weight: 800; "
+            "background: transparent;"
+        )
         logo_row.addWidget(hex_l)
         name_box = QVBoxLayout()
         name_l = QLabel("CRIBA")
-        name_l.setStyleSheet(f"font-size: 18px; font-weight: 800; color: {TEXT}; letter-spacing: 3px; background: transparent;")
+        name_l.setStyleSheet(
+            f"font-size: 18px; font-weight: 800; color: {TEXT}; "
+            "letter-spacing: 3px; background: transparent;"
+        )
         name_box.addWidget(name_l)
         sub_l = QLabel("DESCUBRIR PARA DECIDIR")
-        sub_l.setStyleSheet(f"font-size: 6px; color: {TEXT_MUTED}; letter-spacing: 2px; background: transparent;")
+        sub_l.setStyleSheet(
+            f"font-size: 6px; color: {TEXT_MUTED}; letter-spacing: 2px; "
+            "background: transparent;"
+        )
         bind_text(sub_l, "shadow.brand_sub")
         name_box.addWidget(sub_l)
         logo_row.addLayout(name_box)
@@ -486,21 +523,27 @@ class SidebarWidget(QWidget):
 
         # Nav (8 botones)
         self.buttons: dict[str, QPushButton] = {}
-        for i, (key, glyph, key_label, key_sub) in enumerate(NAV_ITEMS):
+        for i, (key, glyph, key_label, _key_sub) in enumerate(NAV_ITEMS):
             btn = QPushButton(f"{glyph}  {_t(key_label)}")
             bind_glyph(btn, f"{glyph}  ", key_label)
             # el glyph cian se estiliza via QSS
             btn.setCursor(Qt.CursorShape.PointingHandCursor)
             btn.setFixedHeight(42)
             if i == 0:
-                btn.setStyleSheet(f"QPushButton {{ text-align: left; padding: 0 18px;"
+                btn.setStyleSheet(
+                    f"QPushButton {{ text-align: left; padding: 0 18px;"
                     f"border-left: 3px solid {ACCENT}; background: {ACCENT_SOFT};"
-                    f"color: {ACCENT}; font-weight: 600; font-size: 12px; border-radius: 0; }}")
+                    f"color: {ACCENT}; font-weight: 600; font-size: 12px; "
+                    "border-radius: 0; }"
+                )
             else:
-                btn.setStyleSheet(f"QPushButton {{ text-align: left; padding: 0 18px;"
-                    f"border: none; border-left: 3px solid transparent;"
-                    f"color: {TEXT_SUB}; font-size: 12px; border-radius: 0; background: transparent; }}"
-                    f"QPushButton:hover {{ color: {TEXT}; background: {ACCENT_SOFT}; }}")
+                btn.setStyleSheet(
+                    "QPushButton { text-align: left; padding: 0 18px;"
+                    "border: none; border-left: 3px solid transparent;"
+                    f"color: {TEXT_SUB}; font-size: 12px; border-radius: 0; "
+                    "background: transparent; }"
+                    f"QPushButton:hover {{ color: {TEXT}; background: {ACCENT_SOFT}; }}"
+                )
             btn.clicked.connect(lambda checked, k=key: self.win._nav(k))
             lay.addWidget(btn)
             self.buttons[key] = btn
@@ -531,7 +574,10 @@ class SidebarWidget(QWidget):
         bf_info = QVBoxLayout()
         bf_info.setSpacing(1)
         bf_name = QLabel("BLACKFORGE")
-        bf_name.setStyleSheet(f"font-size: 9px; font-weight: 700; color: {TEXT}; background: transparent;")
+        bf_name.setStyleSheet(
+            f"font-size: 9px; font-weight: 700; color: {TEXT}; "
+            "background: transparent;"
+        )
         bf_info.addWidget(bf_name)
         bf_sub = QLabel("Espacio especializado")
         bf_sub.setStyleSheet(f"font-size: 7px; color: {TEXT_SUB}; background: transparent;")
@@ -554,7 +600,7 @@ class SidebarWidget(QWidget):
 # ---------------------------------------------------------------------------
 
 class HeaderWidget(QWidget):
-    def __init__(self, win: "ShadowWindow") -> None:
+    def __init__(self, win: ShadowWindow) -> None:
         super().__init__()
         self.win = win
         lay = QHBoxLayout(self)
@@ -569,7 +615,10 @@ class HeaderWidget(QWidget):
         self.prob_label = prob_label
         prob_box.addWidget(prob_label)
         self.problem_input = QLineEdit()
-        self.problem_input.setPlaceholderText("Reducir el impacto de las baterías sin aumentar el coste ni comprometer el suministro.")
+        self.problem_input.setPlaceholderText(
+            "Reducir el impacto de las baterías sin aumentar el coste ni "
+            "comprometer el suministro."
+        )
         bind_placeholder(self.problem_input, "shadow.problema.placeholder")
         self.problem_input.setFixedHeight(42)
         # §16: el input es un BORRADOR explícito; no crea estado científico por sí
@@ -703,7 +752,7 @@ class HeaderWidget(QWidget):
 # ---------------------------------------------------------------------------
 
 class TopCardsWidget(QWidget):
-    def __init__(self, win: "ShadowWindow") -> None:
+    def __init__(self, win: ShadowWindow) -> None:
         super().__init__()
         self.win = win
         lay = QHBoxLayout(self)
@@ -740,6 +789,30 @@ class TopCardsWidget(QWidget):
         motor_lbl = QLabel("⚙ Motor determinista")
         bind_text(motor_lbl, "shadow.motor")
         l2.addWidget(motor_lbl)
+        selector_row = QHBoxLayout()
+        selector_label = QLabel("Intérprete:")
+        selector_label.setProperty("caption", True)
+        selector_row.addWidget(selector_label)
+        self.interpreter_selector = QComboBox()
+        # El local no aparece como opción: hoy no implementa una interpretación
+        # real. Exponerlo como seleccionable convertiría un stub en capacidad.
+        self.interpreter_selector.addItem(
+            "Nous/Hermes OAuth · Space Bunny", "openai_compatible"
+        )
+        selector_row.addWidget(self.interpreter_selector, stretch=1)
+        l2.addLayout(selector_row)
+        self.interpreter_status = QLabel(
+            "Nous/Hermes: se comprobará al ejecutar · "
+            "Local: no implementado/no verificado"
+        )
+        self.interpreter_status.setWordWrap(True)
+        self.interpreter_status.setProperty("caption", True)
+        l2.addWidget(self.interpreter_status)
+        self.cancel_interpretation = QPushButton("Cancelar interpretación")
+        self.cancel_interpretation.setProperty("ghost", True)
+        self.cancel_interpretation.clicked.connect(lambda: actions.on_cancel_inventar(win))
+        self.cancel_interpretation.hide()
+        l2.addWidget(self.cancel_interpretation)
         self.cand_label = QLabel("⬡ 0 candidatos")
         # El contador lo actualiza shadow_context; la propiedad permite
         # reconstruir el texto en el idioma activo sin perder el número.
@@ -780,7 +853,10 @@ class TopCardsWidget(QWidget):
         bind_text(score_label, "shadow.mejor_score")
         score_row.addWidget(score_label)
         score_val = QLabel("")
-        score_val.setStyleSheet(f"font-size: 28px; font-weight: 800; color: {ACCENT}; background: transparent;")
+        score_val.setStyleSheet(
+            f"font-size: 28px; font-weight: 800; color: {ACCENT}; "
+            "background: transparent;"
+        )
         self.score_val = score_val
         self.set_score_unknown()
         score_row.addWidget(score_val)
@@ -838,7 +914,7 @@ class TopCardsWidget(QWidget):
 
 
 class CandidatesWidget(QWidget):
-    def __init__(self, win: "ShadowWindow") -> None:
+    def __init__(self, win: ShadowWindow) -> None:
         super().__init__()
         self.win = win
         lay = QVBoxLayout(self)
@@ -906,7 +982,10 @@ class CandidatesWidget(QWidget):
         d_header.addWidget(icon)
         d_info = QVBoxLayout()
         sel_label = QLabel("Idea seleccionada")
-        sel_label.setStyleSheet(f"color: {SUCCESS}; font-size: 10px; font-weight: 600; background: transparent;")
+        sel_label.setStyleSheet(
+            f"color: {SUCCESS}; font-size: 10px; font-weight: 600; "
+            "background: transparent;"
+        )
         bind_text(sel_label, "shadow.idea_sel")
         self.detail_caption = sel_label
         d_info.addWidget(sel_label)
@@ -935,6 +1014,33 @@ class CandidatesWidget(QWidget):
         d_title.setStyleSheet(mono_qss)
         d_desc.setStyleSheet(mono_qss + f" color: {TEXT_SUB};")
         d_lay.addWidget(d_desc)
+
+        # Resultados completos y copiables. Se mantienen separados para no
+        # confundir salida del modelo, interpretación CRIBA, dossier y estado
+        # recuperado de SUPRA.
+        self.output_tabs = QTabWidget()
+        self.output_tabs.setDocumentMode(True)
+        self.raw_output = QPlainTextEdit()
+        self.raw_output.setReadOnly(True)
+        self.raw_output.setPlaceholderText("Sin salida bruta todavía")
+        self.interpretation_output = QPlainTextEdit()
+        self.interpretation_output.setReadOnly(True)
+        self.interpretation_output.setPlaceholderText("Sin interpretación todavía")
+        self.dossier_output = QPlainTextEdit()
+        self.dossier_output.setReadOnly(True)
+        self.dossier_output.setPlaceholderText("Sin dossier todavía")
+        self.supra_output = QPlainTextEdit()
+        self.supra_output.setReadOnly(True)
+        self.supra_output.setPlaceholderText("Sin estado SUPRA recuperado todavía")
+        for label, widget in (
+            ("Salida bruta", self.raw_output),
+            ("Interpretación", self.interpretation_output),
+            ("Dossier", self.dossier_output),
+            ("SUPRA / GET", self.supra_output),
+        ):
+            widget.setMinimumHeight(150)
+            self.output_tabs.addTab(widget, label)
+        d_lay.addWidget(self.output_tabs)
         d_btn = QHBoxLayout()
         d_btn.addStretch()
         ver_todas = QPushButton("Ver todas las ideas  →")
@@ -981,7 +1087,7 @@ class CandidatesWidget(QWidget):
 # ---------------------------------------------------------------------------
 
 class RightPanelWidget(QWidget):
-    def __init__(self, win: "ShadowWindow") -> None:
+    def __init__(self, win: ShadowWindow) -> None:
         super().__init__()
         self.win = win
         lay = QVBoxLayout(self)
@@ -989,18 +1095,27 @@ class RightPanelWidget(QWidget):
         lay.setSpacing(10)
 
         # Fuentes y evidencia
-        f1, l1 = _card("Fuentes y evidencia", "clipboard",
-                       i18n="shadow.card.fuentes_evidencia")
-        for key_label, key_value in [("shadow.refs", "0"), ("shadow.pruebas", "shadow.no_ejecutadas"),
-                                     ("shadow.resultados", "shadow.no_disponible")]:
+        f1, l1 = _card(
+            "Fuentes y evidencia", "clipboard", i18n="shadow.card.fuentes_evidencia"
+        )
+        for key_label, key_value in [
+            ("shadow.refs", "0"),
+            ("shadow.pruebas", "shadow.no_ejecutadas"),
+            ("shadow.resultados", "shadow.no_disponible"),
+        ]:
             row = QHBoxLayout()
-            lbl = QLabel(_t(key_label)); lbl.setProperty("caption", True); lbl.setWordWrap(True)
+            lbl = QLabel(_t(key_label))
+            lbl.setProperty("caption", True)
+            lbl.setWordWrap(True)
             bind_text(lbl, key_label)
             row.addWidget(lbl)
-            val = QLabel(key_value); val.setProperty("muted", True); val.setWordWrap(True)
+            val = QLabel(key_value)
+            val.setProperty("muted", True)
+            val.setWordWrap(True)
             if key_value.startswith("shadow."):
                 bind_text(val, key_value)
-            row.addWidget(val); row.addStretch()
+            row.addWidget(val)
+            row.addStretch()
             l1.addLayout(row)
         banner = QHBoxLayout()
         # §20: aquí NO se inventa un error de fuente. Los errores reales van al
@@ -1010,22 +1125,29 @@ class RightPanelWidget(QWidget):
         warn.setStyleSheet(f"color: {WARNING}; font-size: 11px; background: transparent;")
         warn.hide()
         banner.addWidget(warn, stretch=1)
-        cerrar = QPushButton("Cerrar"); cerrar.setFixedHeight(22)
+        cerrar = QPushButton("Cerrar")
+        cerrar.setFixedHeight(22)
         bind_text(cerrar, "shadow.cerrar")
-        cerrar.setStyleSheet(f"font-size: 10px; padding: 2px 10px; background: {BG_CARD}; border: 1px solid {BORDER}; border-radius: 4px; color: {TEXT_SUB};")
+        cerrar.setStyleSheet(
+            f"font-size: 10px; padding: 2px 10px; background: {BG_CARD}; "
+            f"border: 1px solid {BORDER}; border-radius: 4px; color: {TEXT_SUB};"
+        )
         cerrar.hide()
         banner.addWidget(cerrar)
         l1.addLayout(banner)
         cerrar.clicked.connect(lambda: (warn.hide(), cerrar.hide()))
         supra = QPushButton("⚛ Desarrollar con SUPRA")
-        supra.setProperty("success", True); supra.setFixedHeight(36)
+        supra.setProperty("success", True)
+        supra.setFixedHeight(36)
         bind_text(supra, "shadow.supra_btn")
         self.supra = supra
+        supra.setEnabled(False)
         supra.clicked.connect(lambda: actions.on_desarrollar_supra(win))
         l1.addWidget(supra)
         note = QLabel("Prepara dossiers de la sesión. Ejecución pendiente.")
         note.setWordWrap(True)
-        note.setProperty("caption", True); note.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        note.setProperty("caption", True)
+        note.setAlignment(Qt.AlignmentFlag.AlignCenter)
         bind_text(note, "shadow.supra_nota")
         l1.addWidget(note)
         # M2 · slice vertical REAL: núcleo determinista -> dossier -> SUPRA real
@@ -1089,7 +1211,7 @@ class RightPanelWidget(QWidget):
 # ---------------------------------------------------------------------------
 
 class FooterWidget(QWidget):
-    def __init__(self, win: "ShadowWindow | None" = None) -> None:
+    def __init__(self, win: ShadowWindow | None = None) -> None:
         super().__init__()
         self.win = win
         self.setFixedHeight(40)
@@ -1115,7 +1237,10 @@ class FooterWidget(QWidget):
         lay.addWidget(self.sources_block)
         lay.addStretch()
         lema = QLabel("CIENCIA  //  RIGOR  //  IMPACTO REAL")
-        lema.setStyleSheet(f"font-size: 9px; color: {TEXT_MUTED}; letter-spacing: 2px; background: transparent;")
+        lema.setStyleSheet(
+            f"font-size: 9px; color: {TEXT_MUTED}; letter-spacing: 2px; "
+            "background: transparent;"
+        )
         bind_text(lema, "shadow.lema")
         lay.addWidget(lema)
         self.refresh_model_state()
@@ -1220,11 +1345,13 @@ class ShadowWindow(QMainWindow):
         right_lay.addWidget(self.topcards)
 
         content_splitter = QSplitter(Qt.Orientation.Horizontal)
-        center_scroll = QScrollArea(); center_scroll.setWidgetResizable(True)
+        center_scroll = QScrollArea()
+        center_scroll.setWidgetResizable(True)
         self.candidates = CandidatesWidget(self)
         center_scroll.setWidget(self.candidates)
         content_splitter.addWidget(center_scroll)
-        right_scroll = QScrollArea(); right_scroll.setWidgetResizable(True)
+        right_scroll = QScrollArea()
+        right_scroll.setWidgetResizable(True)
         self.right_panel = RightPanelWidget(self)
         right_scroll.setWidget(self.right_panel)
         content_splitter.addWidget(right_scroll)
@@ -1308,6 +1435,7 @@ class ShadowWindow(QMainWindow):
     _SHADOW_STATE = frozenset({
         "store", "packet", "problem", "saved_ids", "sources_updated_at",
         "invent_sheet", "sources_report", "_live_workers", "_progress_label",
+        "interpreter_cancel_requested",
     })
 
     def __setattr__(self, name: str, value: Any) -> None:

@@ -13,6 +13,7 @@ el modelo solo interpreta candidatas ya prevalidadas causalmente. En fallo de
 plan (429) o red, la idea se marca PENDIENTE_PLAN y se reinterpreta en el
 próximo ciclo sin bloquear el pipeline.
 """
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
@@ -32,7 +33,7 @@ class JuezInterprete:
         self,
         api_key: str | None = None,
         model: str = "glm-5.3-flash",
-        storage: "Storage | None" = None,
+        storage: Storage | None = None,
     ) -> None:
         self.prefilter = PreFilter(top_n=12, strict=bool(api_key))
         self.adaptador = CloudInterprete(api_key, model) if api_key else LocalInterprete()
@@ -65,8 +66,11 @@ class JuezInterprete:
             if self.store:
                 modelo = self.adaptador.model
                 reg = self.store.record_decision(
-                    activation_id=activation_id, idea=idea,
-                    modelo=modelo, run_id=run_id, seed=seed,
+                    activation_id=activation_id,
+                    idea=idea,
+                    modelo=modelo,
+                    run_id=run_id,
+                    seed=seed,
                 )
                 idea["_registro"] = reg
             else:
@@ -75,8 +79,10 @@ class JuezInterprete:
             resultados.append(idea)
 
         resultados.sort(
-            key=lambda x: (x.get("interprete_score", 0.0),
-                           x.get("convergence", {}).get("value_score", 0.0)),
+            key=lambda x: (
+                x.get("interprete_score", 0.0),
+                x.get("convergence", {}).get("value_score", 0.0),
+            ),
             reverse=True,
         )
         return {

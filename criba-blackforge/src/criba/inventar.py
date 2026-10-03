@@ -28,9 +28,10 @@ from __future__ import annotations
 import hashlib
 import json
 import os
-from datetime import datetime, timezone
+from collections.abc import Callable
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 from .catalog import methods as catalog_methods
 from .intelligence.contracts import InventionCandidate, SourceQueryResult
@@ -80,7 +81,7 @@ def _stable_run_id(query: str, seed: int) -> str:
 
     Sustituye a ``hash()`` de Python (aleatorio entre procesos).
     """
-    digest = hashlib.sha256(f"{seed}|{query}".encode("utf-8")).hexdigest()[:12]
+    digest = hashlib.sha256(f"{seed}|{query}".encode()).hexdigest()[:12]
     return f"invent-{seed}-{digest}"
 
 
@@ -90,20 +91,53 @@ def _default_proponer(
     domain: dict[str, Any] | None,
     offline: bool = False,
     evidence: list[dict[str, Any]] | None = None,
+    *,
+    interprete: Any | None = None,
+    backend: str | None = None,
 ) -> dict[str, Any]:
     """Ruta real de propuesta. Con ``offline=True`` nunca toca la red.
 
-    La comprobación vive AQUÍ y no solo dentro de ``LocalInterprete`` (cuyo
-    estado depende de NOUS_API_KEY): el modo offline del comando debe bloquear
-    la propuesta aunque haya credenciales configuradas. ``evidence`` (documentos
-    locales pertinentes) se entrega al intérprete, no solo se archiva.
+    Aqui vive el punto unico de integracion del interprete. Antes llamaba a
+    ``LocalInterprete`` a pelo, que era en realidad un cliente de Nous Portal
+    sin alternativa: sin ``NOUS_API_KEY`` toda propuesta salia
+    PENDIENTE_INTERPRETACION, el dossier era inalcanzable y no habia forma de
+    interpretar con otro backend. Ahora la eleccion pasa por el puerto, y el
+    resultado vuelve con la misma forma de campos que el loop ya consumia.
+
+    El modo offline se comprueba ANTES de construir el interprete, para que el
+    comando offline bloquee la propuesta aunque haya endpoint configurado.
+    ``evidence`` (documentos locales pertinentes) se entrega al interprete, no
+    solo se archiva.
+
+    Ninguna excepcion escapa: una propuesta nunca rompe el loop de candidatos.
     """
     if offline:
         return _pending_proposal("modo offline")
     try:
-        return LocalInterprete().proponer(query, idea, domain, evidence)
+        from .interprete.seleccion import construir_interprete
+
+        try:
+            active_interpreter = interprete or construir_interprete(backend)
+        except ValueError as exc:
+            # Un backend mal configurado se dice con su mensaje, no con el
+            # nombre de la excepcion: "backend desconocido: 'x'" es accionable
+            # y "proposal_failed:ValueError" no lo es.
+            return _pending_proposal(str(exc))
+        resultado = active_interpreter.proponer(query, idea, domain, evidence)
     except Exception as exc:  # noqa: BLE001 - la propuesta nunca rompe el loop
         return _pending_proposal(f"proposal_failed:{type(exc).__name__}")
+    campos = resultado.to_campos()
+    # La procedencia viaja con la propuesta. Si el loop la descarta, sigue
+    # siendo recuperable desde el ledger, pero no se pierde al construirla.
+    if resultado.provenance is not None:
+        campos["interpretacion_provenance"] = resultado.provenance.sin_secretos()
+    campos["interpretacion_raw_output"] = resultado.raw_output
+    campos["interpretacion_finish_reason"] = resultado.finish_reason
+    campos["interpretacion_usage"] = {
+        "completion_tokens": resultado.completion_tokens,
+        "reasoning_tokens": resultado.reasoning_tokens,
+    }
+    return campos
 
 
 def _judge(query: str, idea: dict[str, Any], offline: bool) -> dict[str, Any]:
@@ -472,6 +506,12 @@ def invent(
             "prueba_concreta": proposal.get("prueba_concreta", ""),
             "ruta_desbloqueo": proposal.get("ruta_desbloqueo", ""),
             "interpretacion_error": proposal.get("error", ""),
+            "interpretacion_raw_output": proposal.get("interpretacion_raw_output", ""),
+            "interpretacion_finish_reason": proposal.get("interpretacion_finish_reason", ""),
+            "interpretacion_usage": dict(proposal.get("interpretacion_usage") or {}),
+            "interpretacion_provenance": dict(
+                proposal.get("interpretacion_provenance") or {}
+            ),
             "evidence_retrieved": local_evidence,
             "evidence_delivered": local_evidence,
             "evidence_documented_as_used": documented_evidence,
@@ -547,7 +587,10 @@ def invent(
             entries[idx] = sustituto_entry
         else:
             motivo = "sustituto sin propuesta válida o aún duplicado"
-            if sustituto_entry["estado_interpretacion"] == "PROPUESTA" and sustituto_entry["mecanismo"]:
+            if (
+                sustituto_entry["estado_interpretacion"] == "PROPUESTA"
+                and sustituto_entry["mecanismo"]
+            ):
                 motivo = "sustituto aún duplicado o incomparable (UNKNOWN no descarta)"
             intentos.append({
                 "reemplazado_id": entry["candidate_id"],
@@ -628,7 +671,7 @@ def invent(
             "dossier_lessons_enabled": bool(ficha_bloqueo and history_channels_enabled),
             "fallback": "continue_without_outcome_prior",
         },
-        "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "generated_at": datetime.now(UTC).isoformat(timespec="seconds"),
         "domain_coupling": {
             "id": domain.get("id") if domain else None,
             "title": domain.get("title") if domain else None,
@@ -642,9 +685,17 @@ def invent(
             "pending_interpretation": sum(
                 1 for e in entries if e["estado_interpretacion"] != "PROPUESTA"
             ),
-            "unresolved": sum(1 for e in entries if e["prior_art"]["verdict"] == "UNRESOLVED"),
-            "partial_prior_art": sum(1 for e in entries if e["prior_art"]["verdict"] == "PARTIAL_PRIOR_ART"),
-            "survived_search": sum(1 for e in entries if e["prior_art"]["verdict"] == "SURVIVED_SEARCH"),
+            "unresolved": sum(
+                1 for e in entries if e["prior_art"]["verdict"] == "UNRESOLVED"
+            ),
+            "partial_prior_art": sum(
+                1
+                for e in entries
+                if e["prior_art"]["verdict"] == "PARTIAL_PRIOR_ART"
+            ),
+            "survived_search": sum(
+                1 for e in entries if e["prior_art"]["verdict"] == "SURVIVED_SEARCH"
+            ),
         },
     }
     return sheet
@@ -712,28 +763,40 @@ def record_outcomes(
         # when one unique technique/family attribution is identifiable.
         method_ids = [str(m).strip() for m in (entry.get("method_ids") or []) if str(m).strip()]
         classes = [str(c).strip() for c in (entry.get("classes") or []) if str(c).strip()]
-        pairs = list(dict.fromkeys(zip(method_ids, classes))) if method_ids else []
+        pairs = (
+            list(dict.fromkeys(zip(method_ids, classes, strict=False)))
+            if method_ids
+            else []
+        )
         t_ids = _entry_technique_ids(entry)
         if t_ids and len(set(classes)) == 1:
             family_t = classes[0]
             pairs.extend((tid, family_t) for tid in t_ids)
         pairs = list(dict.fromkeys(pairs))
 
-        def _escribe(tid: str, familia: str) -> None:
+        def _escribe(
+            tid: str,
+            familia: str,
+            *,
+            _verdict: str = verdict,
+            _run_id: str = run_id,
+            _judge_evaluated: bool = judge_evaluated,
+            _judge_score: Any = judge_score,
+        ) -> None:
             nonlocal written
             try:
                 store.record(
                     profile=profile, family=familia, technique_id=tid,
-                    channel=CHANNEL_VERDICT, outcome=verdict,
-                    canon_version=canon_version, run_id=run_id,
+                    channel=CHANNEL_VERDICT, outcome=_verdict,
+                    canon_version=canon_version, run_id=_run_id,
                 )
                 written += 1
-                if judge_evaluated:
+                if _judge_evaluated:
                     store.record(
                         profile=profile, family=familia, technique_id=tid,
                         channel=CHANNEL_JUDGE, outcome="score",
-                        value=float(judge_score),
-                        canon_version=canon_version, run_id=run_id,
+                        value=float(_judge_score),
+                        canon_version=canon_version, run_id=_run_id,
                     )
                     written += 1
             except Exception:  # noqa: BLE001 — la memoria nunca rompe el loop
@@ -865,14 +928,20 @@ def print_sheet(sheet: dict[str, Any]) -> None:
         judge = entry["judge"]
         print()
         print(f"{i}. {entry['title']}")
-        print(f"   clases: {' x '.join(c or '?' for c in entry['classes'])} | score {entry['score']} ({entry['score_kind']})")
+        print(
+            f"   clases: {' x '.join(c or '?' for c in entry['classes'])} | "
+            f"score {entry['score']} ({entry['score_kind']})"
+        )
         print(f"   interpretación: {entry['estado_interpretacion']}")
         if entry["hipotesis"]:
             print(f"   hipótesis: {entry['hipotesis'][:200]}")
             print(f"   mecanismo: {entry['mecanismo'][:200]}")
             print(f"   prueba: {entry['prueba_concreta'][:200]}")
         print(f"   juez: {judge.get('veredicto', '?')} ({judge.get('score', 'N/A')})")
-        print(f"   prior-art: {prior['verdict']} (rondas={prior['rounds']}, mutaciones={prior['mutations']})")
+        print(
+            f"   prior-art: {prior['verdict']} "
+            f"(rondas={prior['rounds']}, mutaciones={prior['mutations']})"
+        )
     totals = sheet["totals"]
     print()
     print(line)

@@ -18,19 +18,19 @@ estado en sinks mínimos y registrables — nunca se inventa capacidad nueva.
 """
 from __future__ import annotations
 
-from datetime import datetime
 import os
+from collections.abc import Callable
+from datetime import datetime
 from pathlib import Path
-from typing import Any, Callable
-
-from PySide6.QtCore import QProcess, QProcessEnvironment, Qt, QThreadPool
-from PySide6.QtWidgets import QMessageBox, QPushButton
+from typing import Any
 
 from criba.ui.i18n import t as _t
 from criba.ui.ranking import COL_IDEA, RankingFilterProxy
+from PySide6.QtCore import QProcess, QProcessEnvironment, Qt, QThreadPool
+from PySide6.QtWidgets import QMessageBox, QPushButton
 
 
-def _blackforge_launch_env() -> "QProcessEnvironment":
+def _blackforge_launch_env() -> QProcessEnvironment:
     """Entorno del hijo BLACKFORGE.
 
     Hereda el entorno del proceso y añade ``src/`` al PYTHONPATH: el hijo se
@@ -234,6 +234,7 @@ class ShadowActionContext:
         self._progress_label: Any = None
         self._bf_process: QProcess | None = None
         self.selected_candidate_id: str | None = None
+        self.interpreter_cancel_requested: bool = False
 
         # ---- Dependencias Qt / theme ----
         self.pool = QThreadPool.globalInstance()

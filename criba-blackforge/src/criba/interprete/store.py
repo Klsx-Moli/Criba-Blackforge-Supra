@@ -13,14 +13,14 @@ Extiende el Storage base (src/criba/storage.py) con una tabla
 Reproducibilidad: MISMA comb_id + MISMO seed + MISMO modelo → MISMO veredicto.
 Dedup cross-session garantizada por combo_key + run_id + seed (PK).
 """
+
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from criba.storage import Storage
-
 
 _INTERPRETE_SCHEMA = """
 CREATE TABLE IF NOT EXISTS interprete_decisions (
@@ -72,7 +72,7 @@ class InterpreteStore:
         devuelve el previo (deduplicación determinista)."""
         idea_id = idea["id"]
         combo_key = self._combo_key(idea_id, modelo)
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
         labels = idea.get("interprete_labels", [])
         score = float(idea.get("interprete_score", 0.0))
         verdict = idea.get("interprete_verdict", "PENDIENTE")
@@ -101,9 +101,19 @@ class InterpreteStore:
                     "(combo_key, run_id, seed, activation_id, idea_id, modelo, "
                     " labels_json, epistemic_score, veredicto, response_json, created_at) "
                     "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                    (combo_key, run_id, seed, activation_id, idea_id, modelo,
-                     json.dumps(labels, ensure_ascii=False), score, verdict,
-                     json.dumps(response, ensure_ascii=False), now),
+                    (
+                        combo_key,
+                        run_id,
+                        seed,
+                        activation_id,
+                        idea_id,
+                        modelo,
+                        json.dumps(labels, ensure_ascii=False),
+                        score,
+                        verdict,
+                        json.dumps(response, ensure_ascii=False),
+                        now,
+                    ),
                 )
             return {
                 "status": "recorded",
