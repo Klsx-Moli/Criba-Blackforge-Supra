@@ -211,6 +211,17 @@ def ensure_streams(log_path: Path) -> tuple[TextIO, ...]:
         return _BOUND_STREAMS
 
 
+def _startup_trace(root: Path, message: str) -> None:
+    """Leave a bounded startup breadcrumb for windowed frozen builds."""
+    try:
+        path = root / "logs" / "launcher-startup.log"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with path.open("a", encoding="utf-8") as handle:
+            handle.write(message + "\n")
+    except OSError:
+        pass
+
+
 def flush_bound_streams() -> None:
     """Vuelca lo pendiente sin cerrar: logging puede seguir usando los streams."""
     with _STREAM_LOCK:
@@ -335,9 +346,17 @@ def _fatal(title: str, detail: str) -> int:
     return 2
 
 
+def configure_frozen_gui_environment() -> None:
+    """A shipped GUI must not inherit an offscreen test backend."""
+    if getattr(sys, "frozen", False):
+        os.environ.pop("QT_QPA_PLATFORM", None)
+
+
 def main() -> int:
     root = data_root()
+    _startup_trace(root, "main:entered")
     lock_ok, lock_msg = acquire_single_instance(root)
+    _startup_trace(root, f"lock:{lock_ok}")
     if not lock_ok:
         return _fatal("Ya hay otra instancia abierta", lock_msg)
 
@@ -345,6 +364,8 @@ def main() -> int:
     supra: SupraServer | None = None
     try:
         wire_import_paths()
+        configure_frozen_gui_environment()
+        _startup_trace(root, "paths:wired")
         (root / "logs").mkdir(parents=True, exist_ok=True)
         log_path = root / "logs" / SUPRA_LOG_NAME
         log_handle = open(log_path, "a", encoding="utf-8")
@@ -360,25 +381,40 @@ def main() -> int:
                 return _fatal("No se pudo arrancar SUPRA", info)
             print(f"[{APP_NAME}] SUPRA arrancado en {info}")
 
+        _startup_trace(root, "supra:ready")
         from criba.ui import actions as ui_actions
         from PySide6.QtWidgets import QApplication
         from shadow_window import ShadowWindow
 
         app = QApplication.instance() or QApplication(sys.argv)
         app.setApplicationName(APP_NAME)
+        _startup_trace(root, "qt:application")
 
         window = ShadowWindow(database=str(root / "criba.sqlite3"))
+        _startup_trace(root, "qt:window-created")
         window.showMaximized()
         window.show()
+        window.raise_()
+        window.activateWindow()
+        _startup_trace(
+            root,
+            f"qt:window-shown visible={window.isVisible()} "
+            f"minimized={window.isMinimized()} winid={int(window.winId())}",
+        )
         ui_actions.on_restore_latest_supra(window)
+        _startup_trace(root, "qt:restore-started")
         return int(app.exec())
     except Exception as exc:  # noqa: BLE001 - aqui el error real es el producto
         import traceback
 
-        return _fatal(
-            "Fallo al arrancar",
-            f"{type(exc).__name__}: {exc}\n\n{traceback.format_exc()[-2500:]}",
-        )
+        detail = f"{type(exc).__name__}: {exc}\n\n{traceback.format_exc()[-2500:]}"
+        try:
+            error_path = root / "logs" / "launcher-error.log"
+            error_path.parent.mkdir(parents=True, exist_ok=True)
+            error_path.write_text(detail, encoding="utf-8")
+        except OSError:
+            pass
+        return _fatal("Fallo al arrancar", detail)
     finally:
         if supra is not None:
             supra.stop()

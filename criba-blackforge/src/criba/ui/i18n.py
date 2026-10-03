@@ -97,7 +97,9 @@ _STRINGS: dict[str, dict[str, str]] = {
         "shadow.col.score": "Score interno",
         "shadow.desactivado": "Desactivado",
         "shadow.detail.vacio": "Sin candidato seleccionado",
-        "shadow.detail.vacio.desc": "Genera ideas y selecciona un candidato para ver aquí su detalle real.",
+        "shadow.detail.vacio.desc": (
+            "Genera ideas y selecciona un candidato para ver aquí su detalle real."
+        ),
         "shadow.evaluar": "📊 Evaluar ideas",
         "shadow.footer.gen_local": "Generación con modelo local",
         "shadow.footer.modelo_off": "Modelo desactivado",
@@ -105,13 +107,16 @@ _STRINGS: dict[str, dict[str, str]] = {
         "shadow.footer.sesion": "Sesión activa",
         "shadow.footer.sin_sesion": "Sin sesión",
         "shadow.generar": "✦ Generar ideas",
+        "shadow.guardar_idea": "Guardar idea",
         "shadow.idea_sel": "Idea seleccionada",
         "shadow.inventar": "⚗ Inventar",
         "shadow.ir_bf": "Ir a Blackforge  →",
         "shadow.lema": "CIENCIA  //  RIGOR  //  IMPACTO REAL",
         "shadow.mejor_score": "Mejor score",
         "shadow.modelo": "Modelo local",
-        "shadow.modelo.tip_off": "Sin modelo local activo — clic para añadir o activar uno (Modelos IA)",
+        "shadow.modelo.tip_off": (
+            "Sin modelo local activo — clic para añadir o activar uno (Modelos IA)"
+        ),
         "shadow.motor": "⚙ Motor determinista",
         "shadow.nav.blackforge": "Blackforge",
         "shadow.nav.historial": "Historial",
@@ -131,8 +136,13 @@ _STRINGS: dict[str, dict[str, str]] = {
         "shadow.objetivo": "Objetivo:",
         "shadow.objetivo.no_definido": "No definido",
         "shadow.problema": "Problema actual",
-        "shadow.problema.borrador": "Borrador sin aplicar — pulsa Enter (o «Nueva idea») para definirlo",
-        "shadow.problema.placeholder": "Reducir el impacto de las baterías sin aumentar el coste ni comprometer el suministro.",
+        "shadow.problema.borrador": (
+            "Borrador sin aplicar — pulsa Enter (o «Nueva idea») para definirlo"
+        ),
+        "shadow.problema.placeholder": (
+            "Reducir el impacto de las baterías sin aumentar el coste ni "
+            "comprometer el suministro."
+        ),
         "shadow.pruebas": "Pruebas ejecutadas:",
         "shadow.refs": "Referencias enlazadas:",
         "shadow.resultados": "Resultados observados:",
@@ -246,7 +256,9 @@ _STRINGS: dict[str, dict[str, str]] = {
         "shadow.col.score": "Internal score",
         "shadow.desactivado": "Disabled",
         "shadow.detail.vacio": "No candidate selected",
-        "shadow.detail.vacio.desc": "Generate ideas and select a candidate to see its real detail here.",
+        "shadow.detail.vacio.desc": (
+            "Generate ideas and select a candidate to see its real detail here."
+        ),
         "shadow.evaluar": "📊 Evaluate ideas",
         "shadow.footer.gen_local": "Generation with local model",
         "shadow.footer.modelo_off": "Model disabled",
@@ -254,6 +266,7 @@ _STRINGS: dict[str, dict[str, str]] = {
         "shadow.footer.sesion": "Active session",
         "shadow.footer.sin_sesion": "No session",
         "shadow.generar": "✦ Generate ideas",
+        "shadow.guardar_idea": "Save idea",
         "shadow.idea_sel": "Selected idea",
         "shadow.inventar": "⚗ Invent",
         "shadow.ir_bf": "Go to Blackforge  →",
@@ -281,7 +294,9 @@ _STRINGS: dict[str, dict[str, str]] = {
         "shadow.objetivo.no_definido": "Not defined",
         "shadow.problema": "Current problem",
         "shadow.problema.borrador": "Draft not applied — press Enter (or “New idea”) to define it",
-        "shadow.problema.placeholder": "Cut the impact of batteries without raising cost or risking supply.",
+        "shadow.problema.placeholder": (
+            "Cut the impact of batteries without raising cost or risking supply."
+        ),
         "shadow.pruebas": "Tests run:",
         "shadow.refs": "Linked references:",
         "shadow.resultados": "Observed outcomes:",

@@ -1042,6 +1042,13 @@ class CandidatesWidget(QWidget):
             self.output_tabs.addTab(widget, label)
         d_lay.addWidget(self.output_tabs)
         d_btn = QHBoxLayout()
+        save_idea = QPushButton("Guardar idea")
+        save_idea.setProperty("success", True)
+        save_idea.setEnabled(False)
+        bind_text(save_idea, "shadow.guardar_idea")
+        self.save_idea = save_idea
+        save_idea.clicked.connect(lambda: actions.on_guardar(win))
+        d_btn.addWidget(save_idea)
         d_btn.addStretch()
         ver_todas = QPushButton("Ver todas las ideas  →")
         ver_todas.setProperty("accent", True)

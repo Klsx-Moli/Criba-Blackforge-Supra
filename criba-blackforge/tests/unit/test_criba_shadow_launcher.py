@@ -55,6 +55,13 @@ def launcher(tmp_path, monkeypatch):
     return module
 
 
+def test_frozen_gui_removes_offscreen_backend(launcher, monkeypatch):
+    monkeypatch.setattr(sys, "frozen", True, raising=False)
+    monkeypatch.setenv("QT_QPA_PLATFORM", "offscreen")
+    launcher.configure_frozen_gui_environment()
+    assert "QT_QPA_PLATFORM" not in os.environ
+
+
 # --------------------------------------------------------------------------
 # El fallo: la llamada real a uvicorn.Config
 # --------------------------------------------------------------------------

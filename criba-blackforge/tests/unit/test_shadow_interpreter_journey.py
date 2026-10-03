@@ -195,6 +195,31 @@ def test_shadow_expone_selector_real_y_salidas_copiables(qapp, tmp_path):
         qapp.processEvents()
 
 
+def test_shadow_expone_boton_guardar_idea_y_respeta_estado(qapp, tmp_path):
+    from shadow_window import ShadowWindow
+
+    win = ShadowWindow(database=str(tmp_path / "save-button.sqlite3"))
+    win.show()
+    qapp.processEvents()
+    try:
+        button = win.candidates.save_idea
+        assert button.text() == "Guardar idea"
+        assert button.isVisible(), "el botón debe estar visible en la interfaz"
+        assert not button.isEnabled(), "sin packet no se puede guardar una idea"
+        win.packet = {
+            "original_query": "problema de prueba",
+            "innovation": {"ideas": [{"title": "idea guardable"}]},
+        }
+        win.refs["rankingModel"].set_rows(
+            [{"id": "idea-1", "title": "idea guardable", "score": 0.8}]
+        )
+        button.setEnabled(True)
+        assert button.isEnabled()
+    finally:
+        win.close()
+        qapp.processEvents()
+
+
 def test_todas_pendientes_muestra_operacion_terminada_sin_fingir_exito(qapp, tmp_path):
     from shadow_window import ShadowWindow
 

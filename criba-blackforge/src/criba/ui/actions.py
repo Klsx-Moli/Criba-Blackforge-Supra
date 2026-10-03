@@ -180,6 +180,7 @@ def _clear_journey_outputs(win: Any) -> None:
     ):
         widget.clear()
     candidates.output_tabs.setCurrentWidget(candidates.raw_output)
+    candidates.save_idea.setEnabled(False)
 
 
 def _apply_new_problem(win: Any, problem: str) -> None:
@@ -654,6 +655,9 @@ def _on_evaluated(win: Any, rows: list[dict[str, Any]]) -> None:
     r["connectors"][2].set_lit(True)
     r["stages"]["stageGuardar"].set_state("active")
     r["rankingModel"].set_rows(rows)
+    candidates = getattr(win, "candidates", None)
+    if candidates is not None:
+        candidates.save_idea.setEnabled(bool(rows))
     r["rankingEmpty"].hide()
     r["rankingTable"].show()
     r["rankingTabs"].setCurrentIndex(0)
@@ -765,6 +769,9 @@ def on_guardar(win: Any) -> None:
         on_operation_error(win, "navRed", "stageGuardar", str(exc))
         return
     win.saved_ids.add(ident)
+    candidates = getattr(win, "candidates", None)
+    if candidates is not None:
+        candidates.save_idea.setEnabled(False)
     win.nav["navRed"].set_state("done")
     r["stages"]["stageGuardar"].set_state("done")
     r["connectors"][3].set_lit(True)
