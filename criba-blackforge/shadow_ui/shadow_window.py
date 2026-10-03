@@ -17,7 +17,8 @@ from criba.ui.i18n import on_change as _i18n_on_change
 from criba.ui.i18n import t as _t
 from criba.ui.i18n import toggle as _i18n_toggle
 from criba.ui.ranking import RankingModel
-from PySide6.QtCore import QPoint, QPointF, QRectF, Qt
+from loading_indicator import LoadingIndicator
+from PySide6.QtCore import QPoint, QPointF, QRectF, QSize, Qt
 from PySide6.QtGui import (
     QColor,
     QIcon,
@@ -193,6 +194,31 @@ def build_shadow_qss() -> str:
         background: transparent; border: 1px solid {SUCCESS}; color: {SUCCESS};
     }}
     QPushButton[success="true"]:hover {{ background: #0A2820; }}
+    QPushButton[navigation="true"] {{
+        background: rgba(11, 29, 39, 218); border: 1px solid #1B5665;
+        border-radius: 8px; color: {ACCENT}; font-size: 18px; font-weight: 600;
+        padding: 0px;
+    }}
+    QPushButton[navigation="true"]:hover {{
+        background: rgba(14, 58, 72, 235); border-color: {ACCENT};
+    }}
+    QPushButton[navigation="true"]:disabled {{
+        background: rgba(10, 20, 28, 150); color: {TEXT_MUTED};
+        border-color: {BORDER};
+    }}
+    QPushButton[save_action="true"] {{
+        background: rgba(8, 42, 33, 185); border: 1px solid {SUCCESS};
+        border-radius: 8px; color: {SUCCESS}; font-weight: 600;
+    }}
+    QPushButton[save_action="true"]:hover {{ background: rgba(10, 58, 43, 225); }}
+    QLabel[interpretation_status="true"] {{
+        color: {ACCENT}; font-size: 11px; font-weight: 600;
+        background: rgba(11, 47, 60, 150); border: 1px solid #1B5665;
+        border-radius: 8px; padding: 7px 12px;
+    }}
+    QPlainTextEdit[interpretation_active="true"] {{
+        background: #0B1C25; border: 1px solid #1B5665; color: #D4EAF0;
+    }}
     QComboBox {{
         background: {BG_INPUT}; border: 1px solid {BORDER}; border-radius: 6px;
         padding: 6px 12px; color: {TEXT}; font-size: 12px;
@@ -808,6 +834,8 @@ class TopCardsWidget(QWidget):
         self.interpreter_status.setWordWrap(True)
         self.interpreter_status.setProperty("caption", True)
         l2.addWidget(self.interpreter_status)
+        self.generation_loading = LoadingIndicator("flujo_energia", QSize(210, 54))
+        l2.addWidget(self.generation_loading)
         self.cancel_interpretation = QPushButton("Cancelar interpretación")
         self.cancel_interpretation.setProperty("ghost", True)
         self.cancel_interpretation.clicked.connect(lambda: actions.on_cancel_inventar(win))
@@ -871,6 +899,8 @@ class TopCardsWidget(QWidget):
         self.btn_eval = btn_eval
         btn_eval.clicked.connect(lambda: actions.on_evaluar(win))
         l3.addWidget(btn_eval)
+        self.evaluation_loading = LoadingIndicator("neon_hud", QSize(32, 32))
+        l3.addWidget(self.evaluation_loading)
         lay.addWidget(f3, stretch=1)
 
         # 4. Fuentes
@@ -885,6 +915,8 @@ class TopCardsWidget(QWidget):
         self.btn_act = btn_act
         btn_act.clicked.connect(lambda: actions.on_actualizar(win))
         l4.addWidget(btn_act)
+        self.sources_loading = LoadingIndicator("neon_hud", QSize(32, 32))
+        l4.addWidget(self.sources_loading)
         lay.addWidget(f4, stretch=1)
 
     # ------------------------------------------- estado real (runtime truth)
@@ -1015,9 +1047,9 @@ class CandidatesWidget(QWidget):
         d_desc.setStyleSheet(mono_qss + f" color: {TEXT_SUB};")
         d_lay.addWidget(d_desc)
 
-        # Resultados completos y copiables. Se mantienen separados para no
-        # confundir salida del modelo, interpretación CRIBA, dossier y estado
-        # recuperado de SUPRA.
+        # Resultados completos y copiables. La navegación muestra UNA
+        # interpretación por vez: juntar todas las propuestas en un blob JSON
+        # hacía que parecieran repetidas y ocultaba la lectura importante.
         self.output_tabs = QTabWidget()
         self.output_tabs.setDocumentMode(True)
         self.raw_output = QPlainTextEdit()
@@ -1025,6 +1057,7 @@ class CandidatesWidget(QWidget):
         self.raw_output.setPlaceholderText("Sin salida bruta todavía")
         self.interpretation_output = QPlainTextEdit()
         self.interpretation_output.setReadOnly(True)
+        self.interpretation_output.setProperty("interpretation_active", True)
         self.interpretation_output.setPlaceholderText("Sin interpretación todavía")
         self.dossier_output = QPlainTextEdit()
         self.dossier_output.setReadOnly(True)
@@ -1040,23 +1073,59 @@ class CandidatesWidget(QWidget):
         ):
             widget.setMinimumHeight(150)
             self.output_tabs.addTab(widget, label)
-        d_lay.addWidget(self.output_tabs)
+
+        # Controles de lectura: las flechas son cuadrados translúcidos y el
+        # guardado permanece a la vista antes de la zona de texto desplazable.
+        self.interpretation_entries: list[dict[str, Any]] = []
+        self.interpretation_index = 0
         d_btn = QHBoxLayout()
-        save_idea = QPushButton("Guardar idea")
-        save_idea.setProperty("success", True)
+        d_btn.setSpacing(8)
+        previous = QPushButton("←")
+        previous.setObjectName("interpreterPreviousButton")
+        previous.setProperty("navigation", True)
+        previous.setFixedSize(34, 34)
+        previous.setToolTip("Interpretación anterior")
+        previous.setEnabled(False)
+        previous.clicked.connect(lambda: self.show_interpreter_entry(self.interpretation_index - 1))
+        self.interpreter_previous = previous
+        d_btn.addWidget(previous)
+        position = QLabel(_t("shadow.interpretacion.vacia"))
+        position.setObjectName("interpreterPositionLabel")
+        position.setProperty("interpretation_status", True)
+        position.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.interpreter_position = position
+        d_btn.addWidget(position)
+        following = QPushButton("→")
+        following.setObjectName("interpreterNextButton")
+        following.setProperty("navigation", True)
+        following.setFixedSize(34, 34)
+        following.setToolTip("Interpretación siguiente")
+        following.setEnabled(False)
+        following.clicked.connect(
+            lambda: self.show_interpreter_entry(self.interpretation_index + 1)
+        )
+        self.interpreter_next = following
+        d_btn.addWidget(following)
+        d_btn.addStretch()
+        save_idea = QPushButton()
+        save_idea.setObjectName("saveIdeaButton")
+        save_idea.setProperty("save_action", True)
         save_idea.setEnabled(False)
-        bind_text(save_idea, "shadow.guardar_idea")
+        bind_glyph(save_idea, "💾 ", "shadow.guardar_idea")
         self.save_idea = save_idea
         save_idea.clicked.connect(lambda: actions.on_guardar(win))
         d_btn.addWidget(save_idea)
-        d_btn.addStretch()
+        d_lay.addLayout(d_btn)
+        d_lay.addWidget(self.output_tabs)
+        footer_actions = QHBoxLayout()
+        footer_actions.addStretch()
         ver_todas = QPushButton("Ver todas las ideas  →")
         ver_todas.setProperty("accent", True)
         bind_text(ver_todas, "shadow.ver_todas")
         self.ver_todas = ver_todas
         ver_todas.clicked.connect(lambda: actions.on_ver_todas(win))
-        d_btn.addWidget(ver_todas)
-        d_lay.addLayout(d_btn)
+        footer_actions.addWidget(ver_todas)
+        d_lay.addLayout(footer_actions)
         lay.addWidget(detail)
         lay.addStretch()
 
@@ -1075,6 +1144,107 @@ class CandidatesWidget(QWidget):
         if empty:
             self.detail_title.setText(_t("shadow.detail.vacio"))
             self.detail_desc.setText(_t("shadow.detail.vacio.desc"))
+
+    def set_interpreter_entries(self, entries: list[dict[str, Any]]) -> None:
+        """Carga las propuestas del run y enfoca la primera interpretación.
+
+        La vista no concatena propuestas: cada avance conserva el bruto y la
+        interpretación del MISMO candidato, para que el usuario no confunda
+        campos idénticos de ejecuciones distintas con resultados repetidos.
+        """
+        self.interpretation_entries = list(entries)
+        self.interpretation_index = 0
+        if not self.interpretation_entries:
+            self.clear_interpreter_entries()
+            return
+        self.show_interpreter_entry(0, focus_interpretation=True)
+
+    def clear_interpreter_entries(self) -> None:
+        """Borra la identidad de la interpretación al cambiar de run."""
+        self.interpretation_entries = []
+        self.interpretation_index = 0
+        self.interpreter_position.setText(_t("shadow.interpretacion.vacia"))
+        self.interpreter_previous.setEnabled(False)
+        self.interpreter_next.setEnabled(False)
+
+    @staticmethod
+    def _display_list(value: Any) -> str:
+        if isinstance(value, (list, tuple)):
+            items = [str(item).strip() for item in value if str(item).strip()]
+            return "\n".join(f"• {item}" for item in items) or "No declarado"
+        text = str(value or "").strip()
+        return text or "No declarado"
+
+    def _format_interpretation(self, entry: dict[str, Any], index: int) -> str:
+        title = str(entry.get("title") or f"candidato {index}").strip()
+        state = str(entry.get("estado_interpretacion") or "PENDIENTE_INTERPRETACION")
+        error = str(entry.get("interpretacion_error") or "").strip()
+        sections = [
+            f"INTERPRETACIÓN · Propuesta {index} de {len(self.interpretation_entries)}",
+            title,
+            f"ESTADO\n{state}",
+        ]
+        if state == "PROPUESTA":
+            sections.extend((
+                f"HIPÓTESIS\n{self._display_list(entry.get('hipotesis'))}",
+                f"MECANISMO PROPUESTO\n{self._display_list(entry.get('mecanismo'))}",
+                (
+                    "APORTACIÓN DE LA TÉCNICA\n"
+                    f"{self._display_list(entry.get('aportacion_por_tecnica'))}"
+                ),
+                f"SUPUESTOS A COMPROBAR\n{self._display_list(entry.get('supuestos'))}",
+                f"PRUEBA CONCRETA\n{self._display_list(entry.get('prueba_concreta'))}",
+            ))
+        else:
+            sections.append(f"MOTIVO\n{error or 'sin motivo declarado'}")
+            route = str(entry.get("ruta_desbloqueo") or "").strip()
+            if route:
+                sections.append(f"RUTA DE DESBLOQUEO\n{route}")
+        provenance = entry.get("interpretacion_provenance")
+        if not isinstance(provenance, dict):
+            provenance = {}
+        provider = str(provenance.get("provider") or "").strip()
+        model = str(
+            provenance.get("model_reported")
+            or provenance.get("model_requested")
+            or ""
+        ).strip()
+        request_id = str(provenance.get("request_id") or "").strip()
+        finish_reason = str(entry.get("interpretacion_finish_reason") or "").strip()
+        usage = entry.get("interpretacion_usage")
+        trace = [part for part in (
+            f"Proveedor: {provider}" if provider else "",
+            f"Modelo: {model}" if model else "",
+            f"Request: {request_id}" if request_id else "",
+            f"Finalización: {finish_reason}" if finish_reason else "",
+            f"Uso: {usage}" if usage else "",
+        ) if part]
+        if trace:
+            sections.append("TRAZABILIDAD\n" + "\n".join(trace))
+        return "\n\n".join(sections)
+
+    def show_interpreter_entry(self, index: int, *, focus_interpretation: bool = False) -> None:
+        """Renderiza bruto y parseado de una única propuesta del run actual."""
+        if not self.interpretation_entries:
+            self.clear_interpreter_entries()
+            return
+        self.interpretation_index = max(0, min(index, len(self.interpretation_entries) - 1))
+        entry = self.interpretation_entries[self.interpretation_index]
+        position = self.interpretation_index + 1
+        total = len(self.interpretation_entries)
+        title = str(entry.get("title") or f"candidato {position}").strip()
+        raw = str(entry.get("interpretacion_raw_output") or "").strip()
+        error = str(entry.get("interpretacion_error") or "").strip()
+        raw_body = raw or f"[SIN CONTENIDO] {error or 'sin motivo declarado'}"
+        self.raw_output.setPlainText(
+            f"SALIDA BRUTA · Propuesta {position} de {total}\n{title}\n\n{raw_body}"
+        )
+        self.interpretation_output.setPlainText(self._format_interpretation(entry, position))
+        self.interpreter_position.setText(f"Interpretación {position} de {total}")
+        self.interpreter_previous.setEnabled(position > 1)
+        self.interpreter_next.setEnabled(position < total)
+        if focus_interpretation:
+            self.output_tabs.setCurrentWidget(self.interpretation_output)
 
     def show_state_only(self) -> None:
         """Muestra SOLO el chip de estado, sin fingir una idea seleccionada.

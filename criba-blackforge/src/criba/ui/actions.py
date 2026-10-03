@@ -46,15 +46,30 @@ def _now_ts() -> str:
     return datetime.now().strftime("%H:%M")
 
 
-def _start_worker(win: Any, worker: Worker) -> None:
+def _start_worker(win: Any, worker: Worker, operation: str = "") -> None:
     """Retener la referencia del worker hasta que emita: sin esto el GC de
     Python destruye el QObject de señales antes de entregar done/fail
     (pitfall QRunnable.autoDelete + señal encolada entre hilos)."""
     if not hasattr(win, "_live_workers"):
         win._live_workers = []
     win._live_workers.append(worker)
+    loading = None
+    cards = getattr(win, "topcards", None)
+    mapping = {
+        "generate": ("generation_loading", "Generando ideas…"),
+        "interpret": ("generation_loading", "Interpretando…"),
+        "evaluate": ("evaluation_loading", "Evaluando…"),
+        "sources": ("sources_loading", "Actualizando fuentes…"),
+    }
+    if cards is not None and operation in mapping:
+        attr, text = mapping[operation]
+        loading = getattr(cards, attr, None)
+        if loading is not None:
+            loading.begin(worker, text)
 
     def _release(*_a: Any) -> None:
+        if loading is not None:
+            loading.finish(worker)
         try:
             win._live_workers.remove(worker)
         except ValueError:
@@ -172,6 +187,7 @@ def _clear_journey_outputs(win: Any) -> None:
     candidates = getattr(win, "candidates", None)
     if candidates is None:
         return
+    candidates.clear_interpreter_entries()
     for widget in (
         candidates.raw_output,
         candidates.interpretation_output,
@@ -253,24 +269,14 @@ def on_generar(win: Any) -> None:
     r["stages"]["stageGenerar"].set_state("active", spinning=True)
     _activity(win, "blue", "Generación iniciada (16 operadores)")
 
-    # Crear/mostrar label de progreso
-    if not hasattr(win, '_progress_label') or not win._progress_label:
-        from PySide6.QtCore import Qt
-        from PySide6.QtWidgets import QLabel
-        win._progress_label = QLabel("⏳ Generando ideas...")
-        win._progress_label.setObjectName("progressLabel")
-        win._progress_label.setAlignment(Qt.AlignCenter)
-        # Añadir al layout central si existe
-        if hasattr(win, 'content_layout'):
-            win.content_layout.insertWidget(0, win._progress_label)
-    win._progress_label.show()
+    # El indicador de actividad está ligado al worker, no a un spinner global.
 
     worker = Worker(lambda: _generate_criba_packet(win.problem))
     worker.signals.done.connect(lambda packet: _on_generated(win, packet))
     worker.signals.fail.connect(
         lambda msg: on_operation_error(win, "navGenerar", "stageGenerar", msg)
     )
-    _start_worker(win, worker)
+    _start_worker(win, worker, "generate")
 
 
 def _on_generated(win: Any, packet: dict[str, Any]) -> None:
@@ -433,7 +439,7 @@ def on_inventar(win: Any) -> None:
     worker.signals.progress.connect(lambda payload: _on_invent_progress(win, payload))
     worker.signals.done.connect(lambda sheet: _on_invented(win, sheet))
     worker.signals.fail.connect(lambda msg: _on_invent_failed(win, msg))
-    _start_worker(win, worker)
+    _start_worker(win, worker, "interpret")
 
 
 def _finish_invent_controls(win: Any) -> None:
@@ -474,42 +480,11 @@ def _on_invent_failed(win: Any, message: str) -> None:
 
 
 def _render_interpreter_outputs(win: Any, sheet: dict[str, Any]) -> None:
-    """Muestra bruto y parseado completos sin confundirlos con SUPRA."""
+    """Carga una propuesta por vez para lectura clara y trazable."""
     candidates = getattr(win, "candidates", None)
     if candidates is None:
         return
-    raw_sections: list[str] = []
-    parsed_sections: list[str] = []
-    for index, entry in enumerate(sheet.get("entries", []), 1):
-        title = str(entry.get("title") or f"candidato {index}")
-        raw = str(entry.get("interpretacion_raw_output") or "")
-        error = str(entry.get("interpretacion_error") or "")
-        raw_sections.append(
-            f"=== {index}. {title} ===\n"
-            + (raw if raw else f"[SIN CONTENIDO] {error or 'sin motivo declarado'}")
-        )
-        parsed_sections.append(
-            json.dumps(
-                {
-                    "title": title,
-                    "estado": entry.get("estado_interpretacion"),
-                    "hipotesis": entry.get("hipotesis", ""),
-                    "mecanismo": entry.get("mecanismo", ""),
-                    "aportacion_por_tecnica": entry.get("aportacion_por_tecnica", []),
-                    "supuestos": entry.get("supuestos", []),
-                    "prueba_concreta": entry.get("prueba_concreta", ""),
-                    "ruta_desbloqueo": entry.get("ruta_desbloqueo", ""),
-                    "error": error,
-                    "finish_reason": entry.get("interpretacion_finish_reason", ""),
-                    "usage": entry.get("interpretacion_usage", {}),
-                    "provenance": entry.get("interpretacion_provenance", {}),
-                },
-                ensure_ascii=False,
-                indent=2,
-            )
-        )
-    candidates.raw_output.setPlainText("\n\n".join(raw_sections))
-    candidates.interpretation_output.setPlainText("\n\n".join(parsed_sections))
+    candidates.set_interpreter_entries(list(sheet.get("entries", [])))
 
 
 def _on_invented(win: Any, sheet: dict[str, Any]) -> None:
@@ -624,7 +599,7 @@ def on_evaluar(win: Any) -> None:
     worker.signals.fail.connect(
         lambda msg: on_operation_error(win, "navEvaluar", "stageEvaluar", msg)
     )
-    _start_worker(win, worker)
+    _start_worker(win, worker, "evaluate")
 
 
 def _build_ranking_rows(packet: dict[str, Any]) -> list[dict[str, Any]]:
@@ -869,7 +844,7 @@ def on_actualizar(win: Any) -> None:
     worker.signals.fail.connect(
         lambda msg: on_operation_error(win, "navRed", None, msg)
     )
-    _start_worker(win, worker)
+    _start_worker(win, worker, "sources")
 
 
 def _on_sources_updated(win: Any, report: dict[str, Any]) -> None:

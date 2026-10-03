@@ -203,7 +203,7 @@ def test_shadow_expone_boton_guardar_idea_y_respeta_estado(qapp, tmp_path):
     qapp.processEvents()
     try:
         button = win.candidates.save_idea
-        assert button.text() == "Guardar idea"
+        assert button.text() == "💾 Guardar"
         assert button.isVisible(), "el botón debe estar visible en la interfaz"
         assert not button.isEnabled(), "sin packet no se puede guardar una idea"
         win.packet = {
@@ -268,7 +268,7 @@ def test_todas_pendientes_muestra_operacion_terminada_sin_fingir_exito(qapp, tmp
         assert "0 propuestas válidas" in win.refs["ideaEstadoChip"].text()
         assert "interpretación pendiente: 1" in win.refs["ideaSummary"].text()
         assert "timeout" in win.candidates.raw_output.toPlainText()
-        assert '"error": "timeout"' in win.candidates.interpretation_output.toPlainText()
+        assert "MOTIVO\ntimeout" in win.candidates.interpretation_output.toPlainText()
         assert win.candidates.output_tabs.currentWidget() is win.candidates.interpretation_output
         assert not win.right_panel.supra.isEnabled(), (
             "sin propuesta válida no se puede iniciar SUPRA"
@@ -350,11 +350,94 @@ def test_on_invented_renderiza_bruto_interpretacion_y_provenance(qapp, tmp_path)
         interpretada = win.candidates.interpretation_output.toPlainText()
         assert "h completa" in interpretada and "m completo" in interpretada
         assert "stealth/space-bunny-alpha" in interpretada
-        assert '"finish_reason": "stop"' in interpretada
+        assert "Finalización: stop" in interpretada
         assert "req-visible-1" in interpretada
         assert win.right_panel.supra.isEnabled(), (
             "una propuesta válida habilita el siguiente borde SUPRA"
         )
+    finally:
+        win.close()
+        qapp.processEvents()
+
+
+def test_interpretacion_muestra_un_candidato_por_vez_y_navega(qapp, tmp_path):
+    from shadow_window import ShadowWindow
+
+    win = ShadowWindow(database=str(tmp_path / "navigate.sqlite3"))
+    sheet = {
+        "query": "reducir la fatiga en el cuerpo humano",
+        "seed": 4,
+        "mode": "stratified",
+        "entries": [
+            {
+                "title": "ritmo circadiano adaptativo",
+                "estado_interpretacion": "PROPUESTA",
+                "hipotesis": "h uno",
+                "mecanismo": "m uno",
+                "aportacion_por_tecnica": ["a uno"],
+                "supuestos": ["s uno"],
+                "prueba_concreta": "p uno",
+                "ruta_desbloqueo": "",
+                "interpretacion_error": "",
+                "interpretacion_raw_output": "RAW-UNO",
+                "interpretacion_finish_reason": "stop",
+                "interpretacion_usage": {"completion_tokens": 10},
+                "interpretacion_provenance": _provenance().sin_secretos(),
+                "prior_art": {"verdict": "UNRESOLVED"},
+            },
+            {
+                "title": "microdescansos biofeedback",
+                "estado_interpretacion": "PROPUESTA",
+                "hipotesis": "h dos",
+                "mecanismo": "m dos",
+                "aportacion_por_tecnica": ["a dos"],
+                "supuestos": ["s dos"],
+                "prueba_concreta": "p dos",
+                "ruta_desbloqueo": "",
+                "interpretacion_error": "",
+                "interpretacion_raw_output": "RAW-DOS",
+                "interpretacion_finish_reason": "stop",
+                "interpretacion_usage": {"completion_tokens": 20},
+                "interpretacion_provenance": _provenance().sin_secretos(),
+                "prior_art": {"verdict": "UNRESOLVED"},
+            },
+        ],
+        "totals": {
+            "ideas": 2,
+            "pending_interpretation": 0,
+            "unresolved": 2,
+            "partial_prior_art": 0,
+            "survived_search": 0,
+        },
+        "interpreter": {
+            "provider": "nous_oauth_subscription_proxy",
+            "model_requested": "stealth/space-bunny-alpha",
+            "conectado": True,
+            "motivo": "endpoint y modelo disponibles",
+        },
+    }
+    try:
+        actions._on_invented(win, sheet)
+        candidates = win.candidates
+        assert candidates.output_tabs.currentWidget() is candidates.interpretation_output
+        assert "h uno" in candidates.interpretation_output.toPlainText()
+        assert "h dos" not in candidates.interpretation_output.toPlainText()
+        assert "RAW-UNO" in candidates.raw_output.toPlainText()
+        assert "RAW-DOS" not in candidates.raw_output.toPlainText()
+        assert candidates.interpreter_position.text() == "Interpretación 1 de 2"
+        assert not candidates.interpreter_previous.isEnabled()
+        assert candidates.interpreter_next.isEnabled()
+
+        candidates.interpreter_next.click()
+        qapp.processEvents()
+
+        assert "h dos" in candidates.interpretation_output.toPlainText()
+        assert "h uno" not in candidates.interpretation_output.toPlainText()
+        assert "RAW-DOS" in candidates.raw_output.toPlainText()
+        assert "RAW-UNO" not in candidates.raw_output.toPlainText()
+        assert candidates.interpreter_position.text() == "Interpretación 2 de 2"
+        assert candidates.interpreter_previous.isEnabled()
+        assert not candidates.interpreter_next.isEnabled()
     finally:
         win.close()
         qapp.processEvents()

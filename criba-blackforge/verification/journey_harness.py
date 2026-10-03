@@ -212,7 +212,14 @@ def main() -> int:
             reasons = sorted({str(item.get("interpretacion_error") or "") for item in entries})
             raise RuntimeError(f"cero propuestas válidas: {reasons}")
         interpreted_text = win.candidates.interpretation_output.toPlainText()
-        if not interpreted_text.strip() or str(sheet.get("query")) != PROBLEM:
+        first_title = str(entries[0].get("title") or "")
+        expected_position = f"Interpretación 1 de {len(entries)}"
+        if (
+            not interpreted_text.strip()
+            or sheet.get("query") != PROBLEM
+            or first_title not in interpreted_text
+            or win.candidates.interpreter_position.text() != expected_position
+        ):
             raise RuntimeError("la interpretación visible no pertenece al run actual")
         _returned(
             operation_id,
