@@ -254,7 +254,7 @@ def test_slice_reads_real_state_back_into_the_interface(slice_result: _Slice) ->
     assert dossier["estado"] == "SUPRA_EJECUCION_PENDIENTE"
     assert prueba["estado_prueba"] == "NO_EJECUTADA"
 
-    assert "PERSISTED_STATE" in slice_result.summary, slice_result.summary
+    assert "IN_PROCESS_MEMORY_CACHE" in slice_result.summary, slice_result.summary
     assert "NO CONFIRMADA" not in slice_result.summary
     assert slice_result.project_id.startswith("astram2"), slice_result.project_id
     assert "SUPRA" in slice_result.chip
@@ -282,12 +282,25 @@ def test_real_state_is_actually_visible_not_just_written(slice_result: _Slice) -
 
 
 def test_slice_reads_real_state_back_into_the_interface_persisted(slice_result: _Slice) -> None:
-    """What the interface claims must be what the server actually persisted."""
+    """What the interface claims must be what the server actually persisted.
+
+    M3: this read happens in the same process that just wrote the project, so
+    the server answers from its in-process cache. It used to label that answer
+    ``PERSISTED_STATE`` anyway; it now declares the cache and separately reports
+    that the durable copy still matches. The receipt assertions below are the
+    original point of the test and are unchanged.
+    """
     dossier = slice_result.dossier
     body = slice_result.server_before_restart
     assert str(body["status"]) in slice_result.summary
     assert str(body["stage"]) in slice_result.summary
-    assert body["status_source"] == "PERSISTED_STATE"
+    assert body["status_source"] == "IN_PROCESS_MEMORY_CACHE", body["status_source"]
+    assert body["persisted_artifact_status"] == "MATCHES_CACHE", (
+        body["persisted_artifact_status"]
+    )
+    # The interface must not label a cache hit as persisted state either.
+    assert "leído del estado persistido" not in slice_result.summary, slice_result.summary
+    assert "caché del proceso SUPRA" in slice_result.summary, slice_result.summary
     receipt = body["posture"]["criba_dossier_receipt"]
     assert receipt["criba_dossier_id"] == dossier["dossier_id"]
     assert receipt["execution_status"] == "NOT_EXECUTED"
@@ -315,7 +328,10 @@ def test_persisted_state_survives_a_server_restart(slice_result: _Slice) -> None
     after = slice_result.server_after_restart
     assert after["status"] == before["status"]
     assert after["stage"] == before["stage"]
+    # After a restart the read genuinely reconstructs from the artifact, so
+    # this is the one place where PERSISTED_STATE is the honest label.
     assert after["status_source"] == "PERSISTED_STATE"
+    assert after["persisted_artifact_status"] == "VERIFIED_FROM_ARTIFACT"
     assert (after["posture"].get("criba_dossier_receipt") or {}).get(
         "criba_dossier_id") == slice_result.dossier["dossier_id"]
 

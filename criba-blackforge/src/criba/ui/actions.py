@@ -1174,6 +1174,7 @@ def _execute_supra_vertical(
                 "criba_planning_receipt_status": lookup.criba_planning_receipt_status,
                 "criba_mechanism_execution_status": lookup.criba_mechanism_execution_status,
                 "status_source": lookup.status_source,
+                "persisted_artifact_status": lookup.persisted_artifact_status,
                 "stage": lookup.stage,
                 "receipt": lookup.posture.criba_dossier_receipt.model_dump()
                 if lookup.posture.criba_dossier_receipt
@@ -1185,6 +1186,32 @@ def _execute_supra_vertical(
             supra.close()
 
 
+def _provenance_text(read: dict[str, Any]) -> str:
+    """Say where the served posture came from, in the words a reader sees.
+
+    M3: the previous text said "leído del estado persistido" for every answer,
+    including one served from SUPRA's in-process cache. That is the same
+    unverified provenance claim K1 fixed on the server, reproduced one layer up
+    in the interface, and the interface is what the user actually reads.
+    """
+    return (
+        "el estado persistido"
+        if read.get("status_source") == "PERSISTED_STATE"
+        else "la caché del proceso SUPRA (copia durable sin verificar)"
+    )
+
+
+def _artifact_text(read: dict[str, Any]) -> str:
+    """State the verdict on the durable copy, without softening it."""
+    return {
+        "VERIFIED_FROM_ARTIFACT": "verificada desde el artefacto",
+        "MATCHES_CACHE": "verificada contra la caché",
+        "DIVERGES_FROM_CACHE": "DIVERGE de la caché",
+        "UNVERIFIABLE": "NO VERIFICABLE",
+        "MISSING": "AUSENTE",
+    }.get(str(read.get("persisted_artifact_status")), "no declarada")
+
+
 def _on_supra_vertical_done(win: Any, report: dict[str, Any]) -> None:
     """Show the real SUPRA read-back state. BLOCKED stays BLOCKED."""
     r = win.refs
@@ -1192,14 +1219,15 @@ def _on_supra_vertical_done(win: Any, report: dict[str, Any]) -> None:
     receipt = read.get("receipt") or {}
     r["ideaTitle"].setText(f"SUPRA {report['project_id']}")
     r["ideaSummary"].setText(
-        f"SUPRA leído del estado persistido ({read['status_source']}): "
+        f"SUPRA leído de {_provenance_text(read)} ({read['status_source']}): "
         f"status {read['status']} · stage {read['stage']} · "
         f"workflow {read['workflow_status']} · "
         f"verification {read['verification_status']} · "
         f"scientific {read['scientific_status']} · "
         f"sandbox {read['secure_sandbox_status']} · "
         f"dossier {read['criba_planning_receipt_status']} · "
-        f"mecanismo CRIBA {read['criba_mechanism_execution_status']}"
+        f"mecanismo CRIBA {read['criba_mechanism_execution_status']} · "
+        f"copia durable {_artifact_text(read)}"
     )
     if receipt:
         set_chip(
@@ -1223,7 +1251,8 @@ def _on_supra_vertical_done(win: Any, report: dict[str, Any]) -> None:
         "cyan",
         f"SUPRA real {report['endpoint']}: {read['status']}/{read['stage']} "
         f"(verificación {read['verification_status']}, científico "
-        f"{read['scientific_status']}); estado leído de {read['status_source']}",
+        f"{read['scientific_status']}); estado leído de "
+        f"{_provenance_text(read)}, copia durable {_artifact_text(read)}",
     )
     win.nav["navSupra"].set_state("done", f"{read['status']}/{read['stage']}")
 

@@ -698,11 +698,23 @@ def get_project_posture(project_id: str) -> dict[str, Any]:
     endpoint. Returning a bare {"status": "success"} here reported a BLOCKED,
     verification-FAIL workflow as a success to exactly the caller that had no
     other source of truth.
+
+    M3: it also publishes WHERE the served posture came from. The previous
+    hardcoded ``status_source="PERSISTED_STATE"`` was a provenance claim the
+    handler never checked: a cache hit was published as persisted state even
+    when the artifact on disk no longer existed. Reproduced by execution
+    against this server before the fix. The state itself was always served
+    correctly, so the fix corrects the label and adds the artifact verdict
+    instead of refusing an answer that is true.
     """
-    posture = state_manager.get_project(project_id)
+    posture, source, artifact_status = state_manager.get_project_with_provenance(project_id)
     if not posture:
         raise HTTPException(status_code=404, detail=f"Project '{project_id}' not found.")
-    return {**_outcome_channels(posture, idempotent_replay=False), "status_source": "PERSISTED_STATE"}
+    return {
+        **_outcome_channels(posture, idempotent_replay=False),
+        "status_source": source,
+        "persisted_artifact_status": artifact_status,
+    }
 
 
 # Compat alias: the live Cloud Run deployment and all submission docs

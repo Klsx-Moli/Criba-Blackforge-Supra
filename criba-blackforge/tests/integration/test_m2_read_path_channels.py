@@ -71,6 +71,7 @@ def _read_payload(**overrides: object) -> dict:
         "project_id": "slice-real",
         "stage": "BLOCKED",
         "status_source": "PERSISTED_STATE",
+        "persisted_artifact_status": "VERIFIED_FROM_ARTIFACT",
         "posture": {
             "project_id": "slice-real",
             "stage": "BLOCKED",
@@ -190,11 +191,50 @@ def test_read_rejects_summary_stage_that_contradicts_persisted_posture() -> None
 
 
 def test_read_requires_the_state_to_be_declared_as_persisted() -> None:
-    """A read that does not say where it read from cannot claim reconstruction."""
+    """A read that does not say where it read from cannot claim reconstruction.
+
+    M3: the rule survives the widening. ``status_source`` accepts the two
+    provenances the server can actually report, and rejects anything else, so
+    an undeclared provenance is still a contract violation.
+    """
     payload = _read_payload(status_source="IN_MEMORY")
     with _client(payload) as client:
         with pytest.raises(SupraClientError, match="project lookup violated response contract"):
             client.get_project("slice-real")
+
+
+def test_read_requires_the_durable_copy_verdict_to_be_declared() -> None:
+    """M3: serving from cache must still say what the durable copy says.
+
+    A memory-served posture is a real answer, but without this channel the
+    consumer cannot tell a cache hit whose artifact still matches from one whose
+    artifact is gone. Dropping the field re-creates K1's original defect one
+    level down.
+    """
+    payload = _read_payload()
+    del payload["persisted_artifact_status"]
+    with _client(payload) as client:
+        with pytest.raises(SupraClientError, match="project lookup violated response contract"):
+            client.get_project("slice-real")
+
+
+def test_read_accepts_a_memory_served_posture_with_its_verdict() -> None:
+    """M3: the honest label must be usable, or only the dishonest one remains.
+
+    Before M3 the client rejected this payload outright, which is why the server
+    kept publishing ``PERSISTED_STATE`` for cache hits.
+    """
+    payload = _read_payload(
+        status_source="IN_PROCESS_MEMORY_CACHE",
+        persisted_artifact_status="UNVERIFIABLE",
+    )
+    with _client(payload) as client:
+        loaded = client.get_project("slice-real")
+    assert loaded.status_source == "IN_PROCESS_MEMORY_CACHE"
+    assert loaded.persisted_artifact_status == "UNVERIFIABLE"
+    # The blocked outcome is still not a success, whatever the provenance.
+    assert loaded.status == "blocked"
+    assert loaded.verification_status == "FAIL"
 
 
 def test_read_keeps_rejecting_a_receipt_promoted_to_execution() -> None:

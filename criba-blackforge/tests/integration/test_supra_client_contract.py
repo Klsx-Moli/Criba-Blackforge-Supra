@@ -186,6 +186,7 @@ def test_get_project_returns_typed_planning_receipt_snapshot() -> None:
                 "criba_planning_receipt_status": "PRESERVED_NOT_EXECUTED",
                 "criba_mechanism_execution_status": "NOT_EXECUTED",
                 "status_source": "PERSISTED_STATE",
+                "persisted_artifact_status": "VERIFIED_FROM_ARTIFACT",
                 "stage": "BLOCKED",
                 "project_id": "restart-contract",
                 "posture": {

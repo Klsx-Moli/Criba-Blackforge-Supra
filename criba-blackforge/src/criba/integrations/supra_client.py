@@ -302,6 +302,14 @@ class SupraProjectLookup(BaseModel):
     API) and the client refused the response as a contract violation. The
     channels stay separated exactly as on the write path; collapsing them is
     what this model must never do.
+
+    M3 adds provenance. ``status_source`` is where the server actually read the
+    posture, and ``persisted_artifact_status`` is what the durable copy behind
+    that answer says. A read served from SUPRA's in-process cache is a real
+    state, but it is not ``PERSISTED_STATE``; the client used to reject such a
+    payload as a contract violation, which made the honest label unusable and
+    left only the dishonest one. Both fields are still REQUIRED and still
+    constrained: an undeclared or unknown provenance is a contract violation.
     """
 
     model_config = ConfigDict(extra="allow")
@@ -316,7 +324,14 @@ class SupraProjectLookup(BaseModel):
     criba_planning_receipt_status: str = "NOT_APPLICABLE"
     criba_mechanism_execution_status: str = "NOT_APPLICABLE"
     idempotent_replay: bool = False
-    status_source: str = "PERSISTED_STATE"
+    status_source: Literal["PERSISTED_STATE", "IN_PROCESS_MEMORY_CACHE"]
+    persisted_artifact_status: Literal[
+        "VERIFIED_FROM_ARTIFACT",
+        "MATCHES_CACHE",
+        "DIVERGES_FROM_CACHE",
+        "UNVERIFIABLE",
+        "MISSING",
+    ]
     project_id: str = Field(min_length=1)
     stage: str
     posture: SupraProjectPostureSnapshot
@@ -339,10 +354,10 @@ class SupraProjectLookup(BaseModel):
             secure_sandbox_status=self.secure_sandbox_status,
             require_terminal=False,
         )
-        if self.status_source != "PERSISTED_STATE":
-            raise ValueError(
-                "SUPRA lookup must report its state as read from persisted state"
-            )
+        # A memory-served posture whose durable copy is unverifiable is the
+        # exact combination this field exists to make visible. It is not an
+        # error: the served state is real, and the durable copy is separately
+        # declared broken. Pretending it was persisted is what was wrong.
         return self
 
 
