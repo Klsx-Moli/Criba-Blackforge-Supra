@@ -10,9 +10,10 @@ import json
 import traceback
 from collections.abc import Callable
 from datetime import datetime
+from threading import Event
 from typing import Any
 
-from PySide6.QtCore import QObject, QRunnable, Signal
+from PySide6.QtCore import QObject, QRunnable, Signal, Slot
 from PySide6.QtGui import QColor
 
 from .. import __version__ as ENGINE_VERSION
@@ -36,10 +37,22 @@ class Worker(QRunnable):
         self.signals = _Signals()
 
     def run(self) -> None:
+        # `QThreadPool.globalInstance()` outlives the window that started the
+        # work, and so does this QRunnable. Its `_Signals` QObject is owned by
+        # Python and dies with the window, so emitting after that raises
+        # `RuntimeError: Signal source has been deleted` from inside
+        # QRunnable::run — which Qt reports as a Python override failure and
+        # takes the surrounding process down. Nobody is listening any more, so
+        # the emission is meaningless; dropping it is correct, not a mute.
         try:
             self.signals.done.emit(self.fn())
+        except RuntimeError:
+            return
         except Exception as exc:  # noqa: BLE001 — S9 muestra el motivo real
-            self.signals.fail.emit(f"{exc}\n{traceback.format_exc(limit=3)}")
+            try:
+                self.signals.fail.emit(f"{exc}\n{traceback.format_exc(limit=3)}")
+            except RuntimeError:
+                return
 
 
 def _now_ts() -> str:
@@ -134,9 +147,7 @@ def enter_s1(win: Any) -> None:
     r["scoreHistogram"].set_bins([])
     r["catDonut"].set_segments([])
     r["catDonut"].set_center("0", "ideas totales")
-    win.footerSegs["fsModelo"].set_value(
-        f"CRIBA {ENGINE_VERSION} · {active_model_label()}"
-    )
+    win.footerSegs["fsModelo"].set_value(f"CRIBA {ENGINE_VERSION} · {active_model_label()}")
     win.footerSegs["fsSesion"].set_value("—")
     win.footerSegs["fsIdeas"].set_value("0")
     win.footerSegs["fsConvergencia"].set_value("—")
@@ -218,9 +229,7 @@ def _apply_new_problem(win: Any, problem: str) -> None:
     for conn in r["connectors"][1:]:
         conn.set_lit(False)
     r["ideaTitle"].setText(problem if len(problem) <= 120 else problem[:117] + "…")
-    r["ideaSummary"].setText(
-        "Problema base capturado. Genera ideas con los 16 operadores."
-    )
+    r["ideaSummary"].setText("Problema base capturado. Genera ideas con los 16 operadores.")
     set_chip(r["ideaEstadoChip"], "Sin evaluar", "exploracion")
     r["scoreGauge"].show()
     r["scoreGauge"].set_score(0.0, animate=False)
@@ -288,7 +297,7 @@ def _on_generated(win: Any, packet: dict[str, Any]) -> None:
     r["connectors"][1].set_lit(True)
     r["stages"]["stageEvaluar"].set_state("active")
     # Ocultar spinner de progreso
-    if hasattr(win, '_progress_label') and win._progress_label:
+    if hasattr(win, "_progress_label") and win._progress_label:
         win._progress_label.hide()
     r["mOperadores"].set_value("16/16")
     r["mIdeas"].set_value(str(len(ideas)))
@@ -310,13 +319,9 @@ def _on_generated(win: Any, packet: dict[str, Any]) -> None:
             f"{semantic.get('model', 'modelo local')} "
             f"({semantic.get('reasoning', 'balanced')}){suffix}",
         )
-        win.footerSegs["fsModelo"].set_value(
-            str(semantic.get("model") or "Modelo local")
-        )
+        win.footerSegs["fsModelo"].set_value(str(semantic.get("model") or "Modelo local"))
     elif semantic.get("status") == "fallback":
-        _activity(
-            win, "orange", f"Modelo no disponible: {semantic.get('error', 'fallback')}"
-        )
+        _activity(win, "orange", f"Modelo no disponible: {semantic.get('error', 'fallback')}")
         win.footerSegs["fsModelo"].set_value("Determinista · fallback LLM")
     _set_buttons(
         win,
@@ -614,9 +619,7 @@ def _build_ranking_rows(packet: dict[str, Any]) -> list[dict[str, Any]]:
                 "descripcion": idea.get("description", ""),
                 "value_score": float(conv.get("value_score", 0.0)),
                 "convergencia": float(conv.get("novelty", 0.0)),
-                "estado": "candidata"
-                if i <= 3
-                else ("eval" if i <= 6 else "exploracion"),
+                "estado": "candidata" if i <= 3 else ("eval" if i <= 6 else "exploracion"),
             }
         )
     return rows
@@ -689,11 +692,7 @@ def _update_charts(win: Any, rows: list[dict[str, Any]]) -> None:
     bins = []
     for i in range(nbins):
         edge = lo + span * (i + 0.5) / nbins
-        count = sum(
-            1
-            for s in scores
-            if lo + span * i / nbins <= s <= lo + span * (i + 1) / nbins
-        )
+        count = sum(1 for s in scores if lo + span * i / nbins <= s <= lo + span * (i + 1) / nbins)
         bins.append((edge, count))
     r["scoreHistogram"].set_bins(bins)
     # donut por familia de operador (datos reales del packet)
@@ -713,14 +712,10 @@ def _update_charts(win: Any, rows: list[dict[str, Any]]) -> None:
     for idx, (name, count) in enumerate(top, start=1):
         color = QColor(t.chart(idx))
         segs.append((name, float(count), color))
-        r["donutLegend"].addWidget(
-            LegendRow(t.chart(idx), name, f"{round(100 * count / total)}%")
-        )
+        r["donutLegend"].addWidget(LegendRow(t.chart(idx), name, f"{round(100 * count / total)}%"))
     if rest > 0:
         segs.append(("Otros", float(rest), QColor(t.chart(5))))
-        r["donutLegend"].addWidget(
-            LegendRow(t.chart(5), "Otros", f"{round(100 * rest / total)}%")
-        )
+        r["donutLegend"].addWidget(LegendRow(t.chart(5), "Otros", f"{round(100 * rest / total)}%"))
     r["catDonut"].set_segments(segs)
     r["catDonut"].set_center(str(len(rows)), "ideas totales")
 
@@ -798,70 +793,131 @@ def on_historial(win: Any) -> None:
 # ---------------------------------------------------------------------------
 # S8 — FUENTES (actualización REAL: adquisición → deduplicación → informe)
 # ---------------------------------------------------------------------------
-def _refresh_store():
+def _refresh_store() -> Any:
     """Almacén de evidencia del perfil activo (fuera del repo del usuario)."""
-    import os
-    from pathlib import Path
+    from ..intelligence.refresh import default_store
 
-    from ..intelligence.storage.store import IntelligenceStore
-
-    base = Path(os.environ.get("LOCALAPPDATA") or Path.home()) / "CRIBA-Blackforge"
-    base.mkdir(parents=True, exist_ok=True)
-    return IntelligenceStore(base / "intelligence.sqlite3")
+    store = default_store()
+    if store is None:
+        raise RuntimeError("No se puede abrir el almacén local de evidencia")
+    return store
 
 
 def _refresh_queries(problem: str) -> list[str]:
     """Consultas de adquisición: el problema activo más términos base."""
-    queries = [p for p in (problem.strip(),) if p]
-    queries.extend(["innovation methods", "prior art search"])
-    return queries
+    return [problem.strip()] if problem.strip() else ["innovation methods", "prior art search"]
+
+
+class _SourceRefreshBridge(QObject):
+    """All acquisition events reach QWidget consumers on the GUI thread."""
+
+    def __init__(self, win: Any) -> None:
+        super().__init__(win if isinstance(win, QObject) else None)
+        self.win = win
+
+    @Slot(object)
+    def progress(self, event: dict[str, Any]) -> None:
+        panel = self.win.refs.get("sourcesProgress")
+        if panel is not None:
+            panel.update_progress(event)
+
+    @Slot(object)
+    def done(self, report: dict[str, Any]) -> None:
+        _on_sources_updated(self.win, report)
+        self.deleteLater()
+
+    @Slot(str)
+    def fail(self, message: str) -> None:
+        _finish_sources_controls(self.win)
+        panel = self.win.refs.get("sourcesProgress")
+        if panel is not None:
+            panel.fail(message)
+        on_operation_error(self.win, "navRed", None, message)
+        self.deleteLater()
+
+
+def _finish_sources_controls(win: Any) -> None:
+    from .i18n import t
+
+    win._source_refresh_running = False
+    win.refs["actualizarFuentesBtn"].setEnabled(True)
+    win.refs["actualizarFuentesBtn"].setText(t("shadow.actualizar"))
+    profile = win.refs.get("sourcesProfile")
+    if profile is not None:
+        profile.setEnabled(True)
+
+
+def on_cancel_sources(win: Any) -> None:
+    """Set the flag; in-flight HTTP may finish, no new request is issued."""
+    event = getattr(win, "_source_cancel_event", None)
+    if event is not None:
+        event.set()
+    panel = win.refs.get("sourcesProgress")
+    if panel is not None and panel.running:
+        panel.set_cancelling()
 
 
 def on_actualizar(win: Any) -> None:
+    from .i18n import t
+
+    if getattr(win, "_source_refresh_running", False):
+        return
+    win._source_refresh_running = True
+    cancel = Event()
+    win._source_cancel_event = cancel
+    problem = str(win.problem or "")
+    profile_widget = win.refs.get("sourcesProfile")
+    profile = str(profile_widget.currentData() or "general") if profile_widget else "general"
+    if profile_widget is not None:
+        profile_widget.setEnabled(False)
+    panel = win.refs.get("sourcesProgress")
+    if panel is not None:
+        panel.begin()
     win.nav["navRed"].setChecked(False)
     r = win.refs
     _lock_mutators(win)
     win.nav["navRed"].set_state("running", "Adquiriendo fuentes...")
     r["actualizarFuentesBtn"].setEnabled(False)
-    r["actualizarFuentesBtn"].setText("Actualizando fuentes...")
+    r["actualizarFuentesBtn"].setText(t("sources.loading"))
+    bridge = _SourceRefreshBridge(win)
+    win._source_refresh_bridge = bridge
 
     def _job() -> dict[str, Any]:
         # Adquisición REAL con deduplicación y cantidades reales (mandato §6).
         from ..intelligence.refresh import refresh_sources
 
+        store = _refresh_store()
         try:
-            store = _refresh_store()
-        except Exception:  # noqa: BLE001 — sin almacén, informe sin persistencia
-            store = None
-        return refresh_sources(
-            _refresh_queries(win.problem or ""),
-            profile="general",
-            store=store,
-        )
+            return refresh_sources(
+                _refresh_queries(problem),
+                profile=profile,
+                store=store,
+                on_progress=worker.signals.progress.emit,
+                cancel_event=cancel,
+            )
+        finally:
+            store.close()
 
     worker = Worker(_job)
-    worker.signals.done.connect(lambda report: _on_sources_updated(win, report))
-    worker.signals.fail.connect(
-        lambda msg: on_operation_error(win, "navRed", None, msg)
-    )
-    _start_worker(win, worker, "sources")
+    worker.signals.progress.connect(bridge.progress)
+    worker.signals.done.connect(bridge.done)
+    worker.signals.fail.connect(bridge.fail)
+    _start_worker(win, worker)
 
 
 def _on_sources_updated(win: Any, report: dict[str, Any]) -> None:
-
+    """Paint the real report. A cached run never refreshes the freshness stamp."""
     r = win.refs
     win.sources_report = report
-    win.sources_updated_at = datetime.now()
     totals = report["totals"]
-    # Barra lateral: cuenta real de documentos por fuente (no porcentajes).
-    for summary in report["per_source"]:
-        bar = r["sourceBars"].get(summary["source_id"])
-        if bar is not None and hasattr(bar, "set_percent"):
-            bar.set_percent(min(100, summary["documents"] * 10))
-    win.nav["navRed"].set_state("done")
-    r["actualizarFuentesBtn"].setEnabled(True)
-    r["actualizarFuentesBtn"].setText("Actualizar fuentes")
-    r["staleBand"].hide()
+    status = report.get("state", "error" if totals["errores"] else "success")
+    if status == "success" and report.get("network_acquisition", False):
+        win.sources_updated_at = datetime.now()
+    win.nav["navRed"].set_state("done" if status == "success" else "error")
+    panel = r.get("sourcesProgress")
+    if panel is not None:
+        panel.finish(report)
+    _finish_sources_controls(win)
     _activity(
         win,
         "cyan",
@@ -875,8 +931,26 @@ def _on_sources_updated(win: Any, report: dict[str, Any]) -> None:
 
 
 def refresh_sources_freshness(win: Any) -> None:
+    from .i18n import t
+
     seg = win.footerSegs["fsFuentes"]
     r = win.refs
+    report = getattr(win, "sources_report", None)
+    if report and report.get("state") in {"error", "partial", "cancelled"}:
+        key = {
+            "error": "sources.error",
+            "partial": "sources.partial",
+            "cancelled": "sources.cancelled",
+        }[report["state"]]
+        seg.set_value(t(key))
+        seg.set_freshness("warn")
+        r["staleBand"].show()
+        return
+    if report and report.get("state") == "success" and not report.get("network_acquisition"):
+        seg.set_value(t("sources.cached"))
+        seg.set_freshness("warn")
+        r["staleBand"].show()
+        return
     if win.sources_updated_at is None:
         seg.set_value("Sin actualizar")
         seg.set_freshness("stale")
@@ -956,9 +1030,7 @@ def on_hibrido(win: Any) -> None:
         "protected_assets": win.packet.get("protected_assets", []) if win.packet else [],
         "threat_actors": win.packet.get("threat_actors", []) if win.packet else [],
         "authorization_state": (
-            win.packet.get("authorization_state", "pending")
-            if win.packet
-            else "pending"
+            win.packet.get("authorization_state", "pending") if win.packet else "pending"
         ),
         "innovation": win.packet.get("innovation", {}) if win.packet else {},
     }
@@ -1008,6 +1080,7 @@ def _on_hibrido_done(win: Any, result: Any) -> None:
     r["ideaSummary"].setText(summary[:240])
 
     from .widgets import set_chip
+
     chip_kind = "eval" if confidence == "confirmed" else "exploracion"
     set_chip(r["ideaEstadoChip"], f"Híbrido: {confidence}", chip_kind)
 
@@ -1023,9 +1096,7 @@ def _on_hibrido_done(win: Any, result: Any) -> None:
     r["mBestScore"].set_value(confidence)
 
     _activity(
-        win,
-        "cyan",
-        f"Pipeline híbrido completado: {recommendation[:60]} (confianza: {confidence})"
+        win, "cyan", f"Pipeline híbrido completado: {recommendation[:60]} (confianza: {confidence})"
     )
     _restore_buttons_after_op(win)
 
@@ -1038,7 +1109,8 @@ def on_blackforge(win: Any) -> None:
     live = getattr(win, "_live_workers", [])
     if live:
         show_error(
-            win, "BLACKFORGE",
+            win,
+            "BLACKFORGE",
             "Hay una generación en curso: espera a que termine o cancélala "
             "antes de cambiar de espacio. Estado: deteniendo generación.",
         )
@@ -1055,9 +1127,7 @@ def on_modelos(win: Any) -> None:
 
     win.nav["navModelos"].setChecked(False)
     if open_model_settings(win):
-        win.footerSegs["fsModelo"].set_value(
-            f"CRIBA {ENGINE_VERSION} · {active_model_label()}"
-        )
+        win.footerSegs["fsModelo"].set_value(f"CRIBA {ENGINE_VERSION} · {active_model_label()}")
         _activity(win, "cyan", f"Modelo activo: {active_model_label()}")
 
 
@@ -1130,9 +1200,7 @@ def _execute_supra_dossiers(
                     "verification_status": result.verification_status,
                     "secure_sandbox_status": result.secure_sandbox_status,
                     "scientific_status": result.scientific_status,
-                    "criba_mechanism_execution_status": (
-                        result.criba_mechanism_execution_status
-                    ),
+                    "criba_mechanism_execution_status": (result.criba_mechanism_execution_status),
                     "stage": result.stage,
                     "read": _supra_lookup_read(lookup),
                 }
@@ -1175,14 +1243,10 @@ def _on_supra_dossiers_done(win: Any, report: dict[str, Any]) -> None:
         and item.get("secure_sandbox_status") != "ISOLATED_BOUND_PASS"
     )
     criba_not_executed = sum(
-        1
-        for item in runs
-        if item.get("criba_mechanism_execution_status") == "NOT_EXECUTED"
+        1 for item in runs if item.get("criba_mechanism_execution_status") == "NOT_EXECUTED"
     )
     r = win.refs
-    sandbox_note = (
-        f" · {sandbox_blocked} sin aislamiento acreditado" if sandbox_blocked else ""
-    )
+    sandbox_note = f" · {sandbox_blocked} sin aislamiento acreditado" if sandbox_blocked else ""
     r["ideaSummary"].setText(
         f"SUPRA workflow: {completed} completado(s) · {blocked} bloqueado(s)"
         f"{sandbox_note} · GET/readback: {readbacks}/{len(runs)} · "
@@ -1202,9 +1266,7 @@ def _on_supra_dossiers_done(win: Any, report: dict[str, Any]) -> None:
 
 def _on_supra_dossiers_failed(win: Any, message: str) -> None:
     r = win.refs
-    r["ideaSummary"].setText(
-        "Dossier SUPRA conservado localmente · ejecución remota NO CONFIRMADA"
-    )
+    r["ideaSummary"].setText("Dossier SUPRA conservado localmente · ejecución remota NO CONFIRMADA")
     set_chip(r["ideaEstadoChip"], "SUPRA pendiente", "exploracion")
     _activity(win, "amber", "SUPRA remoto no confirmado; dossier local preservado.")
     show_error(win, "SUPRA", message)
@@ -1217,9 +1279,7 @@ def on_desarrollar_supra(win: Any) -> None:
         show_error(win, "SUPRA", "Genera candidatos con Inventar antes de desarrollar.")
         return
     propuestas = [
-        entry
-        for entry in sheet["entries"]
-        if entry.get("estado_interpretacion") == "PROPUESTA"
+        entry for entry in sheet["entries"] if entry.get("estado_interpretacion") == "PROPUESTA"
     ]
     if not propuestas:
         show_error(
@@ -1370,8 +1430,11 @@ def on_retro(win: Any) -> None:
     if not data:
         return
     _register_retro_for_test(
-        win, tecnica=data["tecnica"], familia=data["familia"],
-        resultado=data["resultado"], perfil=data["perfil"],
+        win,
+        tecnica=data["tecnica"],
+        familia=data["familia"],
+        resultado=data["resultado"],
+        perfil=data["perfil"],
     )
     _activity(win, "blue", f"Outcome OBSERVED registrado: {data['tecnica']} → {data['resultado']}")
     _suggest(win, None)
@@ -1397,6 +1460,7 @@ def on_red(win: Any) -> None:
             show_error(win, "Red de Ideas", "Genera primero ideas (pestaña Generar).")
             return
         from ..scoring.network import IdeaNetwork
+
         ideas = win.packet["innovation"]["ideas"]
         network = IdeaNetwork()
         network.build_from_ideas(ideas)
@@ -1451,9 +1515,7 @@ def _prepare_dossier_for_selected_idea(win: Any) -> dict[str, Any]:
 
     idea = _selected_idea(win)
     if idea is None:
-        raise ValueError(
-            "no hay candidatos del núcleo: pulsa «Generar ideas» antes de SUPRA"
-        )
+        raise ValueError("no hay candidatos del núcleo: pulsa «Generar ideas» antes de SUPRA")
     return preparar_dossier_desde_idea(idea, str(getattr(win, "problem", "") or ""))
 
 
@@ -1517,11 +1579,7 @@ def _artifact_text(read: dict[str, Any]) -> str:
             "INCOMPATIBLE_SCHEMA": "ESQUEMA INCOMPATIBLE",
             "UNREADABLE": "ARTEFACTO NO LEGIBLE",
         }.get(str(read.get("persisted_artifact_error_kind")))
-        return (
-            f"NO VERIFICABLE ({detail})"
-            if detail
-            else "NO VERIFICABLE (CAUSA NO INFORMADA)"
-        )
+        return f"NO VERIFICABLE ({detail})" if detail else "NO VERIFICABLE (CAUSA NO INFORMADA)"
     return {
         "VERIFIED_FROM_ARTIFACT": "verificada desde el artefacto",
         "MATCHES_CACHE": "verificada contra la caché",
@@ -1589,9 +1647,7 @@ def _on_supra_vertical_failed(win: Any, message: str) -> None:
     candidates = getattr(win, "candidates", None)
     if candidates is not None:
         candidates.show_state_only()
-    win.refs["ideaSummary"].setText(
-        "Dossier local preservado · ejecución SUPRA NO CONFIRMADA"
-    )
+    win.refs["ideaSummary"].setText("Dossier local preservado · ejecución SUPRA NO CONFIRMADA")
     _activity(win, "error", f"SUPRA no confirmado: {message.splitlines()[0][:120]}")
     show_error(win, "SUPRA", message)
 
@@ -1617,9 +1673,7 @@ def on_supra_vertical(win: Any) -> None:
     project_id = "astram2" + uuid.uuid4().hex[:10]
     candidates = getattr(win, "candidates", None)
     if candidates is not None:
-        candidates.dossier_output.setPlainText(
-            json.dumps(dossier, ensure_ascii=False, indent=2)
-        )
+        candidates.dossier_output.setPlainText(json.dumps(dossier, ensure_ascii=False, indent=2))
         candidates.supra_output.clear()
         candidates.output_tabs.setCurrentWidget(candidates.dossier_output)
     r = win.refs
@@ -1685,7 +1739,12 @@ def on_tecnicas(win: Any) -> None:
 
 
 def _register_retro_for_test(
-    _win: Any, *, tecnica: str, familia: str, resultado: str, perfil: str,
+    _win: Any,
+    *,
+    tecnica: str,
+    familia: str,
+    resultado: str,
+    perfil: str,
 ) -> None:
     """Ruta de trabajo de on_retro separada del diálogo (testeable).
 
@@ -1720,7 +1779,11 @@ def _memory_rows_for_test(_win: Any) -> list[dict[str, Any]]:
 
 
 def _run_technique_for_test(
-    _win: Any, *, technique_id: str, problem: str, params: dict[str, Any],
+    _win: Any,
+    *,
+    technique_id: str,
+    problem: str,
+    params: dict[str, Any],
 ) -> dict[str, Any]:
     from ..intelligence.execution import execute_technique
     from ..intelligence.registry import TechniqueRegistry
