@@ -61,6 +61,7 @@ def build_interprete_block(
                 str(getattr(juez.interpreter, "critic_model", "")),
                 PROMPT_VERSION,
                 SCHEMA_VERSION,
+                getattr(juez.interpreter, "generation_parameters", {}),
                 ideas,
             ],
             sort_keys=True,

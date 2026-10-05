@@ -101,9 +101,21 @@ def evaluar_banco(
     for caso in CASOS:
         estados: list[str] = []
         mecanismos: list[set[str]] = []
+        intentos: list[dict[str, Any]] = []
         for _ in range(repeticiones):
             r = proponer(caso["query"], caso["idea"], None, caso["evidence"])
             model_requests += r.model_requests
+            intentos.append(
+                {
+                    "resultado": r.to_campos(),
+                    "raw_output": r.raw_output,
+                    "provenance": r.provenance.sin_secretos() if r.provenance else {},
+                    "finish_reason": r.finish_reason,
+                    "completion_tokens": r.completion_tokens,
+                    "reasoning_tokens": r.reasoning_tokens,
+                    "model_requests": r.model_requests,
+                }
+            )
             estado = (
                 "PROPUESTA"
                 if r.es_propuesta
@@ -130,6 +142,7 @@ def evaluar_banco(
                 "estados": estados,
                 "correcto": correcto,
                 "consistente": consistente,
+                "attempts": intentos,
             }
         )
         if referencia:

@@ -29,7 +29,6 @@ from .model_config import ModelProfile, ModelSettings, load_model_settings
 MAX_SEMANTIC_CANDIDATES = 12
 SEMANTIC_BATCH_SIZE = MAX_SEMANTIC_CANDIDATES
 _MAX_HTTP_RESPONSE_BYTES = 8 * 1024 * 1024
-_GENERATION_TIMEOUT_SECONDS = 300.0
 _SEMANTIC_TEXT_LIMITS = {
     "candidate_id": 120,
     "title": 120,
@@ -242,6 +241,8 @@ def _start_llama_server(profile: ModelProfile) -> None:
         "--alias",
         profile.model or "criba-local",
         "--jinja",
+        "--parallel",
+        str(profile.parallel_slots),
     ]
     if profile.gpu_layers >= 0:
         command.extend(("-ngl", str(profile.gpu_layers)))
@@ -566,7 +567,7 @@ def _generate_once(profile: ModelProfile, system: str, prompt: str) -> str:
             result = _http_json(
                 endpoint + "/api/chat",
                 payload=payload,
-                timeout=_GENERATION_TIMEOUT_SECONDS,
+                timeout=profile.timeout,
             )
         except ModelRuntimeError as exc:
             detail = str(exc).casefold()
@@ -578,7 +579,7 @@ def _generate_once(profile: ModelProfile, system: str, prompt: str) -> str:
             result = _http_json(
                 endpoint + "/api/chat",
                 payload=payload,
-                timeout=_GENERATION_TIMEOUT_SECONDS,
+                timeout=profile.timeout,
             )
         message = result.get("message", {})
         if not isinstance(message, dict):
@@ -602,7 +603,7 @@ def _generate_once(profile: ModelProfile, system: str, prompt: str) -> str:
     result = _http_json(
         endpoint + "/v1/chat/completions",
         payload=payload,
-        timeout=_GENERATION_TIMEOUT_SECONDS,
+        timeout=profile.timeout,
     )
     choices = result.get("choices", [])
     if not isinstance(choices, list) or not choices or not isinstance(choices[0], dict):

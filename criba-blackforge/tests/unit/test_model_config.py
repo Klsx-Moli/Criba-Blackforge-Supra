@@ -20,6 +20,8 @@ def test_model_settings_round_trip_without_secrets(tmp_path, monkeypatch) -> Non
         gguf_path=str(tmp_path / "qwen.gguf"),
         server_path=str(tmp_path / "llama-server.exe"),
         reasoning="deep",
+        timeout=120.0,
+        parallel_slots=2,
     )
     settings = ModelSettings(
         enabled=True,
@@ -34,6 +36,8 @@ def test_model_settings_round_trip_without_secrets(tmp_path, monkeypatch) -> Non
     assert loaded.active_profile() is not None
     assert loaded.active_profile().name == "Qwen local"  # type: ignore[union-attr]
     assert loaded.active_profile().reasoning == "deep"  # type: ignore[union-attr]
+    assert loaded.active_profile().timeout == 120.0  # type: ignore[union-attr]
+    assert loaded.active_profile().parallel_slots == 2  # type: ignore[union-attr]
     assert "api_key" not in target.read_text(encoding="utf-8")
     assert active_model_label(loaded) == "Qwen local · deep"
 

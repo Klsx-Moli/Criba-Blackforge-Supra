@@ -79,6 +79,8 @@ class ModelProfile:
     gpu_layers: int = -1
     temperature: float = 0.45
     max_output_tokens: int = 2400
+    timeout: float = 300.0
+    parallel_slots: int = 1
 
     @classmethod
     def from_dict(cls, raw: dict[str, Any]) -> ModelProfile:
@@ -119,6 +121,8 @@ class ModelProfile:
                 256,
                 16384,
             ),
+            timeout=_bounded_float(raw.get("timeout"), defaults.timeout, 5.0, 1800.0),
+            parallel_slots=_bounded_int(raw.get("parallel_slots"), 1, 1, 16),
         )
 
 

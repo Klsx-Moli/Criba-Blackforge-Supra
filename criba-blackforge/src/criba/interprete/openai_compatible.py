@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import json
 import logging
+import math
 import os
 import time
 from dataclasses import replace
@@ -48,11 +49,9 @@ log = logging.getLogger("criba.interprete.openai_compatible")
 # El adaptador anterior tenia 30 s fijos y ya se demostro insuficientes: una
 # propuesta real dio "timed out". Ahora es configurable.
 TIMEOUT_POR_DEFECTO = 120.0
-# Medido el 2026-10-03: con 2048 el modelo de razonamiento consumio 1988 tokens
-# pensando, devolvio content=null y no emitio propuesta. El adaptador anterior
-# pedia 4096 para proponer; bajar eso fue una regresion mia. Configurable porque
-# depende del modelo elegido.
-MAX_TOKENS = 4096
+# Reasoning and visible output can share the token budget. Keep a configurable
+# allowance for the full proposal and critique; this is not a quality guarantee.
+MAX_TOKENS = 8192
 TEMPERATURA = 0.2
 
 # Un id de modelo inventado devuelve 404 desde el catalogo. Se comprueba al
@@ -125,6 +124,10 @@ class OpenAICompatibleInterpreter:
         timeout_s: float | None = None,
         fallback_local: bool | None = None,
         critic_model: str | None = None,
+        max_tokens: int | None = None,
+        temperature: float | None = None,
+        reasoning_effort: str | None = None,
+        enable_thinking: bool | None = None,
     ) -> None:
         self.base = (
             base_url or os.getenv("CRIBA_EXTERNAL_BASE_URL") or "http://127.0.0.1:8645/v1"
@@ -139,6 +142,21 @@ class OpenAICompatibleInterpreter:
             if timeout_s is not None
             else os.getenv("CRIBA_EXTERNAL_TIMEOUT_S", TIMEOUT_POR_DEFECTO)
         )
+        try:
+            self.max_tokens = int(
+                max_tokens
+                if max_tokens is not None
+                else os.getenv("CRIBA_EXTERNAL_MAX_TOKENS", MAX_TOKENS)
+            )
+        except (TypeError, ValueError, OverflowError):
+            self.max_tokens = 0
+        self.temperature = TEMPERATURA if temperature is None else temperature
+        self.reasoning_effort = (
+            reasoning_effort
+            if reasoning_effort is not None
+            else os.getenv("CRIBA_EXTERNAL_REASONING_EFFORT", "").strip()
+        )
+        self.enable_thinking = enable_thinking
         self.fallback_local = (
             fallback_local
             if fallback_local is not None
@@ -148,6 +166,17 @@ class OpenAICompatibleInterpreter:
             os.getenv("CRIBA_EXTERNAL_PROVIDER", "nous_oauth_subscription_proxy").strip()
             or "nous_oauth_subscription_proxy"
         )
+
+    @property
+    def generation_parameters(self) -> dict[str, Any]:
+        """Snapshot used in request provenance and the cache identity."""
+        return {
+            "max_tokens": self.max_tokens,
+            "temperature": self.temperature,
+            "timeout_s": self.timeout_s,
+            "reasoning_effort": self.reasoning_effort,
+            "enable_thinking": self.enable_thinking,
+        }
 
     # -- estado real, no optimista ---------------------------------------
     def operativo(self) -> tuple[bool, str]:
@@ -203,6 +232,7 @@ class OpenAICompatibleInterpreter:
             fallback_used=fallback_used,
             raw_output_sha256=hash_salida(raw),
             prompt_sha256=hash_salida(_SYSTEM + prompt),
+            generation_parameters=self.generation_parameters,
         )
 
     def _pedir(self, prompt: str, model: str) -> InterpretationResult:
@@ -215,7 +245,7 @@ class OpenAICompatibleInterpreter:
                 {"role": "system", "content": _SYSTEM},
                 {"role": "user", "content": prompt},
             ],
-            "temperature": TEMPERATURA,
+            "temperature": self.temperature,
             "response_format": {"type": "json_object"},
         }
         model_reported = ""
@@ -249,12 +279,37 @@ class OpenAICompatibleInterpreter:
 
         try:
             try:
-                max_tokens = int(os.getenv("CRIBA_EXTERNAL_MAX_TOKENS", MAX_TOKENS))
-                if max_tokens <= 0:
+                max_tokens = self.max_tokens
+                if not 1 <= max_tokens <= 32768:
                     raise ValueError("max_tokens debe ser positivo")
             except ValueError:
                 return replace(_fallo("configuracion_invalida:max_tokens"), model_requests=0)
             payload["max_tokens"] = max_tokens
+            if not math.isfinite(self.timeout_s) or not 0 < self.timeout_s <= 1800:
+                return replace(_fallo("configuracion_invalida:timeout"), model_requests=0)
+            if not math.isfinite(self.temperature) or not 0 <= self.temperature <= 2:
+                return replace(_fallo("configuracion_invalida:temperature"), model_requests=0)
+            if self.reasoning_effort:
+                if self.reasoning_effort not in {
+                    "none",
+                    "minimal",
+                    "low",
+                    "medium",
+                    "high",
+                    "xhigh",
+                    "max",
+                }:
+                    return replace(
+                        _fallo("configuracion_invalida:reasoning_effort"), model_requests=0
+                    )
+                from urllib.parse import urlsplit
+
+                if urlsplit(self.base).hostname == "openrouter.ai":
+                    payload["reasoning"] = {"effort": self.reasoning_effort}
+                else:
+                    payload["reasoning_effort"] = self.reasoning_effort
+            if self.enable_thinking is not None:
+                payload["chat_template_kwargs"] = {"enable_thinking": self.enable_thinking}
             with httpx.Client(timeout=self.timeout_s) as client:
                 resp = client.post(
                     f"{self.base}/chat/completions", json=payload, headers=self._headers()
@@ -464,7 +519,17 @@ class LocalLlamaInterpreter(OpenAICompatibleInterpreter):
         local_model = (
             model or os.getenv("CRIBA_LOCAL_MODEL") or (profile.model if profile else "criba-local")
         )
-        super().__init__(base_url=base, model=local_model, api_key="", critic_model=local_model)
+        super().__init__(
+            base_url=base,
+            model=local_model,
+            api_key="",
+            critic_model=local_model,
+            timeout_s=profile.timeout if profile else TIMEOUT_POR_DEFECTO,
+            max_tokens=profile.max_output_tokens if profile else MAX_TOKENS,
+            temperature=profile.temperature if profile else TEMPERATURA,
+            reasoning_effort="none" if profile and profile.reasoning == "fast" else "",
+            enable_thinking=profile.reasoning != "fast" if profile else None,
+        )
         self.provider = "local_gguf"
         self.gate_report: dict[str, Any] | None = None
 

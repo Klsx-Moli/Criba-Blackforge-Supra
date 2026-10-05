@@ -184,6 +184,19 @@ class ModelSettingsDialog(QDialog):
         self.output_spin.setSuffix(" tokens")
         form.addRow("Salida máxima", self.output_spin)
 
+        self.timeout_spin = QDoubleSpinBox()
+        self.timeout_spin.setRange(5.0, 1800.0)
+        self.timeout_spin.setSuffix(" s")
+        form.addRow("Espera máxima por petición", self.timeout_spin)
+
+        self.parallel_spin = QSpinBox()
+        self.parallel_spin.setRange(1, 16)
+        self.parallel_spin.setToolTip(
+            "Se aplica al arrancar llama.cpp. El contexto total se comparte entre slots. "
+            "Ollama administra su paralelismo en el servidor."
+        )
+        form.addRow("Slots llama.cpp", self.parallel_spin)
+
         editor_layout.addLayout(form)
         self.status_label = QLabel("Configura un perfil y prueba la conexión.")
         self.status_label.setObjectName("modelStatus")
@@ -289,6 +302,8 @@ class ModelSettingsDialog(QDialog):
         self.gpu_spin.setValue(profile.gpu_layers)
         self.temperature_spin.setValue(profile.temperature)
         self.output_spin.setValue(profile.max_output_tokens)
+        self.timeout_spin.setValue(profile.timeout)
+        self.parallel_spin.setValue(profile.parallel_slots)
         self._loading = False
         self._update_backend_fields()
 
@@ -307,6 +322,8 @@ class ModelSettingsDialog(QDialog):
         profile.gpu_layers = self.gpu_spin.value()
         profile.temperature = self.temperature_spin.value()
         profile.max_output_tokens = self.output_spin.value()
+        profile.timeout = self.timeout_spin.value()
+        profile.parallel_slots = self.parallel_spin.value()
         item = self.profile_list.currentItem()
         if item is not None:
             item.setText(profile.name)

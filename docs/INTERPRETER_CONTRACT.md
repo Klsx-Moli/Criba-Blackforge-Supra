@@ -79,13 +79,38 @@ Configuración externa actual por defecto:
 CRIBA_EXTERNAL_BASE_URL=http://127.0.0.1:8645/v1
 CRIBA_EXTERNAL_MODEL=stealth/space-bunny-alpha
 CRIBA_EXTERNAL_TIMEOUT_S=120
-CRIBA_EXTERNAL_MAX_TOKENS=4096
+CRIBA_EXTERNAL_MAX_TOKENS=8192
 ```
 
 Las credenciales se leen del entorno y nunca se incluyen en el paquete ni la
 procedencia. El proxy debe estar activo para ejecutar una prueba con Space Bunny.
 El nombre de un modelo utilizado por el agente de Hermes no implica que ese proxy
 esté disponible para la aplicación.
+
+Los parámetros se fijan al construir el intérprete y se guardan en su procedencia
+y en la identidad de caché. Cambiar el límite de salida, temperatura o política de
+razonamiento obliga a generar de nuevo. `CRIBA_EXTERNAL_REASONING_EFFORT` es optativo:
+se envía sólo si se configura, y el modelo debe admitir el valor elegido. Para
+OpenRouter se utiliza `reasoning.effort`; para otros endpoints, `reasoning_effort`.
+Un `none` global no sería válido para todos los modelos.
+
+El intérprete local respeta `timeout`, `max_output_tokens`, `temperature` y
+`reasoning` del perfil habilitado en `models.json`, sin heredar los límites del
+proveedor externo. El modo rápido pide desactivar thinking. `parallel_slots` se
+aplica al arrancar un servidor llama.cpp administrado por CRIBA; no reconfigura
+servidores ya activos ni controla el paralelismo de Ollama. El contexto total de
+llama.cpp se comparte entre slots. `key_env` no pertenece al contrato de perfiles
+locales: las credenciales externas usan `CRIBA_EXTERNAL_API_KEY`.
+
+Para arrancar el perfil local exclusivamente durante una evaluación:
+
+```powershell
+.\.venv\Scripts\python.exe scripts/check_interpreter.py --backend local_llama --start-local --evaluate --output admission.json
+```
+
+El proceso cierra únicamente servidores que haya arrancado él. El informe guarda
+cada respuesta original, crítica, diagnóstico y procedencia para revisar por qué
+un modelo pasa o falla; no convierte una respuesta fallida en una idea sintética.
 
 ## Relación con la arquitectura científica causal
 

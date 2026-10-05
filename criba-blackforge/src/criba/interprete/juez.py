@@ -49,6 +49,8 @@ class JuezInterprete:
             if (
                 previo
                 and InterpreteStore.cache_valido(previo, idea)
+                and previo["provenance"].get("generation_parameters", {})
+                == getattr(self.interpreter, "generation_parameters", {})
                 and previo["provenance"].get("prompt_sha256")
                 == hash_salida(SYSTEM + prompt_propuesta(query, idea, None, None))
             ):

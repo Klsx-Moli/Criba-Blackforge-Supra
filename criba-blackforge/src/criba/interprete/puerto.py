@@ -76,6 +76,7 @@ class Provenance:
     fallback_used: bool
     raw_output_sha256: str
     prompt_sha256: str = ""
+    generation_parameters: dict[str, Any] = field(default_factory=dict)
 
     def as_dict(self) -> dict[str, Any]:
         return asdict(self)

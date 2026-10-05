@@ -139,6 +139,8 @@ class InterpreteStore:
                         and previo["schema_version"] == provenance.get("schema_version", "")
                         and json.loads(previo["provenance_json"]).get("prompt_sha256")
                         == provenance.get("prompt_sha256")
+                        and json.loads(previo["provenance_json"]).get("generation_parameters", {})
+                        == provenance.get("generation_parameters", {})
                     )
                 ):
                     return {

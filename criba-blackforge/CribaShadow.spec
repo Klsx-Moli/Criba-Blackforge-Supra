@@ -12,7 +12,7 @@ ejecutable.
 import os
 from pathlib import Path
 
-from PyInstaller.utils.hooks import collect_submodules, get_package_paths
+from PyInstaller.utils.hooks import collect_submodules, copy_metadata, get_package_paths
 
 ROOT = Path(os.path.abspath(SPECPATH))
 SUPRA_SRC = ROOT.parent / "supra" / "src"
@@ -40,7 +40,7 @@ a = Analysis(
         # .exe reventaba con FileNotFoundError: theme_criba.json.
         (str(ROOT / "data"), "data"),
         (str(ROOT / "schemas"), "schemas"),
-    ],
+    ] + copy_metadata("criba"),
     hiddenimports=[
         # Shadow UI: modulos sueltos, no visibles para el analisis estatico
         "shadow_window",

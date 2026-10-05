@@ -1,4 +1,5 @@
 """MCP-compatible JSON-RPC stdio transport, with no network exposure."""
+
 from __future__ import annotations
 
 import json
@@ -12,17 +13,81 @@ from .catalog import currents
 from .engine import activate, build_prompt
 from .selector import select
 from .storage import Storage
+from .version import __version__
 
 JsonObject = dict[str, Any]
 
 TOOLS: list[JsonObject] = [
-    {"name": "activate_current", "description": "Activate CRIBA before a final model response.", "inputSchema": {"type": "object", "properties": {"query": {"type": "string"}, "current": {"type": "string", "default": "auto"}, "mode": {"type": "string", "default": "balanced"}, "supporting_methods": {"type": "integer", "default": 4}, "context": {"type": "object"}, "safety_level": {"type": "string", "default": "strict"}}, "required": ["query"]}},
-    {"name": "list_currents", "description": "List current modules.", "inputSchema": {"type": "object", "properties": {}}},
-    {"name": "explain_selection", "description": "Explain deterministic selection.", "inputSchema": {"type": "object", "properties": {"query": {"type": "string"}}, "required": ["query"]}},
-    {"name": "run_criba", "description": "Run and persist the CRIBA flow.", "inputSchema": {"type": "object", "properties": {"query": {"type": "string"}}, "required": ["query"]}},
-    {"name": "build_model_prompt", "description": "Build an enriched model prompt.", "inputSchema": {"type": "object", "properties": {"query": {"type": "string"}}, "required": ["query"]}},
-    {"name": "record_decision", "description": "Persist evidence and decision.", "inputSchema": {"type": "object", "properties": {"session_id": {"type": "string"}, "status": {"type": "string"}, "evidence": {}}, "required": ["session_id", "status"]}},
-    {"name": "compare_runs", "description": "Compare two stored activations.", "inputSchema": {"type": "object", "properties": {"session_a": {"type": "string"}, "session_b": {"type": "string"}}, "required": ["session_a", "session_b"]}},
+    {
+        "name": "activate_current",
+        "description": "Activate CRIBA before a final model response.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "query": {"type": "string"},
+                "current": {"type": "string", "default": "auto"},
+                "mode": {"type": "string", "default": "balanced"},
+                "supporting_methods": {"type": "integer", "default": 4},
+                "context": {"type": "object"},
+                "safety_level": {"type": "string", "default": "strict"},
+            },
+            "required": ["query"],
+        },
+    },
+    {
+        "name": "list_currents",
+        "description": "List current modules.",
+        "inputSchema": {"type": "object", "properties": {}},
+    },
+    {
+        "name": "explain_selection",
+        "description": "Explain deterministic selection.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {"query": {"type": "string"}},
+            "required": ["query"],
+        },
+    },
+    {
+        "name": "run_criba",
+        "description": "Run and persist the CRIBA flow.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {"query": {"type": "string"}},
+            "required": ["query"],
+        },
+    },
+    {
+        "name": "build_model_prompt",
+        "description": "Build an enriched model prompt.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {"query": {"type": "string"}},
+            "required": ["query"],
+        },
+    },
+    {
+        "name": "record_decision",
+        "description": "Persist evidence and decision.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "session_id": {"type": "string"},
+                "status": {"type": "string"},
+                "evidence": {},
+            },
+            "required": ["session_id", "status"],
+        },
+    },
+    {
+        "name": "compare_runs",
+        "description": "Compare two stored activations.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {"session_a": {"type": "string"}, "session_b": {"type": "string"}},
+            "required": ["session_a", "session_b"],
+        },
+    },
 ]
 
 
@@ -91,7 +156,11 @@ def run_stdio(database: Path | str | None = None) -> None:
             ident = request.get("id")
             result: Any
             if method == "initialize":
-                result = {"protocolVersion": "2024-11-05", "serverInfo": {"name": "criba", "version": "0.3.0"}, "capabilities": {"tools": {}}}
+                result = {
+                    "protocolVersion": "2024-11-05",
+                    "serverInfo": {"name": "criba", "version": __version__},
+                    "capabilities": {"tools": {}},
+                }
             elif method == "tools/list":
                 result = {"tools": TOOLS}
             elif method == "tools/call":
@@ -102,9 +171,31 @@ def run_stdio(database: Path | str | None = None) -> None:
                 arguments = params.get("arguments", {})
                 if not isinstance(arguments, Mapping):
                     raise ValueError("Campo MCP 'arguments' debe ser un objeto")
-                result = {"content": [{"type": "text", "text": json.dumps(call(tool_name, arguments, store), ensure_ascii=False)}]}
+                result = {
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": json.dumps(
+                                call(tool_name, arguments, store), ensure_ascii=False
+                            ),
+                        }
+                    ]
+                }
             else:
                 raise ValueError(f"Método MCP inexistente: {method}")
-            print(json.dumps({"jsonrpc": "2.0", "id": ident, "result": result}, ensure_ascii=False), flush=True)
+            print(
+                json.dumps({"jsonrpc": "2.0", "id": ident, "result": result}, ensure_ascii=False),
+                flush=True,
+            )
         except (ValueError, KeyError, TypeError, sqlite3.Error) as exc:
-            print(json.dumps({"jsonrpc": "2.0", "id": request.get("id"), "error": {"code": -32000, "message": str(exc)}}, ensure_ascii=False), flush=True)
+            print(
+                json.dumps(
+                    {
+                        "jsonrpc": "2.0",
+                        "id": request.get("id"),
+                        "error": {"code": -32000, "message": str(exc)},
+                    },
+                    ensure_ascii=False,
+                ),
+                flush=True,
+            )
