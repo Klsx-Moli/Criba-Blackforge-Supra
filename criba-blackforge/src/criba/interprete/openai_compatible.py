@@ -16,10 +16,19 @@ import json
 import logging
 import os
 import time
+from dataclasses import replace
 from typing import Any
 
 import httpx
 
+from .contrato import (
+    CRITICA_INSTRUCCIONES,
+    PREGUNTAS_TEXTO,
+    SYSTEM,
+    prompt_propuesta,
+    validar_critica,
+    validar_propuesta,
+)
 from .puerto import (
     ESTADO_PENDIENTE,
     ESTADO_PROPUESTA,
@@ -48,7 +57,7 @@ TEMPERATURA = 0.2
 
 # Un id de modelo inventado devuelve 404 desde el catalogo. Se comprueba al
 # arrancar y se dice cual se pidio y cual respondio.
-_SYSTEM = "Eres un intérprete de cruces de técnicas. Respondes solo JSON válido."
+_SYSTEM = SYSTEM
 
 
 def _extraer_json(contenido: str) -> dict[str, Any]:
@@ -58,6 +67,18 @@ def _extraer_json(contenido: str) -> dict[str, Any]:
     hasta el primer objeto completo. Si no hay JSON, se levanta el error y el
     llamador degrada a pendiente con el motivo real.
     """
+
+    def pares_unicos(pares: list[tuple[str, Any]]) -> dict[str, Any]:
+        objeto: dict[str, Any] = {}
+        for clave, valor in pares:
+            if clave in objeto:
+                raise ValueError("clave JSON duplicada")
+            objeto[clave] = valor
+        return objeto
+
+    def constante_invalida(value: str) -> Any:
+        raise ValueError("constante no válida en JSON")
+
     raw = (contenido or "").strip()
     if raw.startswith("```json"):
         raw = raw[len("```json") :]
@@ -67,13 +88,15 @@ def _extraer_json(contenido: str) -> dict[str, Any]:
         raw = raw[:-3]
     raw = raw.strip()
     try:
-        parsed = json.loads(raw)
+        parsed = json.loads(raw, object_pairs_hook=pares_unicos, parse_constant=constante_invalida)
     except ValueError:
         inicio = raw.find("{")
         fin = raw.rfind("}")
         if inicio == -1 or fin <= inicio:
             raise
-        parsed = json.loads(raw[inicio : fin + 1])
+        parsed = json.loads(
+            raw[inicio : fin + 1], object_pairs_hook=pares_unicos, parse_constant=constante_invalida
+        )
     if not isinstance(parsed, dict):
         raise ValueError("la respuesta no es un objeto JSON")
     return parsed
@@ -85,59 +108,8 @@ def construir_prompt(
     domain: dict[str, Any] | None,
     evidence: list[dict[str, Any]] | None,
 ) -> str:
-    """El prompt, sin tocarlo: es el mismo que ya usaba el adaptador.
-
-    Se conserva literal a proposito. Cambiarlo y el parser a la vez haria
-    imposible atribuir un fallo a uno u otro.
-    """
-    dominio = str((domain or {}).get("title") or "general")
-    bloque_evidencia = ""
-    for i, ev in enumerate((evidence or [])[:3], 1):
-        titulo = str(ev.get("title") or "").strip()
-        resumen = str(ev.get("abstract") or "").strip()
-        if titulo or resumen:
-            bloque_evidencia += f"{i}. {titulo}: {resumen[:200]}\n"
-    if bloque_evidencia:
-        bloque_evidencia = (
-            "\nEVIDENCIA LOCAL PERTINENTE (apóyate solo en la que sirva y "
-            "cítala por número si la usas):\n" + bloque_evidencia
-        )
-    bloqueo = idea.get("bloqueo") or {}
-    bloqueo_bloque = ""
-    if bloqueo.get("bloqueo"):
-        bloqueo_bloque = f"""
-
-BLOQUEO IDENTIFICADO (origen declarado: {bloqueo.get("origen_bloqueo", "hipotesis")}):"""
-        bloqueo_bloque += f"\n{str(bloqueo.get('bloqueo'))[:400]}"
-        bloqueo_bloque += f"\nExplicación: {str(bloqueo.get('explicacion_bloqueo', ''))[:300]}"
-        bloqueo_bloque += f"\nResultado buscado: {str(bloqueo.get('resultado_buscado', ''))[:200]}"
-        restricciones = str(bloqueo.get("restricciones_obligatorias", []))[:200]
-        bloqueo_bloque += f"\nTus restricciones obligatorias: {restricciones}"
-        bloqueo_bloque += (
-            '\nAñade "ruta_desbloqueo" al JSON con la ruta elegida y su justificación.'
-        )
-    return f"""Aplica el cruce de técnicas a este problema concreto.
-
-PROBLEMA: {query}
-DOMINIO DE ACOPLAMIENTO: {dominio}
-
-CRUCE (dos operadores):
-Técnica A: {idea.get("method1", idea.get("title", ""))}
-Técnica B: {idea.get("method2", "")}
-Título del cruce: {idea.get("title", "")}
-{bloqueo_bloque}{bloque_evidencia}
-Responde ÚNICAMENTE con JSON válido (nada de markdown) con esta estructura:
-
-{{
-  "hipotesis": "propuesta específica para ESTE problema",
-  "mecanismo": "cómo funciona causalmente, en términos del dominio",
-  "aportacion_por_tecnica": ["qué aporta la técnica A aquí", "qué aporta la técnica B aquí"],
-  "supuestos": ["supuesto cuestionable 1"],
-  "prueba_concreta": "comparación mínima con métrica y condición de fracaso"
-}}
-
-El mecanismo es obligatorio y debe referirse al problema, no a los nombres
-de las técnicas. Si el cruce no produce nada pertinente, dilo en hipótesis."""
+    """Contrato versionado con evidencia y preguntas epistemológicas."""
+    return prompt_propuesta(query, idea, domain, evidence)
 
 
 class OpenAICompatibleInterpreter:
@@ -152,15 +124,13 @@ class OpenAICompatibleInterpreter:
         api_key: str | None = None,
         timeout_s: float | None = None,
         fallback_local: bool | None = None,
+        critic_model: str | None = None,
     ) -> None:
         self.base = (
             base_url or os.getenv("CRIBA_EXTERNAL_BASE_URL") or "http://127.0.0.1:8645/v1"
         ).rstrip("/")
-        self.model = (
-            model
-            or os.getenv("CRIBA_EXTERNAL_MODEL")
-            or "stealth/space-bunny-alpha"
-        )
+        self.model = model or os.getenv("CRIBA_EXTERNAL_MODEL") or "stealth/space-bunny-alpha"
+        self.critic_model = critic_model or os.getenv("CRIBA_CRITIC_MODEL") or self.model
         # La clave se lee SOLO del entorno y nunca se escribe en logs ni en la
         # procedencia. Un proxy local acepta cualquier bearer.
         self._api_key = api_key if api_key is not None else os.getenv("CRIBA_EXTERNAL_API_KEY", "")
@@ -174,9 +144,10 @@ class OpenAICompatibleInterpreter:
             if fallback_local is not None
             else os.getenv("CRIBA_EXTERNAL_FALLBACK_LOCAL", "false").lower() == "true"
         )
-        self.provider = os.getenv(
-            "CRIBA_EXTERNAL_PROVIDER", "nous_oauth_subscription_proxy"
-        ).strip() or "nous_oauth_subscription_proxy"
+        self.provider = (
+            os.getenv("CRIBA_EXTERNAL_PROVIDER", "nous_oauth_subscription_proxy").strip()
+            or "nous_oauth_subscription_proxy"
+        )
 
     # -- estado real, no optimista ---------------------------------------
     def operativo(self) -> tuple[bool, str]:
@@ -191,9 +162,10 @@ class OpenAICompatibleInterpreter:
                 return False, f"el endpoint no responde /models: HTTP {resp.status_code}"
             data = resp.json()
             ids = [m.get("id") for m in (data.get("data") or []) if isinstance(m, dict)]
-            if self.model not in ids:
+            ausentes = [m for m in {self.model, self.critic_model} if m not in ids]
+            if ausentes:
                 return False, (
-                    f"el modelo {self.model!r} no esta en el catalogo del endpoint "
+                    f"el modelo {ausentes[0]!r} no esta en el catalogo del endpoint "
                     f"(hay {len(ids)} disponibles)"
                 )
             return True, f"endpoint responde y {self.model!r} esta en el catalogo"
@@ -207,12 +179,20 @@ class OpenAICompatibleInterpreter:
         return headers
 
     def _provenance(
-        self, *, request_id: str, inicio: float, model_reported: str, raw: str, fallback_used: bool
+        self,
+        *,
+        request_id: str,
+        inicio: float,
+        model_reported: str,
+        raw: str,
+        fallback_used: bool,
+        prompt: str = "",
+        model_requested: str = "",
     ) -> Provenance:
         return Provenance(
             interpreter_backend=self.backend,
             provider=self.provider,
-            model_requested=self.model,
+            model_requested=model_requested or self.model,
             model_reported=model_reported or "",
             endpoint=sin_secretos(self.base),
             timestamp=marca_temporal(),
@@ -222,29 +202,20 @@ class OpenAICompatibleInterpreter:
             request_id=request_id,
             fallback_used=fallback_used,
             raw_output_sha256=hash_salida(raw),
+            prompt_sha256=hash_salida(_SYSTEM + prompt),
         )
 
-    # -- la operacion del puerto ------------------------------------------
-    def proponer(
-        self,
-        query: str,
-        idea: dict[str, Any],
-        domain: dict[str, Any] | None = None,
-        evidence: list[dict[str, Any]] | None = None,
-    ) -> InterpretationResult:
+    def _pedir(self, prompt: str, model: str) -> InterpretationResult:
+        """Una petición, con diagnóstico y procedencia propios incluso si falla."""
         request_id = nuevo_request_id()
         inicio = time.monotonic()
-        prompt = construir_prompt(query, idea, domain, evidence)
         payload = {
-            "model": self.model,
+            "model": model,
             "messages": [
                 {"role": "system", "content": _SYSTEM},
                 {"role": "user", "content": prompt},
             ],
             "temperature": TEMPERATURA,
-            "max_tokens": int(os.getenv("CRIBA_EXTERNAL_MAX_TOKENS", MAX_TOKENS)),
-            # Solicita texto JSON; no se exponen tools, terminal, archivos ni el
-            # agente Hermes a la salida del modelo.
             "response_format": {"type": "json_object"},
         }
         model_reported = ""
@@ -254,10 +225,7 @@ class OpenAICompatibleInterpreter:
         reasoning_tokens: int | None = None
 
         def _numero_opcional(value: Any) -> int | None:
-            try:
-                return int(value) if value is not None else None
-            except (TypeError, ValueError):
-                return None
+            return value if type(value) is int and value >= 0 else None
 
         def _fallo(motivo: str, *, raw_para_hash: str | None = None) -> InterpretationResult:
             return InterpretationResult(
@@ -269,14 +237,24 @@ class OpenAICompatibleInterpreter:
                     model_reported=model_reported,
                     raw=raw_output if raw_para_hash is None else raw_para_hash,
                     fallback_used=False,
+                    prompt=prompt,
+                    model_requested=model,
                 ),
                 raw_output=raw_output,
                 finish_reason=finish_reason,
                 completion_tokens=completion_tokens,
                 reasoning_tokens=reasoning_tokens,
+                model_requests=1,
             )
 
         try:
+            try:
+                max_tokens = int(os.getenv("CRIBA_EXTERNAL_MAX_TOKENS", MAX_TOKENS))
+                if max_tokens <= 0:
+                    raise ValueError("max_tokens debe ser positivo")
+            except ValueError:
+                return replace(_fallo("configuracion_invalida:max_tokens"), model_requests=0)
+            payload["max_tokens"] = max_tokens
             with httpx.Client(timeout=self.timeout_s) as client:
                 resp = client.post(
                     f"{self.base}/chat/completions", json=payload, headers=self._headers()
@@ -321,7 +299,7 @@ class OpenAICompatibleInterpreter:
                     return _fallo("tool_calls_sin_contenido")
                 return _fallo(
                     f"sin_contenido:finish_reason={finish_reason or 'desconocido'} "
-                    f"tokens={completion_tokens or 0} razonamiento={reasoning_tokens or 0}"
+                    f"tokens={completion_tokens} razonamiento={reasoning_tokens}"
                 )
             if not isinstance(contenido, str):
                 return _fallo(f"contenido_tipo_inesperado:{type(contenido).__name__}")
@@ -329,10 +307,10 @@ class OpenAICompatibleInterpreter:
             if finish_reason == "length":
                 return _fallo(
                     f"salida_truncada:finish_reason=length "
-                    f"tokens={completion_tokens or 0} ({len(raw_output)} chars)"
+                    f"tokens={completion_tokens} ({len(raw_output)} chars)"
                 )
             try:
-                parsed = _extraer_json(raw_output)
+                _extraer_json(raw_output)
             except (json.JSONDecodeError, ValueError) as exc:
                 return _fallo(f"json_invalido:{type(exc).__name__}")
         except httpx.TimeoutException:
@@ -346,66 +324,23 @@ class OpenAICompatibleInterpreter:
             log.warning("interpretacion %s fallo: %s", request_id, tipo)
             return _fallo(f"proposal_failed:{tipo}")
 
-        resultado = InterpretationResult(
+        return InterpretationResult(
             estado=ESTADO_PROPUESTA,
-            hipotesis=str(parsed.get("hipotesis", "")),
-            mecanismo=str(parsed.get("mecanismo", "")),
-            aportacion_por_tecnica=[str(x) for x in (parsed.get("aportacion_por_tecnica") or [])],
-            supuestos=[str(x) for x in (parsed.get("supuestos") or [])],
-            prueba_concreta=str(parsed.get("prueba_concreta", "")),
-            ruta_desbloqueo=str(parsed.get("ruta_desbloqueo", "")),
             provenance=self._provenance(
                 request_id=request_id,
                 inicio=inicio,
                 model_reported=model_reported,
                 raw=raw_output,
                 fallback_used=False,
+                prompt=prompt,
+                model_requested=model,
             ),
             raw_output=raw_output,
             finish_reason=finish_reason,
             completion_tokens=completion_tokens,
             reasoning_tokens=reasoning_tokens,
+            model_requests=1,
         )
-        if not resultado.es_propuesta:
-            # PROPUESTA sin mecanismo no es una propuesta. Se degrada con el
-            # motivo, sin rellenar el hueco ni perder el diagnóstico bruto.
-            return InterpretationResult(
-                estado=ESTADO_PENDIENTE,
-                error=resultado.motivo_real(),
-                provenance=resultado.provenance,
-                raw_output=raw_output,
-                finish_reason=finish_reason,
-                completion_tokens=completion_tokens,
-                reasoning_tokens=reasoning_tokens,
-            )
-        return resultado
-
-
-class LocalLlamaInterpreter:
-    """El GGUF local. Genera ideas; la interpretación NO está operativa.
-
-    Se mantiene en el selector para diagnóstico y reparación futura, y se
-    declara como lo que es. No devuelve propuestas: devolver una plantilla
-    sería presentar relleno como si fuera una interpretación, que es
-    exactamente lo que el resto del sistema prohíbe.
-
-    Para considerarlo operativo tiene que pasar el mismo E2E que el externo:
-    esquema válido, dossier, SupraClient, persistencia en SUPRA, GET y
-    presencia en Shadow.
-    """
-
-    backend = "local_llama"
-    provider = "local_gguf"
-
-    ETIQUETA = "EXPERIMENTAL / NO VERIFICADO"
-    MOTIVO = (
-        "el modelo local genera ideas pero no tiene interpretación operativa: "
-        "no existe todavia un contrato validado que convierta su salida en "
-        "propuesta. Se mantiene en el selector para diagnostico."
-    )
-
-    def operativo(self) -> tuple[bool, str]:
-        return False, self.MOTIVO
 
     def proponer(
         self,
@@ -414,20 +349,174 @@ class LocalLlamaInterpreter:
         domain: dict[str, Any] | None = None,
         evidence: list[dict[str, Any]] | None = None,
     ) -> InterpretationResult:
-        return pendiente(
-            self.MOTIVO,
-            Provenance(
-                interpreter_backend=self.backend,
-                provider=self.provider,
-                model_requested=str(os.getenv("CRIBA_LOCAL_MODEL", "local-gguf")),
-                model_reported="",
-                endpoint=sin_secretos(os.getenv("CRIBA_LOCAL_BASE", "local")),
-                timestamp=marca_temporal(),
-                duration_ms=0,
-                prompt_version=PROMPT_VERSION,
-                schema_version=SCHEMA_VERSION,
-                request_id=nuevo_request_id(),
-                fallback_used=False,
-                raw_output_sha256="",
-            ),
+        try:
+            prompt = construir_prompt(query, idea, domain, evidence)
+        except (ValueError, TypeError) as exc:
+            return pendiente(
+                f"entrada_invalida:{type(exc).__name__}",
+                self._provenance(
+                    request_id=nuevo_request_id(),
+                    inicio=time.monotonic(),
+                    model_reported="",
+                    raw="",
+                    fallback_used=False,
+                ),
+            )
+        transporte = self._pedir(prompt, self.model)
+        if transporte.estado == ESTADO_PENDIENTE:
+            return transporte
+        parsed = _extraer_json(transporte.raw_output)
+        errores = validar_propuesta(parsed, idea, evidence)
+        if errores:
+            return replace(
+                transporte,
+                estado=ESTADO_PENDIENTE,
+                pertinencia=str(parsed.get("pertinencia") or ""),
+                error="validacion:" + "; ".join(errores),
+            )
+        critica_prompt = (
+            CRITICA_INSTRUCCIONES
+            + "\n"
+            + PREGUNTAS_TEXTO
+            + "\nENTRADA:\n"
+            + prompt
+            + "\nPROPUESTA A CRITICAR:\n"
+            + json.dumps(parsed, ensure_ascii=False)
         )
+        critica = self._pedir(critica_prompt, self.critic_model)
+        diagnostico: dict[str, Any] = {
+            "evaluation_status": "NOT_EVALUATED",
+            "independent_validation": False,
+            "same_model": self.critic_model == self.model,
+            "provenance": critica.provenance.sin_secretos() if critica.provenance else {},
+            "raw_output": critica.raw_output,
+            "finish_reason": critica.finish_reason,
+            "completion_tokens": critica.completion_tokens,
+            "reasoning_tokens": critica.reasoning_tokens,
+        }
+        if critica.estado == ESTADO_PENDIENTE:
+            return replace(
+                transporte,
+                estado=ESTADO_PENDIENTE,
+                error="critica_no_disponible:" + critica.error,
+                critica=diagnostico,
+                model_requests=transporte.model_requests + critica.model_requests,
+            )
+        contenido_critica = _extraer_json(critica.raw_output)
+        diagnostico["respuesta"] = contenido_critica
+        errores = validar_critica(contenido_critica)
+        diagnostico["evaluation_status"] = "CRITIQUED" if not errores else "REJECTED"
+        if errores:
+            return replace(
+                transporte,
+                estado=ESTADO_PENDIENTE,
+                error="validacion:" + "; ".join(errores),
+                critica=diagnostico,
+                model_requests=transporte.model_requests + critica.model_requests,
+            )
+        campos = {
+            k: parsed[k]
+            for k in (
+                "hipotesis",
+                "mecanismo",
+                "aportacion_por_tecnica",
+                "supuestos",
+                "prueba_concreta",
+                "pertinencia",
+                "cadena_causal",
+                "evidencia_citada",
+                "conocimiento_previo",
+                "incertidumbre",
+                "novedad",
+                "prueba",
+                "comprobacion_restricciones",
+            )
+        }
+        return replace(
+            transporte,
+            **campos,
+            ruta_desbloqueo=parsed.get("ruta_desbloqueo", ""),
+            critica=diagnostico,
+            model_requests=transporte.model_requests + critica.model_requests,
+        )
+
+
+class LocalLlamaInterpreter(OpenAICompatibleInterpreter):
+    """Runtime local OpenAI-compatible, operativo solo tras superar el banco."""
+
+    backend = "local_llama"
+    ETIQUETA = "EXPERIMENTAL / NO VERIFICADO"
+    MOTIVO = "interpretación operativa pendiente: falta superar el banco local"
+
+    def __init__(self, base_url: str | None = None, model: str | None = None) -> None:
+        from criba.model_config import load_model_settings
+
+        settings = load_model_settings()
+        profile = settings.active_profile() if settings.enabled else None
+        base = (
+            base_url
+            or os.getenv("CRIBA_LOCAL_BASE")
+            or (profile.endpoint if profile else "http://127.0.0.1:8080")
+        )
+        base = base.rstrip("/")
+        if not base.endswith("/v1"):
+            base += "/v1"
+        local_model = (
+            model or os.getenv("CRIBA_LOCAL_MODEL") or (profile.model if profile else "criba-local")
+        )
+        super().__init__(base_url=base, model=local_model, api_key="", critic_model=local_model)
+        self.provider = "local_gguf"
+        self.gate_report: dict[str, Any] | None = None
+
+    def _local(self) -> bool:
+        import ipaddress
+        from urllib.parse import urlsplit
+
+        url = urlsplit(self.base)
+        if url.scheme not in ("http", "https") or url.username or url.password:
+            return False
+        if url.hostname == "localhost":
+            return True
+        try:
+            return ipaddress.ip_address(url.hostname or "").is_loopback
+        except ValueError:
+            return False
+
+    def operativo(self) -> tuple[bool, str]:
+        if not self._local():
+            return False, "interpretación operativa rechazada: el endpoint local no es loopback"
+        if self.gate_report is not None:
+            ok = bool(self.gate_report["passed"])
+            return ok, "banco local superado" if ok else self.MOTIVO
+        listo, motivo = super().operativo()
+        if not listo:
+            return False, self.MOTIVO + "; " + motivo
+        from .banco import evaluar_banco
+
+        self.gate_report = evaluar_banco(
+            lambda q, i, d, e: super(LocalLlamaInterpreter, self).proponer(q, i, d, e)
+        )
+        ok = bool(self.gate_report["passed"])
+        self.ETIQUETA = "" if ok else "EXPERIMENTAL / NO VERIFICADO"
+        return ok, "banco local superado" if ok else self.MOTIVO
+
+    def proponer(
+        self,
+        query: str,
+        idea: dict[str, Any],
+        domain: dict[str, Any] | None = None,
+        evidence: list[dict[str, Any]] | None = None,
+    ) -> InterpretationResult:
+        listo, motivo = self.operativo()
+        if not listo:
+            return pendiente(
+                motivo,
+                self._provenance(
+                    request_id=nuevo_request_id(),
+                    inicio=time.monotonic(),
+                    model_reported="",
+                    raw="",
+                    fallback_used=False,
+                ),
+            )
+        return super().proponer(query, idea, domain, evidence)

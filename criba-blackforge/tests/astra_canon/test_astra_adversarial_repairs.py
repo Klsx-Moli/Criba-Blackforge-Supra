@@ -185,13 +185,18 @@ def test_astra_022_same_episode_across_cells_does_not_inflate_ucb_population(tmp
 
 
 def test_astra_020_heuristic_fallback_is_not_judge_learning(monkeypatch, tmp_path):
+    from criba.interprete.openai_compatible import LocalLlamaInterpreter
+
     monkeypatch.delenv("NOUS_API_KEY", raising=False)
+    monkeypatch.setattr(
+        LocalLlamaInterpreter, "operativo", lambda self: (False, "runtime no disponible (prueba)")
+    )
     judge = LocalInterprete().interpretar(
         "query",
         {"description": "", "mechanism_causal": "", "prefilter": {"dh": 0.6}},
     )
-    assert judge["evaluation_status"] == "HEURISTIC_FALLBACK"
-    assert isinstance(judge["score"], float)
+    assert judge["evaluation_status"] == "NOT_EVALUATED"
+    assert judge["score"] is None
 
     store = TechniqueOutcomeStore(tmp_path / "outcomes.jsonl")
     sheet = {

@@ -1092,6 +1092,7 @@ def _supra_lookup_read(lookup: Any) -> dict[str, Any]:
         "criba_mechanism_execution_status": lookup.criba_mechanism_execution_status,
         "status_source": lookup.status_source,
         "persisted_artifact_status": lookup.persisted_artifact_status,
+        "persisted_artifact_error_kind": lookup.persisted_artifact_error_kind,
         "stage": lookup.stage,
         "receipt": receipt.model_dump() if receipt else None,
     }
@@ -1510,6 +1511,17 @@ def _provenance_text(read: dict[str, Any]) -> str:
 
 def _artifact_text(read: dict[str, Any]) -> str:
     """State the verdict on the durable copy, without softening it."""
+    if read.get("persisted_artifact_status") == "UNVERIFIABLE":
+        detail = {
+            "CORRUPT_JSON": "JSON CORRUPTO",
+            "INCOMPATIBLE_SCHEMA": "ESQUEMA INCOMPATIBLE",
+            "UNREADABLE": "ARTEFACTO NO LEGIBLE",
+        }.get(str(read.get("persisted_artifact_error_kind")))
+        return (
+            f"NO VERIFICABLE ({detail})"
+            if detail
+            else "NO VERIFICABLE (CAUSA NO INFORMADA)"
+        )
     return {
         "VERIFIED_FROM_ARTIFACT": "verificada desde el artefacto",
         "MATCHES_CACHE": "verificada contra la caché",

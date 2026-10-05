@@ -129,6 +129,10 @@ def main() -> int:
     root = Path(sys.argv[1]).resolve()
     root.mkdir(parents=True, exist_ok=True)
     os.environ["CRIBASHADOW_HOME"] = str(root)
+    # CRIBA_MODEL_CONFIG is a separate path and does not follow CRIBASHADOW_HOME.
+    # Keep optional idea-generation models inside this isolated run instead of
+    # loading the user's enabled GGUF profile from LOCALAPPDATA.
+    os.environ["CRIBA_MODEL_CONFIG"] = str(root / "models.json")
     operation_id = uuid.uuid4().hex[:16]
     server = None
     win = None

@@ -42,6 +42,10 @@ _PROTOCOL_DEFAULTS: dict[str, Any] = {
     "coste_permisos": "",
     "estado_prueba": "NO_EJECUTADA",
 }
+_INTERPRETATION_DEFAULTS: dict[str, Any] = {
+    "provenance": {}, "critica": {}, "evidencia_citada": [],
+    "conocimiento_previo": [], "incertidumbre": "",
+}
 
 
 def _with_declared_defaults(dossier: Mapping[str, Any]) -> dict[str, Any]:
@@ -57,6 +61,11 @@ def _with_declared_defaults(dossier: Mapping[str, Any]) -> dict[str, Any]:
         for key, default in _PROTOCOL_DEFAULTS.items():
             completed.setdefault(key, default)
         semantic["prueba_discriminante"] = completed
+    interpretation = semantic.get("interpretacion")
+    if interpretation is None:
+        semantic.pop("interpretacion", None)
+    elif isinstance(interpretation, dict):
+        semantic["interpretacion"] = {**_INTERPRETATION_DEFAULTS, **interpretation}
     return semantic
 
 
@@ -332,6 +341,11 @@ class SupraProjectLookup(BaseModel):
         "UNVERIFIABLE",
         "MISSING",
     ]
+    persisted_artifact_error_kind: Literal[
+        "CORRUPT_JSON",
+        "INCOMPATIBLE_SCHEMA",
+        "UNREADABLE",
+    ] | None = None
     project_id: str = Field(min_length=1)
     stage: str
     posture: SupraProjectPostureSnapshot

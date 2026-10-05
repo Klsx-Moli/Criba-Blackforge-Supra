@@ -109,7 +109,10 @@ async def _handle_project_state_load_error(
     )
     return JSONResponse(
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-        content={"detail": "Persisted project state is corrupt or incompatible."},
+        content={
+            "detail": "Persisted project state is corrupt or incompatible.",
+            "kind": exc.kind,
+        },
     )
 
 
@@ -251,6 +254,8 @@ def _criba_payload_fingerprint(dossier: CribaDossierRequest) -> str:
     describe bytes the system never received.
     """
     semantic = dossier.model_dump()
+    if semantic.get("interpretacion") is None:
+        semantic.pop("interpretacion", None)
     semantic.pop("creado_at", None)
     raw = json.dumps(
         semantic,
@@ -260,6 +265,17 @@ def _criba_payload_fingerprint(dossier: CribaDossierRequest) -> str:
         allow_nan=False,
     )
     return "sha256:" + hashlib.sha256(raw.encode("utf-8")).hexdigest()
+
+
+class CribaInterpretationContextRequest(BaseModel):
+    """Declared model diagnostics; never an execution or validation receipt."""
+
+    model_config = ConfigDict(extra="forbid")
+    provenance: dict[str, Any] = Field(default_factory=dict)
+    critica: dict[str, Any] = Field(default_factory=dict)
+    evidencia_citada: list[int] = Field(default_factory=list)
+    conocimiento_previo: list[str] = Field(default_factory=list)
+    incertidumbre: str = ""
 
 
 class CribaDossierRequest(BaseModel):
@@ -284,6 +300,7 @@ class CribaDossierRequest(BaseModel):
     supuestos: list[Any] = Field(default_factory=list)
     estado: Literal["SUPRA_EJECUCION_PENDIENTE"]
     creado_at: str = Field("", max_length=80)
+    interpretacion: CribaInterpretationContextRequest | None = None
 
 
 def _criba_dossier_receipt(
@@ -299,6 +316,8 @@ def _criba_dossier_receipt(
         "receipt_scope": "PLANNED_DISCRIMINANT_PROTOCOL_ONLY",
         "execution_status": "NOT_EXECUTED",
         "scientific_status": "NOT_VALIDATED",
+        **({"interpretacion": dossier.interpretacion.model_dump()}
+           if dossier.interpretacion is not None else {}),
         "integration_version": integration_version,
         "payload_fingerprint": payload_fingerprint,
         "request_fingerprint": request_fingerprint,
@@ -707,13 +726,16 @@ def get_project_posture(project_id: str) -> dict[str, Any]:
     correctly, so the fix corrects the label and adds the artifact verdict
     instead of refusing an answer that is true.
     """
-    posture, source, artifact_status = state_manager.get_project_with_provenance(project_id)
+    posture, source, artifact_status, artifact_error_kind = (
+        state_manager.get_project_with_provenance(project_id)
+    )
     if not posture:
         raise HTTPException(status_code=404, detail=f"Project '{project_id}' not found.")
     return {
         **_outcome_channels(posture, idempotent_replay=False),
         "status_source": source,
         "persisted_artifact_status": artifact_status,
+        "persisted_artifact_error_kind": artifact_error_kind,
     }
 
 

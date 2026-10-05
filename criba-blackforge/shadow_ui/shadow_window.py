@@ -8,6 +8,7 @@ Estructura exacta de la imagen de referencia:
 from __future__ import annotations
 
 import math
+import json
 import random
 from pathlib import Path
 from typing import Any
@@ -820,16 +821,16 @@ class TopCardsWidget(QWidget):
         selector_label.setProperty("caption", True)
         selector_row.addWidget(selector_label)
         self.interpreter_selector = QComboBox()
-        # El local no aparece como opción: hoy no implementa una interpretación
-        # real. Exponerlo como seleccionable convertiría un stub en capacidad.
         self.interpreter_selector.addItem(
             "Nous/Hermes OAuth · Space Bunny", "openai_compatible"
+        )
+        self.interpreter_selector.addItem(
+            _t("shadow.interpreter.local"), "local_llama"
         )
         selector_row.addWidget(self.interpreter_selector, stretch=1)
         l2.addLayout(selector_row)
         self.interpreter_status = QLabel(
-            "Nous/Hermes: se comprobará al ejecutar · "
-            "Local: no implementado/no verificado"
+            _t("shadow.interpreter.status")
         )
         self.interpreter_status.setWordWrap(True)
         self.interpreter_status.setProperty("caption", True)
@@ -1194,12 +1195,20 @@ class CandidatesWidget(QWidget):
                 ),
                 f"SUPUESTOS A COMPROBAR\n{self._display_list(entry.get('supuestos'))}",
                 f"PRUEBA CONCRETA\n{self._display_list(entry.get('prueba_concreta'))}",
+                f"{_t('shadow.interpreter.uncertainty')}\n"
+                f"{entry.get('incertidumbre') or ''}\n{entry.get('novedad') or ''}",
+                f"{_t('shadow.interpreter.test')}\n"
+                + json.dumps(entry.get("prueba") or {}, ensure_ascii=False, indent=2),
             ))
         else:
             sections.append(f"MOTIVO\n{error or 'sin motivo declarado'}")
             route = str(entry.get("ruta_desbloqueo") or "").strip()
             if route:
                 sections.append(f"RUTA DE DESBLOQUEO\n{route}")
+        critica = entry.get("critica")
+        if isinstance(critica, dict) and critica:
+            sections.append(_t("shadow.interpreter.critica") + "\n"
+                            + json.dumps(critica, ensure_ascii=False, indent=2))
         provenance = entry.get("interpretacion_provenance")
         if not isinstance(provenance, dict):
             provenance = {}

@@ -561,8 +561,41 @@ def test_corrupt_persisted_project_returns_500_not_false_404():
 
         assert response.status_code == 500
         assert response.json() == {
-            "detail": "Persisted project state is corrupt or incompatible."
+            "detail": "Persisted project state is corrupt or incompatible.",
+            "kind": "CORRUPT_JSON",
         }
+
+
+def test_absent_corrupt_and_version_skew_remain_distinct_at_http_boundary(
+    monkeypatch, tmp_path
+):
+    monkeypatch.setattr(state_manager, "storage_dir", tmp_path)
+    monkeypatch.setattr(state_manager, "_projects", {})
+
+    state_manager.create_project("valid before skew", project_id="schema-skew")
+    skew_path = tmp_path / "schema-skew.json"
+    valid_json = skew_path.read_text(encoding="utf-8").rstrip()
+    skew_path.write_text(
+        valid_json[:-1] + ',"schema_version":999}', encoding="utf-8"
+    )
+    state_manager.create_project("will be corrupted", project_id="corrupt-json")
+    (tmp_path / "corrupt-json.json").write_text("{not-json", encoding="utf-8")
+    state_manager._projects.clear()
+
+    missing = client.get("/api/v1/projects/absent")
+    corrupt = client.get("/api/v1/projects/corrupt-json")
+    skew = client.get("/api/v1/projects/schema-skew")
+
+    assert missing.status_code == 404
+    assert corrupt.status_code == 500
+    assert corrupt.json().get("kind") == "CORRUPT_JSON"
+    assert skew.status_code == 500
+    assert skew.json().get("kind") == "INCOMPATIBLE_SCHEMA"
+
+    listing = client.get("/api/v1/projects")
+    errors = {item["project_id"]: item for item in listing.json()["storage_errors"]}
+    assert errors["corrupt-json"].get("kind") == "CORRUPT_JSON"
+    assert errors["schema-skew"].get("kind") == "INCOMPATIBLE_SCHEMA"
 
 
 def test_project_list_surfaces_storage_errors_without_dropping_healthy_projects():

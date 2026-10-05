@@ -12,6 +12,7 @@ import sys
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
+from verification.interpreter_cases import resultado
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
@@ -75,13 +76,8 @@ class _InterpreteFalso:
             },
             ensure_ascii=False,
         )
-        return InterpretationResult(
-            estado="PROPUESTA",
+        return resultado(
             hipotesis=f"h{self.calls}",
-            mecanismo=f"m{self.calls}",
-            aportacion_por_tecnica=["a", "b"],
-            supuestos=["s"],
-            prueba_concreta="p",
             provenance=_provenance(),
             raw_output=raw,
             finish_reason="stop",
@@ -177,11 +173,13 @@ def test_shadow_expone_selector_real_y_salidas_copiables(qapp, tmp_path):
     win = ShadowWindow(database=str(tmp_path / "shadow.sqlite3"))
     try:
         selector = win.topcards.interpreter_selector
-        assert selector.count() == 1, "Local no debe aparecer mientras no sea implementación real"
+        assert selector.count() == 2
+        assert selector.itemData(1) == "local_llama"
+        assert "experimental" in selector.itemText(1)
         assert selector.itemData(0) == "openai_compatible"
         assert "Nous/Hermes" in selector.itemText(0)
         assert "Space Bunny" in selector.itemText(0)
-        assert "Local" in win.topcards.interpreter_status.text()
+        assert "local" in win.topcards.interpreter_status.text().lower()
         for widget in (
             win.candidates.raw_output,
             win.candidates.interpretation_output,
@@ -458,6 +456,7 @@ def _lookup_falso(project_id: str = "proj-real-1") -> SimpleNamespace:
         criba_mechanism_execution_status="NOT_EXECUTED",
         status_source="PERSISTED_STATE",
         persisted_artifact_status="VERIFIED_FROM_ARTIFACT",
+        persisted_artifact_error_kind=None,
         project_id=project_id,
         stage="BLOCKED",
         posture=posture,
@@ -590,3 +589,32 @@ def test_dossier_respeta_cribashadow_home_y_se_recupera(monkeypatch, tmp_path):
     path = sd.guardar_dossier(dossier)
     assert path.parent == home / "dossiers"
     assert sd.cargar_ultimo_dossier() == dossier
+
+
+@pytest.mark.parametrize(
+    ("error_kind", "expected"),
+    [
+        ("CORRUPT_JSON", "NO VERIFICABLE (JSON CORRUPTO)"),
+        ("INCOMPATIBLE_SCHEMA", "NO VERIFICABLE (ESQUEMA INCOMPATIBLE)"),
+        ("UNREADABLE", "NO VERIFICABLE (ARTEFACTO NO LEGIBLE)"),
+        (None, "NO VERIFICABLE (CAUSA NO INFORMADA)"),
+    ],
+)
+def test_shadow_distingue_la_causa_de_un_artefacto_no_verificable(
+    error_kind: str | None, expected: str
+) -> None:
+    read = {"persisted_artifact_status": "UNVERIFIABLE"}
+    if error_kind is not None:
+        read["persisted_artifact_error_kind"] = error_kind
+    assert actions._artifact_text(read) == expected
+
+
+def test_shadow_lookup_no_descarta_la_clasificacion_del_artefacto() -> None:
+    lookup = _lookup_falso()
+    lookup.status_source = "IN_PROCESS_MEMORY_CACHE"
+    lookup.persisted_artifact_status = "UNVERIFIABLE"
+    lookup.persisted_artifact_error_kind = "INCOMPATIBLE_SCHEMA"
+
+    read = actions._supra_lookup_read(lookup)
+
+    assert read["persisted_artifact_error_kind"] == "INCOMPATIBLE_SCHEMA"

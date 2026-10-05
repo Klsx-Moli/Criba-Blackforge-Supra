@@ -45,6 +45,9 @@ artifacts/
 verification/compose_run/
 verification/lottery_results/
 verification/benchmark_real_results.json
+verification/interpreter-regression.xml
+verification/interpreter-runtime-status.json
+verification/blackforge_selector_report.json
 verification/capture_blackforge_standalone.py
 
 # Local backups, captures, research prompts, and orchestration scratch

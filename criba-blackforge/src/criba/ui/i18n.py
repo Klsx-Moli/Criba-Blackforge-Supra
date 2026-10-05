@@ -116,6 +116,11 @@ _STRINGS: dict[str, dict[str, str]] = {
         "shadow.lema": "CIENCIA  //  RIGOR  //  IMPACTO REAL",
         "shadow.mejor_score": "Mejor score",
         "shadow.modelo": "Modelo local",
+        "shadow.interpreter.local": "Local · experimental, requiere superar el banco",
+        "shadow.interpreter.status": "Se comprobará al ejecutar; el local requiere superar el banco",
+        "shadow.interpreter.critica": "Crítica automática · no es validación científica",
+        "shadow.interpreter.uncertainty": "Incertidumbre y antecedentes",
+        "shadow.interpreter.test": "Prueba discriminante propuesta · no ejecutada",
         "shadow.modelo.tip_off": (
             "Sin modelo local activo — clic para añadir o activar uno (Modelos IA)"
         ),
@@ -277,6 +282,11 @@ _STRINGS: dict[str, dict[str, str]] = {
         "shadow.lema": "SCIENCE  //  RIGOR  //  REAL IMPACT",
         "shadow.mejor_score": "Best score",
         "shadow.modelo": "Local model",
+        "shadow.interpreter.local": "Local · experimental, requires admission benchmark",
+        "shadow.interpreter.status": "Checked when running; local requires admission benchmark",
+        "shadow.interpreter.critica": "Automatic critique · not scientific validation",
+        "shadow.interpreter.uncertainty": "Uncertainty and prior art",
+        "shadow.interpreter.test": "Proposed discriminant test · not executed",
         "shadow.modelo.tip_off": "No local model active — click to add or enable one (AI models)",
         "shadow.motor": "⚙ Deterministic engine",
         "shadow.nav.blackforge": "Blackforge",

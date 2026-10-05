@@ -1,46 +1,32 @@
-"""Juez orquestador del interprete-serendipia.
-
-Pipeline:
-  activate() --[ideas]--> PreFilter (Dh 0.45-0.85 + SOTA taboo + novelty band) --> top-N
-  --> CloudInterprete/LocalInterprete (preguntas de expansión) --> veredictos
-  --> InterpreteStore (SQLite auditable, deduplicación por seed+comb_id)
-
-Reemplaza la etiqueta estática BASURA/EXTRAORDINARIA del LotteryEngine
-con labels epistemológicos + score interprete + veredicto cualitativo.
-
-Mantiene AUSENCIA DE DAÑO: prefiltrado determinista (no consume créditos);
-el modelo solo interpreta candidatas ya prevalidadas causalmente. En fallo de
-plan (429) o red, la idea se marca PENDIENTE_PLAN y se reinterpreta en el
-próximo ciclo sin bloquear el pipeline.
-"""
+"""Prefiltrado, puerto único y registro. Conserva el orden; no asigna scores."""
 
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from criba.interprete.adaptador import CloudInterprete, LocalInterprete
-from criba.interprete.prefilter import PreFilter
-from criba.interprete.store import InterpreteStore
+from .contrato import SYSTEM, prompt_propuesta
+from .prefilter import PreFilter
+from .puerto import InterpreterPort, hash_salida
+from .seleccion import construir_interprete
+from .store import InterpreteStore
 
 if TYPE_CHECKING:
     from criba.storage import Storage
 
 
 class JuezInterprete:
-    """Orquesta prefiltrado + interpretación + registro."""
-
     def __init__(
         self,
         api_key: str | None = None,
         model: str = "glm-5.3-flash",
         storage: Storage | None = None,
+        *,
+        interpreter: InterpreterPort | None = None,
+        backend: str | None = None,
     ) -> None:
-        self.prefilter = PreFilter(top_n=12, strict=bool(api_key))
-        self.adaptador = CloudInterprete(api_key, model) if api_key else LocalInterprete()
-        self.storage = storage
-        self.store: InterpreteStore | None = None
-        if storage is not None:
-            self.store = InterpreteStore(storage)
+        self.interpreter = interpreter or construir_interprete(backend)
+        self.prefilter = PreFilter(top_n=12, strict=True)
+        self.store = InterpreteStore(storage) if storage is not None else None
 
     def interpretar_lote(
         self,
@@ -50,47 +36,65 @@ class JuezInterprete:
         run_id: str,
         seed: int | None = None,
     ) -> dict[str, Any]:
-        """Toma el lote de ideas, aplica prefiltrado, interpreta top-N, registra."""
         prefiltrado = self.prefilter.apply(ideas)
-        candidates = prefiltrado["candidates"]
-        resultados: list[dict[str, Any]] = []
-        for idea in candidates:
-            idea = dict(idea)
-            interp = self.adaptador.interpretar(query, idea)
-            idea["interprete_labels"] = interp["labels"]
-            idea["interprete_score"] = interp["score"]
-            idea["interprete_verdict"] = interp["veredicto"]
-            idea["interprete_analisis"] = interp.get("analisis", "")
-            idea["interprete_protocolo"] = interp.get("protocolo_aplicado", {})
-
-            if self.store:
-                modelo = self.adaptador.model
-                reg = self.store.record_decision(
-                    activation_id=activation_id,
-                    idea=idea,
-                    modelo=modelo,
-                    run_id=run_id,
-                    seed=seed,
-                )
-                idea["_registro"] = reg
+        resultados = []
+        modelo = str(getattr(self.interpreter, "model", ""))
+        for original in prefiltrado["candidates"]:
+            idea = dict(original)
+            previo = (
+                self.store.get_verdict(idea["id"], modelo, run_id=run_id, seed=seed)
+                if self.store
+                else None
+            )
+            if (
+                previo
+                and InterpreteStore.cache_valido(previo, idea)
+                and previo["provenance"].get("prompt_sha256")
+                == hash_salida(SYSTEM + prompt_propuesta(query, idea, None, None))
+            ):
+                idea.update(previo["response"]["interpretation"])
+                idea["_registro"] = {"status": "deduplicated"}
             else:
-                idea["_registro"] = {"status": "unregistered", "reason": "no storage"}
-
+                result = self.interpreter.proponer(query, idea)
+                campos = result.to_campos()
+                status = "CRITIQUED" if result.es_propuesta else "NOT_EVALUATED"
+                idea.update(
+                    {
+                        "interprete_labels": [],
+                        "interprete_score": None,
+                        "interprete_verdict": campos["estado"],
+                        "interprete_analisis": result.error,
+                        "interprete_evaluation_status": status,
+                        "interprete_result": campos,
+                        "interprete_provenance": result.provenance.sin_secretos()
+                        if result.provenance
+                        else {},
+                        "interprete_raw_output": result.raw_output,
+                    }
+                )
+                idea["_registro"] = (
+                    self.store.record_decision(
+                        activation_id=activation_id,
+                        idea=idea,
+                        modelo=modelo,
+                        run_id=run_id,
+                        seed=seed,
+                    )
+                    if self.store
+                    else {"status": "unregistered", "reason": "no storage"}
+                )
+                if self.store and idea["_registro"]["status"] == "deduplicated":
+                    # A concurrent writer may have won after our initial read.
+                    elegido = self.store.get_verdict(idea["id"], modelo, run_id=run_id, seed=seed)
+                    if elegido is not None:
+                        idea.update(elegido["response"]["interpretation"])
             resultados.append(idea)
-
-        resultados.sort(
-            key=lambda x: (
-                x.get("interprete_score", 0.0),
-                x.get("convergence", {}).get("value_score", 0.0),
-            ),
-            reverse=True,
-        )
         return {
             "query": query,
             "activation_id": activation_id,
             "total_ideas_entrada": len(ideas),
             "prefiltrado": prefiltrado,
             "interpretados": resultados,
-            "modelo": self.adaptador.model,
-            "fallback_usado": isinstance(self.adaptador, LocalInterprete),
+            "modelo": modelo,
+            "fallback_usado": False,
         }
