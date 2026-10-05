@@ -1,0 +1,5 @@
+# Preservar exclusivamente los bytes del corpus citado; sin politica global de EOL.
+docs/continuity/00_SOURCE_MEGAPROMPT_ASTRA6_literal.md -text
+docs/continuity/01_SOURCE_RESPUESTAS_DISENO_literal.md -text
+docs/continuity/02_SOURCE_MANDATO_MAESTRO_v2_literal.md -text
+docs/continuity/60_MEGA_PROMPT_CBS_v3.md -text
