@@ -1330,7 +1330,7 @@ def on_desarrollar_supra(win: Any) -> None:
 def _load_latest_supra(client: Any | None = None) -> dict[str, Any]:
     """Recover the latest persisted SUPRA project through LIST + canonical GET."""
     from ..integrations import SupraClient
-    from ..supra_dossier import cargar_ultimo_dossier
+    from ..supra_dossier import cargar_dossier
 
     owned = client is None
     supra = client or SupraClient()
@@ -1352,13 +1352,33 @@ def _load_latest_supra(client: Any | None = None) -> dict[str, Any]:
         if not isinstance(project_id, str) or not project_id:
             raise ValueError("SUPRA listó un proyecto sin project_id")
         lookup = supra.get_project(project_id)
+        read = _supra_lookup_read(lookup)
+        # Recency is not identity: an unsent local draft may be newer than the
+        # project recovered from SUPRA. Only its remote receipt binds a dossier.
+        receipt = read.get("receipt") or {}
+        dossier_id = receipt.get("criba_dossier_id")
+        exact_id = (
+            isinstance(dossier_id, str) and bool(dossier_id) and dossier_id == dossier_id.strip()
+        )
+        dossier = cargar_dossier(dossier_id) if exact_id else None
+        identity_fields = {
+            "candidate_id": "criba_candidate_id",
+            "claim_id": "claim_id",
+            "mechanism_version": "mechanism_version",
+            "protocol_version": "protocol_version",
+        }
+        if dossier is not None and any(
+            not dossier.get(local_key) or dossier.get(local_key) != receipt.get(remote_key)
+            for local_key, remote_key in identity_fields.items()
+        ):
+            dossier = None
         return {
             "empty": False,
             "endpoint": supra.config.endpoint,
             "health": health.model_dump(),
             "project_id": project_id,
-            "dossier": cargar_ultimo_dossier(),
-            "read": _supra_lookup_read(lookup),
+            "dossier": dossier,
+            "read": read,
         }
     finally:
         if owned:
@@ -1376,6 +1396,10 @@ def _on_supra_restore_done(win: Any, report: dict[str, Any]) -> None:
             candidates.dossier_output.setPlainText(
                 json.dumps(dossier, ensure_ascii=False, indent=2)
             )
+        else:
+            # Missing/mismatched local evidence must not leave another case's
+            # dossier visible beside this recovered project's remote receipt.
+            candidates.dossier_output.clear()
         candidates.supra_output.setPlainText(
             json.dumps(report, ensure_ascii=False, indent=2, default=str)
         )
@@ -1591,6 +1615,7 @@ def _artifact_text(read: dict[str, Any]) -> str:
 
 def _on_supra_vertical_done(win: Any, report: dict[str, Any]) -> None:
     """Show the real SUPRA read-back state. BLOCKED stays BLOCKED."""
+    win._supra_vertical_running = False
     r = win.refs
     read = report["read"]
     receipt = read.get("receipt") or {}
@@ -1640,6 +1665,7 @@ def _on_supra_vertical_done(win: Any, report: dict[str, Any]) -> None:
 
 def _on_supra_vertical_failed(win: Any, message: str) -> None:
     """Failure is shown as failure. No fabricated state on the error path."""
+    win._supra_vertical_running = False
     win.nav["navSupra"].set_state("error", "SUPRA no disponible")
     set_chip(win.refs["ideaEstadoChip"], "SUPRA no confirmado", "exploracion")
     # El fallo Tambien tiene que verse: un chip de error escrito sobre un
@@ -1660,13 +1686,22 @@ def on_supra_vertical(win: Any) -> None:
     """
     import uuid
 
+    # A second click while this dispatch is outstanding is the same user
+    # attempt, not permission to create another remote project.
+    if getattr(win, "_supra_vertical_running", False):
+        return
     if not getattr(win, "problem", ""):
         show_error(win, "SUPRA", "Define primero el problema base (Nueva idea).")
         return
     try:
+        from ..supra_dossier import guardar_dossier
+
         dossier = _prepare_dossier_for_selected_idea(win)
+        # Persist before any remote effect: failure/reopen must not claim that
+        # an in-memory-only dossier was preserved locally.
+        guardar_dossier(dossier)
     except Exception as exc:  # noqa: BLE001 — el motivo real se muestra
-        show_error(win, "SUPRA", f"No se pudo preparar el dossier: {exc}")
+        show_error(win, "SUPRA", f"No se pudo preparar o preservar el dossier: {exc}")
         return
 
     # SUPRA persists projects across runs, so the id must be unique per slice.
@@ -1691,6 +1726,7 @@ def on_supra_vertical(win: Any) -> None:
     worker = Worker(lambda: _execute_supra_vertical(dossier, project_id))
     worker.signals.done.connect(lambda report: _on_supra_vertical_done(win, report))
     worker.signals.fail.connect(lambda message: _on_supra_vertical_failed(win, message))
+    win._supra_vertical_running = True
     _start_worker(win, worker)
 
 

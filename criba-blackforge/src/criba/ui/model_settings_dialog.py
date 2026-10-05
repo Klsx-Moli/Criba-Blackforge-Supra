@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from PySide6.QtCore import Qt, QThreadPool, Signal
+from PySide6.QtGui import QShowEvent
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -22,6 +23,7 @@ from PySide6.QtWidgets import (
     QListWidgetItem,
     QMessageBox,
     QPushButton,
+    QScrollArea,
     QSpinBox,
     QVBoxLayout,
     QWidget,
@@ -48,7 +50,7 @@ class ModelSettingsDialog(QDialog):
         self._loading = False
         self._current_profile_id = ""
         self.setWindowTitle("CRIBA · Modelos IA")
-        self.setMinimumSize(900, 640)
+        self.setMinimumSize(640, 360)
         self.resize(980, 690)
         self.setModal(True)
         self._build_ui()
@@ -71,6 +73,17 @@ class ModelSettingsDialog(QDialog):
             "font-weight:700; }"
         )
 
+    def showEvent(self, event: QShowEvent) -> None:
+        super().showEvent(event)
+        screen = self.screen()
+        if screen is not None:
+            available = screen.availableGeometry()
+            # Qt uses logical pixels: leave room for the native frame and taskbar.
+            self.resize(min(980, available.width() - 48), min(690, available.height() - 80))
+            frame = self.frameGeometry()
+            frame.moveCenter(available.center())
+            self.move(frame.topLeft())
+
     def _build_ui(self) -> None:
         root = QVBoxLayout(self)
         root.setContentsMargins(22, 20, 22, 18)
@@ -92,7 +105,9 @@ class ModelSettingsDialog(QDialog):
         )
         root.addWidget(self.use_model)
 
-        body = QHBoxLayout()
+        body_widget = QWidget()
+        body = QHBoxLayout(body_widget)
+        body.setContentsMargins(0, 0, 0, 0)
         body.setSpacing(14)
         profiles_panel = QFrame()
         profiles_panel.setObjectName("modelPanel")
@@ -204,7 +219,11 @@ class ModelSettingsDialog(QDialog):
         editor_layout.addWidget(self.status_label)
         editor_layout.addStretch(1)
         body.addWidget(editor_panel, 1)
-        root.addLayout(body, 1)
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.Shape.NoFrame)
+        scroll.setWidget(body_widget)
+        root.addWidget(scroll, 1)
 
         footer = QHBoxLayout()
         test_button = QPushButton("Probar / iniciar modelo")
