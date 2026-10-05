@@ -4,11 +4,13 @@ OBSERVED_AT: 2026-10-05 · escritor: Hermes · destino del producto: rama activa
 `codex/interpreter-hardening-20261004` @ 2dc009485848b55ada5009986fe7e78d67c31ade
 
 ## Estado en una línea
-Producto activo (CRIBA+SUPRA+Shadow) FUNCIONA y está verificado por ejecución en
-la rama activa (M2 7/7, M3 12+15, suite CRIBA 1737 verdes, SUPRA arranca sin
-llave). BLACKFORGE sigue en HARD_PAUSE; su PR #11 añade el broker y el objeto
-canónico pero no ejecuta nada real. Falta decidir la incógnita crítica H y
-cerrar el paquete Windows.
+En 2dc0094, Hermes reportó M2_INTEGRATION_OFFSCREEN (7 tests), M3 dirigido
+(12+15), suite CRIBA (1737 passed, 3 skipped) y arranque SUPRA sin llave.
+Son resultados reportados por el writer, no aceptación del producto:
+M2_GUI_VISIBLE = NO ACREDITADO; M2_ACCEPTANCE = PENDIENTE;
+M3_ACCEPTANCE = PENDIENTE del recorrido completo desde Shadow.
+BLACKFORGE sigue en HARD_PAUSE. Faltan la decisión H y la comprobación del
+paquete Windows; no se amplía aquí la verificación.
 
 ## Decisión — máximo 3 acciones inmediatas
 
@@ -95,8 +97,8 @@ cerrar el paquete Windows.
 | D10 tres cortes | SRC-P2 §E | corte 3 declarativo (PR#11) | no | STATICALLY_INSPECTED |
 | D11 mapa código | SRC-P2 §F | no migrado | no | STATICALLY_INSPECTED |
 | D12 anti-falsos | SRC-P2 §G | parcial | no | mixed |
-| M2 producto | SRC-P1 §2.5 | sí | sí | VERIFIED (7 passed) |
-| M3 producto | SRC-P1 §2.5 | parcial | sí | VERIFIED (12+15) |
+| M2 producto | SRC-P1 §2.5 | sí | sí | REPORTADO: integración offscreen (7 passed); GUI visible y aceptación pendientes |
+| M3 producto | SRC-P1 §2.5 | parcial | sí | REPORTADO: tests dirigidos (12+15); aceptación pendiente |
 
 ## Fuentes reales para el writer
 - Rama de trabajo: `C:\ASTRA_WORK\Criba-Blackforge-Supra` (codex/interpreter-

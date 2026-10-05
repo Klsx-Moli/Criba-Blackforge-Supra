@@ -22,7 +22,9 @@ comando · CWD/worktree · TARGET_SHA · estado del árbol antes/después ·
 intérprete/entorno · inicio/fin · exit code · archivo de stdout/stderr ·
 resultado · limitaciones.
 
-Los registros están en `80_REGISTRO_EJECUCIONES.md`. Las limitaciones clave:
+Los registros parciales están en [80_REGISTRO_EJECUCIONES.md](80_REGISTRO_EJECUCIONES.md).
+La plantilla anterior es de referencia, no una afirmación de que todos sus
+campos o salidas completas estén conservados. Las limitaciones clave:
 - Todas las ejecuciones de GUI usaron QT_QPA_PLATFORM=offscreen. OFFSCREEN NO
   es escritorio Windows verificado. La GUI VISIBLE no queda acreditada aquí.
 - stdout/stderr se capturaron por `tail` en el flujo del comando, no en fichero

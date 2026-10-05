@@ -21,7 +21,7 @@ verdad viva. Conserva separados: `proposed` / `accepted_for_design` /
 | `50_REGISTRO_CONFLICTOS.md` | conflictos C-01–C-15 y su resolución |
 | `60_MEGA_PROMPT_CBS_v3.md` | MEGA PROMPT consolidado + ANEXO literal A/B/C |
 | `70_HANDOFF_OPERATIVO.md` | TARGET_SHA, prioridad, evidencia, siguiente acción |
-| `80_REGISTRO_EJECUCIONES.md` | registro E-01–E-12 con la plantilla exigida |
+| [80_REGISTRO_EJECUCIONES.md](80_REGISTRO_EJECUCIONES.md) | registro E-01–E-12 parcial; resultados resumidos, no stdout/stderr completos |
 
 ## Reglas de uso (no negociables)
 

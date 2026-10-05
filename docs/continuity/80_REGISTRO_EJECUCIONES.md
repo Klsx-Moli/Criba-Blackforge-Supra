@@ -1,12 +1,16 @@
 # Registro de ejecuciones (Hermes) — plantilla del mandato
 
-Cada entrada sigue la plantilla exigida por el mandato (SRC-P3 §15 y revisión
-del usuario): comando · CWD/worktree · TARGET_SHA · estado del árbol
-antes/después · intérprete/entorno · inicio/fin · exit code · stdout/stderr ·
-resultado · limitaciones.
+Plantilla de referencia exigida por el mandato (SRC-P3 §15 y revisión del
+usuario): comando · CWD/worktree · TARGET_SHA · estado del árbol antes/después ·
+intérprete/entorno · inicio/fin · exit code · stdout/stderr · resultado · límites.
+Las entradas siguientes son resúmenes históricos; NO completan todos esos
+campos. Algunos comandos están abreviados y faltan horarios y salidas completas.
 
 AVISO: todas las ejecuciones las hizo Hermes (writer). Son EVIDENCIA REPORTADA
-POR HERMES, no verificación independiente.
+POR HERMES, no verificación independiente. Este paquete no conserva archivos
+separados con stdout/stderr completos de E-01 a E-10. El enlace a este registro
+permite leer los resúmenes, no reproducir ni acreditar las ejecuciones originales.
+No se han repetido las suites para rellenar documentación.
 
 ---
 
@@ -105,5 +109,10 @@ POR HERMES, no verificación independiente.
 ## E-12 · Verificación de anexo íntegro en el mega prompt
 - Comando: execute_code comprobando `src_bytes in mega_bytes`
 - Resultado: las 3 fuentes aparecen **verbatim** dentro de
-  `60_MEGA_PROMPT_CBS_v3.md` (104022 bytes)
-- Limitaciones: ejecutado por Hermes.
+  `60_MEGA_PROMPT_CBS_v3.md`.
+- Limitaciones: ejecutado por Hermes. El tamaño 104022 bytes corresponde al
+  registro histórico, no al documento actual. Preparando esta PR se compararon
+  de nuevo los bytes: el documento actual tiene 104996 bytes y SHA-256
+  `1eba6d392c0a850118d627f0515ec9ec10b5d42bdc65f07a43b131e699410678`;
+  las tres fuentes literales aparecen íntegras en él. Esta comprobación documental
+  no repite ninguna suite ni modifica las fuentes.

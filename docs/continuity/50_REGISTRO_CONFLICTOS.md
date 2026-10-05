@@ -89,10 +89,11 @@ cantidad de tests ni preferencia del agente.
 - Fuentes: kanban t_84ce5ac2 = done (workspace reconcile-15bc237, AUSENTE);
   test M2 en la rama activa = 7 passed.
 - Tipo: aceptación por workspace histórico.
-- Resolución: el "done" del board no acredita el HEAD activo por sí solo; el
-  test M2 ejecutado AHORA en la rama activa sí lo acredita. Mantener M2
-  aceptado sobre evidencia vigente, no sobre el board.
-- Autoridad: ninguna (hecho).
+- Resolución: el "done" del board no acredita el HEAD activo por sí solo;
+  los 7 tests reportados acreditan sólo M2_INTEGRATION_OFFSCREEN sobre 2dc0094.
+  La afirmación previa "Mantener M2 aceptado" queda corregida por C-13:
+  M2_GUI_VISIBLE = NO ACREDITADO; M2_ACCEPTANCE = PENDIENTE.
+- Autoridad: usuario para aceptar M2 tras las comprobaciones pendientes.
 
 ## C-10 · Incógnita crítica H (administrador local hostil) sin resolver
 - Fuentes: SRC-P2 §H; SRC-P1 §4.2.H.
