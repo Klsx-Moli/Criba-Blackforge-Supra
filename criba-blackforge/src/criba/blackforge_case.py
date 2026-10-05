@@ -611,9 +611,9 @@ class DefensiveCase:
         It does NOT presume to undo effects already performed.
         """
         self._revoked_authorizations.add(nonce)
-        if getattr(self, "_authorization_record", None) is not None:
-            if self._authorization_record.nonce == nonce:
-                self.authorization = AuthorizationAxis.REVOKED
+        record = self._authorization_record
+        if record is not None and record.nonce == nonce:
+            self.authorization = AuthorizationAxis.REVOKED
         self.updated_at = _now()
 
     def authorization_is_live(self, *, now: datetime | None = None) -> tuple[bool, str]:
@@ -622,7 +622,7 @@ class DefensiveCase:
         Unverifiable validity means no run: an absent record, a revoked nonce,
         another boot epoch or an elapsed TTL all return "not live".
         """
-        record = getattr(self, "_authorization_record", None)
+        record = self._authorization_record
         if record is None:
             return False, "no hay autorizacion registrada"
         if record.nonce in self._revoked_authorizations:
@@ -651,7 +651,12 @@ class DefensiveCase:
                 f"El expediente puede concluir 'evidencia insuficiente; "
                 f"comprobacion pendiente'."
             )
-        return getattr(self, "_authorization_record")  # type: ignore[return-value]
+        record = self._authorization_record
+        if record is None:  # pragma: no cover - unreachable while ok is True
+            raise CaseError(
+                "La autorizacion no es verificable; no se ejecuta ninguna accion."
+            )
+        return record
 
     # -- transitions -------------------------------------------------------
 
