@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from .contrato import SYSTEM, prompt_propuesta
+from .contrato import SYSTEM, evidencia_entregada, prompt_propuesta
 from .prefilter import PreFilter
 from .puerto import InterpreterPort, hash_salida
 from .seleccion import construir_interprete
@@ -35,12 +35,18 @@ class JuezInterprete:
         activation_id: str,
         run_id: str,
         seed: int | None = None,
+        *,
+        evidence: list[dict[str, Any]] | None = None,
+        evidence_context: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
+        evidence = evidencia_entregada(evidence)
         prefiltrado = self.prefilter.apply(ideas)
         resultados = []
         modelo = str(getattr(self.interpreter, "model", ""))
         for original in prefiltrado["candidates"]:
             idea = dict(original)
+            if evidence_context is not None:
+                idea["evidence_context"] = evidence_context
             previo = (
                 self.store.get_verdict(idea["id"], modelo, run_id=run_id, seed=seed)
                 if self.store
@@ -48,16 +54,16 @@ class JuezInterprete:
             )
             if (
                 previo
-                and InterpreteStore.cache_valido(previo, idea)
+                and InterpreteStore.cache_valido(previo, idea, evidence)
                 and previo["provenance"].get("generation_parameters", {})
                 == getattr(self.interpreter, "generation_parameters", {})
                 and previo["provenance"].get("prompt_sha256")
-                == hash_salida(SYSTEM + prompt_propuesta(query, idea, None, None))
+                == hash_salida(SYSTEM + prompt_propuesta(query, idea, None, evidence))
             ):
                 idea.update(previo["response"]["interpretation"])
                 idea["_registro"] = {"status": "deduplicated"}
             else:
-                result = self.interpreter.proponer(query, idea)
+                result = self.interpreter.proponer(query, idea, evidence=evidence)
                 campos = result.to_campos()
                 status = "CRITIQUED" if result.es_propuesta else "NOT_EVALUATED"
                 idea.update(
@@ -72,6 +78,7 @@ class JuezInterprete:
                         if result.provenance
                         else {},
                         "interprete_raw_output": result.raw_output,
+                        "interprete_evidence_delivered": evidence or [],
                     }
                 )
                 idea["_registro"] = (

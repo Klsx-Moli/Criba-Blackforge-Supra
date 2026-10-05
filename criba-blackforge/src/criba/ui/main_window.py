@@ -355,6 +355,8 @@ class CribaMainWindow(QMainWindow):
             lambda: actions.on_desarrollar_supra(self))
         self.refs["actualizarFuentesBtn"].clicked.connect(
             lambda: actions.on_actualizar(self))
+        self.refs["sourcesProgress"].cancel.clicked.connect(
+            lambda: actions.on_cancel_sources(self))
         self.refs["historialCompletoBtn"].clicked.connect(
             lambda: actions.on_historial(self))
         self.refs["verTodasBtn"].clicked.connect(

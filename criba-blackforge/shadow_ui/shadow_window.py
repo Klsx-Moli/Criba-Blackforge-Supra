@@ -7,8 +7,8 @@ Estructura exacta de la imagen de referencia:
 """
 from __future__ import annotations
 
-import math
 import json
+import math
 import random
 from pathlib import Path
 from typing import Any
@@ -18,6 +18,7 @@ from criba.ui.i18n import on_change as _i18n_on_change
 from criba.ui.i18n import t as _t
 from criba.ui.i18n import toggle as _i18n_toggle
 from criba.ui.ranking import RankingModel
+from criba.ui.source_progress import SourceProgress
 from loading_indicator import LoadingIndicator
 from PySide6.QtCore import QPoint, QPointF, QRectF, QSize, Qt
 from PySide6.QtGui import (
@@ -911,13 +912,18 @@ class TopCardsWidget(QWidget):
         bind_text(warn, "shadow.sin_actualizar")
         self.stale_warn = warn
         l4.addWidget(warn)
+        self.sources_profile = QComboBox()
+        self.sources_profile.addItem(_t("sources.profile.general"), "general")
+        self.sources_profile.addItem(_t("sources.profile.blackforge"), "blackforge")
+        l4.addWidget(self.sources_profile)
         btn_act = QPushButton("↻ Actualizar fuentes")
         bind_text(btn_act, "shadow.actualizar")
         self.btn_act = btn_act
         btn_act.clicked.connect(lambda: actions.on_actualizar(win))
         l4.addWidget(btn_act)
-        self.sources_loading = LoadingIndicator("neon_hud", QSize(32, 32))
-        l4.addWidget(self.sources_loading)
+        self.sources_progress = SourceProgress()
+        self.sources_progress.cancel.clicked.connect(lambda: actions.on_cancel_sources(win))
+        l4.addWidget(self.sources_progress)
         lay.addWidget(f4, stretch=1)
 
     # ------------------------------------------- estado real (runtime truth)

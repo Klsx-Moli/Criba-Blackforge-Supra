@@ -313,6 +313,8 @@ class ShadowActionContext:
             "donutLegend": _Sink("donutLegend"),
             # fuentes
             "actualizarFuentesBtn": tc.btn_act,
+            "sourcesProgress": tc.sources_progress,
+            "sourcesProfile": tc.sources_profile,
             "staleBand": tc.stale_warn,
             "sourceBars": {},
             # actividad reciente (layout real dentro de la tarjeta)

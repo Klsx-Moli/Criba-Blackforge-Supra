@@ -20,6 +20,7 @@ import logging
 from typing import Any
 
 from criba.constants import DEFAULT_DB, FEATURES
+from criba.intelligence.evidence_context import retrieve_evidence_context
 from criba.interprete.contrato import PROMPT_VERSION, SCHEMA_VERSION
 from criba.interprete.ids import interprete_ids
 from criba.interprete.juez import JuezInterprete
@@ -52,6 +53,19 @@ def build_interprete_block(
             backend=ctx.get("interpreter_backend"),
         )
         seed = ctx.get("seed")
+        evidence_store = ctx.get("evidence_store")
+        owns_evidence_store = "evidence_store" not in ctx
+        if owns_evidence_store:
+            from criba.intelligence.refresh import default_store
+
+            evidence_store = default_store()
+        try:
+            snapshot = retrieve_evidence_context(query, evidence_store)
+        finally:
+            if owns_evidence_store and evidence_store is not None:
+                evidence_store.close()
+        evidence = snapshot["documents"]
+        evidence_context = {key: value for key, value in snapshot.items() if key != "documents"}
         # PR-0: IDs deterministas — misma (query, seed, modelo) -> mismos IDs.
         modelo = str(getattr(juez.interpreter, "model", ""))
         scope = json.dumps(
@@ -62,6 +76,7 @@ def build_interprete_block(
                 PROMPT_VERSION,
                 SCHEMA_VERSION,
                 getattr(juez.interpreter, "generation_parameters", {}),
+                snapshot,
                 ideas,
             ],
             sort_keys=True,
@@ -74,11 +89,15 @@ def build_interprete_block(
             activation_id=ids.activation_id,
             run_id=ids.run_id,
             seed=seed,
+            evidence=evidence,
+            evidence_context=evidence_context,
         )
         return {
             "applied": True,
             "modelo": interp_result["modelo"],
             "fallback_usado": interp_result["fallback_usado"],
+            "evidence_delivered": evidence,
+            "evidence_context": evidence_context,
             "interpretados": [
                 {
                     "idea_id": r["id"],

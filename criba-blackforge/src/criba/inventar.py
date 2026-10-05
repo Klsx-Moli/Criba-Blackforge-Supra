@@ -35,6 +35,7 @@ from typing import Any
 
 from .catalog import methods as catalog_methods
 from .intelligence.contracts import InventionCandidate, SourceQueryResult
+from .intelligence.evidence_context import fts_query, retrieve_evidence_context
 from .intelligence.prior_art.lattice import build_query_lattice
 from .intelligence.prior_art.mutation_loop import run_prior_art_mutation_loop
 from .intelligence.prior_art.protocol import AdversarialSearchProtocol
@@ -260,10 +261,8 @@ def _estado_antecedentes(assessment: dict[str, Any]) -> str:
 
 
 def _fts_query(query: str) -> str:
-    """Consulta FTS tolerante: OR de tokens relevantes (el MATCH exacto de
-    una frase completa exige TODOS los términos y casi nunca coincide)."""
-    tokens = [t for t in query.split() if len(t) >= 4][:8]
-    return " OR ".join(tokens) if tokens else query
+    """Compatibilidad: términos relevantes entrecomillados para FTS5."""
+    return fts_query(query)
 
 
 def _filter_documented_evidence(
@@ -454,16 +453,11 @@ def invent(
 
     # Evidencia local para el intérprete (FTS del almacén): se RECUPERA UNA
     # VEZ y se ENTREGA a la llamada de interpretación — no solo se guarda.
-    local_evidence: list[dict[str, Any]] = []
-    if store is not None:
-        try:
-            local_evidence = [
-                {"title": d.get("title", ""), "abstract": (d.get("abstract") or "")[:300],
-                 "url": d.get("url", "")}
-                for d in (store.search_documents(_fts_query(query), limit=3) or [])
-            ]
-        except Exception:  # noqa: BLE001 — la evidencia nunca rompe el loop
-            local_evidence = []
+    evidence_context = retrieve_evidence_context(query, store)
+    local_evidence: list[dict[str, Any]] = evidence_context["documents"]
+    acquisition_context = {
+        key: value for key, value in evidence_context.items() if key != "documents"
+    }
 
     # Lecciones de dossiers previos (circuito de aprendizaje, astra!.txt §5):
     # un resultado observado vuelve a la búsqueda como evidencia trazable.
@@ -482,9 +476,9 @@ def invent(
 
     def _desarrollar(idea: dict[str, Any], index: int) -> dict[str, Any]:
         """Propuesta → crítica → antecedentes para un candidato del pool."""
-        idea_enviada = idea
+        idea_enviada = {**idea, "evidence_context": acquisition_context}
         if ficha_bloqueo:
-            idea_enviada = {**idea, "bloqueo": {
+            idea_enviada = {**idea_enviada, "bloqueo": {
                 **ficha_bloqueo, "lecciones_previas": lecciones}}
         # 1) Propuesta: aplicar el cruce al problema (con evidencia) ANTES de
         #    buscar antecedentes.
@@ -548,6 +542,7 @@ def invent(
             ),
             "evidence_retrieved": local_evidence,
             "evidence_delivered": local_evidence,
+            "evidence_context": acquisition_context,
             "evidence_documented_as_used": documented_evidence,
             "evidence_documented_rejected_count": documented_rejected,
             # Deprecated read-compatible alias. Historically this meant only
@@ -718,6 +713,7 @@ def invent(
         },
         "seleccion_finalista": selection_report,
         "ficha_bloqueo": dict(ficha_bloqueo) if ficha_bloqueo else None,
+        "evidence_context": acquisition_context,
         "entries": entries,
         "totals": {
             "ideas": len(engine.all_ideas),

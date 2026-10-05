@@ -3,12 +3,14 @@
 Cada builder devuelve el QFrame contractual y registra widgets nombrados en
 `refs` para que CribaMainWindow los actualice (WIDGET_TREE §1).
 """
+
 from __future__ import annotations
 
 from typing import Any
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
+    QComboBox,
     QFrame,
     QHBoxLayout,
     QHeaderView,
@@ -20,6 +22,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from .i18n import t as text
 from .ranking import (
     COL_CONV,
     COL_IDEA,
@@ -33,6 +36,7 @@ from .ranking import (
     RankingModel,
     ScoreBarDelegate,
 )
+from .source_progress import SourceProgress
 from .tokens import Tokens
 from .widgets import (
     ActivityItemWidget,
@@ -42,7 +46,6 @@ from .widgets import (
     MetricWidget,
     PipelineConnector,
     PipelineStageWidget,
-    SourceBarWidget,
     ValueScoreGauge,
     make_chip,
 )
@@ -55,9 +58,13 @@ PIPELINE_STAGES = [
     ("stageEvolucionar", "↻", "Evolucionar", "Itera y mejora continuamente"),
 ]
 
-FUENTES = ["Tecnología emergente", "Tendencias de negocio",
-           "Investigación científica", "Diseño & experiencia",
-           "Comunidad & open source"]
+FUENTES = [
+    "Tecnología emergente",
+    "Tendencias de negocio",
+    "Investigación científica",
+    "Diseño & experiencia",
+    "Comunidad & open source",
+]
 
 BF_FEATURES = [
     ("◉", "Reconocimiento", "Mapa de superficie"),
@@ -73,8 +80,7 @@ def _card(t: Tokens, accent: bool = False) -> tuple[QFrame, QVBoxLayout]:
     f = QFrame()
     f.setObjectName("cardAccent" if accent else "card")
     lay = QVBoxLayout(f)
-    lay.setContentsMargins(t.spacing(16), t.spacing(16),
-                           t.spacing(16), t.spacing(16))
+    lay.setContentsMargins(t.spacing(16), t.spacing(16), t.spacing(16), t.spacing(16))
     lay.setSpacing(t.spacing(12))
     return f, lay
 
@@ -88,8 +94,9 @@ def _section_title(text: str) -> QLabel:
 def build_motor_card(t: Tokens, refs: dict[str, Any]) -> QFrame:
     card, lay = _card(t)
     lay.addWidget(_section_title("Motor de innovación"))
-    desc = QLabel("Convierte problemas en oportunidades. Genera, evalúa y "
-                  "prioriza ideas con impacto real.")
+    desc = QLabel(
+        "Convierte problemas en oportunidades. Genera, evalúa y prioriza ideas con impacto real."
+    )
     desc.setObjectName("sectionDesc")
     desc.setWordWrap(True)
     lay.addWidget(desc)
@@ -113,8 +120,7 @@ def build_idea_card(t: Tokens, refs: dict[str, Any]) -> QFrame:
     card, _outer = _card(t, accent=True)
     QWidget().setLayout(card.layout())  # replace default VBox with HBox
     lay = QHBoxLayout(card)
-    lay.setContentsMargins(t.spacing(20), t.spacing(16),
-                           t.spacing(20), t.spacing(16))
+    lay.setContentsMargins(t.spacing(20), t.spacing(16), t.spacing(20), t.spacing(16))
     lay.setSpacing(t.spacing(20))
     info = QVBoxLayout()
     info.setSpacing(t.spacing(8))
@@ -176,8 +182,13 @@ def build_ranking_card(t: Tokens, refs: dict[str, Any]) -> QFrame:
     table.setFocusPolicy(Qt.FocusPolicy.NoFocus)
     hh = table.horizontalHeader()
     hh.setSectionResizeMode(COL_IDEA, QHeaderView.ResizeMode.Stretch)
-    for col, width in ((COL_RANK, 44), (COL_SCORE, 130), (COL_CONV, 130),
-                       (COL_IMPACT, 96), (COL_STATE, 110)):
+    for col, width in (
+        (COL_RANK, 44),
+        (COL_SCORE, 130),
+        (COL_CONV, 130),
+        (COL_IMPACT, 96),
+        (COL_STATE, 110),
+    ):
         hh.resizeSection(col, width)
     table.setItemDelegateForColumn(COL_RANK, RankDelegate(table))
     table.setItemDelegateForColumn(COL_SCORE, ScoreBarDelegate(2, table))
@@ -186,8 +197,9 @@ def build_ranking_card(t: Tokens, refs: dict[str, Any]) -> QFrame:
     table.setItemDelegateForColumn(COL_STATE, ChipDelegate(table))
     table.setMinimumHeight(t.layout("table_row_height") * 5 + 40)
     refs["rankingTable"] = table
-    refs["rankingEmpty"] = QLabel("Aún no hay ideas evaluadas\n"
-                                  "El ranking aparecerá tras la primera evaluación")
+    refs["rankingEmpty"] = QLabel(
+        "Aún no hay ideas evaluadas\nEl ranking aparecerá tras la primera evaluación"
+    )
     refs["rankingEmpty"].setObjectName("sectionDesc")
     refs["rankingEmpty"].setAlignment(Qt.AlignmentFlag.AlignCenter)
     refs["rankingEmpty"].setMinimumHeight(100)
@@ -212,8 +224,10 @@ def build_teaser_card(t: Tokens, refs: dict[str, Any]) -> QFrame:
     refs["irBlackforgeBtn"].setCursor(Qt.CursorShape.PointingHandCursor)
     head.addWidget(refs["irBlackforgeBtn"])
     lay.addLayout(head)
-    desc = QLabel("Reconocimiento, vectores y contramedidas con el mismo motor "
-                  "determinista de CRIBA, orientado a defensa.")
+    desc = QLabel(
+        "Reconocimiento, vectores y contramedidas con el mismo motor "
+        "determinista de CRIBA, orientado a defensa."
+    )
     desc.setObjectName("sectionDesc")
     desc.setWordWrap(True)
     lay.addWidget(desc)
@@ -250,20 +264,23 @@ def build_right_column(t: Tokens, refs: dict[str, Any]) -> QWidget:
     sb_lay.addWidget(sb_txt)
     fl.addWidget(refs["staleBand"])
     refs["sourceBars"] = {}
-    for name in FUENTES:
-        bar = SourceBarWidget(name, 0)
-        refs["sourceBars"][name] = bar
-        fl.addWidget(bar)
+    refs["sourcesProfile"] = QComboBox()
+    refs["sourcesProfile"].addItem(text("sources.profile.general"), "general")
+    refs["sourcesProfile"].addItem(text("sources.profile.blackforge"), "blackforge")
+    fl.addWidget(refs["sourcesProfile"])
     refs["actualizarFuentesBtn"] = QPushButton("Actualizar fuentes")
     refs["actualizarFuentesBtn"].setObjectName("ghost")
     refs["actualizarFuentesBtn"].setCursor(Qt.CursorShape.PointingHandCursor)
     fl.addWidget(refs["actualizarFuentesBtn"])
+    refs["sourcesProgress"] = SourceProgress()
+    fl.addWidget(refs["sourcesProgress"])
     refs["supraBtn"] = QPushButton("Desarrollar con SUPRA")
     refs["supraBtn"].setObjectName("ghost")
     refs["supraBtn"].setCursor(Qt.CursorShape.PointingHandCursor)
     refs["supraBtn"].setToolTip(
         "Prepara el dossier con prueba discriminante del candidato activo. "
-        "Estado: ejecución SUPRA pendiente — nunca PASS automático.")
+        "Estado: ejecución SUPRA pendiente — nunca PASS automático."
+    )
     fl.addWidget(refs["supraBtn"])
     lay.addWidget(fu)
     # 7.3 categorías
@@ -294,8 +311,9 @@ def build_right_column(t: Tokens, refs: dict[str, Any]) -> QWidget:
     return col
 
 
-def add_activity(t: Tokens, refs: dict[str, Any], timestamp: str,
-                 kind: str, text: str, max_visible: int = 6) -> None:
+def add_activity(
+    t: Tokens, refs: dict[str, Any], timestamp: str, kind: str, text: str, max_visible: int = 6
+) -> None:
     refs["activityEmpty"].hide()
     item = ActivityItemWidget(timestamp, kind, text)
     refs["activityList"].insertWidget(0, item)

@@ -25,7 +25,9 @@ CREATE TABLE IF NOT EXISTS interprete_decisions (
 
 class InterpreteStore:
     @staticmethod
-    def cache_valido(row: dict[str, Any], idea: dict[str, Any]) -> bool:
+    def cache_valido(
+        row: dict[str, Any], idea: dict[str, Any], evidence: list[dict[str, Any]] | None = None
+    ) -> bool:
         """Revalida datos históricos; una etiqueta CRITIQUED no acredita el contrato."""
         if (
             row.get("evaluation_status") != "CRITIQUED"
@@ -40,7 +42,7 @@ class InterpreteStore:
             return (
                 isinstance(campos, dict)
                 and campos.get("estado") == "PROPUESTA"
-                and not validar_propuesta(campos, idea, None)
+                and not validar_propuesta(campos, idea, evidence)
                 and isinstance(critica, dict)
                 and critica.get("evaluation_status") == "CRITIQUED"
                 and isinstance(critica.get("respuesta"), dict)
@@ -133,7 +135,9 @@ class InterpreteStore:
                 ).fetchone()
                 if (
                     previo
-                    and self.cache_valido(dict(previo), idea)
+                    and self.cache_valido(
+                        dict(previo), idea, idea.get("interprete_evidence_delivered")
+                    )
                     and (
                         previo["prompt_version"] == provenance.get("prompt_version", "")
                         and previo["schema_version"] == provenance.get("schema_version", "")
