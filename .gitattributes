@@ -1,0 +1,24 @@
+# Normalizacion de fin de linea en el indice de git.
+# El generador del canon y los documentos de continuidad se escriben con LF;
+# normalizar en el indice evita diffs ruidosos en checkouts con autocrlf=true
+# y preserva la fidelidad byte a byte de los corpus citados.
+*.py text eol=lf
+*.yaml text eol=lf
+*.json text eol=lf
+*.md text eol=lf
+*.lock text eol=lf
+*.spec text eol=lf
+*.ps1 text eol=crlf
+*.bat text eol=crlf
+
+# Fidelidad byte a byte del corpus de continuidad.
+# Los ficheros del corpus citado se conservan SIN normalizar fin de linea: el
+# blob en el indice es identico al original, de modo que cualquiera puede
+# comprobarlo con
+#   git show HEAD:docs/continuity/<fichero> | sha256sum
+# y compararlo con el sha256 declarado en docs/continuity/10_INDICE_FUENTES.md.
+# (-text = no convertir CRLF/LF; git sigue mostrando diffs de texto.)
+docs/continuity/00_SOURCE_*.md -text
+docs/continuity/01_SOURCE_*.md -text
+docs/continuity/02_SOURCE_*.md -text
+docs/continuity/60_MEGA_PROMPT_CBS_v3.md -text
