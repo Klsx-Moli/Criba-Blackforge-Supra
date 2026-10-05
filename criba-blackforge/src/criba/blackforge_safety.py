@@ -107,6 +107,24 @@ def evaluate_blackforge_safety(
             session_id=session_id, timestamp=_iso(clock),
             authorization_state=AuthorizationState.PENDING,
         )
+    authorization_required = (
+        safety_class in {"S2_SANDBOX", "S3_HIGH_CONTROL"}
+        or item.get("requires_explicit_authorization") is True
+    )
+    if (
+        authorization_required
+        and authorization_state in {AuthorizationState.DENIED, AuthorizationState.EXPIRED}
+    ):
+        return SafetyDecision(
+            decision=DENY, policy_version=_SAFETY_POLICY_VERSION, item_id=item_id,
+            reasons=[
+                "La autorización requerida está denegada o expirada; "
+                "las aprobaciones secundarias no pueden reactivarla."
+            ],
+            unmet_requirements=["active_authorization_state"], allowed_scope=SCOPE_NONE,
+            session_id=session_id, timestamp=_iso(clock),
+            authorization_state=authorization_state,
+        )
 
     # 1) Hard prohibitions -> DENY unconditionally.
     meta, _ = _load_catalog()
