@@ -1,9 +1,4 @@
-"""Test de integración del determinismo PR-0 con flag ON (usa LocalInterprete).
-
-Verifica el contrato completo: dos runs con misma (query, seed) sobre la MISMA
-base de datos producen los mismos IDs deterministas, y la segunda pasada
-devuelve status='deduplicated' para las ideas ya registradas.
-"""
+"""IDs estables; los resultados pendientes siguen siendo reintentables."""
 from __future__ import annotations
 
 import pytest
@@ -47,7 +42,7 @@ def test_flag_on_ids_deterministas_y_dedup(flag_on, tmp_path) -> None:
     assert r2["applied"] is True
     ids2 = {r["registro"] for r in r2["interpretados"]}
     assert "recorded" not in ids2, f"PR-0 roto: segunda pasada volvió a grabar {ids2}"
-    assert ids2 == {"deduplicated"}, ids2
+    assert ids2 == {"retried"}, "un pendiente debe volver a intentarse, no congelarse"
 
 
 def test_flag_on_seed_distinta_no_dedup(flag_on, tmp_path) -> None:

@@ -12,15 +12,20 @@ from .catalog import currents, methods
 from .constants import MAX_QUERY_CHARS
 from .engine import activate, build_prompt
 from .storage import Storage
+from .version import __version__
 
 JsonObject = dict[str, Any]
 DatabasePath = Path | str | None
 
 
-def _string(data: Mapping[str, Any], name: str, default: str | None = None, *, allow_empty: bool = False) -> str:
+def _string(
+    data: Mapping[str, Any], name: str, default: str | None = None, *, allow_empty: bool = False
+) -> str:
     value = data.get(name, default)
     if not isinstance(value, str) or (not allow_empty and not value.strip()):
-        raise ValueError(f"campo '{name}' debe ser un string{' no vacío' if not allow_empty else ''}")
+        raise ValueError(
+            f"campo '{name}' debe ser un string{' no vacío' if not allow_empty else ''}"
+        )
     return value
 
 
@@ -57,7 +62,7 @@ def _evidence(data: Mapping[str, Any]) -> list[Any] | dict[str, Any]:
 class Handler(BaseHTTPRequestHandler):
     """Standard-library HTTP handler for CRIBA's loopback API."""
 
-    server_version = "CRIBA/0.1"
+    server_version = f"CRIBA/{__version__}"
 
     def _json(self, status: int, payload: Any) -> None:
         body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
@@ -104,7 +109,23 @@ class Handler(BaseHTTPRequestHandler):
                 self._json(200, self.store.get(path.rsplit("/", 1)[1]))
                 return
             if path == "/docs":
-                self._json(200, {"openapi": "manual", "endpoints": ["POST /v1/activate", "POST /v1/run", "POST /v1/build-prompt", "POST /v1/compare", "POST /v1/decisions", "GET /v1/currents", "GET /v1/methods", "GET /v1/sessions/{id}", "GET /health"]})
+                self._json(
+                    200,
+                    {
+                        "openapi": "manual",
+                        "endpoints": [
+                            "POST /v1/activate",
+                            "POST /v1/run",
+                            "POST /v1/build-prompt",
+                            "POST /v1/compare",
+                            "POST /v1/decisions",
+                            "GET /v1/currents",
+                            "GET /v1/methods",
+                            "GET /v1/sessions/{id}",
+                            "GET /health",
+                        ],
+                    },
+                )
                 return
             self._json(404, {"error": "Endpoint inexistente."})
         except ValueError as exc:
@@ -129,21 +150,33 @@ class Handler(BaseHTTPRequestHandler):
                 self.store.save(
                     str(packet["original_query"]),
                     packet,
-                    {key: data.get(key) for key in ("current", "mode", "supporting_methods", "safety_level")},
+                    {
+                        key: data.get(key)
+                        for key in ("current", "mode", "supporting_methods", "safety_level")
+                    },
                 )
-                payload = {"packet": packet, "prompt": build_prompt(packet)} if path == "/v1/build-prompt" else packet
+                payload = (
+                    {"packet": packet, "prompt": build_prompt(packet)}
+                    if path == "/v1/build-prompt"
+                    else packet
+                )
                 self._json(200, payload)
                 return
             if path == "/v1/compare":
-                self._json(200, self.store.compare(_string(data, "session_a"), _string(data, "session_b")))
+                self._json(
+                    200, self.store.compare(_string(data, "session_a"), _string(data, "session_b"))
+                )
                 return
             if path == "/v1/decisions":
-                self._json(200, self.store.record_decision(
-                    _string(data, "session_id"),
-                    _string(data, "status"),
-                    _evidence(data),
-                    _string(data, "note", "", allow_empty=True),
-                ))
+                self._json(
+                    200,
+                    self.store.record_decision(
+                        _string(data, "session_id"),
+                        _string(data, "status"),
+                        _evidence(data),
+                        _string(data, "note", "", allow_empty=True),
+                    ),
+                )
                 return
             self._json(404, {"error": "Endpoint inexistente."})
         except (ValueError, TypeError, KeyError) as exc:
@@ -214,7 +247,7 @@ def create_app(database: DatabasePath = None) -> Any:
 
     app = FastAPI(
         title="CRIBA Current Engine",
-        version="0.1.0",
+        version=__version__,
         description="Local loopback CRIBA API. No external provider or keys.",
     )
 
@@ -276,7 +309,9 @@ def create_app(database: DatabasePath = None) -> Any:
     @app.post("/v1/decisions")
     def decision_endpoint(data: Decision) -> JsonObject:
         try:
-            return Storage(database).record_decision(data.session_id, data.status, data.evidence, data.note)
+            return Storage(database).record_decision(
+                data.session_id, data.status, data.evidence, data.note
+            )
         except ValueError as exc:
             raise HTTPException(400, str(exc)) from exc
 

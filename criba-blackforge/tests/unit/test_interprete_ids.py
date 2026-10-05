@@ -10,6 +10,7 @@ produce los mismos IDs y la segunda pasada deduplica.
 from __future__ import annotations
 
 import hashlib
+import json
 
 from criba.interprete.ids import interprete_ids
 
@@ -47,7 +48,7 @@ def test_ids_formato_estable() -> None:
 
 def test_ids_formato_prefijo_sha256() -> None:
     # El prefijo debe ser derivable manualmente: sha256("q|0|m|")[:12] (repo vacio)
-    esperado = hashlib.sha256("q|0|m|".encode("utf-8")).hexdigest()[:12]
+    esperado = hashlib.sha256(json.dumps(["q", 0, "m", ""], separators=(",", ":")).encode()).hexdigest()[:12]
     ids = interprete_ids(query="q", seed=0, modelo="m")
     assert ids.run_id.endswith(esperado)
 

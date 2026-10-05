@@ -12,7 +12,7 @@ ejecutable.
 import os
 from pathlib import Path
 
-from PyInstaller.utils.hooks import collect_submodules
+from PyInstaller.utils.hooks import collect_submodules, copy_metadata, get_package_paths
 
 ROOT = Path(os.path.abspath(SPECPATH))
 SUPRA_SRC = ROOT.parent / "supra" / "src"
@@ -40,7 +40,7 @@ a = Analysis(
         # .exe reventaba con FileNotFoundError: theme_criba.json.
         (str(ROOT / "data"), "data"),
         (str(ROOT / "schemas"), "schemas"),
-    ],
+    ] + copy_metadata("criba"),
     hiddenimports=[
         # Shadow UI: modulos sueltos, no visibles para el analisis estatico
         "shadow_window",
@@ -99,6 +99,27 @@ a = Analysis(
     noarchive=False,
     optimize=0,
 )
+
+# Qt's Windows wheel uses the Windows ICU API. A tool on PATH (for example
+# Poppler) may supply another icuuc.dll with versioned exports; freezing that
+# DLL prevents QtCore from loading. Preserve Qt-owned ICU, reject foreign ICU
+# and its companion data DLLs so the OS dependency resolves normally.
+if os.name == "nt":
+    qt_package = Path(get_package_paths("PySide6")[1]).resolve()
+    foreign_icu_dirs = {
+        Path(source).resolve().parent
+        for destination, source, _kind in a.binaries
+        if Path(destination).name.lower() == "icuuc.dll"
+        and not Path(source).resolve().is_relative_to(qt_package)
+    }
+    a.binaries = [
+        entry for entry in a.binaries
+        if not (
+            Path(entry[1]).resolve().parent in foreign_icu_dirs
+            and Path(entry[0]).name.lower().startswith("icu")
+            and Path(entry[0]).suffix.lower() == ".dll"
+        )
+    ]
 
 pyz = PYZ(a.pure)
 

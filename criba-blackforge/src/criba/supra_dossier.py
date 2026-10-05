@@ -219,6 +219,8 @@ def preparar_dossier(
     distinguir. Si no se aporta, el dossier lo declara en lugar de inventarla.
     """
     bloqueo = ficha_bloqueo or {}
+    raw_prueba = entry.get("prueba")
+    declarada: dict[str, Any] = raw_prueba if isinstance(raw_prueba, dict) else {}
     prueba_concreta = str(entry.get("prueba_concreta", ""))[:600]
     claim = str(entry.get("hipotesis", ""))[:800]
     mechanism = str(entry.get("mecanismo", ""))
@@ -230,23 +232,29 @@ def preparar_dossier(
     # Solo se reutiliza contenido ya declarado por el intérprete. Si tampoco
     # existe un supuesto alternativo, el campo sigue vacío y el dossier no pasa
     # a SUPRA: nunca se inventa una explicación para satisfacer el schema.
-    alternativa = alternativa_explicativa.strip() or (supuestos[0] if supuestos else "")
+    alternativa = (alternativa_explicativa.strip() or declarada.get("alternativa_explicativa")
+                   or (supuestos[0] if supuestos else ""))
     observable = str(
-        entry.get("observable") or entry.get("metrica") or prueba_concreta
+        entry.get("observable") or declarada.get("metrica")
+        or entry.get("metrica") or prueba_concreta
     )[:400]
     resultado_mecanismo = str(
-        entry.get("resultado_favorable_mecanismo") or claim
+        entry.get("resultado_favorable_mecanismo")
+        or declarada.get("resultado_favorable_mecanismo") or claim
     )[:400]
     resultado_alternativa = str(
-        entry.get("resultado_favorable_alternativa") or alternativa
+        entry.get("resultado_favorable_alternativa")
+        or declarada.get("resultado_favorable_alternativa") or alternativa
     )[:400]
-    regla_decision = str(entry.get("regla_decision") or prueba_concreta)[:400]
+    regla_decision = str(
+        entry.get("regla_decision") or declarada.get("umbral") or prueba_concreta
+    )[:400]
     prueba = {
         "afirmacion_decisiva": prueba_concreta,
         "alternativa_explicativa": alternativa,
         "intervencion_prueba": prueba_concreta,
         "observable": observable,
-        "comparacion": (
+        "comparacion": declarada.get("baseline") or (
             "observación que distinga el mecanismo propuesto de la alternativa; "
             "si no hay alternativa declarada, la prueba no es discriminante"
         ),
@@ -256,6 +264,7 @@ def preparar_dossier(
         "regla_decision": regla_decision,
         "condicion_fracaso": str(
             entry.get("condicion_fracaso")
+            or declarada.get("condicion_fracaso")
             or "si la observación no discrimina, el dossier no decide"
         )[:400],
         "coste_permisos": "a evaluar por el responsable antes de ejecutar",
@@ -300,6 +309,13 @@ def preparar_dossier(
         protocol_version = raw_protocol_version
     delivered = list(entry.get("evidence_delivered", entry.get("evidencia_local_usada", [])))
     documented = list(entry.get("evidence_documented_as_used", []))
+    interpretacion = {
+        "provenance": entry.get("interpretacion_provenance") or {},
+        "critica": entry.get("critica") or {},
+        "evidencia_citada": entry.get("evidencia_citada") or [],
+        "conocimiento_previo": entry.get("conocimiento_previo") or [],
+        "incertidumbre": entry.get("incertidumbre") or "",
+    }
     return {
         "dossier_id": f"dossier-{uuid4().hex}",
         "candidate_id": candidate_id,
@@ -315,6 +331,7 @@ def preparar_dossier(
         "evidence_delivered": delivered,
         "evidence_documented_as_used": documented,
         "evidencia_utilizada": documented,
+        **({"interpretacion": interpretacion} if any(interpretacion.values()) else {}),
         "prueba_discriminante": prueba,
         "supuestos": supuestos,
         "estado": "SUPRA_EJECUCION_PENDIENTE",

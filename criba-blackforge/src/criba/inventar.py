@@ -1,6 +1,6 @@
 """``criba inventar``: el loop de innovación completo en un comando.
 
-Cadena (siempre 0€, reproducible por semilla, nunca afirma novedad):
+Cadena (lotería reproducible por semilla; costes del modelo según proveedor):
 
 1. **Lotería estratificada** — divergencia determinista por clases de
    pensamiento (perspectiva/generación/ruptura/escape) con banco de dominio
@@ -8,9 +8,9 @@ Cadena (siempre 0€, reproducible por semilla, nunca afirma novedad):
 2. **Propuesta** — el intérprete aplica el cruce al problema y devuelve
    hipótesis + mecanismo + aportación de cada técnica. Sin modelo disponible
    el estado queda ``PENDIENTE_INTERPRETACION``: no se fabrica contenido.
-3. **Juez (crítica automática)** — ``LocalInterprete`` evalúa la propuesta;
-   sin clave, scoring offline. Una llamada distinta no es validación
-   independiente.
+3. **Crítica automática** — el puerto exige una segunda respuesta estructurada;
+   sin crítica aprobatoria la propuesta queda pendiente. No asigna scores ni
+   constituye validación independiente.
 4. **Prior-art del mecanismo** — la búsqueda de antecedentes usa el
    MECANISMO interpretado (no el título del cruce). Sin mecanismo no hay
    búsqueda: ``UNRESOLVED`` honesto. Lattice determinista → par gratuito
@@ -35,6 +35,7 @@ from typing import Any
 
 from .catalog import methods as catalog_methods
 from .intelligence.contracts import InventionCandidate, SourceQueryResult
+from .intelligence.evidence_context import fts_query, retrieve_evidence_context
 from .intelligence.prior_art.lattice import build_query_lattice
 from .intelligence.prior_art.mutation_loop import run_prior_art_mutation_loop
 from .intelligence.prior_art.protocol import AdversarialSearchProtocol
@@ -43,7 +44,6 @@ from .intelligence.prior_art.skeptic import PriorArtSkeptic
 from .intelligence.prior_art.verdict import PriorArtVerdictEngine
 from .intelligence.sources import build_sources, default_context
 from .intelligence.sources.protocol import IntelligenceSource
-from .interprete.adaptador import LocalInterprete
 from .lottery import LotteryEngine
 
 _PROPOSER = Callable[..., dict[str, Any]]  # (query, idea, domain, evidence) -> dict
@@ -112,7 +112,7 @@ def _default_proponer(
     Ninguna excepcion escapa: una propuesta nunca rompe el loop de candidatos.
     """
     if offline:
-        return _pending_proposal("modo offline")
+        return {**_pending_proposal("modo offline"), "interpretacion_model_requests": 0}
     try:
         from .interprete.seleccion import construir_interprete
 
@@ -137,6 +137,7 @@ def _default_proponer(
         "completion_tokens": resultado.completion_tokens,
         "reasoning_tokens": resultado.reasoning_tokens,
     }
+    campos["interpretacion_model_requests"] = resultado.model_requests
     return campos
 
 
@@ -147,16 +148,20 @@ def _judge(query: str, idea: dict[str, Any], offline: bool) -> dict[str, Any]:
             "veredicto": "PENDIENTE_OFFLINE", "labels": [], "score": None,
             "evaluation_status": "NOT_EVALUATED", "analisis": "",
         }
-    try:
-        result = LocalInterprete().interpretar(query, idea)
-        if isinstance(result, dict):
-            result.setdefault("evaluation_status", "EVALUATED")
-        return result
-    except Exception:  # noqa: BLE001 - el juez nunca rompe el loop
-        return {
-            "veredicto": "PENDIENTE_OFFLINE", "labels": [], "score": None,
-            "evaluation_status": "NOT_EVALUATED", "analisis": "",
-        }
+    critica = idea.get("critica") or {}
+    from .interprete.contrato import validar_critica
+    respuesta = critica.get("respuesta") if isinstance(critica, dict) else None
+    status = (
+        critica.get("evaluation_status", "NOT_EVALUATED")
+        if isinstance(critica, dict) else "NOT_EVALUATED"
+    )
+    if status == "CRITIQUED" and (not isinstance(respuesta, dict) or validar_critica(respuesta)):
+        status = "NOT_EVALUATED"
+    return {"veredicto": status,
+            "labels": [], "score": None,
+            "evaluation_status": status,
+            "analisis": respuesta or {},
+            "independent_validation": False}
 
 
 def _assess_candidate(
@@ -256,10 +261,8 @@ def _estado_antecedentes(assessment: dict[str, Any]) -> str:
 
 
 def _fts_query(query: str) -> str:
-    """Consulta FTS tolerante: OR de tokens relevantes (el MATCH exacto de
-    una frase completa exige TODOS los términos y casi nunca coincide)."""
-    tokens = [t for t in query.split() if len(t) >= 4][:8]
-    return " OR ".join(tokens) if tokens else query
+    """Compatibilidad: términos relevantes entrecomillados para FTS5."""
+    return fts_query(query)
 
 
 def _filter_documented_evidence(
@@ -342,7 +345,22 @@ def invent(
     if not query.strip():
         raise ValueError("query must not be blank")
     is_offline = _offline_mode(offline)
-    proponer_fn = proponer or (lambda q, i, d, ev=None: _default_proponer(q, i, d, is_offline, ev))
+    active_interpreter: Any = None
+
+    def _proponer_run(q: str, i: dict[str, Any], d: dict[str, Any] | None,
+                      ev: list[dict[str, Any]] | None = None) -> dict[str, Any]:
+        nonlocal active_interpreter
+        if not is_offline and active_interpreter is None:
+            from .interprete.seleccion import BackendDesconocido, construir_interprete
+            try:
+                active_interpreter = construir_interprete()
+            except BackendDesconocido as exc:
+                return {**_pending_proposal(str(exc)), "interpretacion_model_requests": 0}
+            except Exception as exc:  # noqa: BLE001 - conserva el fallo de configuración
+                return _pending_proposal(f"interpreter_config_failed:{type(exc).__name__}")
+        return _default_proponer(q, i, d, is_offline, ev, interprete=active_interpreter)
+
+    proponer_fn = proponer or _proponer_run
 
     import secrets
     import uuid
@@ -435,16 +453,11 @@ def invent(
 
     # Evidencia local para el intérprete (FTS del almacén): se RECUPERA UNA
     # VEZ y se ENTREGA a la llamada de interpretación — no solo se guarda.
-    local_evidence: list[dict[str, Any]] = []
-    if store is not None:
-        try:
-            local_evidence = [
-                {"title": d.get("title", ""), "abstract": (d.get("abstract") or "")[:300],
-                 "url": d.get("url", "")}
-                for d in (store.search_documents(_fts_query(query), limit=3) or [])
-            ]
-        except Exception:  # noqa: BLE001 — la evidencia nunca rompe el loop
-            local_evidence = []
+    evidence_context = retrieve_evidence_context(query, store)
+    local_evidence: list[dict[str, Any]] = evidence_context["documents"]
+    acquisition_context = {
+        key: value for key, value in evidence_context.items() if key != "documents"
+    }
 
     # Lecciones de dossiers previos (circuito de aprendizaje, astra!.txt §5):
     # un resultado observado vuelve a la búsqueda como evidencia trazable.
@@ -459,23 +472,33 @@ def invent(
         except Exception:  # noqa: BLE001 — el aprendizaje nunca rompe el loop
             lecciones = []
 
+    peticiones_por_intento: list[int | None] = []
+
     def _desarrollar(idea: dict[str, Any], index: int) -> dict[str, Any]:
         """Propuesta → crítica → antecedentes para un candidato del pool."""
-        idea_enviada = idea
+        idea_enviada = {**idea, "evidence_context": acquisition_context}
         if ficha_bloqueo:
-            idea_enviada = {**idea, "bloqueo": {
+            idea_enviada = {**idea_enviada, "bloqueo": {
                 **ficha_bloqueo, "lecciones_previas": lecciones}}
         # 1) Propuesta: aplicar el cruce al problema (con evidencia) ANTES de
         #    buscar antecedentes.
         proposal = proponer_fn(query, idea_enviada, domain, local_evidence)
-        documented_raw = proposal.get("evidence_documented_as_used", [])
+        count = proposal.get("interpretacion_model_requests")
+        peticiones_por_intento.append(count if type(count) is int and count >= 0 else None)
+        citas = proposal.get("evidencia_citada", [])
+        documented_raw = proposal.get("evidence_documented_as_used", [
+            local_evidence[i - 1] for i in citas
+            if type(i) is int and 1 <= i <= len(local_evidence)
+        ] if isinstance(citas, list) else [])
         documented_evidence = _filter_documented_evidence(documented_raw, local_evidence)
         documented_rejected = (
             len(documented_raw) - len(documented_evidence)
             if isinstance(documented_raw, list)
             else 0
         )
-        if proposal.get("estado") != "PROPUESTA" or not str(proposal.get("mecanismo", "")).strip():
+        if (proposal.get("estado") != "PROPUESTA"
+                or not isinstance(proposal.get("mecanismo"), str)
+                or not proposal["mecanismo"].strip()):
             if proposal.get("estado") == "PROPUESTA":
                 proposal = _pending_proposal("PROPUESTA sin mecanismo")
         candidate = InventionCandidate(
@@ -486,7 +509,7 @@ def invent(
             origin="NEW_IIE",
         )
         # 2) Crítica automática sobre la propuesta (no validación independiente).
-        judged = _judge(query, {**idea, "mecanismo": candidate.mechanism}, is_offline)
+        judged = _judge(query, {**idea, "critica": proposal.get("critica", {})}, is_offline)
         # 3) Antecedentes del mecanismo (nunca del título).
         assessment = _assess_candidate(candidate, active_sources)
         return {
@@ -505,6 +528,11 @@ def invent(
             "supuestos": list(proposal.get("supuestos", [])),
             "prueba_concreta": proposal.get("prueba_concreta", ""),
             "ruta_desbloqueo": proposal.get("ruta_desbloqueo", ""),
+            **{key: proposal.get(key) for key in (
+                "pertinencia", "cadena_causal", "evidencia_citada", "conocimiento_previo",
+                "incertidumbre", "novedad", "prueba", "comprobacion_restricciones", "critica",
+                "interpretacion_model_requests",
+            )},
             "interpretacion_error": proposal.get("error", ""),
             "interpretacion_raw_output": proposal.get("interpretacion_raw_output", ""),
             "interpretacion_finish_reason": proposal.get("interpretacion_finish_reason", ""),
@@ -514,6 +542,7 @@ def invent(
             ),
             "evidence_retrieved": local_evidence,
             "evidence_delivered": local_evidence,
+            "evidence_context": acquisition_context,
             "evidence_documented_as_used": documented_evidence,
             "evidence_documented_rejected_count": documented_rejected,
             # Deprecated read-compatible alias. Historically this meant only
@@ -540,7 +569,7 @@ def invent(
 
     pool_rest = [c for c in pool if all(c is not t for t in top_ideas)]
     intentos: list[dict[str, Any]] = []
-    model_calls = len(entries)  # cada finalista interpretado = 1 llamada
+    model_calls = len(entries)  # intentos de desarrollo, no peticiones HTTP
     for idx, entry in enumerate(entries):
         if entry["estado_interpretacion"] != "PROPUESTA" or not entry["mecanismo"]:
             continue
@@ -566,7 +595,7 @@ def invent(
             continue
         sustituto_idea = pool_rest.pop(0)
         sustituto_entry = _desarrollar(sustituto_idea, len(entries) + len(intentos))
-        model_calls += 1  # el sustituto consume su propia llamada de propuesta
+        model_calls += 1
         distinto_de_todos = all(
             compare_mechanisms(sustituto_entry["mecanismo"], other["mecanismo"]) != "DUPLICATE"
             for j, other in enumerate(entries)
@@ -582,7 +611,7 @@ def invent(
                 "resultado": "aceptado",
                 "sustituto_id": sustituto_entry["candidate_id"],
                 "sustituto_titulo": sustituto_entry["title"],
-                "llamadas_modelo": 1,
+                "llamadas_modelo": sustituto_entry.get("interpretacion_model_requests"),
             })
             entries[idx] = sustituto_entry
         else:
@@ -599,9 +628,13 @@ def invent(
                 "resultado": "rechazado",
                 "sustituto_id": sustituto_entry["candidate_id"],
                 "sustituto_titulo": sustituto_entry["title"],
-                "llamadas_modelo": 1,
+                "llamadas_modelo": sustituto_entry.get("interpretacion_model_requests"),
             })
             entry["mecanismo_duplicado_con"] = "otro finalista (sustitución rechazada)"
+    requests_known = all(n is not None for n in peticiones_por_intento)
+    model_requests = (
+        sum(n for n in peticiones_por_intento if n is not None) if requests_known else None
+    )
     selection_report["revision_post_interpretacion"] = {
         "intentos": intentos,
         "llamadas_revision": len(intentos),
@@ -610,8 +643,8 @@ def invent(
         # authoritative request accounting because proposal/judge/provider
         # boundaries are not fully instrumented here.
         "llamadas_modelo_total": model_calls,
-        "model_requests": None,
-        "model_requests_authoritative": False,
+        "model_requests": model_requests,
+        "model_requests_authoritative": requests_known,
         "sustituciones_aceptadas": sum(1 for i in intentos if i["resultado"] == "aceptado"),
     }
     selection_report["opportunity_accounting"] = {
@@ -621,8 +654,9 @@ def invent(
         "candidate_development_attempts": model_calls,
         "replacement_attempts": len(intentos),
         "finalists": len(entries),
-        "provider_model_requests": None,
-        "provider_model_requests_authoritative": False,
+        "provider_model_requests": model_requests,
+        "provider_model_requests_authoritative": requests_known,
+        "provider_model_requests_scope": "CANDIDATE_PROPOSAL_AND_CRITIC_ONLY",
         "evaluation_calls_authoritative": False,
         "budget_complete": False,
         "scope": "LOCAL_PIPELINE_ACCOUNTING_ONLY",
@@ -679,6 +713,7 @@ def invent(
         },
         "seleccion_finalista": selection_report,
         "ficha_bloqueo": dict(ficha_bloqueo) if ficha_bloqueo else None,
+        "evidence_context": acquisition_context,
         "entries": entries,
         "totals": {
             "ideas": len(engine.all_ideas),

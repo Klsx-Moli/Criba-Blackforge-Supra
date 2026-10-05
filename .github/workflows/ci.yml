@@ -37,6 +37,9 @@ jobs:
       - name: Install locked dependencies
         shell: pwsh
         run: uv sync --all-extras --locked
+      - name: Install SUPRA for the real vertical slice
+        shell: pwsh
+        run: uv sync --project ../supra --all-extras --locked
       - name: Run CRIBA / BLACKFORGE tests
         shell: pwsh
         run: uv run --locked pytest -q

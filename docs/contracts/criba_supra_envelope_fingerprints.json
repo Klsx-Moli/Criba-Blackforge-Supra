@@ -1,0 +1,162 @@
+{
+  "envelope": "criba-supra/1",
+  "version": "criba-supra-envelope-vectors/1",
+  "comment": [
+    "Canonical fingerprint vectors for the CRIBA->SUPRA dossier envelope.",
+    "Both implementations must reproduce these exact values:",
+    "  CRIBA: criba/integrations/supra_client.py::_dossier_payload_fingerprint",
+    "  SUPRA: supra_agentic/service.py::_criba_payload_fingerprint",
+    "Identity follows validated semantics: a default sent explicitly and the",
+    "same default omitted are one payload. creado_at is non-semantic metadata",
+    "and never changes the fingerprint. Unicode is not normalized."
+  ],
+  "vectors": [
+    {
+      "id": "complete-defaults",
+      "fingerprint": "sha256:929080087251c1cfc4133aee8e2d8c854cc1d0259ff9651cd89e098b17f9bb20",
+      "dossier": {
+        "dossier_id": "dossier-1",
+        "candidate_id": "cand-1",
+        "run_id": "",
+        "claim_id": "claim-1",
+        "protocol_version": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "mechanism_version": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "problema": "Reduce thermal drift",
+        "bloqueo": "",
+        "origen_bloqueo": "",
+        "hipotesis": "A bounded calibration loop reduces drift",
+        "mecanismo": "Closed-loop correction",
+        "evidence_delivered": [],
+        "evidence_documented_as_used": [],
+        "evidencia_utilizada": [],
+        "supuestos": [],
+        "estado": "SUPRA_EJECUCION_PENDIENTE",
+        "creado_at": "",
+        "prueba_discriminante": {
+          "afirmacion_decisiva": "The intervention changes the observable",
+          "alternativa_explicativa": "Thermal drift from ambient variation",
+          "intervencion_prueba": "Run calibrated and baseline arms",
+          "observable": "temperature-adjusted error",
+          "comparacion": "",
+          "metrica": "",
+          "resultado_favorable_mecanismo": "error falls inside the bound",
+          "resultado_favorable_alternativa": "error tracks ambient temperature",
+          "regla_decision": "Adopt if error is bounded under calibration",
+          "condicion_fracaso": "error tracks ambient instead of the mechanism",
+          "coste_permisos": "",
+          "estado_prueba": "NO_EJECUTADA"
+        }
+      }
+    },
+    {
+      "id": "defaults-omitted",
+      "comment": "Every optional key omitted must be the same payload.",
+      "dossier": {
+        "dossier_id": "dossier-1",
+        "candidate_id": "cand-1",
+        "claim_id": "claim-1",
+        "protocol_version": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "mechanism_version": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "problema": "Reduce thermal drift",
+        "hipotesis": "A bounded calibration loop reduces drift",
+        "mecanismo": "Closed-loop correction",
+        "estado": "SUPRA_EJECUCION_PENDIENTE",
+        "prueba_discriminante": {
+          "afirmacion_decisiva": "The intervention changes the observable",
+          "alternativa_explicativa": "Thermal drift from ambient variation",
+          "intervencion_prueba": "Run calibrated and baseline arms",
+          "observable": "temperature-adjusted error",
+          "resultado_favorable_mecanismo": "error falls inside the bound",
+          "resultado_favorable_alternativa": "error tracks ambient temperature",
+          "regla_decision": "Adopt if error is bounded under calibration",
+          "condicion_fracaso": "error tracks ambient instead of the mechanism"
+        }
+      },
+      "fingerprint": "sha256:929080087251c1cfc4133aee8e2d8c854cc1d0259ff9651cd89e098b17f9bb20"
+    },
+    {
+      "id": "creado-at-stamped",
+      "comment": "creado_at is non-semantic metadata and stays out of identity.",
+      "dossier": {
+        "dossier_id": "dossier-1",
+        "candidate_id": "cand-1",
+        "run_id": "",
+        "claim_id": "claim-1",
+        "protocol_version": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "mechanism_version": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "problema": "Reduce thermal drift",
+        "bloqueo": "",
+        "origen_bloqueo": "",
+        "hipotesis": "A bounded calibration loop reduces drift",
+        "mecanismo": "Closed-loop correction",
+        "evidence_delivered": [],
+        "evidence_documented_as_used": [],
+        "evidencia_utilizada": [],
+        "supuestos": [],
+        "estado": "SUPRA_EJECUCION_PENDIENTE",
+        "creado_at": "2026-01-01T00:00:00Z",
+        "prueba_discriminante": {
+          "afirmacion_decisiva": "The intervention changes the observable",
+          "alternativa_explicativa": "Thermal drift from ambient variation",
+          "intervencion_prueba": "Run calibrated and baseline arms",
+          "observable": "temperature-adjusted error",
+          "comparacion": "",
+          "metrica": "",
+          "resultado_favorable_mecanismo": "error falls inside the bound",
+          "resultado_favorable_alternativa": "error tracks ambient temperature",
+          "regla_decision": "Adopt if error is bounded under calibration",
+          "condicion_fracaso": "error tracks ambient instead of the mechanism",
+          "coste_permisos": "",
+          "estado_prueba": "NO_EJECUTADA"
+        }
+      },
+      "fingerprint": "sha256:929080087251c1cfc4133aee8e2d8c854cc1d0259ff9651cd89e098b17f9bb20"
+    },
+    {
+      "id": "with-evidence",
+      "fingerprint": "sha256:3c049afe9464a43f4c6d3755591e4496c47021fb3519438a20f76584204474c6",
+      "comment": "Evidence content is semantic and participates in identity.",
+      "dossier": {
+        "dossier_id": "dossier-2",
+        "candidate_id": "cand-2",
+        "run_id": "run-7",
+        "claim_id": "claim-2",
+        "protocol_version": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "mechanism_version": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "problema": "Reduce thermal drift",
+        "bloqueo": "Calibration hardware unavailable",
+        "origen_bloqueo": "reviewer",
+        "hipotesis": "A bounded calibration loop reduces drift",
+        "mecanismo": "Closed-loop correction",
+        "evidence_delivered": [
+          {
+            "id": "e1",
+            "claim": "measured",
+            "value": 0.12
+          }
+        ],
+        "evidence_documented_as_used": [],
+        "evidencia_utilizada": [],
+        "supuestos": [
+          "sensor noise is stationary"
+        ],
+        "estado": "SUPRA_EJECUCION_PENDIENTE",
+        "creado_at": "2026-01-01T00:00:00Z",
+        "prueba_discriminante": {
+          "afirmacion_decisiva": "The intervention changes the observable",
+          "alternativa_explicativa": "Thermal drift from ambient variation",
+          "intervencion_prueba": "Run calibrated and baseline arms",
+          "observable": "temperature-adjusted error",
+          "comparacion": "calibrated arm against baseline arm",
+          "metrica": "temperature-adjusted error",
+          "resultado_favorable_mecanismo": "error falls inside the bound",
+          "resultado_favorable_alternativa": "error tracks ambient temperature",
+          "regla_decision": "Adopt if error is bounded under calibration",
+          "condicion_fracaso": "error tracks ambient instead of the mechanism",
+          "coste_permisos": "operator approval",
+          "estado_prueba": "NO_EJECUTADA"
+        }
+      }
+    }
+  ]
+}

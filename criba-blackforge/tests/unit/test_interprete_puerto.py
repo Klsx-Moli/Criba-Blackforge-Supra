@@ -26,6 +26,7 @@ from typing import Any
 
 import httpx
 import pytest
+from verification.interpreter_cases import critica, propuesta
 from criba.interprete import openai_compatible as oc
 from criba.interprete import puerto as P
 from criba.interprete.seleccion import (
@@ -36,13 +37,7 @@ from criba.interprete.seleccion import (
 
 IDEA = {"title": "cruce A+B", "method1": "contradiccion", "method2": "separacion"}
 
-PROPUESTA_JSON = {
-    "hipotesis": "h",
-    "mecanismo": "m causal",
-    "aportacion_por_tecnica": ["a", "b"],
-    "supuestos": ["s"],
-    "prueba_concreta": "c",
-}
+PROPUESTA_JSON = propuesta()
 
 
 class _Respuesta:
@@ -77,6 +72,10 @@ def _patch_post(monkeypatch, respuesta: _Respuesta) -> list[dict[str, Any]]:
 
         def post(self, url: str, json: Any = None, headers: Any = None) -> _Respuesta:
             enviados.append({"url": url, "json": json, "headers": headers or {}})
+            if len(enviados) > 1:
+                return _Respuesta(200, {"model": "critico-reportado", "choices": [
+                    {"finish_reason": "stop", "message": {"content": __import__("json").dumps(critica())}}
+                ]})
             return respuesta
 
     monkeypatch.setattr(oc.httpx, "Client", _Cliente)
@@ -359,7 +358,8 @@ def test_el_timeout_por_defecto_supera_los_30s_del_adaptador_anterior():
 
 
 # ----------------------------------------------------------------_contrato
-def test_ambos_backends_comparten_esquema_y_to_campos():
+def test_ambos_backends_comparten_esquema_y_to_campos(monkeypatch):
+    _patch_post(monkeypatch, _Respuesta(503))
     for interprete in (
         oc.OpenAICompatibleInterpreter(base_url="http://x/v1"),
         oc.LocalLlamaInterpreter(),
@@ -372,8 +372,11 @@ def test_ambos_backends_comparten_esquema_y_to_campos():
         assert resultado.provenance.interpreter_backend == interprete.backend
 
 
-def test_local_llama_no_se_declara_operativo():
+def test_local_llama_no_se_declara_operativo(monkeypatch):
     """Genera ideas, pero la interpretacion no lo esta: se dice, no se disimula."""
+    monkeypatch.setattr(
+        oc.OpenAICompatibleInterpreter, "operativo", lambda self: (False, "runtime ausente (prueba)")
+    )
     local = oc.LocalLlamaInterpreter()
     listo, motivo = local.operativo()
     assert listo is False
@@ -460,9 +463,9 @@ def test_operativo_comprueba_de_verdad_y_no_por_configuracion(monkeypatch):
 def test_json_envuelto_en_vallas_se_acepta():
     """El modelo envuelve en ```json con frecuencia; no es JSON invalido."""
     envuelto = "```json\n" + json.dumps(PROPUESTA_JSON) + "\n```"
-    assert oc._extraer_json(envuelto)["mecanismo"] == "m causal"
+    assert oc._extraer_json(envuelto)["mecanismo"] == PROPUESTA_JSON["mecanismo"]
     con_ruido = "Aqui va:\n" + json.dumps(PROPUESTA_JSON) + "\nfin"
-    assert oc._extraer_json(con_ruido)["mecanismo"] == "m causal"
+    assert oc._extraer_json(con_ruido)["mecanismo"] == PROPUESTA_JSON["mecanismo"]
 
 
 def test_prompt_conserva_los_campos_del_contrato():

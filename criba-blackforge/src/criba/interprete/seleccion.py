@@ -2,14 +2,10 @@
 
 Reglas que aquí se aplican y que no se negocian:
 
-- El backend por defecto es el externo OpenAI-compatible. Es el único que hoy
-  produce una propuesta válida.
-- El modelo local sigue disponible para diagnóstico y aparece etiquetado como
-  EXPERIMENTAL. No se marca conectado por el hecho de que el modelo cargue o
-  produzca texto: su estado lo dice ``operativo()`` y hoy es False.
-- No hay cambio automatico de backend. El unico fallback posible es el que el
-  operador activa expresamente con CRIBA_EXTERNAL_FALLBACK_LOCAL=true, y queda
-  marcado en la procedencia con ``fallback_used``.
+- El backend por defecto es el externo OpenAI-compatible.
+- El runtime local exige endpoint loopback y superar el banco fijo antes de
+  admitir propuestas; cargar un modelo no basta.
+- El operador elige el backend. Un fallo queda pendiente sin cambiar proveedor.
 - Cambiar de interprete aplica a la siguiente ejecucion. La ejecucion en curso
   ya tiene su instancia y su procedencia, asi que no puede alterarse.
 """
@@ -78,4 +74,5 @@ def estado_interprete(interprete: InterpreterPort) -> dict[str, object]:
         "motivo": motivo,
         "etiqueta": etiqueta or ("OPERATIVO" if listo else "NO DISPONIBLE"),
         "experimental": bool(etiqueta),
+        "admission_report": getattr(interprete, "gate_report", None),
     }

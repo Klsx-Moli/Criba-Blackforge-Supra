@@ -551,3 +551,37 @@ def test_client_rejects_noncanonical_criba_hash_versions(field: str, value: str)
         with pytest.raises(ValueError, match="sha256"):
             client.run_project(objective="Evaluate bounded dossier", criba_dossier=dossier)
     assert called is False
+
+
+def test_lookup_schema_declares_artifact_error_classification() -> None:
+    field = SupraProjectLookup.model_json_schema()["properties"].get(
+        "persisted_artifact_error_kind"
+    )
+    assert field is not None
+    serialized = json.dumps(field)
+    for kind in ("CORRUPT_JSON", "INCOMPATIBLE_SCHEMA", "UNREADABLE"):
+        assert kind in serialized
+
+
+def test_get_project_preserves_artifact_error_kind() -> None:
+    payload = {
+        "status": "blocked",
+        "completion_status": "BLOCKED",
+        "workflow_status": "BLOCKED",
+        "verification_status": "FAIL",
+        "status_source": "IN_PROCESS_MEMORY_CACHE",
+        "persisted_artifact_status": "UNVERIFIABLE",
+        "persisted_artifact_error_kind": "INCOMPATIBLE_SCHEMA",
+        "project_id": "version-skew",
+        "stage": "BLOCKED",
+        "posture": {"project_id": "version-skew", "stage": "BLOCKED"},
+    }
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.url.path == "/api/v1/projects/version-skew"
+        return httpx.Response(200, json=payload)
+
+    with _client(handler) as client:
+        lookup = client.get_project("version-skew")
+
+    assert lookup.persisted_artifact_error_kind == "INCOMPATIBLE_SCHEMA"

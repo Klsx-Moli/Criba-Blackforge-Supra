@@ -9,6 +9,7 @@ como exige el contrato de reproducibilidad documentado en store.py.
 from __future__ import annotations
 
 import hashlib
+import json
 from dataclasses import dataclass
 
 
@@ -20,7 +21,7 @@ class InterpreteIds:
 
 def interprete_ids(query: str, seed: int | None, modelo: str, repo: str = "") -> InterpreteIds:
     """Genera IDs deterministas. `seed=None` se serializa distinto de seed=0."""
-    base = f"{query}|{seed!r}|{modelo}|{repo}"
+    base = json.dumps([query, seed, modelo, repo], ensure_ascii=False, separators=(",", ":"))
     digest = hashlib.sha256(base.encode("utf-8")).hexdigest()
     return InterpreteIds(
         activation_id=f"interprete-act-{digest[:12]}",

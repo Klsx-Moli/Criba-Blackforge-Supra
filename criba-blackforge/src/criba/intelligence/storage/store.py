@@ -7,19 +7,28 @@ Design rules:
 - JSON-safe dict in/out (contracts.to_dict shapes)
 - WAL journal for concurrent reads; check_same_thread=False for API use
 """
+
 from __future__ import annotations
 
 import json
 import sqlite3
+import threading
 import time
+import uuid
 from pathlib import Path
 from typing import Any
 
 DB_VERSION = 1
 
 _CLAIM_COLUMNS = (
-    "claim_id", "run_id", "text", "epistemic_state", "evidence_doc_ids",
-    "fragment_ids", "technique_ids", "created_by",
+    "claim_id",
+    "run_id",
+    "text",
+    "epistemic_state",
+    "evidence_doc_ids",
+    "fragment_ids",
+    "technique_ids",
+    "created_by",
 )
 _CLAIM_JSON_COLUMNS = ("evidence_doc_ids", "fragment_ids", "technique_ids")
 
@@ -213,6 +222,7 @@ class IntelligenceStore:
 
     def __init__(self, path: str | Path = "intelligence.sqlite3"):
         self.path = Path(path)
+        self._lock = threading.RLock()
         self._conn = sqlite3.connect(str(self.path), check_same_thread=False)
         self._conn.row_factory = sqlite3.Row
         self._conn.execute("PRAGMA journal_mode=WAL")
@@ -235,13 +245,22 @@ class IntelligenceStore:
     def save_run(self, run: dict[str, Any]) -> None:
         self._conn.execute(
             "INSERT OR REPLACE INTO intel_runs "
-            "(run_id, goal, intent, preset, started_at, finished_at, status, techniques_used, request_count, payload) "
+            "(run_id, goal, intent, preset, started_at, finished_at, status, "
+            "techniques_used, request_count, payload) "
             "VALUES (?,?,?,?,?,?,?,?,?,?)",
-            (run["run_id"], run.get("goal", ""), run.get("intent", "discovery"),
-             run.get("preset", "BALANCED"), run.get("started_at", ""),
-             run.get("finished_at", ""), run.get("status", "RUNNING"),
-             _js(run.get("techniques_used", [])), run.get("request_count", 0),
-             _js(run.get("payload", {}))))
+            (
+                run["run_id"],
+                run.get("goal", ""),
+                run.get("intent", "discovery"),
+                run.get("preset", "BALANCED"),
+                run.get("started_at", ""),
+                run.get("finished_at", ""),
+                run.get("status", "RUNNING"),
+                _js(run.get("techniques_used", [])),
+                run.get("request_count", 0),
+                _js(run.get("payload", {})),
+            ),
+        )
         self._conn.commit()
 
     def get_run(self, run_id: str) -> dict[str, Any] | None:
@@ -256,63 +275,158 @@ class IntelligenceStore:
     def list_runs(self, limit: int = 50) -> list[dict[str, Any]]:
         rows = self._conn.execute(
             "SELECT run_id, goal, intent, status, started_at FROM intel_runs "
-            "ORDER BY started_at DESC LIMIT ?", (limit,)).fetchall()
+            "ORDER BY started_at DESC LIMIT ?",
+            (limit,),
+        ).fetchall()
         return [dict(r) for r in rows]
 
     # -- documents (P02-T03: FTS5) ------------------------------------------
     def save_document(self, doc: dict[str, Any], run_id: str = "") -> None:
-        content_hash = doc.get("content_hash", "") or ""
-        self._conn.execute(
-            "INSERT OR REPLACE INTO intel_documents "
-            "(doc_id, run_id, source_id, title, kind, published, url, language, abstract, provenance, metadata, content_hash) "
-            "VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
-            (doc["doc_id"], run_id, doc.get("source_id", ""), doc.get("title", ""),
-             doc.get("kind", "document"), doc.get("published", ""), doc.get("url", ""),
-             doc.get("language", "en"), doc.get("abstract", ""),
-             _js(doc.get("provenance") or {}), _js(doc.get("metadata") or {}), content_hash))
-        # rebuild FTS row (delete+insert keeps external-content table in sync)
-        self._conn.execute(
-            "INSERT INTO intel_documents_fts(intel_documents_fts, doc_id, title, abstract) "
-            "VALUES('delete', (SELECT rowid FROM intel_documents WHERE doc_id=?), ?, ?)",
-            (doc["doc_id"], doc.get("title", ""), doc.get("abstract", "")))
-        self._conn.execute(
-            "INSERT INTO intel_documents_fts(doc_id, title, abstract) VALUES (?,?,?)",
-            (doc["doc_id"], doc.get("title", ""), doc.get("abstract", "")))
-        for frag in doc.get("fragments", []):
+        self.save_documents([doc], run_id=run_id)
+
+    def save_documents(self, documents: list[dict[str, Any]], run_id: str = "") -> None:
+        """Atomic batch: preserve row identity, replace fragments and update FTS.
+
+        Cache writers share this lock so they cannot commit a document batch
+        midway through. A failed fragment/index write rolls back the batch.
+        """
+        with self._lock, self._conn:
+            for doc in documents:
+                doc_id = doc["doc_id"]
+                previous = self._conn.execute(
+                    "SELECT rowid, title, abstract FROM intel_documents WHERE doc_id=?", (doc_id,)
+                ).fetchone()
+                if previous is not None:
+                    self._conn.execute(
+                        "INSERT INTO intel_documents_fts"
+                        "(intel_documents_fts, rowid, title, abstract) "
+                        "VALUES('delete', ?, ?, ?)",
+                        (previous["rowid"], previous["title"], previous["abstract"]),
+                    )
+                self._conn.execute(
+                    "INSERT INTO intel_documents "
+                    "(doc_id, run_id, source_id, title, kind, published, url, language, "
+                    "abstract, provenance, metadata, content_hash) "
+                    "VALUES (?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(doc_id) DO UPDATE SET "
+                    "run_id=excluded.run_id, source_id=excluded.source_id, title=excluded.title, "
+                    "kind=excluded.kind, published=excluded.published, url=excluded.url, "
+                    "language=excluded.language, abstract=excluded.abstract, "
+                    "provenance=excluded.provenance, "
+                    "metadata=excluded.metadata, content_hash=excluded.content_hash",
+                    (
+                        doc_id,
+                        run_id,
+                        doc.get("source_id", ""),
+                        doc.get("title", ""),
+                        doc.get("kind", "document"),
+                        doc.get("published", ""),
+                        doc.get("url", ""),
+                        doc.get("language", "en"),
+                        doc.get("abstract", ""),
+                        _js(doc.get("provenance") or {}),
+                        _js(doc.get("metadata") or {}),
+                        doc.get("content_hash", "") or "",
+                    ),
+                )
+                rowid = self._conn.execute(
+                    "SELECT rowid FROM intel_documents WHERE doc_id=?", (doc_id,)
+                ).fetchone()[0]
+                self._conn.execute(
+                    "INSERT INTO intel_documents_fts(rowid, doc_id, title, abstract) "
+                    "VALUES (?,?,?,?)",
+                    (rowid, doc_id, doc.get("title", ""), doc.get("abstract", "")),
+                )
+                self._conn.execute("DELETE FROM intel_fragments WHERE doc_id=?", (doc_id,))
+                for frag in doc.get("fragments", []):
+                    self._conn.execute(
+                        "INSERT INTO intel_fragments "
+                        "(fragment_id, doc_id, text, locator, language, epistemic_state) "
+                        "VALUES (?,?,?,?,?,?)",
+                        (
+                            frag["fragment_id"],
+                            doc_id,
+                            frag.get("text", ""),
+                            frag.get("locator", ""),
+                            frag.get("language", "en"),
+                            frag.get("epistemic_state", "INFERENCE"),
+                        ),
+                    )
+
+    def find_document_identity(
+        self, source_id: str, *, doc_id: str = "", url: str = "", title: str = ""
+    ) -> dict[str, Any] | None:
+        """Resolve upstream identity within a source, never by content alone."""
+        field, value = ("doc_id", doc_id) if doc_id else (("url", url) if url else ("title", title))
+        with self._lock:
+            row = self._conn.execute(
+                "SELECT doc_id, source_id, content_hash, provenance, metadata FROM intel_documents "
+                f"WHERE source_id=? AND {field}=? ORDER BY rowid DESC LIMIT 1",
+                (source_id, value),
+            ).fetchone()
+        return dict(row) if row else None
+
+    def update_document_provenance(
+        self, doc_id: str, provenance: dict[str, Any] | None, metadata: dict[str, Any]
+    ) -> None:
+        """Reacquisition preserves fragment ids and the existing FTS index."""
+        with self._lock, self._conn:
             self._conn.execute(
-                "INSERT OR REPLACE INTO intel_fragments (fragment_id, doc_id, text, locator, language, epistemic_state) "
-                "VALUES (?,?,?,?,?,?)",
-                (frag["fragment_id"], doc["doc_id"], frag.get("text", ""),
-                 frag.get("locator", ""), frag.get("language", "en"),
-                 frag.get("epistemic_state", "INFERENCE")))
-        self._conn.commit()
+                "UPDATE intel_documents SET provenance=?, metadata=? WHERE doc_id=?",
+                (_js(provenance or {}), _js(metadata), doc_id),
+            )
 
     def find_by_url(self, url: str) -> dict[str, Any] | None:
         """Último documento guardado con esa URL (deduplicación de evidencia)."""
-        row = self._conn.execute(
-            "SELECT doc_id, content_hash, url, title FROM intel_documents "
-            "WHERE url=? ORDER BY rowid DESC LIMIT 1", (url,)).fetchone()
+        with self._lock:
+            row = self._conn.execute(
+                "SELECT doc_id, content_hash, url, title FROM intel_documents "
+                "WHERE url=? ORDER BY rowid DESC LIMIT 1",
+                (url,),
+            ).fetchone()
         return dict(row) if row else None
 
     def save_refresh_report(self, report: dict[str, Any]) -> None:
         """Registro del informe «Actualizar fuentes» (auditoría de adquisición)."""
         import time as _t
-        self._conn.execute(
-            "INSERT OR REPLACE INTO intel_cache (cache_key, payload, created_at, ttl_s) VALUES (?,?,?,?)",
-            (f"refresh:{report.get('generated_at', '')}",
-             _js(report), _t.time(), 0.0))
-        self._conn.commit()
+
+        with self._lock, self._conn:
+            self._conn.execute(
+                "INSERT INTO intel_cache (cache_key, payload, created_at, ttl_s) VALUES (?,?,?,?)",
+                (
+                    f"refresh:{report.get('run_id') or uuid.uuid4().hex}",
+                    _js(report),
+                    _t.time(),
+                    0.0,
+                ),
+            )
+
+    def get_latest_refresh_report(self) -> dict[str, Any] | None:
+        """Latest acquisition audit is history, independent of search-cache TTL."""
+        with self._lock:
+            row = self._conn.execute(
+                "SELECT payload FROM intel_cache WHERE cache_key LIKE 'refresh:%' "
+                "ORDER BY created_at DESC, rowid DESC LIMIT 1"
+            ).fetchone()
+        payload = _unjs(row["payload"]) if row else None
+        return payload if isinstance(payload, dict) else None
 
     def get_document(self, doc_id: str) -> dict[str, Any] | None:
-        row = self._conn.execute("SELECT * FROM intel_documents WHERE doc_id=?", (doc_id,)).fetchone()
+        row = self._conn.execute(
+            "SELECT * FROM intel_documents WHERE doc_id=?", (doc_id,)
+        ).fetchone()
         if not row:
             return None
         d = dict(row)
         d["provenance"] = _unjs(d["provenance"], {})
         d["metadata"] = _unjs(d["metadata"], {})
-        d["fragments"] = [dict(f) for f in self._conn.execute(
-            "SELECT fragment_id, text, locator, language, epistemic_state "
-            "FROM intel_fragments WHERE doc_id=?", (doc_id,)).fetchall()]
+        d["fragments"] = [
+            dict(f)
+            for f in self._conn.execute(
+                "SELECT fragment_id, text, locator, language, epistemic_state "
+                "FROM intel_fragments WHERE doc_id=?",
+                (doc_id,),
+            ).fetchall()
+        ]
         return d
 
     def search_documents(self, query: str, limit: int = 20) -> list[dict[str, Any]]:
@@ -323,7 +437,8 @@ class IntelligenceStore:
             rows = self._conn.execute(
                 "SELECT d.* FROM intel_documents_fts f JOIN intel_documents d ON d.rowid=f.rowid "
                 "WHERE intel_documents_fts MATCH ? ORDER BY rank LIMIT ?",
-                (query, limit)).fetchall()
+                (query, limit),
+            ).fetchall()
         except sqlite3.OperationalError:
             return []
         out = []
@@ -350,9 +465,7 @@ class IntelligenceStore:
         )
         self._conn.commit()
 
-    def list_observations(
-        self, topic: str | None = None, limit: int = 100
-    ) -> list[dict[str, Any]]:
+    def list_observations(self, topic: str | None = None, limit: int = 100) -> list[dict[str, Any]]:
         """List observations in deterministic topic/period order."""
         clauses: list[str] = []
         params: list[Any] = []
@@ -367,19 +480,18 @@ class IntelligenceStore:
             "ORDER BY topic ASC, period ASC, obs_id ASC LIMIT ?",
             params,
         ).fetchall()
-        return [
-            {**dict(row), "metadata": _unjs(row["metadata"], {})}
-            for row in rows
-        ]
+        return [{**dict(row), "metadata": _unjs(row["metadata"], {})} for row in rows]
 
     # -- claims / signals / gaps / hypotheses -------------------------------
-    def _upsert_simple(self, table: str, key: str, obj: dict[str, Any],
-                       json_cols: tuple[str, ...]) -> None:
+    def _upsert_simple(
+        self, table: str, key: str, obj: dict[str, Any], json_cols: tuple[str, ...]
+    ) -> None:
         cols = list(obj.keys())
         vals = [_js(obj[c]) if c in json_cols else obj.get(c, "") for c in cols]
         placeholders = ",".join("?" * len(cols))
         self._conn.execute(
-            f"INSERT OR REPLACE INTO {table} ({','.join(cols)}) VALUES ({placeholders})", vals)
+            f"INSERT OR REPLACE INTO {table} ({','.join(cols)}) VALUES ({placeholders})", vals
+        )
         self._conn.commit()
 
     def save_claim(self, claim: dict[str, Any]) -> None:
@@ -431,62 +543,87 @@ class IntelligenceStore:
             f"SELECT * FROM intel_claims{where} ORDER BY rowid DESC LIMIT ?", params
         ).fetchall()
         return [
-            {**dict(row), **{
-                column: _unjs(row[column], []) for column in _CLAIM_JSON_COLUMNS
-            }}
+            {**dict(row), **{column: _unjs(row[column], []) for column in _CLAIM_JSON_COLUMNS}}
             for row in rows
         ]
 
     def save_signal(self, signal: dict[str, Any]) -> None:
-        self._upsert_simple("intel_signals", "signal_id", signal,
-                            ("evidence_doc_ids", "technique_ids"))
+        self._upsert_simple(
+            "intel_signals", "signal_id", signal, ("evidence_doc_ids", "technique_ids")
+        )
 
     def save_gap(self, gap: dict[str, Any]) -> None:
-        g = {k: v for k, v in gap.items() if k in
-             ("gap_id", "kind", "statement", "evidence_doc_ids", "technique_ids", "epistemic_state")}
+        g = {
+            k: v
+            for k, v in gap.items()
+            if k
+            in (
+                "gap_id",
+                "kind",
+                "statement",
+                "evidence_doc_ids",
+                "technique_ids",
+                "epistemic_state",
+            )
+        }
         g["extra"] = _js({k: v for k, v in gap.items() if k not in g})
-        self._upsert_simple("intel_gaps", "gap_id", g,
-                            ("evidence_doc_ids", "technique_ids"))
+        self._upsert_simple("intel_gaps", "gap_id", g, ("evidence_doc_ids", "technique_ids"))
 
     def save_hypothesis(self, hyp: dict[str, Any]) -> None:
         h = dict(hyp)
         h["falsifiable"] = 1 if h.get("falsifiable", True) else 0
-        self._upsert_simple("intel_hypotheses", "hypothesis_id", h,
-                            ("gap_ids", "evidence_doc_ids", "technique_ids"))
+        self._upsert_simple(
+            "intel_hypotheses", "hypothesis_id", h, ("gap_ids", "evidence_doc_ids", "technique_ids")
+        )
 
     # -- entities / relations ------------------------------------------------
     def save_entity(self, entity: dict[str, Any]) -> None:
-        e = {k: v for k, v in entity.items() if k in
-             ("entity_id", "label", "node_type", "properties", "source_doc_ids")}
-        self._upsert_simple("intel_entities", "entity_id", e,
-                            ("properties", "source_doc_ids"))
+        e = {
+            k: v
+            for k, v in entity.items()
+            if k in ("entity_id", "label", "node_type", "properties", "source_doc_ids")
+        }
+        self._upsert_simple("intel_entities", "entity_id", e, ("properties", "source_doc_ids"))
         for a in entity.get("aliases", []):
             self._conn.execute(
                 "INSERT INTO intel_entity_aliases (entity_id, alias, language, source_doc_id) "
                 "VALUES (?,?,?,?)",
-                (entity["entity_id"], a.get("alias", ""), a.get("language", "en"),
-                 a.get("source_doc_id", "")))
+                (
+                    entity["entity_id"],
+                    a.get("alias", ""),
+                    a.get("language", "en"),
+                    a.get("source_doc_id", ""),
+                ),
+            )
         self._conn.commit()
 
     def save_relation(self, rel: dict[str, Any]) -> None:
         self._conn.execute(
             "INSERT INTO intel_relations (src, dst, relation, weight, source_doc_ids) "
             "VALUES (?,?,?,?,?)",
-            (rel["src"], rel["dst"], rel["relation"], rel.get("weight", 1.0),
-             _js(rel.get("source_doc_ids", []))))
+            (
+                rel["src"],
+                rel["dst"],
+                rel["relation"],
+                rel.get("weight", 1.0),
+                _js(rel.get("source_doc_ids", [])),
+            ),
+        )
         self._conn.commit()
 
     def neighbors(self, entity_id: str) -> list[dict[str, Any]]:
         rows = self._conn.execute(
-            "SELECT src, dst, relation, weight FROM intel_relations "
-            "WHERE src=? OR dst=?", (entity_id, entity_id)).fetchall()
+            "SELECT src, dst, relation, weight FROM intel_relations WHERE src=? OR dst=?",
+            (entity_id, entity_id),
+        ).fetchall()
         return [dict(r) for r in rows]
 
     # -- cache (§34 free-first: cache before network) ------------------------
     def cache_get(self, key: str) -> Any | None:
-        row = self._conn.execute(
-            "SELECT payload, created_at, ttl_s FROM intel_cache WHERE cache_key=?",
-            (key,)).fetchone()
+        with self._lock:
+            row = self._conn.execute(
+                "SELECT payload, created_at, ttl_s FROM intel_cache WHERE cache_key=?", (key,)
+            ).fetchone()
         if not row:
             return None
         if time.time() - row["created_at"] > row["ttl_s"]:
@@ -494,16 +631,20 @@ class IntelligenceStore:
         return _unjs(row["payload"])
 
     def cache_set(self, key: str, payload: Any, ttl_s: float = 86400.0) -> None:
-        self._conn.execute(
-            "INSERT OR REPLACE INTO intel_cache (cache_key, payload, created_at, ttl_s) "
-            "VALUES (?,?,?,?)", (key, _js(payload), time.time(), ttl_s))
-        self._conn.commit()
+        with self._lock, self._conn:
+            self._conn.execute(
+                "INSERT OR REPLACE INTO intel_cache (cache_key, payload, created_at, ttl_s) "
+                "VALUES (?,?,?,?)",
+                (key, _js(payload), time.time(), ttl_s),
+            )
 
     # -- technique run tracking (§127) ---------------------------------------
     def start_technique(self, run_id: str, technique_id: str) -> int:
         cur = self._conn.execute(
-            "INSERT INTO intel_technique_runs (run_id, technique_id, status) VALUES (?,?, 'RUNNING')",
-            (run_id, technique_id))
+            "INSERT INTO intel_technique_runs (run_id, technique_id, status) "
+            "VALUES (?,?, 'RUNNING')",
+            (run_id, technique_id),
+        )
         self._conn.commit()
         if cur.lastrowid is None:
             raise RuntimeError("SQLite did not return a technique run id")
@@ -514,11 +655,15 @@ class IntelligenceStore:
     ) -> None:
         self._conn.execute(
             "UPDATE intel_technique_runs SET status=?, finished_at=datetime('now'), detail=? "
-            "WHERE technique_run_id=?", (status, _js(detail or {}), technique_run_id))
+            "WHERE technique_run_id=?",
+            (status, _js(detail or {}), technique_run_id),
+        )
         self._conn.commit()
 
     def technique_history(self, technique_id: str, limit: int = 20) -> list[dict[str, Any]]:
         rows = self._conn.execute(
             "SELECT * FROM intel_technique_runs WHERE technique_id=? "
-            "ORDER BY technique_run_id DESC LIMIT ?", (technique_id, limit)).fetchall()
+            "ORDER BY technique_run_id DESC LIMIT ?",
+            (technique_id, limit),
+        ).fetchall()
         return [dict(r) for r in rows]

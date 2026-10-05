@@ -23,20 +23,8 @@ pytestmark = pytest.mark.integration
 
 
 def _externa_configurada() -> tuple[bool, str]:
-    base = os.getenv("CRIBA_EXTERNAL_BASE_URL", "http://127.0.0.1:8642/v1")
-    model = os.getenv("CRIBA_EXTERNAL_MODEL", "hermes-agent")
-    try:
-        resp = httpx.get(
-            f"{base}/models", timeout=6.0, headers={"Authorization": "Bearer sin-credencial"}
-        )
-        if resp.status_code != 200:
-            return False, f"/models respondio HTTP {resp.status_code} en {base}"
-        ids = [m.get("id") for m in resp.json().get("data", [])]
-        if model not in ids:
-            return False, f"el modelo {model!r} no esta en el catalogo de {base}"
-        return True, f"{base} con {model}"
-    except Exception as exc:  # noqa: BLE001
-        return False, f"no hay interprete externo en {base}: {type(exc).__name__}"
+    from criba.interprete.openai_compatible import OpenAICompatibleInterpreter
+    return OpenAICompatibleInterpreter().operativo()
 
 
 @pytest.fixture(scope="module")
@@ -114,7 +102,9 @@ def test_dossier_post_persistencia_y_get_con_supra_real(interprete_externo, tmp_
 
     repo = Path(__file__).resolve().parents[2]
     supra_src = repo.parent / "supra" / "src"
-    supra_python = repo.parent / "supra" / ".venv" / "Scripts" / "python.exe"
+    supra_python = Path(os.getenv("SUPRA_E2E_PYTHON") or (
+        repo.parent / "supra" / ".venv" / "Scripts" / "python.exe"
+    ))
     if not supra_python.is_file():
         pytest.skip("venv de SUPRA ausente: el componente real no se puede lanzar")
 

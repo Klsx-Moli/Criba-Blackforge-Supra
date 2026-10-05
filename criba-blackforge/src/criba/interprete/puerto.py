@@ -25,8 +25,9 @@ import uuid
 from dataclasses import asdict, dataclass, field
 from typing import Any, Protocol, runtime_checkable
 
-PROMPT_VERSION = "proponer-v1"
-SCHEMA_VERSION = "propuesta-1"
+from .contrato import PROMPT_VERSION as PROMPT_VERSION
+from .contrato import SCHEMA_VERSION as SCHEMA_VERSION
+from .contrato import validar_critica
 
 ESTADO_PROPUESTA = "PROPUESTA"
 ESTADO_PENDIENTE = "PENDIENTE_INTERPRETACION"
@@ -42,6 +43,15 @@ CAMPOS_PROPUESTA = (
     "prueba_concreta",
     "ruta_desbloqueo",
     "error",
+    "pertinencia",
+    "cadena_causal",
+    "evidencia_citada",
+    "conocimiento_previo",
+    "incertidumbre",
+    "novedad",
+    "prueba",
+    "comprobacion_restricciones",
+    "critica",
 )
 
 
@@ -65,6 +75,8 @@ class Provenance:
     request_id: str
     fallback_used: bool
     raw_output_sha256: str
+    prompt_sha256: str = ""
+    generation_parameters: dict[str, Any] = field(default_factory=dict)
 
     def as_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -130,21 +142,40 @@ class InterpretationResult:
     finish_reason: str = ""
     completion_tokens: int | None = None
     reasoning_tokens: int | None = None
+    pertinencia: str = ""
+    cadena_causal: list[str] = field(default_factory=list)
+    evidencia_citada: list[int] = field(default_factory=list)
+    conocimiento_previo: list[str] = field(default_factory=list)
+    incertidumbre: str = ""
+    novedad: str = ""
+    prueba: dict[str, Any] = field(default_factory=dict)
+    comprobacion_restricciones: list[dict[str, Any]] = field(default_factory=list)
+    critica: dict[str, Any] = field(default_factory=dict)
+    model_requests: int = 0
 
     @property
     def es_propuesta(self) -> bool:
-        """PROPUESTA solo si además trae mecanismo: el mecanismo es obligatorio.
-
-        Un PROPUESTA sin mecanismo no describe nada accionable, asi que se
-        degrada a pendiente con el motivo, en vez de emitir una propuesta vacia.
-        """
-        return self.estado == ESTADO_PROPUESTA and bool(self.mecanismo.strip())
+        """Una etiqueta declarada no sustituye el mecanismo ni la crítica completa."""
+        respuesta = self.critica.get("respuesta")
+        return (
+            self.estado == ESTADO_PROPUESTA
+            and isinstance(self.mecanismo, str)
+            and bool(self.mecanismo.strip())
+            and not self.error
+            and self.critica.get("evaluation_status") == "CRITIQUED"
+            and isinstance(respuesta, dict)
+            and not validar_critica(respuesta)
+        )
 
     def motivo_real(self) -> str:
         if self.error:
             return self.error
-        if self.estado == ESTADO_PROPUESTA and not self.mecanismo.strip():
+        if self.estado == ESTADO_PROPUESTA and (
+            not isinstance(self.mecanismo, str) or not self.mecanismo.strip()
+        ):
             return "PROPUESTA sin mecanismo"
+        if self.estado == ESTADO_PROPUESTA and not self.es_propuesta:
+            return "PROPUESTA sin crítica completa y aprobatoria"
         return self.error or ""
 
     def to_campos(self) -> dict[str, Any]:
@@ -161,6 +192,15 @@ class InterpretationResult:
             "prueba_concreta": self.prueba_concreta if self.es_propuesta else "",
             "ruta_desbloqueo": self.ruta_desbloqueo if self.es_propuesta else "",
             "error": "" if self.es_propuesta else self.motivo_real(),
+            "pertinencia": self.pertinencia,
+            "cadena_causal": list(self.cadena_causal),
+            "evidencia_citada": list(self.evidencia_citada),
+            "conocimiento_previo": list(self.conocimiento_previo),
+            "incertidumbre": self.incertidumbre,
+            "novedad": self.novedad,
+            "prueba": dict(self.prueba),
+            "comprobacion_restricciones": list(self.comprobacion_restricciones),
+            "critica": dict(self.critica),
         }
 
 

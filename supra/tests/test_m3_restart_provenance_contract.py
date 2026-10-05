@@ -153,6 +153,30 @@ def test_live_read_declares_the_status_of_the_durable_copy() -> None:
     assert body["persisted_artifact_status"] not in {"MATCHES_CACHE", "VERIFIED"}
 
 
+def test_live_cache_reports_version_skew_separately_from_corrupt_json() -> None:
+    """A valid JSON artifact with an incompatible schema is not corrupt JSON."""
+    storage = _isolated_storage()
+    project_id = "m3-version-skew-cache"
+    corrupt_id = "m3-corrupt-cache-kind"
+    _create_live_cached_project(project_id)
+    _create_live_cached_project(corrupt_id)
+    artifact = storage / f"{project_id}.json"
+    valid = artifact.read_text(encoding="utf-8").rstrip()
+    artifact.write_text(valid[:-1] + ',"schema_version":999}', encoding="utf-8")
+    _corrupt_artifact(storage, corrupt_id)
+
+    corrupt_response = client.get(f"/api/v1/projects/{corrupt_id}")
+    assert corrupt_response.status_code == 200, corrupt_response.text
+    assert corrupt_response.json()["persisted_artifact_error_kind"] == "CORRUPT_JSON"
+
+    response = client.get(f"/api/v1/projects/{project_id}")
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["status_source"] == "IN_PROCESS_MEMORY_CACHE"
+    assert body["persisted_artifact_status"] == "UNVERIFIABLE"
+    assert body["persisted_artifact_error_kind"] == "INCOMPATIBLE_SCHEMA", body
+
+
 def test_a_read_that_really_decoded_the_artifact_still_says_persisted_state() -> None:
     """The fix must not degrade the honest case into a permanent cache label.
 
@@ -206,6 +230,9 @@ def test_listing_may_not_hide_a_corrupt_artifact_behind_the_cache() -> None:
     reported = {item["project_id"]: item["error"] for item in errors}
     assert reported.get(project_id) == "PERSISTED_STATE_CORRUPT_OR_INCOMPATIBLE", (
         f"a corrupt artifact behind a warm cache was not reported: {errors}"
+    )
+    assert next(item for item in errors if item["project_id"] == project_id)["kind"] == (
+        "CORRUPT_JSON"
     )
 
 

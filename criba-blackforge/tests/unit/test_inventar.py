@@ -472,10 +472,11 @@ def test_revision_registra_aceptados_rechazados_y_llamadas() -> None:
     assert rev and rev["intentos"], "cada intento debe registrarse (aceptado o rechazado)"
     for intento in rev["intentos"]:
         assert intento["resultado"] in ("aceptado", "rechazado")
-        assert intento["llamadas_modelo"] >= 1
+        assert intento["llamadas_modelo"] is None  # este puerto sintético no instrumenta HTTP
         assert intento.get("reemplazado_id") or intento.get("sustituto_id")
     assert rev["llamadas_modelo_total"] == 3 + len(rev["intentos"])
     assert rev["llamadas_revision"] == len(rev["intentos"])
+    assert rev["model_requests"] is None and not rev["model_requests_authoritative"]
 
 
 def test_cli_inventar_conecta_almacen_de_evidencia(monkeypatch, tmp_path) -> None:
@@ -518,7 +519,7 @@ def test_payload_del_proponente_contiene_la_evidencia(monkeypatch) -> None:
             return _Resp()
     monkeypatch.setattr(adaptador.httpx, "Client", _Client)
     monkeypatch.setenv("NOUS_API_KEY", "test-key-payload")
-    interp = adaptador.LocalInterprete()
+    interp = adaptador.CloudInterprete(api_key="test", base="http://127.0.0.1:9/v1")
     ev = [{"title": "Capacidades de un solo uso", "abstract": "evitan reutilizar permisos",
            "url": "https://x/cap", "doc_id": "doc-e9"}]
     interp.proponer("permisos de agentes", {"method1": "A", "method2": "B"}, {"title": "seg"}, ev)
@@ -544,7 +545,9 @@ def test_cloud_interprete_parser_veredicto(monkeypatch) -> None:
     monkeypatch.setattr(adaptador.httpx, "Client", _Client)
     interp = adaptador.CloudInterprete(api_key="k")
     res = interp.interpretar("q", {"title": "t"})
-    assert res["veredicto"] == "novedad_fronteriza"
+    assert res["veredicto"] == "PENDIENTE_INTERPRETACION"
+    assert res["score"] is None
+    assert res["evaluation_status"] == "NOT_EVALUATED"
 
 
 def test_scout_con_fuentes_vacias_no_crash() -> None:
@@ -558,3 +561,31 @@ def test_scout_con_fuentes_vacias_no_crash() -> None:
             "error": ""})
     for e in sheet["entries"]:
         assert e["prior_art"]["verdict"] == "UNRESOLVED"
+
+
+def test_un_solo_interprete_por_ejecucion(monkeypatch) -> None:
+    """La admisión local no debe repetirse por cada candidato del mismo run."""
+    from criba.interprete import seleccion
+    from criba.interprete.puerto import InterpretationResult
+
+    calls = {"constructed": 0, "proposed": 0}
+
+    class Port:
+        def proponer(self, query, idea, domain, evidence=None):
+            calls["proposed"] += 1
+            return InterpretationResult(
+                estado="PENDIENTE_INTERPRETACION", error="test_pending",
+                model_requests=0,
+            )
+
+    def construct():
+        calls["constructed"] += 1
+        return Port()
+
+    monkeypatch.setattr(seleccion, "construir_interprete", construct)
+    sheet = invent(
+        "permisos por operación", seed=42, rounds=1, batch_size=6, top=3,
+        offline=False, history_storage=False, methods=_methods(), sources=_sources(),
+    )
+    assert len(sheet["entries"]) == 3
+    assert calls == {"constructed": 1, "proposed": 3}

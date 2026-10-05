@@ -7,6 +7,7 @@ Estructura exacta de la imagen de referencia:
 """
 from __future__ import annotations
 
+import json
 import math
 import random
 from pathlib import Path
@@ -17,6 +18,7 @@ from criba.ui.i18n import on_change as _i18n_on_change
 from criba.ui.i18n import t as _t
 from criba.ui.i18n import toggle as _i18n_toggle
 from criba.ui.ranking import RankingModel
+from criba.ui.source_progress import SourceProgress
 from loading_indicator import LoadingIndicator
 from PySide6.QtCore import QPoint, QPointF, QRectF, QSize, Qt
 from PySide6.QtGui import (
@@ -820,16 +822,16 @@ class TopCardsWidget(QWidget):
         selector_label.setProperty("caption", True)
         selector_row.addWidget(selector_label)
         self.interpreter_selector = QComboBox()
-        # El local no aparece como opción: hoy no implementa una interpretación
-        # real. Exponerlo como seleccionable convertiría un stub en capacidad.
         self.interpreter_selector.addItem(
             "Nous/Hermes OAuth · Space Bunny", "openai_compatible"
+        )
+        self.interpreter_selector.addItem(
+            _t("shadow.interpreter.local"), "local_llama"
         )
         selector_row.addWidget(self.interpreter_selector, stretch=1)
         l2.addLayout(selector_row)
         self.interpreter_status = QLabel(
-            "Nous/Hermes: se comprobará al ejecutar · "
-            "Local: no implementado/no verificado"
+            _t("shadow.interpreter.status")
         )
         self.interpreter_status.setWordWrap(True)
         self.interpreter_status.setProperty("caption", True)
@@ -910,13 +912,18 @@ class TopCardsWidget(QWidget):
         bind_text(warn, "shadow.sin_actualizar")
         self.stale_warn = warn
         l4.addWidget(warn)
+        self.sources_profile = QComboBox()
+        self.sources_profile.addItem(_t("sources.profile.general"), "general")
+        self.sources_profile.addItem(_t("sources.profile.blackforge"), "blackforge")
+        l4.addWidget(self.sources_profile)
         btn_act = QPushButton("↻ Actualizar fuentes")
         bind_text(btn_act, "shadow.actualizar")
         self.btn_act = btn_act
         btn_act.clicked.connect(lambda: actions.on_actualizar(win))
         l4.addWidget(btn_act)
-        self.sources_loading = LoadingIndicator("neon_hud", QSize(32, 32))
-        l4.addWidget(self.sources_loading)
+        self.sources_progress = SourceProgress()
+        self.sources_progress.cancel.clicked.connect(lambda: actions.on_cancel_sources(win))
+        l4.addWidget(self.sources_progress)
         lay.addWidget(f4, stretch=1)
 
     # ------------------------------------------- estado real (runtime truth)
@@ -1194,12 +1201,20 @@ class CandidatesWidget(QWidget):
                 ),
                 f"SUPUESTOS A COMPROBAR\n{self._display_list(entry.get('supuestos'))}",
                 f"PRUEBA CONCRETA\n{self._display_list(entry.get('prueba_concreta'))}",
+                f"{_t('shadow.interpreter.uncertainty')}\n"
+                f"{entry.get('incertidumbre') or ''}\n{entry.get('novedad') or ''}",
+                f"{_t('shadow.interpreter.test')}\n"
+                + json.dumps(entry.get("prueba") or {}, ensure_ascii=False, indent=2),
             ))
         else:
             sections.append(f"MOTIVO\n{error or 'sin motivo declarado'}")
             route = str(entry.get("ruta_desbloqueo") or "").strip()
             if route:
                 sections.append(f"RUTA DE DESBLOQUEO\n{route}")
+        critica = entry.get("critica")
+        if isinstance(critica, dict) and critica:
+            sections.append(_t("shadow.interpreter.critica") + "\n"
+                            + json.dumps(critica, ensure_ascii=False, indent=2))
         provenance = entry.get("interpretacion_provenance")
         if not isinstance(provenance, dict):
             provenance = {}

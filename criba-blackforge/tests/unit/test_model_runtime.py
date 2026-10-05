@@ -319,13 +319,13 @@ def test_llama_request_uses_schema_and_fast_reasoning_controls(monkeypatch) -> N
         return {"choices": [{"message": {"content": _response()}}]}
 
     monkeypatch.setattr(model_runtime, "_http_json", http)
-    profile = ModelProfile(reasoning="fast")
+    profile = ModelProfile(reasoning="fast", timeout=120.0)
     result = model_runtime._generate_once(profile, "system", "prompt")
     payload = seen["payload"]
 
     assert result == _response()
     assert seen["url"] == "http://127.0.0.1:8080/v1/chat/completions"
-    assert seen["timeout"] == 300.0
+    assert seen["timeout"] == 120.0
     assert isinstance(payload, dict)
     assert payload["response_format"]["type"] == "json_schema"
     assert payload["chat_template_kwargs"] == {"enable_thinking": False}

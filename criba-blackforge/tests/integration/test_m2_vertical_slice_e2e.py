@@ -50,9 +50,11 @@ pytest.importorskip("PySide6")
 # The SUPRA venv is a separate component environment; each side runs under the
 # interpreter that actually owns its package (measured: the SUPRA venv has no
 # PySide6, so importing its server from the CRIBA interpreter is not a test).
-SUPRA_PYTHON = REPO.parent / "supra" / ".venv" / "Scripts" / "python.exe"
+SUPRA_PYTHON = Path(os.getenv("SUPRA_E2E_PYTHON") or (
+    REPO.parent / "supra" / ".venv" / "Scripts" / "python.exe"
+))
 if not SUPRA_PYTHON.is_file():  # pragma: no cover - environment guard
-    pytest.skip("SUPRA venv not present; the real component cannot be launched")
+    pytest.skip("SUPRA venv not present; the real component cannot be launched", allow_module_level=True)
 
 # TemporaryDirectory objects must outlive the functions that create them: a
 # collected directory is deleted out from under the state singleton and every
@@ -141,6 +143,37 @@ class _Slice:
     caption_visible: bool = True
 
 
+def test_interpretation_diagnostics_survive_real_transport_and_restart(tmp_path):
+    """Diagnósticos sintéticos ejercitan HTTP real, sin afirmar calidad de un LLM."""
+    from criba.integrations.supra_client import SupraClient, SupraClientConfig
+    from criba.supra_dossier import preparar_dossier
+    from verification.interpreter_cases import critica, propuesta
+
+    server = _RealSupra(tmp_path / "state")
+    server.storage.mkdir()
+    server.start()
+    entry = {**propuesta(), "candidate_id": "metadata-candidate", "run_id": "metadata-run",
+             "interpretacion_provenance": {"model_requested": "synthetic-test-only"},
+             "critica": {"evaluation_status": "CRITIQUED", "respuesta": critica(),
+                         "independent_validation": False}}
+    dossier = preparar_dossier(entry, "Reducir retornos por registros incompletos")
+    try:
+        with SupraClient(SupraClientConfig(endpoint=server.endpoint)) as client:
+            client.run_project(objective="Comprobar transporte de diagnósticos", project_id="metadata",
+                               criba_dossier=dossier)
+        server.stop()
+        server.start()
+        with SupraClient(SupraClientConfig(endpoint=server.endpoint)) as client:
+            lookup = client.get_project("metadata")
+        receipt = lookup.posture.criba_dossier_receipt
+        assert receipt is not None
+        assert receipt.model_dump()["interpretacion"] == dossier["interpretacion"]
+        assert receipt.execution_status == "NOT_EXECUTED"
+        assert receipt.scientific_status == "NOT_VALIDATED"
+    finally:
+        server.stop()
+
+
 @pytest.fixture(scope="module")
 def qapp():
     os.environ["QT_QPA_PLATFORM"] = "offscreen"
@@ -193,11 +226,19 @@ def slice_result(qapp):
         # 3) press the real widget. The dispatch is WRAPPED, never replaced, so
         #    the captured dossier is the object that crossed the network.
         dispatched: list[dict] = []
+        dispatch_errors: list[str] = []
         real_execute = actions._execute_supra_vertical
 
         def _capturing(dossier, project_id, client=None):
             dispatched.append(dossier)
-            return real_execute(dossier, project_id, client=client)
+            try:
+                return real_execute(dossier, project_id, client=client)
+            except Exception as exc:
+                dispatch_errors.append(str(exc))
+                cause = exc.__cause__
+                if isinstance(cause, httpx.HTTPStatusError):
+                    dispatch_errors.append(cause.response.text[:2500])
+                raise
 
         actions._execute_supra_vertical = _capturing
         try:
@@ -212,6 +253,11 @@ def slice_result(qapp):
             actions._execute_supra_vertical = real_execute
 
         assert len(dispatched) == 1, "el dossier real no cruzó la ruta"
+        assert window.refs["ideaTitle"].text().startswith("SUPRA astram2"), (
+            window.refs["ideaTitle"].text() + " / " + window.refs["ideaSummary"].text()
+            + " / " + window.refs["ideaEstadoChip"].text()
+            + " / " + "; ".join(dispatch_errors)
+        )
         chip = window.refs["ideaEstadoChip"]
         outcome = _Slice(
             dossier=dispatched[0],

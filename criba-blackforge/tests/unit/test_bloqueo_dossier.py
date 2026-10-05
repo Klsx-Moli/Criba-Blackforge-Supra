@@ -59,7 +59,7 @@ def test_bloqueo_llega_al_prompt_del_proponente() -> None:
     monkey.setattr(adaptador.httpx, "Client", _Client)
     monkey.setenv("NOUS_API_KEY", "test-key")
     try:
-        adaptador.LocalInterprete().proponer(
+        adaptador.CloudInterprete(api_key="test", base="http://127.0.0.1:9/v1").proponer(
             "q", {"method1": "A", "method2": "B", "bloqueo": _ficha().to_dict()}, None, [])
     finally:
         monkey.undo()

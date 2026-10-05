@@ -109,6 +109,7 @@ include = ["criba*", "data"]
 # "." makes the repo root importable so tests can import scripts.* both under
 # `python -m pytest` (CWD on sys.path) and plain `pytest`/`uv run pytest` (CI).
 pythonpath = ["src", "."]
+markers = ["integration: comprobaciones entre componentes o runtimes opcionales"]
 
 [tool.mypy]
 # FASE 3 hardening: strict typing over CRIBA + BLACKFORGE own code.
