@@ -6,7 +6,7 @@ import uuid
 from pathlib import Path
 from typing import Any
 
-from PySide6.QtCore import Qt, QThreadPool, Signal
+from PySide6.QtCore import Qt, QThreadPool, Signal, QTimer
 from PySide6.QtGui import QShowEvent
 from PySide6.QtWidgets import (
     QCheckBox,
@@ -49,6 +49,8 @@ class ModelSettingsDialog(QDialog):
         self.pool = QThreadPool.globalInstance()
         self._loading = False
         self._current_profile_id = ""
+        self._breath_timer: QTimer | None = None
+        self._breath_phase = 0
         self.setWindowTitle("CRIBA · Modelos IA")
         self.setMinimumSize(640, 360)
         self.resize(980, 690)
@@ -395,6 +397,41 @@ class ModelSettingsDialog(QDialog):
         self.profile_list.takeItem(row)
         self.profile_list.setCurrentRow(max(0, row - 1))
 
+    def _start_breathing(self) -> None:
+        """Start neon breathing gradient on the test button while loading."""
+        self._breath_phase = 0
+        self.test_button.setText("Cargando…")
+        self._breath_timer = QTimer(self)
+        self._breath_timer.setInterval(50)
+        self._breath_timer.timeout.connect(self._tick_breath)
+        self._breath_timer.start()
+
+    def _stop_breathing(self) -> None:
+        """Stop the breathing gradient and restore the button."""
+        if self._breath_timer is not None:
+            self._breath_timer.stop()
+            self._breath_timer = None
+        self.test_button.setText("Probar / iniciar modelo")
+        self.test_button.setStyleSheet("")
+
+    def _tick_breath(self) -> None:
+        """Update button color with a breathing neon gradient."""
+        import math
+
+        self._breath_phase = (self._breath_phase + 1) % 120
+        t = self._breath_phase / 120.0
+        # Sine wave 0..1..0 over ~6 seconds
+        wave = (math.sin(t * 2 * math.pi) + 1.0) / 2.0
+        # Interpolate between cyan (#28c8f6) and magenta (#ff2d95)
+        r = int(0x28 + (0xFF - 0x28) * wave)
+        g = int(0xC8 + (0x2D - 0xC8) * wave)
+        b = int(0xF6 + (0x95 - 0xF6) * wave)
+        color = f"#{r:02x}{g:02x}{b:02x}"
+        self.test_button.setStyleSheet(
+            f"QPushButton {{ background: {color}; color: #0c131d; "
+            f"font-weight: 700; border-radius: 6px; padding: 8px 13px; }}"
+        )
+
     def _test_profile(self) -> None:
         profile = self._profile_by_id(self._current_profile_id)
         self._store_form(profile)
@@ -404,16 +441,19 @@ class ModelSettingsDialog(QDialog):
         self.status_label.setText(
             "Comprobando el runtime y cargando el GGUF si es necesario…"
         )
+        self._start_breathing()
         worker = Worker(lambda: test_model_profile(profile, start=True))
         worker.signals.done.connect(self._on_test_ok)
         worker.signals.fail.connect(self._on_test_error)
         _start_worker(self, worker)
 
     def _on_test_ok(self, result: Any) -> None:
+        self._stop_breathing()
         self.test_button.setEnabled(True)
         self.status_label.setText(f"✓ {result}")
 
     def _on_test_error(self, message: str) -> None:
+        self._stop_breathing()
         self.test_button.setEnabled(True)
         first_line = message.splitlines()[0]
         self.status_label.setText(f"✕ {first_line}")
