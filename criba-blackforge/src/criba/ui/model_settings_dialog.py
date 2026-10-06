@@ -446,14 +446,52 @@ class ModelSettingsDialog(QDialog):
         worker.signals.done.connect(self._on_test_ok)
         worker.signals.fail.connect(self._on_test_error)
         _start_worker(self, worker)
+        # Safety net: always restore the button even if the worker crashes
+        worker.signals.finished.connect(lambda: self._stop_breathing())
+        # Progress updates: show what is actually happening
+        self._progress_timer = QTimer(self)
+        self._progress_timer.setInterval(2000)
+        self._progress_timer.timeout.connect(self._update_progress)
+        self._progress_timer.start()
+        worker.signals.finished.connect(lambda: self._progress_timer.stop())
+
+    def _update_progress(self) -> None:
+        """Show real progress instead of a static 'Cargando…'."""
+        profile = self._profile_by_id(self._current_profile_id)
+        if profile is None:
+            return
+        try:
+            from ..model_runtime import _runtime_status
+
+            try:
+                status = _runtime_status(profile, timeout=2.0)
+                if status:
+                    self.status_label.setText(
+                        f"Runtime respondiendo · cargando {profile.model}…"
+                    )
+                    return
+            except Exception:
+                pass
+            if profile.backend == "llama_cpp" and profile.auto_start:
+                self.status_label.setText(
+                    f"Arrancando llama-server · cargando {profile.model}…"
+                )
+            else:
+                self.status_label.setText("Conectando con el runtime…")
+        except Exception:
+            self.status_label.setText("Comprobando el runtime…")
 
     def _on_test_ok(self, result: Any) -> None:
         self._stop_breathing()
+        if hasattr(self, "_progress_timer"):
+            self._progress_timer.stop()
         self.test_button.setEnabled(True)
         self.status_label.setText(f"✓ {result}")
 
     def _on_test_error(self, message: str) -> None:
         self._stop_breathing()
+        if hasattr(self, "_progress_timer"):
+            self._progress_timer.stop()
         self.test_button.setEnabled(True)
         first_line = message.splitlines()[0]
         self.status_label.setText(f"✕ {first_line}")

@@ -1128,7 +1128,36 @@ def on_modelos(win: Any) -> None:
     win.nav["navModelos"].setChecked(False)
     if open_model_settings(win):
         win.footerSegs["fsModelo"].set_value(f"CRIBA {ENGINE_VERSION} · {active_model_label()}")
+        _refresh_interpreter_selector(win)
         _activity(win, "cyan", f"Modelo activo: {active_model_label()}")
+
+
+def _refresh_interpreter_selector(win: Any) -> None:
+    """Reflect the active local model in the Generación interpreter selector."""
+    from ..model_config import active_model_label, load_model_settings
+
+    selector = getattr(win, "interpreter_selector", None)
+    if selector is None:
+        return
+    try:
+        settings = load_model_settings()
+        if settings.enabled and settings.active_profile() is not None:
+            label = active_model_label(settings)
+            selector.setItemText(1, label)
+            selector.setCurrentIndex(1)
+        else:
+            selector.setItemText(1, _t("shadow.interpreter.local"))
+            selector.setCurrentIndex(0)
+    except Exception:
+        selector.setCurrentIndex(0)
+
+
+def _on_interpreter_changed(win: Any, index: int) -> None:
+    """Handle interpreter selector change from the Generación tab."""
+    if index == 1:
+        _activity(win, "cyan", "Intérprete local seleccionado")
+    else:
+        _activity(win, "cyan", "Intérprete Nous/Hermes seleccionado")
 
 
 # ---------------------------------------------------------------------------
