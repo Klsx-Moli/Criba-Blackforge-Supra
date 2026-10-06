@@ -175,7 +175,7 @@ def test_shadow_expone_selector_real_y_salidas_copiables(qapp, tmp_path):
         selector = win.topcards.interpreter_selector
         assert selector.count() == 2
         assert selector.itemData(1) == "local_llama"
-        assert "experimental" in selector.itemText(1)
+        assert selector.itemText(1) == "Cargar modelo"
         assert selector.itemData(0) == "openai_compatible"
         assert "Nous/Hermes" in selector.itemText(0)
         assert "Space Bunny" in selector.itemText(0)
