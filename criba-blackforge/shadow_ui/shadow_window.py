@@ -830,6 +830,9 @@ class TopCardsWidget(QWidget):
         self.interpreter_selector.addItem(
             _t("shadow.interpreter.local"), "local_llama"
         )
+        self.interpreter_selector.currentIndexChanged.connect(
+            lambda idx: actions._on_interpreter_changed(win, idx)
+        )
         selector_row.addWidget(self.interpreter_selector, stretch=1)
         l2.addLayout(selector_row)
         self.interpreter_status = QLabel(
