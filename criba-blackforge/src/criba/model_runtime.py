@@ -706,9 +706,14 @@ def enhance_ideas_with_model(
         }
     selected = originals[:MAX_SEMANTIC_CANDIDATES]
     try:
+        import time
+        deadline = time.monotonic() + 30.0
         semantic_ideas: list[SemanticIdea] = []
         chunk_errors: list[str] = []
         for offset in range(0, len(selected), SEMANTIC_BATCH_SIZE):
+            if time.monotonic() > deadline:
+                chunk_errors.append("timeout global de 30s agotado")
+                break
             chunk = selected[offset : offset + SEMANTIC_BATCH_SIZE]
             try:
                 batch = _synthesize(
@@ -768,7 +773,11 @@ def enhance_ideas_with_model(
 def enhance_criba_packet(
     packet: dict[str, Any], settings: ModelSettings | None = None
 ) -> dict[str, Any]:
-    """Enhance CRIBA packet wording while preserving deterministic metrics."""
+    """Enhance CRIBA packet wording while preserving deterministic metrics.
+
+    Enhancement is optional: when the local model is unavailable or slow,
+    the deterministic packet is returned unchanged with a fallback marker.
+    """
 
     innovation = packet.get("innovation")
     if not isinstance(innovation, dict):
@@ -776,12 +785,18 @@ def enhance_criba_packet(
     ideas = innovation.get("ideas")
     if not isinstance(ideas, list):
         return packet
-    enhanced, metadata = enhance_ideas_with_model(
-        str(packet.get("original_query") or ""),
-        [idea for idea in ideas if isinstance(idea, Mapping)],
-        product="CRIBA",
-        settings=settings,
-    )
+    try:
+        enhanced, metadata = enhance_ideas_with_model(
+            str(packet.get("original_query") or ""),
+            [idea for idea in ideas if isinstance(idea, Mapping)],
+            product="CRIBA",
+            settings=settings,
+        )
+    except Exception as exc:
+        packet.setdefault("semantic_generation", {})
+        packet["semantic_generation"]["status"] = "fallback"
+        packet["semantic_generation"]["error"] = str(exc)
+        return packet
     innovation["ideas"] = enhanced
     packet["ideas"] = enhanced
     packet["semantic_generation"] = metadata
