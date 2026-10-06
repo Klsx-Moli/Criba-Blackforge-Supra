@@ -203,17 +203,17 @@ def test_get_project_reports_criba_receipt_as_planned_not_executed() -> None:
 
 def test_receipt_rejects_missing_condicion_fracaso() -> None:
     """Receipt completeness: condicion_fracaso is mandatory, not optional."""
-    from test_service import _complete_criba_dossier_payload, _criba_request_payload
+    from test_service import _complete_criba_dossier_payload
 
     _isolated_storage()
     payload = _complete_criba_dossier_payload()
-    del payload["condicion_fracaso"]
+    del payload["prueba_discriminante"]["condicion_fracaso"]
     created = client.post(
         "/api/v1/projects",
         json={
             "objective": "Reject receipt without condicion_fracaso",
             "project_id": "b03-missing-condicion-fracaso",
-            **_criba_request_payload(payload),
+            "criba_dossier": payload,
         },
     )
     assert created.status_code == 422, created.text

@@ -265,11 +265,22 @@ def _apply_new_problem(win: Any, problem: str) -> None:
 # S3 — GENERANDO  (activate() genera Y evalúa; la fase visual se divide)
 # ---------------------------------------------------------------------------
 def _generate_criba_packet(problem: str) -> dict[str, Any]:
-    """Run deterministic CRIBA and its optional semantic language layer."""
+    """Return deterministic generation immediately; enhance in background."""
+    packet = activate(problem)
+    packet.setdefault("semantic_generation", {})
+    packet["semantic_generation"]["status"] = "pending"
+    return packet
 
-    from ..model_runtime import enhance_criba_packet
 
-    return enhance_criba_packet(activate(problem))
+def _enhance_packet_async(packet: dict[str, Any]) -> None:
+    """Enhance packet in background; never blocks the deterministic result."""
+    try:
+        from ..model_runtime import enhance_criba_packet
+        enhance_criba_packet(packet)
+        packet["semantic_generation"]["status"] = "ok"
+    except Exception as exc:
+        packet["semantic_generation"]["status"] = "fallback"
+        packet["semantic_generation"]["error"] = str(exc)
 
 
 def on_generar(win: Any) -> None:
@@ -286,7 +297,14 @@ def on_generar(win: Any) -> None:
 
     # El indicador de actividad está ligado al worker, no a un spinner global.
 
-    worker = Worker(lambda: _generate_criba_packet(win.problem))
+    def _generate_and_enhance() -> dict[str, Any]:
+        packet = _generate_criba_packet(win.problem)
+        # Enhancement runs in background; UI shows deterministic ideas now.
+        enhance_worker = Worker(lambda: _enhance_packet_async(packet))
+        _start_worker(win, enhance_worker, "enhance")
+        return packet
+
+    worker = Worker(_generate_and_enhance)
     worker.signals.done.connect(lambda packet: _on_generated(win, packet))
     worker.signals.fail.connect(
         lambda msg: on_operation_error(win, "navGenerar", "stageGenerar", msg)
