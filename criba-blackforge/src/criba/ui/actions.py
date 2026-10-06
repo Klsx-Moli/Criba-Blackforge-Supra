@@ -1150,7 +1150,25 @@ def on_ver_todas(win: Any) -> None:
 def _supra_lookup_read(lookup: Any) -> dict[str, Any]:
     """Serialize the canonical GET response without collapsing state channels."""
     receipt = getattr(getattr(lookup, "posture", None), "criba_dossier_receipt", None)
+    reason = "UNKNOWN"
+    reason_kind = "UNKNOWN"
+    if lookup.stage == "BLOCKED":
+        checkpoints = getattr(lookup.posture, "checkpoints", [])
+        if isinstance(checkpoints, list):
+            for checkpoint in reversed(checkpoints):
+                if isinstance(checkpoint, dict) and checkpoint.get("stage") == "BLOCKED":
+                    declared = checkpoint.get("evidence_summary")
+                    if isinstance(declared, str) and declared.strip():
+                        reason = declared
+                        if (checkpoint.get("actor") == "system:completion_gate"
+                                and "verification must be PASS" in reason):
+                            reason_kind = "VERIFICATION_GATE"
+                        else:
+                            reason_kind = "DECLARED_BLOCK"
+                    break
     return {
+        "block_reason": reason,
+        "block_reason_kind": reason_kind,
         "status": lookup.status,
         "status_scope": lookup.status_scope,
         "completion_status": lookup.completion_status,
@@ -1410,7 +1428,7 @@ def _on_supra_restore_done(win: Any, report: dict[str, Any]) -> None:
     win.refs["ideaSummary"].setText(
         f"Resultado PREVIO recuperado mediante GET de {_provenance_text(read)} · "
         f"status {read['status']} · stage {read['stage']} · "
-        f"copia durable {_artifact_text(read)}"
+        f"copia durable {_artifact_text(read)} · {_planning_status_text(read)}"
     )
     set_chip(
         win.refs["ideaEstadoChip"],
@@ -1613,6 +1631,20 @@ def _artifact_text(read: dict[str, Any]) -> str:
     }.get(str(read.get("persisted_artifact_status")), "no declarada")
 
 
+def _planning_status_text(read: dict[str, Any]) -> str:
+    """Expose planning limits; never infer relevance from a schema or a 2xx."""
+    receipt = read.get("receipt") or {}
+    context = receipt.get("interpretacion") or {}
+    provenance = context.get("provenance") or {}
+    assessment = provenance.get("planning_assessment") or {}
+    origin = assessment.get("content_origin", "UNKNOWN")
+    text = f"origen {origin} · pertinencia UNKNOWN · prueba propuesta, no validada"
+    if read.get("workflow_status") == "BLOCKED":
+        text += (f" · bloqueo {read.get('block_reason_kind', 'UNKNOWN')}: "
+                 f"{read.get('block_reason', 'UNKNOWN')}")
+    return text
+
+
 def _on_supra_vertical_done(win: Any, report: dict[str, Any]) -> None:
     """Show the real SUPRA read-back state. BLOCKED stays BLOCKED."""
     win._supra_vertical_running = False
@@ -1629,7 +1661,7 @@ def _on_supra_vertical_done(win: Any, report: dict[str, Any]) -> None:
         f"sandbox {read['secure_sandbox_status']} · "
         f"dossier {read['criba_planning_receipt_status']} · "
         f"mecanismo CRIBA {read['criba_mechanism_execution_status']} · "
-        f"copia durable {_artifact_text(read)}"
+        f"copia durable {_artifact_text(read)} · {_planning_status_text(read)}"
     )
     if receipt:
         set_chip(
