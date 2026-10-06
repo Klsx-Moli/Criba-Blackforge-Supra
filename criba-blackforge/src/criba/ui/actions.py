@@ -1578,8 +1578,37 @@ def _selected_idea(win: Any) -> dict[str, Any] | None:
 
 
 def _prepare_dossier_for_selected_idea(win: Any) -> dict[str, Any]:
-    """Build the dossier from the selected core idea, without inventing fields."""
-    from ..supra_dossier import preparar_dossier_desde_idea
+    """Export the displayed interpretation; keep core-only compatibility."""
+    from ..supra_dossier import preparar_dossier, preparar_dossier_desde_idea
+
+    sheet = getattr(win, "invent_sheet", None)
+    if sheet is not None:
+        if sheet.get("query") != win.problem:
+            raise ValueError("la interpretación pertenece a otro objetivo; vuelve a interpretar")
+        entries = sheet.get("entries") or []
+        index = win.candidates.interpretation_index
+        if type(index) is not int or not 0 <= index < len(entries):
+            raise ValueError("no hay una interpretación seleccionada")
+        entry = entries[index]
+        if entry.get("estado_interpretacion") != "PROPUESTA":
+            raise ValueError(
+                "la interpretación seleccionada está pendiente; "
+                "no se sustituye por ejes"
+            )
+        for field in ("candidate_id", "hipotesis", "mecanismo", "prueba_concreta"):
+            if not isinstance(entry.get(field), str) or not entry[field].strip():
+                raise ValueError(f"propuesta interpretada sin {field}")
+        protocol = entry.get("prueba")
+        if not isinstance(protocol, dict):
+            raise ValueError("propuesta interpretada sin prueba declarada")
+        for field in (
+            "metrica", "baseline", "umbral", "condicion_fracaso",
+            "alternativa_explicativa", "resultado_favorable_mecanismo",
+            "resultado_favorable_alternativa",
+        ):
+            if not isinstance(protocol.get(field), str) or not protocol[field].strip():
+                raise ValueError(f"prueba interpretada sin {field}; no se rellena")
+        return preparar_dossier(entry, sheet["query"], ficha_bloqueo=sheet.get("ficha_bloqueo"))
 
     idea = _selected_idea(win)
     if idea is None:
