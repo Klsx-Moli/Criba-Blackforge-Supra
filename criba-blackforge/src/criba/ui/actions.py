@@ -62,10 +62,16 @@ def _now_ts() -> str:
 def _start_worker(win: Any, worker: Worker, operation: str = "") -> None:
     """Retener la referencia del worker hasta que emita: sin esto el GC de
     Python destruye el QObject de señales antes de entregar done/fail
-    (pitfall QRunnable.autoDelete + señal encolada entre hilos)."""
-    if not hasattr(win, "_live_workers"):
-        win._live_workers = []
-    win._live_workers.append(worker)
+    (pitfall QRunnable.autoDelete + señal encolada entre hilos).
+
+    Background workers (enhance) are not tracked in _live_workers so they
+    do not block harnesses or UI waits that only care about the primary
+    operation completing.
+    """
+    if operation != "enhance":
+        if not hasattr(win, "_live_workers"):
+            win._live_workers = []
+        win._live_workers.append(worker)
     loading = None
     cards = getattr(win, "topcards", None)
     mapping = {
