@@ -613,6 +613,14 @@ def main(argv: Sequence[str] | None = None) -> int:
             return 0
 
         if args.command == "gui":
+            if args.database is not None:
+                print(
+                    "--database no es compatible con CRIBA Shadow. "
+                    "Usa CRIBASHADOW_HOME para aislar el estado; "
+                    "no se seleccionara otra SQLite silenciosamente.",
+                    file=sys.stderr,
+                )
+                return 2
             # CRIBA has ONE user-facing UI: Shadow. Do not silently fall back
             # to the historic main window when the source checkout/launcher is
             # absent (e.g. a source-only pip package).
