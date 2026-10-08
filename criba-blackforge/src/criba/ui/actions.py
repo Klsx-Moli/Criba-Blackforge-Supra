@@ -1383,6 +1383,9 @@ def _on_supra_restore_done(win: Any, report: dict[str, Any]) -> None:
         candidates.show_state_only()
     read = report["read"]
     win.refs["ideaTitle"].setText(f"SUPRA recuperado · {report['project_id']}")
+    scroller = getattr(win, "candidates_scroll", None)
+    if scroller is not None:
+        scroller.ensureWidgetVisible(win.refs["ideaTitle"], 12, 12)
     win.refs["ideaSummary"].setText(
         f"Resultado PREVIO recuperado mediante GET de {_provenance_text(read)} · "
         f"status {read['status']} · stage {read['stage']} · "
@@ -1614,6 +1617,11 @@ def _on_supra_vertical_done(win: Any, report: dict[str, Any]) -> None:
         )
     else:
         set_chip(r["ideaEstadoChip"], f"SUPRA {read['status']} ·Sin receipt", "exploracion")
+    # A label can be isVisibleTo(window) yet remain outside a scrolled
+    # viewport. Bring the *actual GET status* onto the view after updating it.
+    scroller = getattr(win, "candidates_scroll", None)
+    if scroller is not None:
+        scroller.ensureWidgetVisible(r["ideaTitle"], 12, 12)
     # El chip es el indicador de estado del panel. Sin encenderlo, el estado
     # real se escribía en un widget oculto y no llegaba a verse: el arranque
     # llama a set_detail_empty(True), que oculta el chip porque aún no hay
