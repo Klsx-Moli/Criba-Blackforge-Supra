@@ -613,10 +613,28 @@ def main(argv: Sequence[str] | None = None) -> int:
             return 0
 
         if args.command == "gui":
-            from .gui import run
+            if args.database is not None:
+                print(
+                    "--database no es compatible con CRIBA Shadow. "
+                    "Usa CRIBASHADOW_HOME para aislar el estado; "
+                    "no se seleccionara otra SQLite silenciosamente.",
+                    file=sys.stderr,
+                )
+                return 2
+            # CRIBA has ONE user-facing UI: Shadow. Do not silently fall back
+            # to the historic main window when the source checkout/launcher is
+            # absent (e.g. a source-only pip package).
+            import subprocess
 
-            result = run(args.database)
-            return result if isinstance(result, int) else 0
+            launcher = Path(__file__).resolve().parents[2] / "criba_shadow_main.py"
+            if not launcher.is_file():
+                print(
+                    "CRIBA Shadow UI no incluida en este paquete. "
+                    "Ejecuta CribaShadow.exe o abre el monorepo con shadow_ui.",
+                    file=sys.stderr,
+                )
+                return 2
+            return subprocess.run([sys.executable, str(launcher)], check=False).returncode
 
         if args.command in {"blackforge-gui", "blackforge_gui"}:
             from .blackforge_gui import run as run_blackforge_gui

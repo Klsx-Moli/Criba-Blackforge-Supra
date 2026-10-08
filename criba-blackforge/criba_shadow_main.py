@@ -113,40 +113,99 @@ def _pid_alive(pid: int) -> bool:
     return True
 
 
+# The lock is held by the operating system, not by the PID written to disk.
+# A PID check followed by write_text() allowed two simultaneous first launches.
+# Keep the guard inode/file stable even after release: unlinking it opens a
+# second race between processes holding the old and new inodes.
+_LOCK_MUTEX = threading.Lock()
+_LOCK_HANDLE: TextIO | None = None
+_LOCK_PATH: Path | None = None
+_LOCK_BYTE = 4096  # Windows byte-range lock beyond JSON metadata: readers can inspect PID.
+
+
+def _lock_handle(handle: TextIO) -> None:
+    if os.name == "nt":
+        import msvcrt
+
+        handle.seek(_LOCK_BYTE)
+        msvcrt.locking(handle.fileno(), msvcrt.LK_NBLCK, 1)
+    else:
+        import fcntl
+
+        fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+
+
+def _unlock_handle(handle: TextIO) -> None:
+    if os.name == "nt":
+        import msvcrt
+
+        handle.seek(_LOCK_BYTE)
+        msvcrt.locking(handle.fileno(), msvcrt.LK_UNLCK, 1)
+    else:
+        import fcntl
+
+        fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+
+
 def acquire_single_instance(root: Path) -> tuple[bool, str]:
-    """Toma el lock de instancia. Devuelve (conseguido, mensaje_real)."""
+    """Acquire a process-lifetime OS lock before touching the PID metadata."""
+    global _LOCK_HANDLE, _LOCK_PATH
     lock = root / LOCK_NAME
-    if lock.is_file():
+    with _LOCK_MUTEX:
+        if _LOCK_HANDLE is not None:
+            return False, f"{APP_NAME} ya ha adquirido el bloqueo en este proceso."
         try:
-            other = json.loads(lock.read_text(encoding="utf-8"))
-        except (OSError, ValueError):
-            other = {}
-        pid = int(other.get("pid") or 0)
-        if pid and pid != os.getpid() and _pid_alive(pid):
+            handle = lock.open("a+b")
+        except OSError as exc:
+            return False, f"No se pudo abrir el bloqueo de {APP_NAME}: {exc}"
+        try:
+            _lock_handle(handle)
+        except OSError:
+            handle.close()
+            try:
+                other = json.loads(lock.read_text(encoding="utf-8"))
+                pid = other.get("pid", "?")
+                started = other.get("started", "?")
+            except (OSError, ValueError, TypeError, AttributeError):
+                pid, started = "desconocido", "desconocida"
             return False, (
-                f"Ya hay una instancia de {APP_NAME} corriendo (pid {pid}, "
-                f"abierta {other.get('started') or '?'}). Abrir una segunda "
-                f"escribiria sobre los mismos proyectos a la vez.\n"
-                f"Cierra esa ventana o termina ese proceso y vuelve a abrir."
+                f"Ya hay otra instancia de {APP_NAME} (pid {pid}, "
+                f"abierta {started}). Bloqueo del sistema operativo ocupado."
             )
-        lock.unlink(missing_ok=True)
-    lock.write_text(
-        json.dumps({"pid": os.getpid(), "started": time.strftime("%Y-%m-%d %H:%M:%S")}),
-        encoding="utf-8",
-    )
-    return True, ""
+
+        try:
+            handle.seek(0)
+            handle.truncate(0)
+            handle.write(json.dumps({
+                "pid": os.getpid(),
+                "started": time.strftime("%Y-%m-%d %H:%M:%S"),
+            }).encode("utf-8"))
+            handle.flush()
+            os.fsync(handle.fileno())
+        except BaseException:
+            try:
+                _unlock_handle(handle)
+            finally:
+                handle.close()
+            raise
+        _LOCK_HANDLE = handle
+        _LOCK_PATH = lock.resolve()
+        return True, ""
 
 
 def release_single_instance(root: Path) -> None:
-    lock = root / LOCK_NAME
-    try:
-        if (
-            lock.is_file()
-            and json.loads(lock.read_text(encoding="utf-8")).get("pid") == os.getpid()
-        ):
-            lock.unlink(missing_ok=True)
-    except (OSError, ValueError):
-        pass
+    """Release only this process's OS lock; never unlink the guard file."""
+    global _LOCK_HANDLE, _LOCK_PATH
+    with _LOCK_MUTEX:
+        if _LOCK_HANDLE is None or _LOCK_PATH != (root / LOCK_NAME).resolve():
+            return
+        handle = _LOCK_HANDLE
+        _LOCK_HANDLE = None
+        _LOCK_PATH = None
+        try:
+            _unlock_handle(handle)
+        finally:
+            handle.close()
 
 
 # --------------------------------------------------------------------------
@@ -164,12 +223,40 @@ def endpoint_port(endpoint: str) -> int:
 
 
 def health_ok(endpoint: str, timeout: float = 2.0) -> bool:
-    try:
-        with urllib.request.urlopen(f"{endpoint}/health", timeout=timeout) as response:
-            return int(response.status) == 200
-    except (urllib.error.URLError, OSError, ValueError):
-        return False
+    """Accept only a *local, correctly identified* SUPRA service.
 
+    An arbitrary HTTP 200 or an unrelated /health endpoint is not proof that
+    we can safely transmit a dossier. Redirects and non-loopback endpoints are
+    also rejected by the bundled local launcher.
+    """
+    from urllib.parse import urlsplit
+
+    try:
+        parsed = urlsplit(endpoint)
+        if (
+            parsed.scheme != "http"
+            or parsed.hostname not in {"127.0.0.1", "localhost", "::1"}
+            or parsed.username is not None
+            or parsed.password is not None
+            or parsed.path not in {"", "/"}
+            or parsed.query
+            or parsed.fragment
+        ):
+            return False
+        url = f"{endpoint.rstrip('/')}/health"
+        request = urllib.request.Request(url, headers={"Accept": "application/json"})
+        with urllib.request.urlopen(request, timeout=timeout) as response:
+            if response.status != 200 or response.geturl() != url:
+                return False
+            payload = json.load(response)
+        return (
+            isinstance(payload, dict)
+            and payload.get("status") == "healthy"
+            and payload.get("service") == "supra-agentic-taskmaster"
+            and isinstance(payload.get("storage"), dict)
+        )
+    except (urllib.error.URLError, OSError, ValueError, TypeError, UnicodeError):
+        return False
 
 _STREAM_LOCK = threading.Lock()
 _BOUND_STREAMS: tuple[TextIO, ...] = ()
@@ -370,16 +457,20 @@ def main() -> int:
         log_path = root / "logs" / SUPRA_LOG_NAME
         log_handle = open(log_path, "a", encoding="utf-8")
 
-        endpoint = os.getenv("SUPRA_ENDPOINT", "http://127.0.0.1:8765").strip()
-        if health_ok(endpoint):
-            os.environ["SUPRA_ENDPOINT"] = endpoint
-            print(f"[{APP_NAME}] SUPRA ya responde en {endpoint}; no se arranca otro.")
+        # An existing SUPRA service may belong to a different application or
+        # user-data directory. Never adopt it merely because it occupies the
+        # default port. Reuse only on explicit opt-in and verified /health.
+        configured_endpoint = os.getenv("SUPRA_ENDPOINT", "").strip()
+        if configured_endpoint and health_ok(configured_endpoint):
+            os.environ["SUPRA_ENDPOINT"] = configured_endpoint
+            print(f"[{APP_NAME}] SUPRA configurado en {configured_endpoint}.")
         else:
+            endpoint = f"http://127.0.0.1:{free_port()}"
             supra = SupraServer(endpoint, root / "supra_state", log_path)
             ok, info = supra.start()
             if not ok:
                 return _fatal("No se pudo arrancar SUPRA", info)
-            print(f"[{APP_NAME}] SUPRA arrancado en {info}")
+            print(f"[{APP_NAME}] SUPRA propio arrancado en {info}")
 
         _startup_trace(root, "supra:ready")
         from criba.ui import actions as ui_actions

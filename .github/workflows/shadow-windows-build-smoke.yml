@@ -1,0 +1,56 @@
+name: Shadow Windows Build Smoke
+
+on:
+  pull_request:
+    branches:
+      - codex/interpreter-hardening-20261004
+
+permissions:
+  contents: read
+
+concurrency:
+  group: shadow-build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  windows-shadow:
+    name: Build + isolated CribaShadow.exe smoke
+    if: github.head_ref == 'chatgpt/shadow-supra-reliability-20261008'
+    runs-on: windows-2025
+    timeout-minutes: 25
+    defaults:
+      run:
+        working-directory: criba-blackforge
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: '3.11'
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d
+        with:
+          version: '0.11.28'
+          enable-cache: true
+          cache-dependency-glob: criba-blackforge/uv.lock
+      - name: Install CRIBA locked build dependencies
+        shell: pwsh
+        run: uv sync --all-extras --locked
+      - name: Make SUPRA importable in the same frozen runtime
+        shell: pwsh
+        run: |
+          uv pip install --python .venv/Scripts/python.exe -e ../supra
+          $criba = (Resolve-Path .).Path
+          $supra = (Resolve-Path ../supra/src).Path
+          "PYTHONPATH=$criba/src;$supra" >> $env:GITHUB_ENV
+      - name: Build real onedir Windows executable
+        shell: pwsh
+        run: uv run --no-sync pyinstaller CribaShadow.spec --noconfirm
+      - name: Smoke exe with ephemeral user data (NOT visual acceptance)
+        shell: pwsh
+        run: |
+          uv run --no-sync python scripts/verify_shadow_windows.py dist/CribaShadow/CribaShadow.exe --output shadow-smoke.json
+          $result = $LASTEXITCODE
+          if (Test-Path shadow-smoke.json) { Get-Content shadow-smoke.json }
+          exit $result
