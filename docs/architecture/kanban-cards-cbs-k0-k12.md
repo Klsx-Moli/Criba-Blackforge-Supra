@@ -603,3 +603,233 @@ Evitar que documentación experimental se confunda con main (caso SC-01/PR12).
 
 **Rollback**
 - No aplica (docs).
+
+---
+
+# ACTUALIZACIÓN CBS-K1/K4 (misión 2026-10-08, tras baseline ejecutado)
+
+## CBS-K1  Contrato canónico de autorización
+**Prioridad:** P0
+**Columna inicial:** REVIEW
+**Owner:** unassigned
+**Dependencias:** CBS-K0A
+**Riesgo:** YELLOW
+
+**Problema**
+PR8 (pre-gate por safety_class) y PR11 (autorización ejecutiva por nonce/broker)
+usan "authorization" con enums distintos; falta fijar la frontera para integrar
+sin doble autoridad.
+
+**Alcance permitido**
+- Redactar el contrato de frontera (hecho en canonical-authorization-contract.md).
+- Definir precedencia, invariantes y modelo de transición.
+
+**Fuera de alcance**
+- Modificar blackforge_safety.py o blackforge_case.py.
+- Unificar enums en código.
+
+**Archivos / subsistemas**
+- docs/architecture/canonical-authorization-contract.md
+- referencia: blackforge_safety.py (PR8), blackforge_case.py/blackforge_broker.py (PR11)
+
+**Criterios de aceptación**
+- Frontera PR8↔PR11 explícita; precedencia = denegación acumulativa.
+- 7 invariantes y ≥15 escenarios documentados.
+- Gap del evento de auditoría unificado declarado.
+
+**Verificación requerida**
+- Comando real: revisión del contrato contra el código real (lectura ya hecha)
+- Resultado esperado: coherencia con AuthorizationState/AuthorizationAxis
+- Evidencia a adjuntar: contrato + pr8-pr11-authz-semantic-audit.md
+
+**STOP**
+- Si el contrato exige cambiar semántica de un PR (requiere aprobación).
+
+**Rollback**
+- No aplica (docs).
+
+---
+
+## CBS-K4  Baseline reproducible de main
+**Prioridad:** P0
+**Columna inicial:** REVIEW
+**Owner:** unassigned
+**Dependencias:** CBS-K0R
+**Riesgo:** GREEN
+
+**Problema**
+Sin baseline ejecutado no se puede afirmar "sin regresión" en la integración.
+
+**Alcance permitido**
+- Ejecutar la suite canónica en worktree aislado desde main (hecho).
+- Documentar comandos y resultados.
+
+**Fuera de alcance**
+- Modificar CI o tests.
+
+**Archivos / subsistemas**
+- docs/testing/main-baseline-runbook.md
+- docs/testing/main-baseline-results-15bc237.md
+
+**Criterios de aceptación**
+- Baseline ejecutado y documentado: CRIBA 1504 passed + mypy new=0;
+  SUPRA 230 passed + ruff clean + mypy clean.
+
+**Verificación requerida**
+- Comando real: `uv run --locked pytest -q` (criba-blackforge) -> 1504 passed, exit 0, 259.57s
+- Comando real: `uv run --locked pytest -q --no-header` (supra) -> 230 passed, exit 0, 30.43s
+- Comando real: `uv run --locked python scripts/check_mypy_baseline.py` -> new=0, exit 0
+- Evidencia a adjuntar: main-baseline-results-15bc237.md (EJECUTADO esta sesión)
+
+**STOP**
+- Si la suite no es reproducible (no ocurrió; reproducible con lock).
+
+**Rollback**
+- No aplica (ejecución en worktree aislado; sin cambios versionables).
+
+---
+
+## CBS-K5  Tests de frontera authz / broker
+**Prioridad:** P1
+**Columna inicial:** BLOCKED
+**Owner:** unassigned
+**Dependencias:** CBS-K1, CBS-K3
+**Riesgo:** YELLOW
+
+**Problema**
+Falta test que pruebe que PR8 DENY bloquea antes de llegar al broker, y de replay
+de nonce en entorno persistente.
+
+**Alcance permitido**
+- Añadir tests de frontera y de consumo único de nonce (en rama de integración).
+
+**Fuera de alcance**
+- Cambiar código de producto.
+
+**Archivos / subsistemas**
+- criba-blackforge/tests/unit/ (test_blackforge_safety.py, test_blackforge_v1_*)
+
+**Criterios de aceptación**
+- Test: pre-gate DENY => broker no alcanzado.
+- Test: segundo reserve con mismo nonce falla.
+
+**Verificación requerida**
+- Comando real: `uv run --locked pytest -q tests/unit/test_blackforge_safety.py`
+- Resultado esperado: PASS (NOT_RUN; requiere rama de integración)
+- Evidencia a adjuntar: log de pytest
+
+**STOP**
+- Si el test requiere ejecutar BLACKFORGE en vivo.
+
+**Rollback**
+- Revertir tests añadidos.
+
+---
+
+## CBS-K6  Recuperación y persistencia multi-run
+**Prioridad:** P1
+**Columna inicial:** BLOCKED
+**Owner:** unassigned
+**Dependencias:** CBS-K2, CBS-K3
+**Riesgo:** YELLOW
+
+**Problema**
+Sin test de BD legacy (pre-SCHEMA_VERSION=1) ni de recuperación ante crash entre
+emisión y consumo.
+
+**Alcance permitido**
+- Fixture legacy; test de round-trip, corrupción y reinicio de proceso.
+
+**Fuera de alcance**
+- Migrar producción.
+
+**Archivos / subsistemas**
+- criba-blackforge/tests/unit/test_storage_decision_evidence.py
+
+**Criterios de aceptación**
+- Legacy carga o falla con diagnóstico explícito.
+- Round-trip idéntico; crash durante BEGIN IMMEDIATE deja OUTCOME_UNKNOWN sin reintento.
+
+**Verificación requerida**
+- Comando real: `uv run --locked pytest -q tests/unit/test_storage_decision_evidence.py`
+- Resultado esperado: PASS (NOT_RUN)
+- Evidencia a adjuntar: log
+
+**STOP**
+- Si el formato legacy es desconocido (decisión de operador).
+
+**Rollback**
+- Revertir tests.
+
+---
+
+## CBS-K8  Protección de main y calidad CI
+**Prioridad:** P0
+**Columna inicial:** READY
+**Owner:** unassigned
+**Dependencias:** CBS-K4
+**Riesgo:** GREEN
+
+**Problema**
+main debe exigir los checks reales; además CI no ejecuta ruff en CRIBA (1891
+hallazgos en main), lo que deja un hueco de calidad.
+
+**Alcance permitido**
+- Lectura de protección de rama; documentar huecos de CI.
+
+**Fuera de alcance**
+- Cambiar reglas de protección o CI.
+
+**Archivos / subsistemas**
+- .github/workflows/ci.yml (referencia)
+
+**Criterios de aceptación**
+- Checks requeridos documentados (criba-blackforge, supra, monorepo-result).
+- Hueco ruff-CRIBA registrado.
+
+**Verificación requerida**
+- Comando real: `gh api repos/Klsx-Moli/Criba-Blackforge-Supra/branches/main/protection`
+- Resultado esperado: JSON con required checks (NOT_RUN)
+- Evidencia a adjuntar: JSON
+
+**STOP**
+- Si la protección está ausente (acción del operador).
+
+**Rollback**
+- No aplica (lectura).
+
+---
+
+## CBS-K10  Inventario de dependencias / SBOM
+**Prioridad:** P1
+**Columna inicial:** READY
+**Owner:** unassigned
+**Dependencias:** CBS-K4
+**Riesgo:** YELLOW
+
+**Problema**
+Dev deps incluyen pip-audit, bandit, cyclonedx-bom, semgrep; falta inventario y
+SBOM ejecutado.
+
+**Alcance permitido**
+- Ejecutar pip-audit / cyclonedx-bom en worktree aislado (sin cambiar deps).
+
+**Fuera de alcance**
+- Actualizar dependencias.
+
+**Archivos / subsistemas**
+- criba-blackforge/pyproject.toml, uv.lock
+
+**Criterios de aceptación**
+- Listado de dependencias y vulnerabilidades conocidas; SBOM generado (fuera de git).
+
+**Verificación requerida**
+- Comando real: `uv run --locked pip-audit` (NOT_RUN)
+- Comando real: `uv run --locked cyclonedx-bom` (NOT_RUN)
+- Evidencia a adjuntar: salida
+
+**STOP**
+- Si hay vulnerabilidad crítica en dependencia de producción.
+
+**Rollback**
+- No aplica (lectura; SBOM fuera de git).
