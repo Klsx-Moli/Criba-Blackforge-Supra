@@ -581,6 +581,10 @@ def _generate_once(profile: ModelProfile, system: str, prompt: str) -> str:
                 payload=payload,
                 timeout=profile.timeout,
             )
+        if result.get("done_reason") == "length":
+            raise ModelRuntimeError(
+                f"Respuesta truncada al alcanzar el límite de {profile.max_output_tokens} tokens."
+            )
         message = result.get("message", {})
         if not isinstance(message, dict):
             raise ModelRuntimeError("Ollama no devolvió message.content.")
@@ -608,6 +612,10 @@ def _generate_once(profile: ModelProfile, system: str, prompt: str) -> str:
     choices = result.get("choices", [])
     if not isinstance(choices, list) or not choices or not isinstance(choices[0], dict):
         raise ModelRuntimeError("llama.cpp no devolvió choices[0].")
+    if choices[0].get("finish_reason") == "length":
+        raise ModelRuntimeError(
+            f"Respuesta truncada al alcanzar el límite de {profile.max_output_tokens} tokens."
+        )
     message = choices[0].get("message", {})
     if not isinstance(message, dict):
         raise ModelRuntimeError("llama.cpp no devolvió message.content.")
