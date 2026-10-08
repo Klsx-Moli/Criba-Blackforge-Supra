@@ -3,8 +3,19 @@ name: Shadow Windows Build Smoke
 on:
   pull_request:
     branches:
+      - main
       - codex/interpreter-hardening-20261004
       - chatgpt/shadow-supra-reliability-20261008
+      - chatgpt/shadow-exe-journey-20261008
+    paths:
+      - ".github/workflows/shadow-windows-build-smoke.yml"
+      - "criba-blackforge/CribaShadow.spec"
+      - "criba-blackforge/criba_shadow_main.py"
+      - "criba-blackforge/shadow_ui/**"
+      - "criba-blackforge/src/criba/model_runtime.py"
+      - "criba-blackforge/src/criba/cli.py"
+      - "criba-blackforge/src/criba/ui/actions.py"
+      - "criba-blackforge/scripts/verify_shadow*.py"
 
 permissions:
   contents: read
@@ -16,7 +27,6 @@ concurrency:
 jobs:
   windows-shadow:
     name: Build + isolated CribaShadow.exe smoke
-    if: github.head_ref == 'chatgpt/shadow-supra-reliability-20261008' || github.head_ref == 'chatgpt/shadow-exe-journey-20261008'
     runs-on: windows-2025
     timeout-minutes: 25
     defaults:
@@ -56,7 +66,6 @@ jobs:
           if (Test-Path shadow-smoke.json) { Get-Content shadow-smoke.json }
           exit $result
       - name: Complete bundle-to-SUPRA-to-restart journey (real EXE, no mocks)
-        if: github.head_ref == 'chatgpt/shadow-exe-journey-20261008'
         shell: pwsh
         run: |
           uv run --no-sync python scripts/verify_shadow_bundle_journey.py dist/CribaShadow/CribaShadow.exe --artifacts bundle-verification
@@ -66,7 +75,7 @@ jobs:
           }
           exit $result
       - name: Preserve rendered UI and failure evidence (not visual acceptance)
-        if: always() && github.head_ref == 'chatgpt/shadow-exe-journey-20261008'
+        if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: shadow-bundle-e2e-evidence
