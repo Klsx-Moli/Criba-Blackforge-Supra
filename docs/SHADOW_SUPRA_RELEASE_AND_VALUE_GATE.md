@@ -147,3 +147,23 @@ accesibilidad, ni valor novedoso de las ideas.
 **Aceptación visible independiente y comparativa LLM:** siguen
 `NOT_VERIFIED` y `NOT_EXECUTED`, respectivamente, hasta que existan pruebas
 correspondientes. No trasladar el PASS técnico al estado científico.
+
+## Resultado de la primera ejecución y criterio visual reforzado
+
+La ejecución Windows inicial `37843145041` produjo un recorrido empaquetado
+`BUNDLED_JOURNEY_PASS` con HTTP 200, receipt no ejecutado y archivo SUPRA.
+La reapertura recuperó el proyecto, pero la prueba inicial falló por exigir
+`PERSISTED_STATE` directamente: el flujo LIST carga la caché antes de GET,
+y el producto etiquetó correctamente `IN_PROCESS_MEMORY_CACHE` y copia
+durable `MATCHES_CACHE`. Se corrigió el *test*, no el vocabulario científico.
+
+La captura Qt mostró un escritorio virtual de 1024 × 697: las tarjetas y
+algunos botones/estados aparecían recortados. Se añadió un layout compacto
+para pantallas nativas por debajo de 1360px (no modifica el layout normal
+ni el runner Qt offscreen), se garantiza que el título de SUPRA se desplaza
+hasta el viewport visible y se añade una sonda que falla si la etiqueta
+está `isVisibleTo` pero queda fuera de la región de scroll.
+
+La aceptación definitiva debe inspeccionar las nuevas capturas y repetir la
+ejecución real. Aun con un PASS de viewport, sigue pendiente revisión humana
+independiente sobre un escritorio real y diversas resoluciones.
