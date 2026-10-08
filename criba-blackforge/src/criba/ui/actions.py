@@ -1383,6 +1383,12 @@ def _on_supra_restore_done(win: Any, report: dict[str, Any]) -> None:
         candidates.show_state_only()
     read = report["read"]
     win.refs["ideaTitle"].setText(f"SUPRA recuperado · {report['project_id']}")
+    status_label = getattr(getattr(win, "right_panel", None), "supra_result_status", None)
+    if status_label is not None:
+        status_label.setText(
+            f"SUPRA previo: {read['status']} · {read['scientific_status']} · "
+            f"{_artifact_text(read)}"
+        )
     scroller = getattr(win, "candidates_scroll", None)
     if scroller is not None:
         scroller.ensureWidgetVisible(win.refs["ideaTitle"], 12, 12)
@@ -1407,6 +1413,9 @@ def _on_supra_restore_done(win: Any, report: dict[str, Any]) -> None:
 
 def _on_supra_restore_failed(win: Any, message: str) -> None:
     _activity(win, "amber", f"No se pudo recuperar SUPRA al reabrir: {message[:120]}")
+    status_label = getattr(getattr(win, "right_panel", None), "supra_result_status", None)
+    if status_label is not None:
+        status_label.setText("SUPRA · recuperación NO CONFIRMADA")
     show_error(win, "Recuperación SUPRA", message)
 
 
@@ -1598,6 +1607,12 @@ def _on_supra_vertical_done(win: Any, report: dict[str, Any]) -> None:
     read = report["read"]
     receipt = read.get("receipt") or {}
     r["ideaTitle"].setText(f"SUPRA {report['project_id']}")
+    status_label = getattr(getattr(win, "right_panel", None), "supra_result_status", None)
+    if status_label is not None:
+        status_label.setText(
+            f"SUPRA actual: {read['status']} · {read['scientific_status']} · "
+            f"{_artifact_text(read)}"
+        )
     r["ideaSummary"].setText(
         f"SUPRA leído de {_provenance_text(read)} ({read['status_source']}): "
         f"status {read['status']} · stage {read['stage']} · "
@@ -1659,6 +1674,9 @@ def _on_supra_vertical_failed(win: Any, message: str) -> None:
         candidates.show_state_only()
     win.refs["ideaSummary"].setText("Dossier local preservado · ejecución SUPRA NO CONFIRMADA")
     _activity(win, "error", f"SUPRA no confirmado: {message.splitlines()[0][:120]}")
+    status_label = getattr(getattr(win, "right_panel", None), "supra_result_status", None)
+    if status_label is not None:
+        status_label.setText("SUPRA · NO CONFIRMADO, sin lectura válida")
     show_error(win, "SUPRA", message)
 
 
