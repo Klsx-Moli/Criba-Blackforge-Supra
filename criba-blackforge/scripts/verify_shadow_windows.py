@@ -21,7 +21,6 @@ from typing import Any
 
 def assess_startup_trace(lines: list[str], process_alive: bool) -> dict[str, Any]:
     """Fail closed if startup, backend, window or restore did not all run."""
-    joined = "\n".join(lines)
     backend = "supra:ready" in lines
     opened = "qt:window-created" in lines
     shown = any(
