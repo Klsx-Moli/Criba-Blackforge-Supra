@@ -1,0 +1,1133 @@
+{
+  "phase": "FASE 2 — SELECTOR",
+  "selector_module": "src/criba/blackforge_catalog.py + src/criba/blackforge_selector.py",
+  "policy_source": "catalog selection_policy / safety_policy",
+  "samples": {
+    "1": {
+      "status": "OK",
+      "seed": 1,
+      "session_size": 12,
+      "allowed_tiers": [
+        "essential",
+        "core"
+      ],
+      "profile_used": "hybrid",
+      "selected_ids": [
+        "BF-CYB-M800-0561",
+        "BF-CYB-M800-0566",
+        "BF-CYB-L600-1511",
+        "BF-CYB-L600-1507",
+        "BF-CYB-M800-0554",
+        "BF-CYB-M800-0545",
+        "BF-CYB-R1000-0461",
+        "BF-CYB-M800-0312",
+        "BF-CYB-R1000-0314",
+        "BF-CYB-S800-0702",
+        "BF-CYB-M800-0295",
+        "BF-CYB-S800-0838"
+      ],
+      "selected_count": 12,
+      "s3_count": 0,
+      "s3_allowed": false,
+      "compliance": {
+        "session_size_met": true,
+        "min_source_catalogs": {
+          "required": 3,
+          "actual": 4,
+          "ok": true
+        },
+        "min_primary_categories": {
+          "required": 5,
+          "actual": 5,
+          "ok": true
+        },
+        "min_causal_axes": {
+          "required": 4,
+          "actual": 8,
+          "ok": true
+        },
+        "max_per_primary_category": {
+          "limit": 3,
+          "ok": true
+        },
+        "max_per_source_family": {
+          "limit": 2,
+          "ok": true
+        },
+        "max_unknown_causal_axis": {
+          "limit": 2,
+          "ok": true
+        },
+        "mandatory_stages": {
+          "required": [
+            "ROMPER",
+            "DIVERGIR",
+            "ATACAR",
+            "EVALUAR"
+          ],
+          "actual": [
+            "ATACAR",
+            "DIVERGIR",
+            "EVALUAR",
+            "ROMPER"
+          ],
+          "ok": true
+        },
+        "s3_cap": {
+          "cap": 0,
+          "actual": 0,
+          "ok": true
+        }
+      },
+      "tie_sets": [
+        [
+          "BF-CYB-M800-0567",
+          "BF-CYB-M800-0576"
+        ],
+        [
+          "BF-CYB-M800-0545",
+          "BF-CYB-M800-0552"
+        ],
+        [
+          "BF-CYB-L600-1534",
+          "BF-CYB-L600-1536"
+        ],
+        [
+          "BF-CYB-L600-1501",
+          "BF-CYB-R1000-0461"
+        ],
+        [
+          "BF-CYB-L600-1516",
+          "BF-CYB-L600-1517",
+          "BF-CYB-L600-1518"
+        ],
+        [
+          "BF-CYB-M800-0312",
+          "BF-CYB-M800-0657"
+        ],
+        [
+          "BF-CYB-L600-1541",
+          "BF-CYB-L600-1549",
+          "BF-CYB-L600-1550"
+        ],
+        [
+          "BF-CYB-L600-1524",
+          "BF-CYB-L600-1526",
+          "BF-CYB-L600-1531",
+          "BF-CYB-L600-1538"
+        ],
+        [
+          "BF-CYB-M800-0544",
+          "BF-CYB-M800-0549",
+          "BF-CYB-M800-0553"
+        ],
+        [
+          "BF-CYB-M800-0293",
+          "BF-CYB-R1000-0793",
+          "BF-CYB-R1000-0799",
+          "BF-CYB-R1000-0844",
+          "BF-CYB-S800-0842",
+          "BF-CYB-S800-0843",
+          "BF-CYB-S800-0846"
+        ],
+        [
+          "BF-CYB-M800-0541",
+          "BF-CYB-M800-0547",
+          "BF-CYB-M800-0550",
+          "BF-CYB-M800-0551",
+          "BF-CYB-R1000-0668"
+        ],
+        [
+          "BF-CYB-L600-1141",
+          "BF-CYB-L600-1144",
+          "BF-CYB-L600-1148",
+          "BF-CYB-M800-0303",
+          "BF-CYB-M800-0306",
+          "BF-CYB-M800-0316"
+        ],
+        [
+          "BF-CYB-R1000-0792",
+          "BF-CYB-R1000-0795",
+          "BF-CYB-R1000-0797",
+          "BF-CYB-R1000-0798",
+          "BF-CYB-R1000-0800",
+          "BF-CYB-S800-0350",
+          "BF-CYB-S800-0847"
+        ],
+        [
+          "BF-CYB-M800-0557",
+          "BF-CYB-R1000-0414"
+        ],
+        [
+          "BF-CYB-M800-0030",
+          "BF-CYB-S800-0881"
+        ],
+        [
+          "BF-CYB-M800-0289",
+          "BF-CYB-M800-0290",
+          "BF-CYB-M800-0292",
+          "BF-CYB-M800-0294",
+          "BF-CYB-M800-0298",
+          "BF-CYB-M800-0300"
+        ],
+        [
+          "BF-CYB-R1000-0783",
+          "BF-CYB-R1000-0790",
+          "BF-CYB-S800-0692"
+        ],
+        [
+          "BF-CYB-M800-0603",
+          "BF-CYB-R1000-0375"
+        ],
+        [
+          "BF-CYB-S800-0751",
+          "BF-CYB-S800-0769"
+        ],
+        [
+          "BF-CYB-M800-0375",
+          "BF-CYB-S800-0359",
+          "BF-CYB-S800-0472"
+        ],
+        [
+          "BF-CYB-R1000-0363",
+          "BF-CYB-R1000-0511",
+          "BF-CYB-S800-0384",
+          "BF-CYB-S800-0393",
+          "BF-CYB-S800-0400"
+        ],
+        [
+          "BF-CYB-S800-0810",
+          "BF-CYB-S800-0840",
+          "BF-CYB-S800-0844",
+          "BF-CYB-S800-0845",
+          "BF-CYB-S800-0848",
+          "BF-CYB-S800-0849"
+        ],
+        [
+          "BF-CYB-M800-0004",
+          "BF-CYB-M800-0034",
+          "BF-CYB-R1000-0408",
+          "BF-CYB-R1000-0409",
+          "BF-CYB-R1000-0420",
+          "BF-CYB-R1000-0833",
+          "BF-CYB-S800-0821",
+          "BF-CYB-S800-0829",
+          "BF-CYB-S800-0831",
+          "BF-CYB-S800-0832",
+          "BF-CYB-S800-0836",
+          "BF-CYB-S800-0865",
+          "BF-CYB-S800-0880",
+          "BF-CYB-S800-0883",
+          "BF-CYB-S800-0893",
+          "BF-CYB-S800-0895",
+          "BF-CYB-S800-0900"
+        ],
+        [
+          "BF-CYB-R1000-0220",
+          "BF-CYB-R1000-0221"
+        ],
+        [
+          "BF-CYB-M800-0007",
+          "BF-CYB-R1000-0065",
+          "BF-CYB-R1000-0572",
+          "BF-CYB-S800-0828"
+        ],
+        [
+          "BF-CYB-S800-0872",
+          "BF-CYB-S800-0873",
+          "BF-CYB-S800-0874",
+          "BF-CYB-S800-0878"
+        ],
+        [
+          "BF-CYB-R1000-0952",
+          "BF-CYB-R1000-0953",
+          "BF-CYB-R1000-0970",
+          "BF-CYB-R1000-0974",
+          "BF-CYB-S800-0801",
+          "BF-CYB-S800-0802",
+          "BF-CYB-S800-0804",
+          "BF-CYB-S800-0806",
+          "BF-CYB-S800-0811",
+          "BF-CYB-S800-0814",
+          "BF-CYB-S800-0818",
+          "BF-CYB-S800-0871",
+          "BF-CYB-S800-0875",
+          "BF-CYB-S800-0876",
+          "BF-CYB-S800-0877",
+          "BF-CYB-S800-0879"
+        ],
+        [
+          "BF-CYB-R1000-0684",
+          "BF-CYB-S800-0353"
+        ],
+        [
+          "BF-CYB-S800-0354",
+          "BF-CYB-S800-0355",
+          "BF-CYB-S800-0385"
+        ],
+        [
+          "BF-CYB-R1000-0699",
+          "BF-CYB-S800-0707"
+        ],
+        [
+          "BF-CYB-L600-1674",
+          "BF-CYB-R1000-0299"
+        ],
+        [
+          "BF-CYB-R1000-0360",
+          "BF-CYB-S800-0225"
+        ],
+        [
+          "BF-CYB-L600-1239",
+          "BF-CYB-R1000-0367",
+          "BF-CYB-S800-0282"
+        ],
+        [
+          "BF-CYB-R1000-0883",
+          "BF-CYB-S800-1000"
+        ],
+        [
+          "BF-CYB-L600-1315",
+          "BF-CYB-S800-0841"
+        ],
+        [
+          "BF-CYB-L600-1199",
+          "BF-CYB-L600-1676",
+          "BF-CYB-L600-1696"
+        ],
+        [
+          "BF-CYB-S800-0201",
+          "BF-CYB-S800-0227",
+          "BF-CYB-S800-0255",
+          "BF-CYB-S800-0266"
+        ],
+        [
+          "BF-CYB-L600-1176",
+          "BF-CYB-L600-1384",
+          "BF-CYB-M800-0174",
+          "BF-CYB-M800-0345",
+          "BF-CYB-S800-0213",
+          "BF-CYB-S800-0292",
+          "BF-CYB-S800-0328"
+        ],
+        [
+          "BF-CYB-M800-0786",
+          "BF-CYB-S800-0857",
+          "BF-CYB-S800-0859"
+        ],
+        [
+          "BF-CYB-L600-1397",
+          "BF-CYB-M800-0163",
+          "BF-CYB-R1000-0881",
+          "BF-CYB-R1000-0884",
+          "BF-CYB-R1000-0887",
+          "BF-CYB-R1000-0890",
+          "BF-CYB-R1000-0893"
+        ],
+        [
+          "BF-CYB-L600-1666",
+          "BF-CYB-M800-0173"
+        ],
+        [
+          "BF-CYB-M800-0249",
+          "BF-CYB-M800-0309",
+          "BF-CYB-M800-0318"
+        ],
+        [
+          "BF-CYB-R1000-0183",
+          "BF-CYB-S800-0428"
+        ],
+        [
+          "BF-CYB-R1000-0041",
+          "BF-CYB-S800-0420"
+        ],
+        [
+          "BF-CYB-L600-1439",
+          "BF-CYB-S800-0630",
+          "BF-CYB-S800-0670"
+        ],
+        [
+          "BF-CYB-M800-0059",
+          "BF-CYB-M800-0123",
+          "BF-CYB-M800-0164",
+          "BF-CYB-M800-0478"
+        ],
+        [
+          "BF-CYB-L600-1346",
+          "BF-CYB-M800-0311",
+          "BF-CYB-S800-0623"
+        ],
+        [
+          "BF-CYB-L600-1374",
+          "BF-CYB-L600-1552",
+          "BF-CYB-M800-0082"
+        ]
+      ],
+      "tiebreak_rule": "profile score desc, diversity heuristic desc, selection weight desc, blackforge_id asc; operational ordering is not scientific superiority",
+      "failure": null
+    },
+    "2": {
+      "status": "OK",
+      "seed": 2,
+      "session_size": 12,
+      "allowed_tiers": [
+        "essential",
+        "core"
+      ],
+      "profile_used": "hybrid",
+      "selected_ids": [
+        "BF-CYB-M800-0561",
+        "BF-CYB-M800-0566",
+        "BF-CYB-L600-1511",
+        "BF-CYB-L600-1507",
+        "BF-CYB-M800-0554",
+        "BF-CYB-M800-0545",
+        "BF-CYB-R1000-0461",
+        "BF-CYB-M800-0312",
+        "BF-CYB-R1000-0314",
+        "BF-CYB-S800-0702",
+        "BF-CYB-M800-0295",
+        "BF-CYB-S800-0838"
+      ],
+      "selected_count": 12,
+      "s3_count": 0,
+      "s3_allowed": false,
+      "compliance": {
+        "session_size_met": true,
+        "min_source_catalogs": {
+          "required": 3,
+          "actual": 4,
+          "ok": true
+        },
+        "min_primary_categories": {
+          "required": 5,
+          "actual": 5,
+          "ok": true
+        },
+        "min_causal_axes": {
+          "required": 4,
+          "actual": 8,
+          "ok": true
+        },
+        "max_per_primary_category": {
+          "limit": 3,
+          "ok": true
+        },
+        "max_per_source_family": {
+          "limit": 2,
+          "ok": true
+        },
+        "max_unknown_causal_axis": {
+          "limit": 2,
+          "ok": true
+        },
+        "mandatory_stages": {
+          "required": [
+            "ROMPER",
+            "DIVERGIR",
+            "ATACAR",
+            "EVALUAR"
+          ],
+          "actual": [
+            "ATACAR",
+            "DIVERGIR",
+            "EVALUAR",
+            "ROMPER"
+          ],
+          "ok": true
+        },
+        "s3_cap": {
+          "cap": 0,
+          "actual": 0,
+          "ok": true
+        }
+      },
+      "tie_sets": [
+        [
+          "BF-CYB-M800-0567",
+          "BF-CYB-M800-0576"
+        ],
+        [
+          "BF-CYB-M800-0545",
+          "BF-CYB-M800-0552"
+        ],
+        [
+          "BF-CYB-L600-1534",
+          "BF-CYB-L600-1536"
+        ],
+        [
+          "BF-CYB-L600-1501",
+          "BF-CYB-R1000-0461"
+        ],
+        [
+          "BF-CYB-L600-1516",
+          "BF-CYB-L600-1517",
+          "BF-CYB-L600-1518"
+        ],
+        [
+          "BF-CYB-M800-0312",
+          "BF-CYB-M800-0657"
+        ],
+        [
+          "BF-CYB-L600-1541",
+          "BF-CYB-L600-1549",
+          "BF-CYB-L600-1550"
+        ],
+        [
+          "BF-CYB-L600-1524",
+          "BF-CYB-L600-1526",
+          "BF-CYB-L600-1531",
+          "BF-CYB-L600-1538"
+        ],
+        [
+          "BF-CYB-M800-0544",
+          "BF-CYB-M800-0549",
+          "BF-CYB-M800-0553"
+        ],
+        [
+          "BF-CYB-M800-0293",
+          "BF-CYB-R1000-0793",
+          "BF-CYB-R1000-0799",
+          "BF-CYB-R1000-0844",
+          "BF-CYB-S800-0842",
+          "BF-CYB-S800-0843",
+          "BF-CYB-S800-0846"
+        ],
+        [
+          "BF-CYB-M800-0541",
+          "BF-CYB-M800-0547",
+          "BF-CYB-M800-0550",
+          "BF-CYB-M800-0551",
+          "BF-CYB-R1000-0668"
+        ],
+        [
+          "BF-CYB-L600-1141",
+          "BF-CYB-L600-1144",
+          "BF-CYB-L600-1148",
+          "BF-CYB-M800-0303",
+          "BF-CYB-M800-0306",
+          "BF-CYB-M800-0316"
+        ],
+        [
+          "BF-CYB-R1000-0792",
+          "BF-CYB-R1000-0795",
+          "BF-CYB-R1000-0797",
+          "BF-CYB-R1000-0798",
+          "BF-CYB-R1000-0800",
+          "BF-CYB-S800-0350",
+          "BF-CYB-S800-0847"
+        ],
+        [
+          "BF-CYB-M800-0557",
+          "BF-CYB-R1000-0414"
+        ],
+        [
+          "BF-CYB-M800-0030",
+          "BF-CYB-S800-0881"
+        ],
+        [
+          "BF-CYB-M800-0289",
+          "BF-CYB-M800-0290",
+          "BF-CYB-M800-0292",
+          "BF-CYB-M800-0294",
+          "BF-CYB-M800-0298",
+          "BF-CYB-M800-0300"
+        ],
+        [
+          "BF-CYB-R1000-0783",
+          "BF-CYB-R1000-0790",
+          "BF-CYB-S800-0692"
+        ],
+        [
+          "BF-CYB-M800-0603",
+          "BF-CYB-R1000-0375"
+        ],
+        [
+          "BF-CYB-S800-0751",
+          "BF-CYB-S800-0769"
+        ],
+        [
+          "BF-CYB-M800-0375",
+          "BF-CYB-S800-0359",
+          "BF-CYB-S800-0472"
+        ],
+        [
+          "BF-CYB-R1000-0363",
+          "BF-CYB-R1000-0511",
+          "BF-CYB-S800-0384",
+          "BF-CYB-S800-0393",
+          "BF-CYB-S800-0400"
+        ],
+        [
+          "BF-CYB-S800-0810",
+          "BF-CYB-S800-0840",
+          "BF-CYB-S800-0844",
+          "BF-CYB-S800-0845",
+          "BF-CYB-S800-0848",
+          "BF-CYB-S800-0849"
+        ],
+        [
+          "BF-CYB-M800-0004",
+          "BF-CYB-M800-0034",
+          "BF-CYB-R1000-0408",
+          "BF-CYB-R1000-0409",
+          "BF-CYB-R1000-0420",
+          "BF-CYB-R1000-0833",
+          "BF-CYB-S800-0821",
+          "BF-CYB-S800-0829",
+          "BF-CYB-S800-0831",
+          "BF-CYB-S800-0832",
+          "BF-CYB-S800-0836",
+          "BF-CYB-S800-0865",
+          "BF-CYB-S800-0880",
+          "BF-CYB-S800-0883",
+          "BF-CYB-S800-0893",
+          "BF-CYB-S800-0895",
+          "BF-CYB-S800-0900"
+        ],
+        [
+          "BF-CYB-R1000-0220",
+          "BF-CYB-R1000-0221"
+        ],
+        [
+          "BF-CYB-M800-0007",
+          "BF-CYB-R1000-0065",
+          "BF-CYB-R1000-0572",
+          "BF-CYB-S800-0828"
+        ],
+        [
+          "BF-CYB-S800-0872",
+          "BF-CYB-S800-0873",
+          "BF-CYB-S800-0874",
+          "BF-CYB-S800-0878"
+        ],
+        [
+          "BF-CYB-R1000-0952",
+          "BF-CYB-R1000-0953",
+          "BF-CYB-R1000-0970",
+          "BF-CYB-R1000-0974",
+          "BF-CYB-S800-0801",
+          "BF-CYB-S800-0802",
+          "BF-CYB-S800-0804",
+          "BF-CYB-S800-0806",
+          "BF-CYB-S800-0811",
+          "BF-CYB-S800-0814",
+          "BF-CYB-S800-0818",
+          "BF-CYB-S800-0871",
+          "BF-CYB-S800-0875",
+          "BF-CYB-S800-0876",
+          "BF-CYB-S800-0877",
+          "BF-CYB-S800-0879"
+        ],
+        [
+          "BF-CYB-R1000-0684",
+          "BF-CYB-S800-0353"
+        ],
+        [
+          "BF-CYB-S800-0354",
+          "BF-CYB-S800-0355",
+          "BF-CYB-S800-0385"
+        ],
+        [
+          "BF-CYB-R1000-0699",
+          "BF-CYB-S800-0707"
+        ],
+        [
+          "BF-CYB-L600-1674",
+          "BF-CYB-R1000-0299"
+        ],
+        [
+          "BF-CYB-R1000-0360",
+          "BF-CYB-S800-0225"
+        ],
+        [
+          "BF-CYB-L600-1239",
+          "BF-CYB-R1000-0367",
+          "BF-CYB-S800-0282"
+        ],
+        [
+          "BF-CYB-R1000-0883",
+          "BF-CYB-S800-1000"
+        ],
+        [
+          "BF-CYB-L600-1315",
+          "BF-CYB-S800-0841"
+        ],
+        [
+          "BF-CYB-L600-1199",
+          "BF-CYB-L600-1676",
+          "BF-CYB-L600-1696"
+        ],
+        [
+          "BF-CYB-S800-0201",
+          "BF-CYB-S800-0227",
+          "BF-CYB-S800-0255",
+          "BF-CYB-S800-0266"
+        ],
+        [
+          "BF-CYB-L600-1176",
+          "BF-CYB-L600-1384",
+          "BF-CYB-M800-0174",
+          "BF-CYB-M800-0345",
+          "BF-CYB-S800-0213",
+          "BF-CYB-S800-0292",
+          "BF-CYB-S800-0328"
+        ],
+        [
+          "BF-CYB-M800-0786",
+          "BF-CYB-S800-0857",
+          "BF-CYB-S800-0859"
+        ],
+        [
+          "BF-CYB-L600-1397",
+          "BF-CYB-M800-0163",
+          "BF-CYB-R1000-0881",
+          "BF-CYB-R1000-0884",
+          "BF-CYB-R1000-0887",
+          "BF-CYB-R1000-0890",
+          "BF-CYB-R1000-0893"
+        ],
+        [
+          "BF-CYB-L600-1666",
+          "BF-CYB-M800-0173"
+        ],
+        [
+          "BF-CYB-M800-0249",
+          "BF-CYB-M800-0309",
+          "BF-CYB-M800-0318"
+        ],
+        [
+          "BF-CYB-R1000-0183",
+          "BF-CYB-S800-0428"
+        ],
+        [
+          "BF-CYB-R1000-0041",
+          "BF-CYB-S800-0420"
+        ],
+        [
+          "BF-CYB-L600-1439",
+          "BF-CYB-S800-0630",
+          "BF-CYB-S800-0670"
+        ],
+        [
+          "BF-CYB-M800-0059",
+          "BF-CYB-M800-0123",
+          "BF-CYB-M800-0164",
+          "BF-CYB-M800-0478"
+        ],
+        [
+          "BF-CYB-L600-1346",
+          "BF-CYB-M800-0311",
+          "BF-CYB-S800-0623"
+        ],
+        [
+          "BF-CYB-L600-1374",
+          "BF-CYB-L600-1552",
+          "BF-CYB-M800-0082"
+        ]
+      ],
+      "tiebreak_rule": "profile score desc, diversity heuristic desc, selection weight desc, blackforge_id asc; operational ordering is not scientific superiority",
+      "failure": null
+    },
+    "3": {
+      "status": "OK",
+      "seed": 3,
+      "session_size": 12,
+      "allowed_tiers": [
+        "essential",
+        "core"
+      ],
+      "profile_used": "hybrid",
+      "selected_ids": [
+        "BF-CYB-M800-0561",
+        "BF-CYB-M800-0566",
+        "BF-CYB-L600-1511",
+        "BF-CYB-L600-1507",
+        "BF-CYB-M800-0554",
+        "BF-CYB-M800-0545",
+        "BF-CYB-R1000-0461",
+        "BF-CYB-M800-0312",
+        "BF-CYB-R1000-0314",
+        "BF-CYB-S800-0702",
+        "BF-CYB-M800-0295",
+        "BF-CYB-S800-0838"
+      ],
+      "selected_count": 12,
+      "s3_count": 0,
+      "s3_allowed": false,
+      "compliance": {
+        "session_size_met": true,
+        "min_source_catalogs": {
+          "required": 3,
+          "actual": 4,
+          "ok": true
+        },
+        "min_primary_categories": {
+          "required": 5,
+          "actual": 5,
+          "ok": true
+        },
+        "min_causal_axes": {
+          "required": 4,
+          "actual": 8,
+          "ok": true
+        },
+        "max_per_primary_category": {
+          "limit": 3,
+          "ok": true
+        },
+        "max_per_source_family": {
+          "limit": 2,
+          "ok": true
+        },
+        "max_unknown_causal_axis": {
+          "limit": 2,
+          "ok": true
+        },
+        "mandatory_stages": {
+          "required": [
+            "ROMPER",
+            "DIVERGIR",
+            "ATACAR",
+            "EVALUAR"
+          ],
+          "actual": [
+            "ATACAR",
+            "DIVERGIR",
+            "EVALUAR",
+            "ROMPER"
+          ],
+          "ok": true
+        },
+        "s3_cap": {
+          "cap": 0,
+          "actual": 0,
+          "ok": true
+        }
+      },
+      "tie_sets": [
+        [
+          "BF-CYB-M800-0567",
+          "BF-CYB-M800-0576"
+        ],
+        [
+          "BF-CYB-M800-0545",
+          "BF-CYB-M800-0552"
+        ],
+        [
+          "BF-CYB-L600-1534",
+          "BF-CYB-L600-1536"
+        ],
+        [
+          "BF-CYB-L600-1501",
+          "BF-CYB-R1000-0461"
+        ],
+        [
+          "BF-CYB-L600-1516",
+          "BF-CYB-L600-1517",
+          "BF-CYB-L600-1518"
+        ],
+        [
+          "BF-CYB-M800-0312",
+          "BF-CYB-M800-0657"
+        ],
+        [
+          "BF-CYB-L600-1541",
+          "BF-CYB-L600-1549",
+          "BF-CYB-L600-1550"
+        ],
+        [
+          "BF-CYB-L600-1524",
+          "BF-CYB-L600-1526",
+          "BF-CYB-L600-1531",
+          "BF-CYB-L600-1538"
+        ],
+        [
+          "BF-CYB-M800-0544",
+          "BF-CYB-M800-0549",
+          "BF-CYB-M800-0553"
+        ],
+        [
+          "BF-CYB-M800-0293",
+          "BF-CYB-R1000-0793",
+          "BF-CYB-R1000-0799",
+          "BF-CYB-R1000-0844",
+          "BF-CYB-S800-0842",
+          "BF-CYB-S800-0843",
+          "BF-CYB-S800-0846"
+        ],
+        [
+          "BF-CYB-M800-0541",
+          "BF-CYB-M800-0547",
+          "BF-CYB-M800-0550",
+          "BF-CYB-M800-0551",
+          "BF-CYB-R1000-0668"
+        ],
+        [
+          "BF-CYB-L600-1141",
+          "BF-CYB-L600-1144",
+          "BF-CYB-L600-1148",
+          "BF-CYB-M800-0303",
+          "BF-CYB-M800-0306",
+          "BF-CYB-M800-0316"
+        ],
+        [
+          "BF-CYB-R1000-0792",
+          "BF-CYB-R1000-0795",
+          "BF-CYB-R1000-0797",
+          "BF-CYB-R1000-0798",
+          "BF-CYB-R1000-0800",
+          "BF-CYB-S800-0350",
+          "BF-CYB-S800-0847"
+        ],
+        [
+          "BF-CYB-M800-0557",
+          "BF-CYB-R1000-0414"
+        ],
+        [
+          "BF-CYB-M800-0030",
+          "BF-CYB-S800-0881"
+        ],
+        [
+          "BF-CYB-M800-0289",
+          "BF-CYB-M800-0290",
+          "BF-CYB-M800-0292",
+          "BF-CYB-M800-0294",
+          "BF-CYB-M800-0298",
+          "BF-CYB-M800-0300"
+        ],
+        [
+          "BF-CYB-R1000-0783",
+          "BF-CYB-R1000-0790",
+          "BF-CYB-S800-0692"
+        ],
+        [
+          "BF-CYB-M800-0603",
+          "BF-CYB-R1000-0375"
+        ],
+        [
+          "BF-CYB-S800-0751",
+          "BF-CYB-S800-0769"
+        ],
+        [
+          "BF-CYB-M800-0375",
+          "BF-CYB-S800-0359",
+          "BF-CYB-S800-0472"
+        ],
+        [
+          "BF-CYB-R1000-0363",
+          "BF-CYB-R1000-0511",
+          "BF-CYB-S800-0384",
+          "BF-CYB-S800-0393",
+          "BF-CYB-S800-0400"
+        ],
+        [
+          "BF-CYB-S800-0810",
+          "BF-CYB-S800-0840",
+          "BF-CYB-S800-0844",
+          "BF-CYB-S800-0845",
+          "BF-CYB-S800-0848",
+          "BF-CYB-S800-0849"
+        ],
+        [
+          "BF-CYB-M800-0004",
+          "BF-CYB-M800-0034",
+          "BF-CYB-R1000-0408",
+          "BF-CYB-R1000-0409",
+          "BF-CYB-R1000-0420",
+          "BF-CYB-R1000-0833",
+          "BF-CYB-S800-0821",
+          "BF-CYB-S800-0829",
+          "BF-CYB-S800-0831",
+          "BF-CYB-S800-0832",
+          "BF-CYB-S800-0836",
+          "BF-CYB-S800-0865",
+          "BF-CYB-S800-0880",
+          "BF-CYB-S800-0883",
+          "BF-CYB-S800-0893",
+          "BF-CYB-S800-0895",
+          "BF-CYB-S800-0900"
+        ],
+        [
+          "BF-CYB-R1000-0220",
+          "BF-CYB-R1000-0221"
+        ],
+        [
+          "BF-CYB-M800-0007",
+          "BF-CYB-R1000-0065",
+          "BF-CYB-R1000-0572",
+          "BF-CYB-S800-0828"
+        ],
+        [
+          "BF-CYB-S800-0872",
+          "BF-CYB-S800-0873",
+          "BF-CYB-S800-0874",
+          "BF-CYB-S800-0878"
+        ],
+        [
+          "BF-CYB-R1000-0952",
+          "BF-CYB-R1000-0953",
+          "BF-CYB-R1000-0970",
+          "BF-CYB-R1000-0974",
+          "BF-CYB-S800-0801",
+          "BF-CYB-S800-0802",
+          "BF-CYB-S800-0804",
+          "BF-CYB-S800-0806",
+          "BF-CYB-S800-0811",
+          "BF-CYB-S800-0814",
+          "BF-CYB-S800-0818",
+          "BF-CYB-S800-0871",
+          "BF-CYB-S800-0875",
+          "BF-CYB-S800-0876",
+          "BF-CYB-S800-0877",
+          "BF-CYB-S800-0879"
+        ],
+        [
+          "BF-CYB-R1000-0684",
+          "BF-CYB-S800-0353"
+        ],
+        [
+          "BF-CYB-S800-0354",
+          "BF-CYB-S800-0355",
+          "BF-CYB-S800-0385"
+        ],
+        [
+          "BF-CYB-R1000-0699",
+          "BF-CYB-S800-0707"
+        ],
+        [
+          "BF-CYB-L600-1674",
+          "BF-CYB-R1000-0299"
+        ],
+        [
+          "BF-CYB-R1000-0360",
+          "BF-CYB-S800-0225"
+        ],
+        [
+          "BF-CYB-L600-1239",
+          "BF-CYB-R1000-0367",
+          "BF-CYB-S800-0282"
+        ],
+        [
+          "BF-CYB-R1000-0883",
+          "BF-CYB-S800-1000"
+        ],
+        [
+          "BF-CYB-L600-1315",
+          "BF-CYB-S800-0841"
+        ],
+        [
+          "BF-CYB-L600-1199",
+          "BF-CYB-L600-1676",
+          "BF-CYB-L600-1696"
+        ],
+        [
+          "BF-CYB-S800-0201",
+          "BF-CYB-S800-0227",
+          "BF-CYB-S800-0255",
+          "BF-CYB-S800-0266"
+        ],
+        [
+          "BF-CYB-L600-1176",
+          "BF-CYB-L600-1384",
+          "BF-CYB-M800-0174",
+          "BF-CYB-M800-0345",
+          "BF-CYB-S800-0213",
+          "BF-CYB-S800-0292",
+          "BF-CYB-S800-0328"
+        ],
+        [
+          "BF-CYB-M800-0786",
+          "BF-CYB-S800-0857",
+          "BF-CYB-S800-0859"
+        ],
+        [
+          "BF-CYB-L600-1397",
+          "BF-CYB-M800-0163",
+          "BF-CYB-R1000-0881",
+          "BF-CYB-R1000-0884",
+          "BF-CYB-R1000-0887",
+          "BF-CYB-R1000-0890",
+          "BF-CYB-R1000-0893"
+        ],
+        [
+          "BF-CYB-L600-1666",
+          "BF-CYB-M800-0173"
+        ],
+        [
+          "BF-CYB-M800-0249",
+          "BF-CYB-M800-0309",
+          "BF-CYB-M800-0318"
+        ],
+        [
+          "BF-CYB-R1000-0183",
+          "BF-CYB-S800-0428"
+        ],
+        [
+          "BF-CYB-R1000-0041",
+          "BF-CYB-S800-0420"
+        ],
+        [
+          "BF-CYB-L600-1439",
+          "BF-CYB-S800-0630",
+          "BF-CYB-S800-0670"
+        ],
+        [
+          "BF-CYB-M800-0059",
+          "BF-CYB-M800-0123",
+          "BF-CYB-M800-0164",
+          "BF-CYB-M800-0478"
+        ],
+        [
+          "BF-CYB-L600-1346",
+          "BF-CYB-M800-0311",
+          "BF-CYB-S800-0623"
+        ],
+        [
+          "BF-CYB-L600-1374",
+          "BF-CYB-L600-1552",
+          "BF-CYB-M800-0082"
+        ]
+      ],
+      "tiebreak_rule": "profile score desc, diversity heuristic desc, selection weight desc, blackforge_id asc; operational ordering is not scientific superiority",
+      "failure": null
+    }
+  },
+  "failing_case": {
+    "status": "FAILED",
+    "seed": 1,
+    "session_size": 9999,
+    "allowed_tiers": [
+      "essential",
+      "core"
+    ],
+    "profile_used": "hybrid",
+    "selected_ids": [],
+    "selected_count": 0,
+    "s3_count": 0,
+    "s3_allowed": false,
+    "compliance": {},
+    "tie_sets": [],
+    "tiebreak_rule": "profile score desc, diversity heuristic desc, selection weight desc, blackforge_id asc; operational ordering is not scientific superiority",
+    "failure": {
+      "status": "FAILED",
+      "failed_quota": "session_size",
+      "reason": "El pool elegible es menor que session_size; no se puede cumplir la cuota.",
+      "detail": {
+        "eligible_pool": 252,
+        "requested": 9999
+      }
+    }
+  },
+  "contracts_checked": [
+    "same seed -> same ids+order",
+    "different seed keeps quotas",
+    "12 elements default",
+    ">=3 sources / >=5 primary categories / >=4 causal axes",
+    "max per primary category (3) / family (2) / unknown axis (2)",
+    "0 S3 by default; rejected without approval; max 1 with full approval",
+    "research only with explicit mode",
+    "archive never selectable",
+    "structured SelectionFailure when quota impossible"
+  ]
+}
