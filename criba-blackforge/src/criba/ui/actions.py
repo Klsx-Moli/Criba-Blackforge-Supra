@@ -1635,6 +1635,8 @@ def _on_supra_vertical_done(win: Any, report: dict[str, Any]) -> None:
         )
         candidates.output_tabs.setCurrentWidget(candidates.supra_output)
         candidates.show_state_only()
+        if scroller is not None:
+            scroller.ensureWidgetVisible(r["ideaTitle"], 12, 12)
     _activity(
         win,
         "cyan",
