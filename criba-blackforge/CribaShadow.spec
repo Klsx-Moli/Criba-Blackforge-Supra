@@ -45,6 +45,7 @@ a = Analysis(
         # Shadow UI: modulos sueltos, no visibles para el analisis estatico
         "shadow_window",
         "shadow_context",
+        "shadow_bundle_probe",  # opt-in isolated EXE end-to-end CI probe
         "SHADOW_BINDINGS",
         "SHADOW_BINDINGS.bindings",
         # SUPRA completo: el exe arranca el servidor real
