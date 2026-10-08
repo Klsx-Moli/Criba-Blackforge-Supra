@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import math
+import os
 import random
 from pathlib import Path
 from typing import Any
@@ -23,6 +24,7 @@ from loading_indicator import LoadingIndicator
 from PySide6.QtCore import QPoint, QPointF, QRectF, QSize, Qt
 from PySide6.QtGui import (
     QColor,
+    QGuiApplication,
     QIcon,
     QLinearGradient,
     QPainter,
@@ -518,7 +520,7 @@ class SidebarWidget(QWidget):
     def __init__(self, win: ShadowWindow) -> None:
         super().__init__()
         self.win = win
-        self.setFixedWidth(264)
+        self.setFixedWidth(194 if getattr(win, "_compact_layout", False) else 264)
         lay = QVBoxLayout(self)
         lay.setContentsMargins(0, 0, 0, 0)
         lay.setSpacing(0)
@@ -581,12 +583,12 @@ class SidebarWidget(QWidget):
         # Paisaje real (recorte de la referencia) + tarjeta BLACKFORGE encima,
         # abajo: composición exacta de la referencia.
         bottom = QWidget()
-        bottom.setFixedHeight(381)
+        bottom.setFixedHeight(215 if getattr(self.win, "_compact_layout", False) else 381)
         bottom_lay = QGridLayout(bottom)
         bottom_lay.setContentsMargins(0, 0, 0, 0)
         bottom_lay.setSpacing(0)
         landscape = QLabel()
-        landscape.setPixmap(_landscape_pixmap(264, 381))
+        landscape.setPixmap(_landscape_pixmap(194, 215) if getattr(self.win, "_compact_layout", False) else _landscape_pixmap(264, 381))
         landscape.setScaledContents(True)
         bottom_lay.addWidget(landscape, 0, 0)
 
@@ -1484,8 +1486,20 @@ class ShadowWindow(QMainWindow):
         super().__init__()
         self.setWindowTitle(_t("shadow.title"))
         bind_callback(lambda: self.setWindowTitle(_t("shadow.title")))
-        self.setMinimumSize(1360, 768)
-        self.resize(1680, 1050)
+        screen = QGuiApplication.primaryScreen()
+        available_width = screen.availableGeometry().width() if screen else 1680
+        # A Windows CI desktop may actually have only 1024px. Avoid a forced
+        # 1360px minimum that silently clips the only results panel.
+        self._compact_layout = (
+            os.environ.get("QT_QPA_PLATFORM") != "offscreen"
+            and available_width < 1360
+        )
+        if self._compact_layout:
+            self.setMinimumSize(980, 650)
+            self.resize(1024, 700)
+        else:
+            self.setMinimumSize(1360, 768)
+            self.resize(1680, 1050)
         self.setStyleSheet(build_shadow_qss())
 
         # Campana de notificaciones: estado REAL de la sesión (la actividad de
@@ -1541,24 +1555,25 @@ class ShadowWindow(QMainWindow):
         center_scroll.setWidgetResizable(True)
         self.candidates = CandidatesWidget(self)
         center_scroll.setWidget(self.candidates)
+        self.candidates_scroll = center_scroll
         content_splitter.addWidget(center_scroll)
         right_scroll = QScrollArea()
         right_scroll.setWidgetResizable(True)
         self.right_panel = RightPanelWidget(self)
         right_scroll.setWidget(self.right_panel)
         content_splitter.addWidget(right_scroll)
-        content_splitter.setSizes([880, 500])
+        content_splitter.setSizes([490, 315] if self._compact_layout else [880, 500])
         # Proporción de la referencia: centro ancho, panel derecho acotado
         # (si no, el panel derecho se queda con el espacio y el centro desborda).
         content_splitter.setStretchFactor(0, 1)
         content_splitter.setStretchFactor(1, 0)
-        right_scroll.setMaximumWidth(520)
+        right_scroll.setMaximumWidth(380 if self._compact_layout else 520)
         right_lay.addWidget(content_splitter, stretch=1)
 
         self.footer = FooterWidget(self)
         right_lay.addWidget(self.footer)
         main_splitter.addWidget(right_side)
-        main_splitter.setSizes([200, 1160])
+        main_splitter.setSizes([194, 830] if self._compact_layout else [200, 1160])
         self.setCentralWidget(main_splitter)
 
         # Adaptador de compatibilidad (capa permitida):
