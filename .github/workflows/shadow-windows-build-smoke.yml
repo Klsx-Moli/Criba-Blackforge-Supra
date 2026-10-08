@@ -1,9 +1,9 @@
 name: Shadow Windows Build Smoke
 
 on:
-  push:
+  pull_request:
     branches:
-      - chatgpt/shadow-supra-reliability-20261008
+      - codex/interpreter-hardening-20261004
 
 permissions:
   contents: read
@@ -15,6 +15,7 @@ concurrency:
 jobs:
   windows-shadow:
     name: Build + isolated CribaShadow.exe smoke
+    if: github.head_ref == 'chatgpt/shadow-supra-reliability-20261008'
     runs-on: windows-2025
     timeout-minutes: 25
     defaults:
