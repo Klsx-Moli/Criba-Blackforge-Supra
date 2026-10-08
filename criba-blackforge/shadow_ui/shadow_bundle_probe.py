@@ -53,6 +53,22 @@ def verify_rendered_image(window: Any, destination: Path) -> dict[str, Any]:
     }
 
 
+def restored_provenance_is_honest(summary: str) -> bool:
+    """Accept a disk GET OR a truthful cache GET with the durable copy checked.
+
+    SUPRA's LIST can warm the cache before the subsequent GET during reload;
+    after restart the authoritative path is still tested against the disk
+    artifact. Reject claims that mislabel cache as direct disk provenance.
+    """
+    if "Resultado PREVIO recuperado mediante GET" not in summary:
+        return False
+    if "la caché del proceso SUPRA" in summary:
+        return "copia durable verificada contra la caché" in summary
+    if "el estado persistido" in summary:
+        return "copia durable verificada desde el artefacto" in summary
+    return False
+
+
 def _read_project(endpoint: str, project_id: str) -> dict[str, Any]:
     url = endpoint.rstrip("/") + "/api/v1/projects/" + project_id
     with urllib.request.urlopen(url, timeout=8) as response:
@@ -150,7 +166,7 @@ class BundleProbe(QObject):
                 if title != f"SUPRA recuperado · {project_id}":
                     raise RuntimeError(f"Second process did not restore the actual project: {title!r}")
                 summary = self.window.refs["ideaSummary"].text()
-                if "estado persistido" not in summary or "Resultado PREVIO" not in summary:
+                if not restored_provenance_is_honest(summary):
                     raise RuntimeError(f"UI failed to report restored provenance: {summary}")
                 self.validate_project(project_id, restoring=True)
                 self.screenshot("restored")
