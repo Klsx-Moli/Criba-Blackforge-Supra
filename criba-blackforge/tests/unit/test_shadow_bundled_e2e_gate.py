@@ -73,3 +73,29 @@ def test_mutation_cannot_make_bundle_gate_pass(mutation):
         b["actual_exit_code"] = 2
     verdict = summarize(a, b)
     assert verdict["status"] == "BUNDLED_E2E_FAIL"
+
+
+def test_restart_provenance_accepts_only_honest_sources():
+    from pathlib import Path
+    import sys
+
+    shadow = Path(__file__).resolve().parents[2] / "shadow_ui"
+    if str(shadow) not in sys.path:
+        sys.path.insert(0, str(shadow))
+    from shadow_bundle_probe import restored_provenance_is_honest
+
+    prefix = "Resultado PREVIO recuperado mediante GET de "
+    assert restored_provenance_is_honest(
+        prefix + "la caché del proceso SUPRA (copia durable sin verificar)"
+        + " · copia durable verificada contra la caché"
+    )
+    assert restored_provenance_is_honest(
+        prefix + "el estado persistido · copia durable verificada desde el artefacto"
+    )
+    for invalid in (
+        prefix + "la caché del proceso SUPRA · copia durable AUSENTE",
+        prefix + "el estado persistido · copia durable verificada contra la caché",
+        prefix + "la caché del proceso SUPRA · copia durable verificada desde el artefacto",
+        "Copia recuperada sin GET",
+    ):
+        assert not restored_provenance_is_honest(invalid)
