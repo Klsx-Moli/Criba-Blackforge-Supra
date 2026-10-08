@@ -62,14 +62,14 @@ def evaluate_pairs(manifest: dict[str, Any], reviews: dict[str, Any]) -> dict[st
         case_id = _id(item.get("case_id"), "case_id")
         _require(case_id not in case_map, f"duplicate case_id: {case_id}")
         split = item.get("split")
-        _require(split in SPLITS, f"{case_id}: invalid split")
+        _require(isinstance(split, str) and split in SPLITS, f"{case_id}: invalid split")
         domain = _id(item.get("domain"), f"{case_id}.domain")
         _require(bool(domain), "domain required")
         arms = item.get("arms")
         _require(isinstance(arms, dict) and set(arms) == {"A", "B"}, f"{case_id}: must contain A and B")
         for key in ("A", "B"):
             _require(isinstance(arms[key], dict), f"{case_id}: {key} must be object")
-            _require(arms[key].get("system") in ARM_LABELS, f"{case_id}: invalid system")
+            _require(isinstance(arms[key].get("system"), str) and arms[key]["system"] in ARM_LABELS, f"{case_id}: invalid system")
             _sha(arms[key].get("artifact_sha256"), f"{case_id}.{key}.artifact_sha256")
         _require({arms["A"]["system"], arms["B"]["system"]} == ARM_LABELS, f"{case_id}: both comparison systems required")
         fingerprint = tuple(sorted([arms["A"]["artifact_sha256"], arms["B"]["artifact_sha256"]]))
@@ -88,7 +88,7 @@ def evaluate_pairs(manifest: dict[str, Any], reviews: dict[str, Any]) -> dict[st
         _require((case_id, reviewer) not in review_owners, f"{case_id}: duplicate reviewer {reviewer}")
         review_owners.add((case_id, reviewer))
         choice = row.get("choice")
-        _require(choice in CHOICES, f"{case_id}: invalid choice")
+        _require(isinstance(choice, str) and choice in CHOICES, f"{case_id}: invalid choice")
         # A self-declaration is not evidence of blinding, but unblinded
         # reviews must not be counted as if they were blinded.
         _require(type(row.get("blind_declared")) is bool, f"{case_id}: blind_declared must be bool")
