@@ -457,16 +457,20 @@ def main() -> int:
         log_path = root / "logs" / SUPRA_LOG_NAME
         log_handle = open(log_path, "a", encoding="utf-8")
 
-        endpoint = os.getenv("SUPRA_ENDPOINT", "http://127.0.0.1:8765").strip()
-        if health_ok(endpoint):
-            os.environ["SUPRA_ENDPOINT"] = endpoint
-            print(f"[{APP_NAME}] SUPRA ya responde en {endpoint}; no se arranca otro.")
+        # An existing SUPRA service may belong to a different application or
+        # user-data directory. Never adopt it merely because it occupies the
+        # default port. Reuse only on explicit opt-in and verified /health.
+        configured_endpoint = os.getenv("SUPRA_ENDPOINT", "").strip()
+        if configured_endpoint and health_ok(configured_endpoint):
+            os.environ["SUPRA_ENDPOINT"] = configured_endpoint
+            print(f"[{APP_NAME}] SUPRA configurado en {configured_endpoint}.")
         else:
+            endpoint = f"http://127.0.0.1:{free_port()}"
             supra = SupraServer(endpoint, root / "supra_state", log_path)
             ok, info = supra.start()
             if not ok:
                 return _fatal("No se pudo arrancar SUPRA", info)
-            print(f"[{APP_NAME}] SUPRA arrancado en {info}")
+            print(f"[{APP_NAME}] SUPRA propio arrancado en {info}")
 
         _startup_trace(root, "supra:ready")
         from criba.ui import actions as ui_actions
