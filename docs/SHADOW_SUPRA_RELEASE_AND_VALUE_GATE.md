@@ -108,3 +108,42 @@ coste de ejecución e intervalos de incertidumbre publicados sin cherry-pick.
   termina correctamente.
 - No verificado por esta rama: build Windows real, observación humana de
   la interfaz, eficacia causal superior, independencia de evaluadores.
+
+## Nueva puerta automatizada: recorrido del ejecutable entre procesos
+
+La rama `chatgpt/shadow-exe-journey-20261008` añade un recorrido de
+*ejecución del EXE real*, separado del smoke de arranque:
+
+```powershell
+uv run --no-sync python scripts/verify_shadow_bundle_journey.py `
+  dist/CribaShadow/CribaShadow.exe --artifacts bundle-verification
+```
+
+En un directorio temporal aislado y sin modelo configurado, el primer proceso
+crea un problema mediante el input real de Shadow, pulsa el botón **Generar
+ideas**, espera al núcleo CRIBA, pulsa el botón **Ejecutar en SUPRA (real)**,
+comprueba el HTTP GET y el receipt de planificación, verifica el archivo
+persistido y pinta capturas de Qt. El proceso debe terminar con código cero.
+El segundo proceso arranca desde cero sobre el mismo directorio aislado,
+restaura por LIST+GET y comprueba proyecto, provenance y la UI. La comparación
+de ambos se rechaza si no coincide el mismo `project_id`, si desaparece el
+archivo, el status o la captura, o si se promociona la recepción a ejecución o
+validación científica.
+
+**No se ejecuta BLACKFORGE**. El probe requiere una ruta de datos temporal
+específica; si se apunta a la carpeta normal del usuario, rechaza arrancar.
+La rama de producción sólo importa ese módulo cuando
+`CRIBASHADOW_BUNDLE_PROBE` está expresamente definido y en caso contrario
+arranca exactamente por la ruta normal.
+
+`bundle-verification/` contiene `journey-report.json`,
+`restore-report.json`, `bundle-e2e-result.json` y capturas PNG de
+`QWidget.grab()`. Son imágenes del *buffer de pintado Qt* en el runner
+Windows, no capturas verificadas del monitor de un usuario. El veredicto
+`BUNDLED_E2E_PASS`, si aparece, sólo acredita la ruta automatizada con
+un backend local real, no revisión visual humana, ausencia de recortes o
+accesibilidad, ni valor novedoso de las ideas.
+
+**Aceptación visible independiente y comparativa LLM:** siguen
+`NOT_VERIFIED` y `NOT_EXECUTED`, respectivamente, hasta que existan pruebas
+correspondientes. No trasladar el PASS técnico al estado científico.
