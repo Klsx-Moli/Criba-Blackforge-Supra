@@ -174,6 +174,14 @@ class BundleProbe(QObject):
         except Exception as exc:
             self.fail(exc)
 
+    def status_on_screen(self) -> bool:
+        scroller = getattr(self.window, "candidates_scroll", None)
+        label = self.window.refs["ideaTitle"]
+        if scroller is None or not label.isVisibleTo(self.window):
+            return False
+        point = label.mapTo(scroller.viewport(), label.rect().center())
+        return bool(scroller.viewport().rect().contains(point))
+
     def validate_project(self, project_id: str, *, restoring: bool) -> None:
         if not project_id.startswith("astram2"):
             raise RuntimeError("project id not issued by canonical M2 flow")
@@ -203,6 +211,9 @@ class BundleProbe(QObject):
         self.report["receipt_execution_status"] = receipt["execution_status"]
         self.report["receipt_scientific_status"] = receipt["scientific_status"]
         self.report["ui_status_visible"] = self.window.refs["ideaEstadoChip"].isVisibleTo(self.window)
+        self.report["status_in_viewport"] = self.status_on_screen()
+        if not self.report["status_in_viewport"]:
+            raise RuntimeError("SUPRA status rendered but outside the visible scroll viewport")
         self.report["provenance_source"] = data.get("status_source", "UNKNOWN")
 
     def complete(self) -> None:
