@@ -214,6 +214,15 @@ class BundleProbe(QObject):
         self.report["status_in_viewport"] = self.status_on_screen()
         if not self.report["status_in_viewport"]:
             raise RuntimeError("SUPRA status rendered but outside the visible scroll viewport")
+        side_status = self.window.right_panel.supra_result_status
+        expected_mode = "SUPRA previo:" if restoring else "SUPRA actual:"
+        if expected_mode not in side_status.text() or "NOT_VALIDATED" not in side_status.text():
+            raise RuntimeError(f"right-panel status missing real SUPRA GET facts: {side_status.text()}")
+        area = self.window.right_panel_scroll
+        point = side_status.mapTo(area.viewport(), side_status.rect().center())
+        self.report["side_status_in_viewport"] = area.viewport().rect().contains(point)
+        if not self.report["side_status_in_viewport"]:
+            raise RuntimeError("SUPRA right-panel status is outside the visible viewport")
         self.report["provenance_source"] = data.get("status_source", "UNKNOWN")
 
     def complete(self) -> None:
