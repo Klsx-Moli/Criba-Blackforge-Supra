@@ -39,3 +39,14 @@ def test_criba_gui_fails_explicitly_when_shadow_not_in_package(monkeypatch, caps
     assert main(["gui"]) == 2
     assert not called
     assert "Shadow" in capsys.readouterr().err
+
+
+def test_legacy_database_flag_does_not_silently_select_wrong_shadow_state(monkeypatch, capsys):
+    def forbidden(*_args, **_kwargs):
+        raise AssertionError("launch must fail before a process is started")
+
+    monkeypatch.setattr(subprocess, "run", forbidden)
+    assert main(["--database", "user-legacy.sqlite3", "gui"]) == 2
+    message = capsys.readouterr().err
+    assert "--database" in message
+    assert "CRIBASHADOW_HOME" in message
