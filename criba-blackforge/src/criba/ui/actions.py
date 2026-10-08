@@ -1389,6 +1389,9 @@ def _on_supra_restore_done(win: Any, report: dict[str, Any]) -> None:
             f"SUPRA previo: {read['status']} · {read['scientific_status']} · "
             f"{_artifact_text(read)}"
         )
+        scroll = getattr(win, "right_panel_scroll", None)
+        if scroll is not None:
+            scroll.ensureWidgetVisible(status_label, 8, 8)
     scroller = getattr(win, "candidates_scroll", None)
     if scroller is not None:
         scroller.ensureWidgetVisible(win.refs["ideaTitle"], 12, 12)
@@ -1613,6 +1616,9 @@ def _on_supra_vertical_done(win: Any, report: dict[str, Any]) -> None:
             f"SUPRA actual: {read['status']} · {read['scientific_status']} · "
             f"{_artifact_text(read)}"
         )
+        scroll = getattr(win, "right_panel_scroll", None)
+        if scroll is not None:
+            scroll.ensureWidgetVisible(status_label, 8, 8)
     r["ideaSummary"].setText(
         f"SUPRA leído de {_provenance_text(read)} ({read['status_source']}): "
         f"status {read['status']} · stage {read['stage']} · "
