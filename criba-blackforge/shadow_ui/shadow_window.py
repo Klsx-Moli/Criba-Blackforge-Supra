@@ -851,7 +851,7 @@ class TopCardsWidget(QWidget):
         self.cand_label.setProperty("count", 0)
         bind_text(self.cand_label, "shadow.candidatos")
         l2.addWidget(self.cand_label)
-        btn_row = QHBoxLayout()
+        btn_row = QVBoxLayout() if getattr(win, "_compact_layout", False) else QHBoxLayout()
         btn_gen = QPushButton("✦ Generar ideas")
         bind_text(btn_gen, "shadow.generar")
         btn_gen.setStyleSheet(f"""
@@ -886,7 +886,7 @@ class TopCardsWidget(QWidget):
         score_row.addWidget(score_label)
         score_val = QLabel("")
         score_val.setStyleSheet(
-            f"font-size: 28px; font-weight: 800; color: {ACCENT}; "
+            f"font-size: {19 if getattr(win, '_compact_layout', False) else 28}px; font-weight: 800; color: {ACCENT}; "
             "background: transparent;"
         )
         self.score_val = score_val
@@ -1360,6 +1360,14 @@ class RightPanelWidget(QWidget):
         note_e2e.setAlignment(Qt.AlignmentFlag.AlignCenter)
         bind_text(note_e2e, "shadow.supra_e2e_nota")
         l1.addWidget(note_e2e)
+        # Distinct visible GET status on the action panel: the long dossier
+        # below the candidate table can be scrolled out of view.
+        self.supra_result_status = QLabel("SUPRA · sin lectura todavía")
+        self.supra_result_status.setWordWrap(True)
+        self.supra_result_status.setStyleSheet(
+            f"font-size: 11px; color: {ACCENT}; background: transparent;"
+        )
+        l1.addWidget(self.supra_result_status)
         lay.addWidget(f1)
 
         # Actividad reciente
