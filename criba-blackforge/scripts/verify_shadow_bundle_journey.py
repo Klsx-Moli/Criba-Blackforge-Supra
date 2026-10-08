@@ -32,6 +32,7 @@ def summarize(journey: dict[str, Any], restore: dict[str, Any]) -> dict[str, Any
         journey.get("status") == PHASES["journey"]
         and restore.get("status") == PHASES["restore"]
         and identity
+        and journey.get("actual_exit_code") == restore.get("actual_exit_code") == 0
         and journey.get("http_get_status") == restore.get("http_get_status") == 200
         and journey.get("artifact_exists") is True
         and restore.get("artifact_exists") is True
@@ -39,6 +40,8 @@ def summarize(journey: dict[str, Any], restore: dict[str, Any]) -> dict[str, Any
         and journey.get("receipt_scientific_status") == restore.get("receipt_scientific_status") == "NOT_VALIDATED"
         and all(
             item.get(f"image_{key}", {}).get("sampled_distinct_colors", 0) >= 14
+            and item.get(f"image_{key}", {}).get("bytes", 0) >= 10000
+            and len(str(item.get(f"image_{key}", {}).get("sha256", ""))) == 64
             for item, key in (
                 (journey, "initial"), (journey, "generated"), (journey, "supra"),
                 (restore, "initial"), (restore, "restored")
