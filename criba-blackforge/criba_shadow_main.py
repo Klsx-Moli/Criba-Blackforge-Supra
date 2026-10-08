@@ -494,6 +494,12 @@ def main() -> int:
         )
         ui_actions.on_restore_latest_supra(window)
         _startup_trace(root, "qt:restore-started")
+        # Explicit, isolated CI probe of the *frozen* EXE: the normal runtime
+        # has no automation, and the probe refuses the user's real data dir.
+        probe_mode = os.environ.get("CRIBASHADOW_BUNDLE_PROBE", "")
+        if probe_mode:
+            from shadow_bundle_probe import start_bundle_probe
+            start_bundle_probe(app, window, root, probe_mode)
         return int(app.exec())
     except Exception as exc:  # noqa: BLE001 - aqui el error real es el producto
         import traceback
