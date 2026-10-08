@@ -1569,6 +1569,7 @@ class ShadowWindow(QMainWindow):
         right_scroll.setWidgetResizable(True)
         self.right_panel = RightPanelWidget(self)
         right_scroll.setWidget(self.right_panel)
+        self.right_panel_scroll = right_scroll
         content_splitter.addWidget(right_scroll)
         content_splitter.setSizes([490, 315] if self._compact_layout else [880, 500])
         # Proporción de la referencia: centro ancho, panel derecho acotado
