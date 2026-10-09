@@ -18,6 +18,7 @@ from PySide6.QtGui import QColor
 
 from .. import __version__ as ENGINE_VERSION
 from ..engine import activate
+from .i18n import t as _t
 from .ranking import RankingModel
 from .widgets import set_chip
 
