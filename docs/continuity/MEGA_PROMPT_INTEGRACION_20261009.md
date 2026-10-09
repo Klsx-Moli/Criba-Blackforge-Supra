@@ -93,8 +93,9 @@ cd C:/ASTRA_WORK/Criba-Blackforge-Supra/supra
 PYTHONPATH=src ./.venv/Scripts/python.exe -m pytest tests/ -q --tb=short
 ```
 
-**Resultado:** [PENDIENTE - ejecutando en background]
-**Evidence Label:** PENDIENTE
+**Resultado:** 299 passed, 2 warnings in 58.39s
+**Evidence Label:** VERIFIED_BY_EXECUTION
+**SHA:** d0cf2bd
 
 ### Tests Unitarios Dirigidos (P0)
 
