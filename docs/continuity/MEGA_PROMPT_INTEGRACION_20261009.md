@@ -82,9 +82,9 @@ cd C:/ASTRA_WORK/Criba-Blackforge-Supra/criba-blackforge
 PYTHONPATH=src ./.venv/Scripts/python.exe -m pytest tests/ -q --tb=short
 ```
 
-**Resultado:** 1837 passed, 3 skipped, 1 warning in 369.83s (0:06:09)
+**Resultado:** 1845 passed, 3 skipped, 1 warning in 349.60s (0:05:49)
 **Evidence Label:** VERIFIED_BY_EXECUTION
-**SHA:** 583d44e
+**SHA:** c2a708d
 
 ### Suite Completa SUPRA (P0)
 
@@ -93,9 +93,9 @@ cd C:/ASTRA_WORK/Criba-Blackforge-Supra/supra
 PYTHONPATH=src ./.venv/Scripts/python.exe -m pytest tests/ -q --tb=short
 ```
 
-**Resultado:** 299 passed, 2 warnings in 58.39s
+**Resultado:** 299 passed, 2 warnings in 44.34s
 **Evidence Label:** VERIFIED_BY_EXECUTION
-**SHA:** d0cf2bd
+**SHA:** c2a708d
 
 ### Tests Unitarios Dirigidos (P0)
 
