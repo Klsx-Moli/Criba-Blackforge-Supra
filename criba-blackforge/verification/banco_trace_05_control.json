@@ -1,0 +1,141 @@
+{
+ "sondeo": {
+  "model": "stepfun/step-5-preview:free",
+  "operativo": true,
+  "motivo": "endpoint responde y 'stepfun/step-5-preview:free' esta en el catalogo"
+ },
+ "corrida": {
+  "constrained": "json_schema",
+  "seed": 20261011,
+  "model": "stepfun/step-5-preview:free",
+  "elapsed_s": 318.16,
+  "summary": {
+   "passed": false,
+   "schema_response_rate": 0.75,
+   "correct_abstention_rate": 1.0,
+   "consistency_rate": 1.0
+  },
+  "attempts": [
+   {
+    "case_id": "pertinente",
+    "attempt": 1,
+    "expected": "PROPUESTA",
+    "estado": "ERROR",
+    "result": "REJECTED",
+    "technical_error": null,
+    "derived_error": "validacion:critica.restricciones_respetadas; critica.objeciones",
+    "raw_output": "{\n  \"pertinencia\": \"PERTINENTE\",\n  \"hipotesis\": \"La implementación conjunta de controles de validación obligatoria en el formulario de registro junto con una señal inmediata de retroalimentación al operador sobre campos incompletos o inconsistentes antes de la confirmación de la cita reducirá la tasa de segundas visitas por errores de registro en al menos un 50% respecto al baseline actual.\",\n  \"cadena_causal\": [\n    \"Implementar validaciones automáticas de campos obligatorios y alertas inmediatas de error en el sistema de registro antes de permitir la confirmación de la cita.\",\n    \"Reducción en el número de citas repetidas por registros incompletos, medible como la proporción de segundas visitas atribuibles a errores de registro sobre el total de visitas.\"\n  ],\n  \"mecanismo\": \"La captura de datos en el punto de atención permite detectar omisiones o inconsistencias en la información del paciente antes de que se consolide el registro. Al bloquear la confirmación hasta que los campos críticos estén completos y al alertar en tiempo real al responsable sobre la naturaleza del faltante, se interrumpe la cadena de errores que obligan al paciente a regresar. Esto disminuye la carga de trabajo redundante en la cola de atención.\",\n  \"aportacion_por_tecnica\": [\n    \"Diseñar el formulario de registro con campos obligatorios bloqueantes, formatos predefinidos y validaciones cruzadas que impidan avanzar si falta información crítica, haciendo imposible confirmar una cita con datos incompl",
+    "finish_reason": "stop",
+    "completion_tokens": 7081,
+    "latency_s": 56.483,
+    "cap_hit": false,
+    "prompt": "Reducir la cola de atención causada por segundas visitas por errores de registro | Poka-Yoke"
+   },
+   {
+    "case_id": "pertinente",
+    "attempt": 2,
+    "expected": "PROPUESTA",
+    "estado": "ERROR",
+    "result": "ERROR",
+    "technical_error": "critica_no_disponible:salida_truncada:finish_reason=length tokens=8192 (3118 chars)",
+    "derived_error": "transport_failure",
+    "raw_output": "{\n  \"pertinencia\": \"PERTINENTE\",\n  \"hipotesis\": \"La inserción de validaciones obligatorias en el formulario de registro junto con alertas inmediatas sobre datos incompletos antes de confirmar la cita reducirá la proporción de registros incompletos y, consecuentemente, las visitas repetidas que generan la cola de atención.\",\n  \"cadena_causal\": [\n    \"Intervención: inserción de restricciones lógicas en el sistema de registro que impiden la confirmación con campos obligatorios vacíos o inconsistentes, y despliegue de alertas inmediatas al usuario o agente sobre el campo faltante.\",\n    \"Efecto observable: disminución de la proporción de registros incompletos por cada 100 citas y reducción de visitas repetidas, lo que disminuye la carga en la cola de atención.\"\n  ],\n  \"mecanismo\": \"El error de registro se propaga porque el sistema acepta información incompleta sin validación en el punto de entrada, generando citas inválidas que requieren una segunda visita. Al insertar un mecanismo que impide lógicamente avanzar con datos incompletos y que informa inmediatamente al responsable sobre la omisión, se interrumpe la cadena causal entre registro defectuoso y visita repetida, reduciendo la demanda no planificada en la cola.\",\n  \"aportacion_por_tecnica\": [\n    \"Poka-Yoke: diseño de restricciones lógicas en el sistema de registro que impiden la confirmación de la cita si faltan campos obligatorios o si los datos son inconsistentes, eliminando la posibilidad de error por omisión.\",\n    \"Re",
+    "finish_reason": "stop",
+    "completion_tokens": 7438,
+    "latency_s": 44.5,
+    "cap_hit": false,
+    "prompt": "Reducir la cola de atención causada por segundas visitas por errores de registro | Poka-Yoke"
+   },
+   {
+    "case_id": "irrelevante",
+    "attempt": 1,
+    "expected": "ABSTENER",
+    "estado": "ABSTENER",
+    "result": "REJECTED",
+    "technical_error": null,
+    "derived_error": "validacion:abstencion:El cruce propuesto (Perfumería y Marketing olfativo) es ajeno al dominio del problema (demostración formal de teoremas de números primos). No existe conexión causal identificable entre el aroma de una sala y la prueba formal de teoremas matemáticos. Además, el título del cruce prohíbe explícitamente la transformación matemática, que es indispensable para el problema planteado. No se entregó evidid",
+    "raw_output": "{\n  \"pertinencia\": \"ABSTENER\",\n  \"motivo_abstencion\": \"El cruce propuesto (Perfumería y Marketing olfativo) es ajeno al dominio del problema (demostración formal de teoremas de números primos). No existe conexión causal identificable entre el aroma de una sala y la prueba formal de teoremas matemáticos. Además, el título del cruce prohíbe explícitamente la transformación matemática, que es indispensable para el problema planteado. No se entregó evidid\" \n}",
+    "finish_reason": "stop",
+    "completion_tokens": 761,
+    "latency_s": 10.672,
+    "cap_hit": false,
+    "prompt": "Demostrar un teorema de números primos usando exclusivamente una prueba formal. | Perfumería"
+   },
+   {
+    "case_id": "irrelevante",
+    "attempt": 2,
+    "expected": "ABSTENER",
+    "estado": "ABSTENER",
+    "result": "REJECTED",
+    "technical_error": null,
+    "derived_error": "validacion:abstencion:El cruce propuesto entre Perfumería y Marketing olfativo es completamente ajeno al problema matemático de demostrar un teorema de números primos mediante prueba formal. No existe conexión causal entre el cambio de aroma de una sala y la demostración formal de teoremas matemáticos. Además, el título del cruce ('sin transformación matemática permitida') contradice directamente el requisito delproble",
+    "raw_output": "{\n  \"pertinencia\": \"ABSTENER\",\n  \"motivo_abstencion\": \"El cruce propuesto entre Perfumería y Marketing olfativo es completamente ajeno al problema matemático de demostrar un teorema de números primos mediante prueba formal. No existe conexión causal entre el cambio de aroma de una sala y la demostración formal de teoremas matemáticos. Además, el título del cruce ('sin transformación matemática permitida') contradice directamente el requisito delproble\"\n}",
+    "finish_reason": "stop",
+    "completion_tokens": 1120,
+    "latency_s": 7.889,
+    "cap_hit": false,
+    "prompt": "Demostrar un teorema de números primos usando exclusivamente una prueba formal. | Perfumería"
+   },
+   {
+    "case_id": "contradiccion",
+    "attempt": 1,
+    "expected": "ABSTENER",
+    "estado": "ABSTENER",
+    "result": "REJECTED",
+    "technical_error": null,
+    "derived_error": "validacion:abstencion:La evidencia local [1] contradice el mecanismo requerido: la confirmación automática no reduce errores, por lo que no puede eliminar segundas visitas si estas derivan de correcciones; no se entregan observaciones que confirmen que las segundas visitas se deben a falta de confirmación y no a error; la contención es desconocida, impidiendo evaluar riesgos sistémicos; y la restricción de no proponer ",
+    "raw_output": "{\"pertinencia\":\"ABSTENER\",\"motivo_abstencion\":\"La evidencia local [1] contradice el mecanismo requerido: la confirmación automática no reduce errores, por lo que no puede eliminar segundas visitas si estas derivan de correcciones; no se entregan observaciones que confirmen que las segundas visitas se deben a falta de confirmación y no a error; la contención es desconocida, impidiendo evaluar riesgos sistémicos; y la restricción de no proponer \"}",
+    "finish_reason": "stop",
+    "completion_tokens": 5905,
+    "latency_s": 36.953,
+    "cap_hit": false,
+    "prompt": "Eliminar segundas visitas SOLO con confirmación automática de registros. | Confirmación automática"
+   },
+   {
+    "case_id": "contradiccion",
+    "attempt": 2,
+    "expected": "ABSTENER",
+    "estado": "ABSTENER",
+    "result": "REJECTED",
+    "technical_error": null,
+    "derived_error": "validacion:abstencion:El cruce propuesto incorpora 'Recordatorios', pero el problema restringe la intervención a 'SOLO con confirmación automática de registros', violando una restricción obligatoria que no puede justificarse. Además, la evidencia local (índice 1) señala que la confirmación automática no reduce errores, lo que contradice el mecanismo necesario para eliminar segundas visitas si estas están destinadas a c",
+    "raw_output": "{\n  \"pertinencia\": \"ABSTENER\",\n  \"motivo_abstencion\": \"El cruce propuesto incorpora 'Recordatorios', pero el problema restringe la intervención a 'SOLO con confirmación automática de registros', violando una restricción obligatoria que no puede justificarse. Además, la evidencia local (índice 1) señala que la confirmación automática no reduce errores, lo que contradice el mecanismo necesario para eliminar segundas visitas si estas están destinadas a c\"\n}",
+    "finish_reason": "stop",
+    "completion_tokens": 4598,
+    "latency_s": 27.827,
+    "cap_hit": false,
+    "prompt": "Eliminar segundas visitas SOLO con confirmación automática de registros. | Confirmación automática"
+   },
+   {
+    "case_id": "imposible",
+    "attempt": 1,
+    "expected": "ABSTENER",
+    "estado": "ABSTENER",
+    "result": "REJECTED",
+    "technical_error": null,
+    "derived_error": "validacion:abstencion:Las restricciones obligatorias son lógicamente incompatibles con el objetivo: 'No transmitir ningún dato por ningún medio' prohíbe cualquier mecanismo de transferencia de información, mientras que 'La sede receptora carece de cualquier copia y debe recibir los registros' exige necesariamente una transferencia. No existe evidencia local pertinente que respalde un mecanismo alternativo de adquisión,",
+    "raw_output": "{\n  \"pertinencia\": \"ABSTENER\",\n  \"motivo_abstencion\": \"Las restricciones obligatorias son lógicamente incompatibles con el objetivo: 'No transmitir ningún dato por ningún medio' prohíbe cualquier mecanismo de transferencia de información, mientras que 'La sede receptora carece de cualquier copia y debe recibir los registros' exige necesariamente una transferencia. No existe evidencia local pertinente que respalde un mecanismo alternativo de adquisión,\"\n}",
+    "finish_reason": "stop",
+    "completion_tokens": 1799,
+    "latency_s": 14.937,
+    "cap_hit": false,
+    "prompt": "Transferir registros completos entre dos sedes. | Replicación"
+   },
+   {
+    "case_id": "imposible",
+    "attempt": 2,
+    "expected": "ABSTENER",
+    "estado": "ABSTENER",
+    "result": "REJECTED",
+    "technical_error": null,
+    "derived_error": "validacion:abstencion:Las restricciones obligatorias son lógicamente contradictorias e incompatibles con el objetivo: prohíben transmitir cualquier dato por cualquier medio, pero exigen que una sede sin copias reciba los registros. Esto hace imposible cualquier mecanismo de transferencia o replicación sin violar una restricción explícita. Adicionalmente, no existe evidencia local pertinente, el dominio está vacío y la ",
+    "raw_output": "{\n  \"pertinencia\": \"ABSTENER\",\n  \"motivo_abstencion\": \"Las restricciones obligatorias son lógicamente contradictorias e incompatibles con el objetivo: prohíben transmitir cualquier dato por cualquier medio, pero exigen que una sede sin copias reciba los registros. Esto hace imposible cualquier mecanismo de transferencia o replicación sin violar una restricción explícita. Adicionalmente, no existe evidencia local pertinente, el dominio está vacío y la \"\n}",
+    "finish_reason": "stop",
+    "completion_tokens": 1523,
+    "latency_s": 16.202,
+    "cap_hit": false,
+    "prompt": "Transferir registros completos entre dos sedes. | Replicación"
+   }
+  ]
+ }
+}

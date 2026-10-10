@@ -134,6 +134,7 @@ class OpenAICompatibleInterpreter:
         temperature: float | None = None,
         reasoning_effort: str | None = None,
         enable_thinking: bool | None = None,
+        seed: int | None = None,
     ) -> None:
         self.base = (
             base_url or os.getenv("CRIBA_EXTERNAL_BASE_URL") or "http://127.0.0.1:8645/v1"
@@ -163,6 +164,11 @@ class OpenAICompatibleInterpreter:
             else os.getenv("CRIBA_EXTERNAL_REASONING_EFFORT", "").strip()
         )
         self.enable_thinking = enable_thinking
+        semilla = seed if seed is not None else os.getenv("CRIBA_EXTERNAL_SEED", "").strip()
+        try:
+            self.seed: int | None = int(semilla) if semilla != "" else None
+        except (TypeError, ValueError):
+            self.seed = None
         self.fallback_local = (
             fallback_local
             if fallback_local is not None
@@ -182,6 +188,7 @@ class OpenAICompatibleInterpreter:
             "timeout_s": self.timeout_s,
             "reasoning_effort": self.reasoning_effort,
             "enable_thinking": self.enable_thinking,
+            "seed": self.seed,
         }
 
     # -- estado real, no optimista ---------------------------------------
@@ -272,6 +279,8 @@ class OpenAICompatibleInterpreter:
                 else {"type": "json_object"}
             ),
         }
+        if self.seed is not None:
+            payload["seed"] = self.seed
         model_reported = ""
         raw_output = ""
         finish_reason = ""
