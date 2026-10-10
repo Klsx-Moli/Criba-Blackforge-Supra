@@ -63,8 +63,96 @@ def test_nested_json_invalido_in_critica_is_error() -> None:
         raw_output='{"pertinencia": "PERTINENTE"}',
     )
     te, de, result = _clasificar_error(r)
-    assert te is not None and te.startswith("json_invalido:")
-    assert de == "invalid_json"
+    assert te is not None and te.startswith("critica_no_disponible:")
+    assert de == "transport_failure"
+    assert result == "ERROR"
+
+
+def test_abstencion_con_motivo_es_abstener() -> None:
+    r = _r(
+        estado=ESTADO_PENDIENTE,
+        error="validacion:abstencion:Problema sin solución conocida",
+        error_kind="domain",
+        raw_output='{"pertinencia": "ABSTENER"}',
+    )
+    te, de, result = _clasificar_error(r)
+    assert te is None
+    assert de == "validacion:abstencion:Problema sin solución conocida"
+    assert result == "REJECTED"
+
+
+def test_critica_pertinente_schema_error() -> None:
+    r = _r(
+        estado=ESTADO_PENDIENTE,
+        error="validacion:critica.pertinente",
+        error_kind="schema",
+        raw_output='{"pertinencia": "PERTINENTE"}',
+    )
+    te, de, result = _clasificar_error(r)
+    assert te == "schema_invalido:critica.pertinente"
+    assert de == "schema_validation_failed"
+    assert result == "ERROR"
+
+
+def test_prueba_sin_umbral_schema_error() -> None:
+    r = _r(
+        estado=ESTADO_PENDIENTE,
+        error="validacion:prueba.sin_umbral",
+        error_kind="schema",
+        raw_output='{"pertinencia": "PERTINENTE"}',
+    )
+    te, de, result = _clasificar_error(r)
+    assert te == "schema_invalido:prueba.sin_umbral"
+    assert de == "schema_validation_failed"
+    assert result == "ERROR"
+
+
+def test_abstencion_sin_motivo_schema_error() -> None:
+    r = _r(
+        estado=ESTADO_PENDIENTE,
+        error="validacion:abstencion_sin_motivo",
+        error_kind="schema",
+        raw_output='{"pertinencia": "ABSTENER"}',
+    )
+    te, de, result = _clasificar_error(r)
+    assert te == "schema_invalido:abstencion_sin_motivo"
+    assert de == "schema_validation_failed"
+    assert result == "ERROR"
+
+
+def test_critica_no_disponible_timeout_is_error() -> None:
+    r = _r(
+        estado=ESTADO_PENDIENTE,
+        error="critica_no_disponible:timeout",
+        raw_output='{"pertinencia": "PERTINENTE"}',
+    )
+    te, de, result = _clasificar_error(r)
+    assert te == "critica_no_disponible:timeout"
+    assert de == "transport_failure"
+    assert result == "ERROR"
+
+
+def test_entrada_invalida_is_error() -> None:
+    r = _r(
+        estado=ESTADO_PENDIENTE,
+        error="entrada_invalida:ValueError",
+        raw_output="",
+    )
+    te, de, result = _clasificar_error(r)
+    assert te == "entrada_invalida:ValueError"
+    assert de == "transport_failure"
+    assert result == "ERROR"
+
+
+def test_proposal_failed_is_error() -> None:
+    r = _r(
+        estado=ESTADO_PENDIENTE,
+        error="proposal_failed:RuntimeError",
+        raw_output="",
+    )
+    te, de, result = _clasificar_error(r)
+    assert te == "proposal_failed:RuntimeError"
+    assert de == "transport_failure"
     assert result == "ERROR"
 
 

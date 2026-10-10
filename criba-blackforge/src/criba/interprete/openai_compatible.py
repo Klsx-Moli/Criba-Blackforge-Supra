@@ -293,6 +293,7 @@ class OpenAICompatibleInterpreter:
                     fallback_used=False,
                     prompt=prompt,
                     model_requested=model,
+                    constrained_decoding="json_schema" if schema is not None else "",
                 ),
                 raw_output=raw_output,
                 finish_reason=finish_reason,
@@ -413,6 +414,7 @@ class OpenAICompatibleInterpreter:
                 fallback_used=False,
                 prompt=prompt,
                 model_requested=model,
+                constrained_decoding="json_schema" if schema is not None else "",
             ),
             raw_output=raw_output,
             finish_reason=finish_reason,
@@ -451,17 +453,6 @@ class OpenAICompatibleInterpreter:
             self.model,
             schema=schema_propuesta(idea, evidence) if restringido else None,
         )
-        if restringido and transporte.provenance is not None:
-            transporte = replace(
-                transporte,
-                provenance=replace(
-                    transporte.provenance,
-                    generation_parameters={
-                        **transporte.provenance.generation_parameters,
-                        "constrained_decoding": "json_schema",
-                    },
-                ),
-            )
         if transporte.estado == ESTADO_PENDIENTE:
             return transporte
         parsed = _extraer_json(transporte.raw_output)
@@ -605,10 +596,26 @@ class LocalLlamaInterpreter(OpenAICompatibleInterpreter):
         except ValueError:
             return False
 
+    def _modo_actual(self) -> str:
+        """Modo de decodificación con el que se evaluaría el banco ahora mismo."""
+        restringido = os.getenv("CRIBA_CONSTRAINED_DECODING", "").strip().lower() in (
+            "json_schema",
+            "1",
+            "true",
+        )
+        return "json_schema" if restringido else ""
+
     def operativo(self) -> tuple[bool, str]:
         if not self._local():
             return False, "interpretación operativa rechazada: el endpoint local no es loopback"
+        modo = self._modo_actual()
         if self.gate_report is not None:
+            if self.gate_report.get("constrained_decoding", "") != modo:
+                return False, (
+                    "banco local evaluado en otro modo de decodificación "
+                    f"({self.gate_report.get('constrained_decoding', '')!r} != {modo!r}); "
+                    "reevaluar"
+                )
             ok = bool(self.gate_report["passed"])
             return ok, "banco local superado" if ok else self.MOTIVO
         listo, motivo = super().operativo()
@@ -620,6 +627,7 @@ class LocalLlamaInterpreter(OpenAICompatibleInterpreter):
             lambda q, i, d, e: super(LocalLlamaInterpreter, self).proponer(q, i, d, e),
             cancel_requested=self._bank_cancel_requested,
             progress=self._bank_progress,
+            constrained_decoding=modo,
         )
         ok = bool(self.gate_report["passed"])
         self.ETIQUETA = "" if ok else "EXPERIMENTAL / NO VERIFICADO"

@@ -244,10 +244,18 @@ def schema_propuesta(idea: dict[str, Any], evidence: list[dict[str, Any]] | None
     """
     n_ev = len(evidencia_entregada(evidence))
     obligatorias = restricciones_de(idea)
-    t = {"type": "string", "minLength": 1}
+
+    defs = {
+        "texto_corto": {"type": "string", "minLength": 1, "maxLength": 400},
+        "mecanismo": {"type": "string", "minLength": 1, "maxLength": 800},
+        "texto_lista": {"type": "string", "minLength": 1, "maxLength": 300},
+    }
+    corto = {"$ref": "#/$defs/texto_corto"}
+    mecano = {"$ref": "#/$defs/mecanismo"}
+    lista_item = {"$ref": "#/$defs/texto_lista"}
 
     def lista(min_items: int, max_items: int | None = None) -> dict[str, Any]:
-        s: dict[str, Any] = {"type": "array", "items": t, "minItems": min_items}
+        s: dict[str, Any] = {"type": "array", "items": lista_item, "minItems": min_items}
         if max_items is not None:
             s["maxItems"] = max_items
         return s
@@ -274,14 +282,14 @@ def schema_propuesta(idea: dict[str, Any], evidence: list[dict[str, Any]] | None
             "properties": {
                 "restriccion": {"enum": obligatorias},
                 "estado": {"enum": ["CUMPLE", "VIOLA", "NO_VERIFICADO"]},
-                "justificacion": t,
+                "justificacion": lista_item,
             },
         }
     abstener = {
         "type": "object",
         "additionalProperties": False,
         "required": ["pertinencia", "motivo_abstencion"],
-        "properties": {"pertinencia": {"const": "ABSTENER"}, "motivo_abstencion": t},
+        "properties": {"pertinencia": {"const": "ABSTENER"}, "motivo_abstencion": corto},
     }
     pertinente = {
         "type": "object",
@@ -289,8 +297,8 @@ def schema_propuesta(idea: dict[str, Any], evidence: list[dict[str, Any]] | None
         "required": [
             "pertinencia",
             "hipotesis",
-            "mecanismo",
             "cadena_causal",
+            "mecanismo",
             "aportacion_por_tecnica",
             "supuestos",
             "evidencia_citada",
@@ -303,25 +311,25 @@ def schema_propuesta(idea: dict[str, Any], evidence: list[dict[str, Any]] | None
         ],
         "properties": {
             "pertinencia": {"const": "PERTINENTE"},
-            "hipotesis": t,
-            "mecanismo": t,
-            "incertidumbre": t,
-            "novedad": t,
-            "prueba_concreta": t,
+            "hipotesis": corto,
             "cadena_causal": lista(2),
+            "mecanismo": mecano,
             "aportacion_por_tecnica": lista(2, 2),
             "supuestos": lista(0),
-            "conocimiento_previo": lista(0),
             "evidencia_citada": {
                 "type": "array",
                 "maxItems": n_ev,
                 "items": {"type": "integer", "minimum": 1, "maximum": max(n_ev, 1)},
             },
+            "conocimiento_previo": lista(0),
+            "incertidumbre": corto,
+            "novedad": corto,
+            "prueba_concreta": corto,
             "prueba": {
                 "type": "object",
                 "additionalProperties": False,
                 "required": prueba_campos,
-                "properties": {k: t for k in prueba_campos},
+                "properties": {k: corto for k in prueba_campos},
             },
             "comprobacion_restricciones": restr,
             "ruta_desbloqueo": {
@@ -329,7 +337,10 @@ def schema_propuesta(idea: dict[str, Any], evidence: list[dict[str, Any]] | None
             },
         },
     }
-    return {"anyOf": [abstener, pertinente]}
+    return {
+        "$defs": defs,
+        "anyOf": [abstener, pertinente],
+    }
 
 
 def schema_critica() -> dict[str, Any]:
@@ -339,7 +350,7 @@ def schema_critica() -> dict[str, Any]:
     grammar forzara ``true``, el crítico aprobaría siempre y el banco mediría la
     grammar en vez del modelo.
     """
-    t = {"type": "string", "minLength": 1}
+    t = {"$ref": "#/$defs/texto_respuesta"}
     return {
         "type": "object",
         "additionalProperties": False,
@@ -363,13 +374,16 @@ def schema_critica() -> dict[str, Any]:
             "restricciones_respetadas": {"type": "boolean"},
             "discrimina_alternativas": {"type": "boolean"},
             "intercambio_tecnicas_generico": {"type": "boolean"},
-            "objeciones": {"type": "array", "items": t},
+            "objeciones": {"type": "array", "items": {"$ref": "#/$defs/texto_respuesta"}},
             "incertidumbre": t,
             "respuestas_epistemologicas": {
                 "type": "object",
                 "required": [p.id for p in PREGUNTAS],
                 "properties": {p.id: t for p in PREGUNTAS},
             },
+        },
+        "$defs": {
+            "texto_respuesta": {"type": "string", "minLength": 1, "maxLength": 500},
         },
     }
 

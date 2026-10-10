@@ -93,29 +93,44 @@ def _tokens(text: str) -> set[str]:
 def _clasificar_error(r: InterpretationResult) -> tuple[str | None, str | None, str]:
     """Separa error TÉCNICO de error DERIVADO. El técnico nunca se sobrescribe.
 
-    El ``kind`` estructurado (``error_kind``) lo fija el validador de contrato;
-    aquí NO se vuelve a interpretar el texto del mensaje salvo para los prefijos
-    de transporte, que ya son un vocabulario cerrado del propio puerto.
+    Patrones ANCLADOS al inicio del error (nunca ``in``), un error por patrón.
+    El ``kind`` estructurado (``error_kind``) lo fija el validador de contrato.
 
-    Jerarquía (BANCO-TRACE-01):
-      - json inválido / truncado / timeout / transporte → ERROR técnico
-      - raw_output vacía                                → empty_response, ERROR
-      - error_kind == "schema"                          → schema_invalido, ERROR
-      - error_kind == "domain"                          → técnico None, REJECTED
-      - es propuesta                                    → PASS
+    Jerarquía (BANCO-TRACE-01/04A):
+      - json_invalido:               → ERROR, técnico conservado
+      - salida_truncada:/truncated   → ERROR
+      - timeout                      → ERROR
+      - critica_no_disponible:/proposal_failed:/entrada_invalida:/transporte_http:/
+        http_error_/plan_agotado/credenciales/... → ERROR, técnico conservado
+      - raw_output vacía             → empty_response, ERROR
+      - es propuesta                 → PASS
+      - error_kind == "schema"       → schema_invalido, ERROR
+      - validacion:abstencion:...    → ABSTENER (técnico None, REJECTED)
+      - resto de validacion:...      → REJECTED
     """
     err = r.error or ""
-    if err.startswith("json_invalido:") or "json_invalido:" in err:
-        detalle = err[err.index("json_invalido:") :]
-        return detalle, "invalid_json", "ERROR"
+    if err.startswith("json_invalido:"):
+        return err, "invalid_json", "ERROR"
     if err.startswith(("salida_truncada:", "truncated_response")):
         return "truncated_response", "truncated_response", "ERROR"
     if err.startswith("timeout"):
         return "timeout", "timeout", "ERROR"
     if err.startswith(
-        ("transporte_http:", "http_error_", "plan_agotado", "credenciales",
-         "sin_contenido:", "contenido_tipo", "message_tipo", "tool_calls_sin_contenido",
-         "choice_tipo", "configuracion_invalida", "critica_no_disponible:")
+        (
+            "critica_no_disponible:",
+            "proposal_failed:",
+            "entrada_invalida:",
+            "transporte_http:",
+            "http_error_",
+            "plan_agotado",
+            "credenciales",
+            "sin_contenido:",
+            "contenido_tipo",
+            "message_tipo",
+            "tool_calls_sin_contenido",
+            "choice_tipo",
+            "configuracion_invalida",
+        )
     ):
         return err, "transport_failure", "ERROR"
     raw = r.raw_output
@@ -127,6 +142,8 @@ def _clasificar_error(r: InterpretationResult) -> tuple[str | None, str | None, 
     if r.error_kind == "schema":
         detalle = err[len("validacion:") :] if err.startswith("validacion:") else err
         return f"schema_invalido:{detalle}", "schema_validation_failed", "ERROR"
+    if err.startswith("validacion:abstencion:"):
+        return None, err, "REJECTED"
     if err:
         return None, err, "REJECTED"
     return None, None, "REJECTED"
@@ -139,6 +156,7 @@ def evaluar_banco(
     referencia: Proponer | None = None,
     cancel_requested: Callable[[], bool] | None = None,
     progress: Callable[[dict[str, Any]], None] | None = None,
+    constrained_decoding: str = "",
 ) -> dict[str, Any]:
     if repeticiones < 2:
         raise ValueError("el banco exige al menos dos repeticiones")
@@ -179,6 +197,7 @@ def evaluar_banco(
                     "completion_tokens": r.completion_tokens,
                     "reasoning_tokens": r.reasoning_tokens,
                     "latency_s": latency_s,
+                    "cap_hit": r.finish_reason == "length",
                     "model_requests": r.model_requests,
                 }
             )
@@ -241,6 +260,7 @@ def evaluar_banco(
         "prompt_version": PROMPT_VERSION,
         "schema_version": SCHEMA_VERSION,
         "repeticiones": repeticiones,
+        "constrained_decoding": constrained_decoding,
         "cancelled": cancelled,
         "completed_attempts": completed,
         "total_attempts": total,
