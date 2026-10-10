@@ -90,6 +90,44 @@ def _tokens(text: str) -> set[str]:
     return set(re.findall(r"\w+", text.lower()))
 
 
+def _campos_truncados_por_grammar(
+    raw: str, schema: dict[str, Any]
+) -> list[str]:
+    """Campos cuyo texto mide EXACTO el tope del schema (corte por grammar).
+
+    Un campo que llega justo a maxLength es señal de que la grammar cortó la
+    respuesta; se reporta como error técnico visible, no se oculta.
+    """
+    if not raw or not isinstance(schema, dict):
+        return []
+    try:
+        parsed = json.loads(raw)
+    except Exception:
+        return []
+    defs = schema.get("$defs", {})
+    topes: dict[int, str] = {}
+    for nombre, d in defs.items():
+        if isinstance(d, dict) and isinstance(d.get("maxLength"), int):
+            topes[d["maxLength"]] = nombre
+
+    def _revisar(obj: Any, ruta: str = "") -> list[str]:
+        cortados = []
+        if isinstance(obj, dict):
+            for k, v in obj.items():
+                cortados += _revisar(v, f"{ruta}.{k}" if ruta else k)
+        elif isinstance(obj, list):
+            for i, v in enumerate(obj):
+                cortados += _revisar(v, f"{ruta}[{i}]")
+        elif isinstance(obj, str):
+            for tope, nombre in topes.items():
+                if len(obj) == tope:
+                    cortados.append(f"{ruta}({nombre}={tope})")
+                    break
+        return cortados
+
+    return _revisar(parsed)
+
+
 def _clasificar_error(r: InterpretationResult) -> tuple[str | None, str | None, str]:
     """Separa error TÉCNICO de error DERIVADO. El técnico nunca se sobrescribe.
 
@@ -166,6 +204,11 @@ def evaluar_banco(
     completed = 0
     total = len(CASOS) * repeticiones
     cancelled = False
+    from .contrato import schema_propuesta
+
+    schema_por_caso = {
+        c["id"]: schema_propuesta(c["idea"], c["evidence"]) for c in CASOS
+    }
     for caso in CASOS:
         estados: list[str] = []
         mecanismos: list[set[str]] = []
@@ -184,6 +227,9 @@ def evaluar_banco(
                 if isinstance(provenance.get("duration_ms"), int)
                 else None
             )
+            campos_cortados = _campos_truncados_por_grammar(
+                r.raw_output, schema_por_caso.get(caso["id"], {})
+            )
             intentos.append(
                 {
                     "case_id": caso["id"],
@@ -198,6 +244,7 @@ def evaluar_banco(
                     "reasoning_tokens": r.reasoning_tokens,
                     "latency_s": latency_s,
                     "cap_hit": r.finish_reason == "length",
+                    "campo_truncado_por_grammar": campos_cortados,
                     "model_requests": r.model_requests,
                 }
             )

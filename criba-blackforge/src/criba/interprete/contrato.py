@@ -20,6 +20,10 @@ SYSTEM = (
     "resultados experimentales, scores, permisos ni novedad verificada."
 )
 INSTRUCCIONES = """Aplica el cruce a ESTE problema, o abstente explícitamente.
+BREVEDAD: cada campo de texto debe ser conciso. motivo_abstencion, hipotesis,
+incertidumbre, novedad, prueba_concreta y los 7 campos de prueba: máximo 600
+caracteres. mecanismo: máximo 1200. elementos de lista: máximo 300. Si tu
+respuesta natural es más larga, resume; no la cortes a la fuerza.
 Responde con este contrato JSON:
 {
   "pertinencia": "PERTINENTE o ABSTENER",
@@ -246,8 +250,8 @@ def schema_propuesta(idea: dict[str, Any], evidence: list[dict[str, Any]] | None
     obligatorias = restricciones_de(idea)
 
     defs = {
-        "texto_corto": {"type": "string", "minLength": 1, "maxLength": 400},
-        "mecanismo": {"type": "string", "minLength": 1, "maxLength": 800},
+        "texto_corto": {"type": "string", "minLength": 1, "maxLength": 600},
+        "mecanismo": {"type": "string", "minLength": 1, "maxLength": 1200},
         "texto_lista": {"type": "string", "minLength": 1, "maxLength": 300},
     }
     corto = {"$ref": "#/$defs/texto_corto"}
