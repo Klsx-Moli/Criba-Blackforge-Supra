@@ -421,6 +421,78 @@ def test_banco_exige_positivos_negativos_y_consistencia():
         evaluar_banco(proponer, repeticiones=1)
 
 
+def test_banco_cancelado_detiene_llamadas_y_falla_cerrado():
+    calls = 0
+    progress = []
+
+    def cancel_requested():
+        return calls >= 2
+
+    def proponer(*_args):
+        nonlocal calls
+        calls += 1
+        return resultado()
+
+    report = evaluar_banco(
+        proponer,
+        cancel_requested=cancel_requested,
+        progress=progress.append,
+    )
+    assert calls == 2
+    assert report["cancelled"] is True
+    assert report["passed"] is False
+    assert report["completed_attempts"] == 2
+    assert report["total_attempts"] == 8
+    assert [event["completed"] for event in progress] == [1, 2]
+    assert all(event["phase"] == "bank" for event in progress)
+
+
+def test_banco_local_cancelado_no_admite_el_interprete(monkeypatch):
+    monkeypatch.setattr(oc.OpenAICompatibleInterpreter, "operativo", lambda self: (True, "models"))
+    monkeypatch.setattr(
+        oc.OpenAICompatibleInterpreter,
+        "proponer",
+        lambda *args: (_ for _ in ()).throw(AssertionError("cancelled bank sent a request")),
+    )
+    local = oc.LocalLlamaInterpreter(
+        base_url="http://127.0.0.1:8742/v1",
+        model="selected-local-model",
+        cancel_requested=lambda: True,
+    )
+    ready, reason = local.operativo()
+    assert ready is False
+    assert reason == "banco local cancelado; intérprete no admitido"
+    assert local.gate_report is not None
+    assert local.gate_report["cancelled"] is True
+    assert local.gate_report["passed"] is False
+
+
+def test_banco_local_se_ejecuta_una_vez_por_instancia(monkeypatch):
+    progress = []
+    monkeypatch.setattr(oc.OpenAICompatibleInterpreter, "operativo", lambda self: (True, "models"))
+
+    def proponer(_self, query, *_args, **_kwargs):
+        if query == CASOS[0]["query"] or query not in {case["query"] for case in CASOS}:
+            return resultado()
+        return InterpretationResult(
+            estado="PENDIENTE_INTERPRETACION",
+            pertinencia="ABSTENER",
+            error="validacion:abstencion:contraejemplo",
+        )
+
+    monkeypatch.setattr(oc.OpenAICompatibleInterpreter, "proponer", proponer)
+    local = oc.LocalLlamaInterpreter(
+        base_url="http://127.0.0.1:8742/v1",
+        model="selected-local-model",
+        progress=progress.append,
+    )
+    assert local.operativo() == (True, "banco local superado")
+    assert len(progress) == 8
+    for _ in range(3):
+        assert local.proponer("candidate query", IDEA).es_propuesta
+    assert len(progress) == 8
+
+
 def test_local_rechaza_endpoint_remoto_y_no_envia_credenciales(monkeypatch):
     local = oc.LocalLlamaInterpreter(base_url="https://api.nousresearch.com/v1")
     assert local.operativo()[0] is False
