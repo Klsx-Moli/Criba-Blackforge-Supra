@@ -142,6 +142,10 @@ class InterpretationResult:
     finish_reason: str = ""
     completion_tokens: int | None = None
     reasoning_tokens: int | None = None
+    # Clasificación estructurada del fallo, para diagnóstico del banco sin
+    # volver a interpretar el texto del error. No forma parte de
+    # CAMPOS_PROPUESTA: no altera el contrato científico.
+    error_kind: str = ""
     pertinencia: str = ""
     cadena_causal: list[str] = field(default_factory=list)
     evidencia_citada: list[int] = field(default_factory=list)
