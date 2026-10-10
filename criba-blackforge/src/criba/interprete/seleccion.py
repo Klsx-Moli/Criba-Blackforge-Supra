@@ -14,6 +14,8 @@ from __future__ import annotations
 
 import logging
 import os
+from collections.abc import Callable
+from typing import Any
 
 from .openai_compatible import LocalLlamaInterpreter, OpenAICompatibleInterpreter
 from .puerto import InterpreterPort
@@ -40,7 +42,12 @@ class BackendDesconocido(ValueError):
     """
 
 
-def construir_interprete(backend: str | None = None) -> InterpreterPort:
+def construir_interprete(
+    backend: str | None = None,
+    *,
+    cancel_requested: Callable[[], bool] | None = None,
+    progress: Callable[[dict[str, Any]], None] | None = None,
+) -> InterpreterPort:
     """Instancia el interprete pedido. Un backend desconocido es un error.
 
     No hay cadena de respaldo silenciosa: si el backend no existe, se dice cual
@@ -48,7 +55,10 @@ def construir_interprete(backend: str | None = None) -> InterpreterPort:
     """
     elegido = (backend or seleccion_por_defecto()).strip().lower()
     if elegido in (BACKEND_LOCAL, "local", "local_llama"):
-        return LocalLlamaInterpreter()
+        return LocalLlamaInterpreter(
+            cancel_requested=cancel_requested,
+            progress=progress,
+        )
     if elegido == BACKEND_EXTERNO:
         return OpenAICompatibleInterpreter()
     log.error("backend de interprete desconocido: %r", elegido)

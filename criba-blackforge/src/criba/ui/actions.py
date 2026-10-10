@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 import traceback
 from collections.abc import Callable
+from copy import deepcopy
 from datetime import datetime
 from threading import Event
 from typing import Any
@@ -31,6 +32,38 @@ class _Signals(QObject):
     progress = Signal(object)
 
 
+class _WorkerCallback(QObject):
+    """Retained QObject receiver created on the GUI thread."""
+
+    def __init__(self, callback: Callable[[Any], None]) -> None:
+        super().__init__()
+        self.callback = callback
+
+    @Slot(object)
+    def done(self, value: Any) -> None:
+        self.callback(value)
+
+    @Slot(str)
+    def fail(self, value: str) -> None:
+        self.callback(value)
+
+
+def _connect_gui(
+    worker: Any,
+    signal: Any,
+    callback: Callable[[Any], None],
+    *,
+    failure: bool = False,
+) -> None:
+    from PySide6.QtCore import Qt
+
+    receiver = _WorkerCallback(callback)
+    if not hasattr(worker, "_gui_receivers"):
+        worker._gui_receivers = []
+    worker._gui_receivers.append(receiver)
+    signal.connect(receiver.fail if failure else receiver.done, Qt.ConnectionType.QueuedConnection)
+
+
 class Worker(QRunnable):
     def __init__(self, fn: Callable[[], Any]) -> None:
         super().__init__()
@@ -46,13 +79,17 @@ class Worker(QRunnable):
         # takes the surrounding process down. Nobody is listening any more, so
         # the emission is meaningless; dropping it is correct, not a mute.
         try:
-            self.signals.done.emit(self.fn())
-        except RuntimeError:
-            return
+            result = self.fn()
         except Exception as exc:  # noqa: BLE001 — S9 muestra el motivo real
             try:
                 self.signals.fail.emit(f"{exc}\n{traceback.format_exc(limit=3)}")
             except RuntimeError:
+                return
+        else:
+            try:
+                self.signals.done.emit(result)
+            except RuntimeError:
+                # Only signal delivery may fail because its QObject was deleted.
                 return
 
 
@@ -69,7 +106,15 @@ def _start_worker(win: Any, worker: Worker, operation: str = "") -> None:
     do not block harnesses or UI waits that only care about the primary
     operation completing.
     """
-    if operation != "enhance":
+    if operation == "enhance":
+        if not hasattr(win, "_background_workers"):
+            win._background_workers = []
+            win._enhancement_pending = None
+        if win._background_workers:
+            win._enhancement_pending = worker
+            return
+        win._background_workers.append(worker)
+    else:
         if not hasattr(win, "_live_workers"):
             win._live_workers = []
         win._live_workers.append(worker)
@@ -90,13 +135,18 @@ def _start_worker(win: Any, worker: Worker, operation: str = "") -> None:
     def _release(*_a: Any) -> None:
         if loading is not None:
             loading.finish(worker)
-        try:
-            win._live_workers.remove(worker)
-        except ValueError:
-            pass
+        registry = win._background_workers if operation == "enhance" else win._live_workers
+        if worker not in registry:
+            return
+        registry.remove(worker)
+        if operation == "enhance":
+            pending = win._enhancement_pending
+            win._enhancement_pending = None
+            if pending is not None:
+                _start_worker(win, pending, "enhance")
 
-    worker.signals.done.connect(_release)
-    worker.signals.fail.connect(_release)
+    _connect_gui(worker, worker.signals.done, _release)
+    _connect_gui(worker, worker.signals.fail, _release, failure=True)
     worker.setAutoDelete(False)
     win.pool.start(worker)
 
@@ -217,7 +267,20 @@ def _clear_journey_outputs(win: Any) -> None:
     candidates.save_idea.setEnabled(False)
 
 
+def _invalidate_generation(win: Any) -> None:
+    """Invalidate callbacks before replacing session state (GUI thread only)."""
+    win._generation_token = object()
+    win._interpretation_operation_token = object()
+    cancel_event = getattr(win, "_interpreter_cancel_event", None)
+    if cancel_event is not None:
+        cancel_event.set()
+    if hasattr(win, "_enhancement_pending"):
+        win._enhancement_pending = None
+    _finish_invent_controls(win)
+
+
 def _apply_new_problem(win: Any, problem: str) -> None:
+    _invalidate_generation(win)
     win.problem = problem
     win.packet = None
     win.invent_sheet = None
@@ -278,7 +341,7 @@ def _enhance_packet_async(packet: dict[str, Any]) -> None:
     try:
         from ..model_runtime import enhance_criba_packet
         enhance_criba_packet(packet)
-        packet["semantic_generation"]["status"] = "ok"
+        # Runtime metadata is authoritative: completion is not model success.
     except Exception as exc:
         packet["semantic_generation"]["status"] = "fallback"
         packet["semantic_generation"]["error"] = str(exc)
@@ -298,18 +361,60 @@ def on_generar(win: Any) -> None:
 
     # El indicador de actividad está ligado al worker, no a un spinner global.
 
-    def _generate_and_enhance() -> dict[str, Any]:
-        packet = _generate_criba_packet(win.problem)
-        # Enhancement runs in background; UI shows deterministic ideas now.
-        enhance_worker = Worker(lambda: _enhance_packet_async(packet))
-        _start_worker(win, enhance_worker, "enhance")
-        return packet
+    _invalidate_generation(win)
+    token = win._generation_token
+    problem = win.problem
 
-    worker = Worker(_generate_and_enhance)
-    worker.signals.done.connect(lambda packet: _on_generated(win, packet))
-    worker.signals.fail.connect(
-        lambda msg: on_operation_error(win, "navGenerar", "stageGenerar", msg)
-    )
+    def _accept(packet: dict[str, Any]) -> None:
+        if win._generation_token is not token:
+            return
+        _on_generated(win, packet)
+        snapshot = deepcopy(packet)
+
+        def _enhance() -> dict[str, Any]:
+            _enhance_packet_async(snapshot)
+            return snapshot
+
+        def _apply_enhancement(result: dict[str, Any]) -> None:
+            if win._generation_token is not token or win.packet is not packet:
+                return
+            # Merge only wording/metadata; never overwrite later user state.
+            old_ideas = packet["innovation"]["ideas"]
+            new_ideas = result["innovation"]["ideas"]
+            if [row.get("id") for row in old_ideas] != [row.get("id") for row in new_ideas]:
+                return
+            fields = (
+                "title",
+                "description",
+                "semantic_mechanism",
+                "semantic_experiment",
+                "semantic_source",
+            )
+            for old, new in zip(old_ideas, new_ideas, strict=True):
+                for field in fields:
+                    if field in new:
+                        old[field] = new[field]
+            packet["semantic_generation"] = result.get("semantic_generation", {})
+            model = win.refs["rankingModel"]
+            if model.rowCount():
+                model.set_rows(_build_ranking_rows(packet))
+            _activity(
+                win,
+                "cyan",
+                f"Enhancement: {packet['semantic_generation'].get('status', 'unknown')}",
+            )
+
+        enhance_worker = Worker(_enhance)
+        _connect_gui(enhance_worker, enhance_worker.signals.done, _apply_enhancement)
+        _start_worker(win, enhance_worker, "enhance")
+
+    def _fail(msg: str) -> None:
+        if win._generation_token is token:
+            on_operation_error(win, "navGenerar", "stageGenerar", msg)
+
+    worker = Worker(lambda: _generate_criba_packet(problem))
+    _connect_gui(worker, worker.signals.done, _accept)
+    _connect_gui(worker, worker.signals.fail, _fail, failure=True)
     _start_worker(win, worker, "generate")
 
 
@@ -386,11 +491,41 @@ def _run_inventar(
         estado_interprete,
         seleccion_por_defecto,
     )
-    from ..inventar import _default_proponer, append_ledger, invent
+    from ..inventar import _default_proponer, _offline_mode, append_ledger, invent
 
-    chosen = backend or seleccion_por_defecto()
-    interpreter = construir_interprete(chosen)
-    interpreter_state = estado_interprete(interpreter)
+    chosen = (backend or seleccion_por_defecto()).strip().lower()
+    offline = _offline_mode(None)
+    if offline:
+        interpreter = None
+        interpreter_state = {
+            "backend": chosen,
+            "provider": "offline",
+            "model_requested": "",
+            "conectado": False,
+            "motivo": "modo offline; interprete no construido ni consultado",
+            "etiqueta": "OFFLINE",
+            "experimental": False,
+            "admission_report": None,
+        }
+    else:
+        if chosen in ("local_llama", "local"):
+            def _bank_progress(event: dict[str, Any]) -> None:
+                if progress is not None:
+                    progress(
+                        {
+                            **event,
+                            "candidate": f"Banco local · {event.get('case', '')}",
+                        }
+                    )
+
+            interpreter = construir_interprete(
+                chosen,
+                cancel_requested=cancel_requested,
+                progress=_bank_progress,
+            )
+        else:
+            interpreter = construir_interprete(chosen)
+        interpreter_state = estado_interprete(interpreter)
     completed = 0
 
     def _proponer(
@@ -409,6 +544,7 @@ def _run_inventar(
                 query,
                 idea,
                 domain,
+                offline=offline,
                 evidence=evidence,
                 interprete=interpreter,
             )
@@ -423,7 +559,12 @@ def _run_inventar(
             )
         return result
 
-    sheet = invent(problem, store=default_store(), proponer=_proponer)
+    sheet = invent(
+        problem,
+        offline=offline,
+        store=default_store(),
+        proponer=_proponer,
+    )
     ledger = append_ledger(sheet)
     sheet["ledger_path"] = str(ledger)
     sheet["interpreter"] = interpreter_state
@@ -436,6 +577,11 @@ def on_inventar(win: Any) -> None:
     if not win.problem:
         show_error(win, "Inventar", "Define primero el problema base (Nueva idea).")
         return
+    _invalidate_generation(win)
+    operation_token = win._interpretation_operation_token
+    problem = str(win.problem)
+    cancel_event = Event()
+    win._interpreter_cancel_event = cancel_event
     _lock_mutators(win)
     _suggest(win, None)
     win.nav["navInventar"].set_state("running", "Cruce → hipótesis → antecedentes...")
@@ -458,17 +604,32 @@ def on_inventar(win: Any) -> None:
 
     def _task() -> dict[str, Any]:
         return _run_inventar(
-            win.problem,
+            problem,
             backend=backend,
             progress=lambda payload: holder["worker"].signals.progress.emit(payload),
-            cancel_requested=lambda: bool(win.interpreter_cancel_requested),
+            cancel_requested=cancel_event.is_set,
         )
+
+    def _is_current() -> bool:
+        return win._interpretation_operation_token is operation_token
+
+    def _progress(payload: dict[str, Any]) -> None:
+        if _is_current():
+            _on_invent_progress(win, payload)
+
+    def _done(sheet: dict[str, Any]) -> None:
+        if _is_current():
+            _on_invented(win, sheet)
+
+    def _failed(message: str) -> None:
+        if _is_current():
+            _on_invent_failed(win, message)
 
     worker = Worker(_task)
     holder["worker"] = worker
-    worker.signals.progress.connect(lambda payload: _on_invent_progress(win, payload))
-    worker.signals.done.connect(lambda sheet: _on_invented(win, sheet))
-    worker.signals.fail.connect(lambda msg: _on_invent_failed(win, msg))
+    _connect_gui(worker, worker.signals.progress, _progress)
+    _connect_gui(worker, worker.signals.done, _done)
+    _connect_gui(worker, worker.signals.fail, _failed, failure=True)
     _start_worker(win, worker, "interpret")
 
 
@@ -484,16 +645,25 @@ def _on_invent_progress(win: Any, payload: dict[str, Any]) -> None:
     topcards = getattr(win, "topcards", None)
     if topcards is None:
         return
-    topcards.interpreter_status.setText(
-        f"Interpretación {payload.get('completed', 0)} · "
-        f"{payload.get('status', 'PENDIENTE')} · "
-        f"{payload.get('candidate', '')}"
-    )
+    if payload.get("phase") == "bank":
+        topcards.interpreter_status.setText(
+            f"Banco local {payload.get('completed', 0)}/{payload.get('total', 0)} · "
+            f"{payload.get('status', 'PENDIENTE')} · {payload.get('candidate', '')}"
+        )
+    else:
+        topcards.interpreter_status.setText(
+            f"Interpretación {payload.get('completed', 0)} · "
+            f"{payload.get('status', 'PENDIENTE')} · "
+            f"{payload.get('candidate', '')}"
+        )
 
 
 def on_cancel_inventar(win: Any) -> None:
     """Solicita cancelación cooperativa tras la petición HTTP en curso."""
     win.interpreter_cancel_requested = True
+    cancel_event = getattr(win, "_interpreter_cancel_event", None)
+    if cancel_event is not None:
+        cancel_event.set()
     topcards = getattr(win, "topcards", None)
     if topcards is not None:
         topcards.cancel_interpretation.setEnabled(False)
@@ -624,11 +794,24 @@ def on_evaluar(win: Any) -> None:
     win.nav["navEvaluar"].set_state("running", "Midiendo convergencia...")
     r["stages"]["stageEvaluar"].set_state("active", spinning=True)
     packet = win.packet
+    session_token = getattr(win, "_generation_token", None)
+    if session_token is None:
+        session_token = win._generation_token = object()
+
+    def _is_current() -> bool:
+        return win._generation_token is session_token and win.packet is packet
+
+    def _done(rows: list[dict[str, Any]]) -> None:
+        if _is_current():
+            _on_evaluated(win, rows)
+
+    def _failed(message: str) -> None:
+        if _is_current():
+            on_operation_error(win, "navEvaluar", "stageEvaluar", message)
+
     worker = Worker(lambda: _build_ranking_rows(packet))
-    worker.signals.done.connect(lambda rows: _on_evaluated(win, rows))
-    worker.signals.fail.connect(
-        lambda msg: on_operation_error(win, "navEvaluar", "stageEvaluar", msg)
-    )
+    _connect_gui(worker, worker.signals.done, _done)
+    _connect_gui(worker, worker.signals.fail, _failed, failure=True)
     _start_worker(win, worker, "evaluate")
 
 
@@ -784,6 +967,7 @@ def on_guardar(win: Any) -> None:
 # S7 — HISTORIAL
 # ---------------------------------------------------------------------------
 def on_historial(win: Any) -> None:
+    _invalidate_generation(win)
     win.nav["navHistorial"].setChecked(True)
     from .dialogs import show_history
 

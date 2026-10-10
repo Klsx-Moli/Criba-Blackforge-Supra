@@ -17,6 +17,7 @@ import logging
 import math
 import os
 import time
+from collections.abc import Callable
 from dataclasses import replace
 from typing import Any
 
@@ -24,11 +25,16 @@ import httpx
 
 from .contrato import (
     CRITICA_INSTRUCCIONES,
+    KIND_DOMAIN,
+    KIND_SCHEMA,
     PREGUNTAS_TEXTO,
     SYSTEM,
     prompt_propuesta,
+    schema_critica,
+    schema_propuesta,
     validar_critica,
     validar_propuesta,
+    validar_propuesta_estructurada,
 )
 from .puerto import (
     ESTADO_PENDIENTE,
@@ -217,7 +223,11 @@ class OpenAICompatibleInterpreter:
         fallback_used: bool,
         prompt: str = "",
         model_requested: str = "",
+        constrained_decoding: str = "",
     ) -> Provenance:
+        parametros = dict(self.generation_parameters)
+        if constrained_decoding:
+            parametros["constrained_decoding"] = constrained_decoding
         return Provenance(
             interpreter_backend=self.backend,
             provider=self.provider,
@@ -232,11 +242,18 @@ class OpenAICompatibleInterpreter:
             fallback_used=fallback_used,
             raw_output_sha256=hash_salida(raw),
             prompt_sha256=hash_salida(_SYSTEM + prompt),
-            generation_parameters=self.generation_parameters,
+            generation_parameters=parametros,
         )
 
-    def _pedir(self, prompt: str, model: str) -> InterpretationResult:
-        """Una petición, con diagnóstico y procedencia propios incluso si falla."""
+    def _pedir(
+        self, prompt: str, model: str, schema: dict[str, Any] | None = None
+    ) -> InterpretationResult:
+        """Una petición, con diagnóstico y procedencia propios incluso si falla.
+
+        ``schema`` activa decodificación restringida (json_schema -> grammar en
+        llama-server). Fija la forma del JSON, nunca el veredicto. La procedencia
+        registra que se usó para no comparar peras con manzanas.
+        """
         request_id = nuevo_request_id()
         inicio = time.monotonic()
         payload = {
@@ -246,7 +263,14 @@ class OpenAICompatibleInterpreter:
                 {"role": "user", "content": prompt},
             ],
             "temperature": self.temperature,
-            "response_format": {"type": "json_object"},
+            "response_format": (
+                {
+                    "type": "json_schema",
+                    "json_schema": {"name": "propuesta", "schema": schema},
+                }
+                if schema
+                else {"type": "json_object"}
+            ),
         }
         model_reported = ""
         raw_output = ""
@@ -417,17 +441,40 @@ class OpenAICompatibleInterpreter:
                     fallback_used=False,
                 ),
             )
-        transporte = self._pedir(prompt, self.model)
+        restringido = os.getenv("CRIBA_CONSTRAINED_DECODING", "").strip().lower() in (
+            "json_schema",
+            "1",
+            "true",
+        )
+        transporte = self._pedir(
+            prompt,
+            self.model,
+            schema=schema_propuesta(idea, evidence) if restringido else None,
+        )
+        if restringido and transporte.provenance is not None:
+            transporte = replace(
+                transporte,
+                provenance=replace(
+                    transporte.provenance,
+                    generation_parameters={
+                        **transporte.provenance.generation_parameters,
+                        "constrained_decoding": "json_schema",
+                    },
+                ),
+            )
         if transporte.estado == ESTADO_PENDIENTE:
             return transporte
         parsed = _extraer_json(transporte.raw_output)
-        errores = validar_propuesta(parsed, idea, evidence)
-        if errores:
+        errores_estructurados = validar_propuesta_estructurada(parsed, idea, evidence)
+        if errores_estructurados:
+            kinds = {kind for kind, _ in errores_estructurados}
+            error_kind = KIND_SCHEMA if KIND_SCHEMA in kinds else KIND_DOMAIN
             return replace(
                 transporte,
                 estado=ESTADO_PENDIENTE,
                 pertinencia=str(parsed.get("pertinencia") or ""),
-                error="validacion:" + "; ".join(errores),
+                error="validacion:" + "; ".join(m for _, m in errores_estructurados),
+                error_kind=error_kind,
             )
         critica_prompt = (
             CRITICA_INSTRUCCIONES
@@ -438,7 +485,9 @@ class OpenAICompatibleInterpreter:
             + "\nPROPUESTA A CRITICAR:\n"
             + json.dumps(parsed, ensure_ascii=False)
         )
-        critica = self._pedir(critica_prompt, self.critic_model)
+        critica = self._pedir(
+            critica_prompt, self.critic_model, schema=schema_critica() if restringido else None
+        )
         diagnostico: dict[str, Any] = {
             "evaluation_status": "NOT_EVALUATED",
             "independent_validation": False,
@@ -503,9 +552,18 @@ class LocalLlamaInterpreter(OpenAICompatibleInterpreter):
     ETIQUETA = "EXPERIMENTAL / NO VERIFICADO"
     MOTIVO = "interpretación operativa pendiente: falta superar el banco local"
 
-    def __init__(self, base_url: str | None = None, model: str | None = None) -> None:
+    def __init__(
+        self,
+        base_url: str | None = None,
+        model: str | None = None,
+        *,
+        cancel_requested: Callable[[], bool] | None = None,
+        progress: Callable[[dict[str, Any]], None] | None = None,
+    ) -> None:
         from criba.model_config import load_model_settings
 
+        self._bank_cancel_requested = cancel_requested
+        self._bank_progress = progress
         settings = load_model_settings()
         profile = settings.active_profile() if settings.enabled else None
         base = (
@@ -559,10 +617,14 @@ class LocalLlamaInterpreter(OpenAICompatibleInterpreter):
         from .banco import evaluar_banco
 
         self.gate_report = evaluar_banco(
-            lambda q, i, d, e: super(LocalLlamaInterpreter, self).proponer(q, i, d, e)
+            lambda q, i, d, e: super(LocalLlamaInterpreter, self).proponer(q, i, d, e),
+            cancel_requested=self._bank_cancel_requested,
+            progress=self._bank_progress,
         )
         ok = bool(self.gate_report["passed"])
         self.ETIQUETA = "" if ok else "EXPERIMENTAL / NO VERIFICADO"
+        if self.gate_report["cancelled"]:
+            return False, "banco local cancelado; intérprete no admitido"
         return ok, "banco local superado" if ok else self.MOTIVO
 
     def proponer(

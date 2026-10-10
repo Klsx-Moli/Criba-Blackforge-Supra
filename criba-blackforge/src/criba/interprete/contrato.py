@@ -128,48 +128,65 @@ def texto(value: Any) -> TypeGuard[str]:
     return isinstance(value, str) and bool(value.strip())
 
 
-def validar_propuesta(
+KIND_SCHEMA = "schema"
+KIND_DOMAIN = "domain"
+
+
+def validar_propuesta_estructurada(
     parsed: dict[str, Any], idea: dict[str, Any], evidence: list[dict[str, Any]] | None
-) -> list[str]:
-    errores: list[str] = []
+) -> list[tuple[str, str]]:
+    """Errores de contrato como (kind, mensaje). Una sola fuente de verdad.
+
+    ``kind`` es ``KIND_SCHEMA`` si el fallo es de forma (campo ausente o de tipo
+    incorrecto) y ``KIND_DOMAIN`` si el JSON tiene la forma correcta pero su
+    contenido incumple una regla científica. El banco consume este ``kind`` sin
+    volver a interpretar el texto del mensaje.
+    """
+    errores: list[tuple[str, str]] = []
     if any(campo in parsed for campo in ("score", "epistemic_score", "veredicto")):
-        errores.append("autoevaluacion numérica o veredicto del modelo no permitidos")
+        errores.append(
+            (KIND_DOMAIN, "autoevaluacion numérica o veredicto del modelo no permitidos")
+        )
     if parsed.get("pertinencia") == "ABSTENER":
         motivo = parsed.get("motivo_abstencion")
-        return errores + (["abstencion:" + motivo] if texto(motivo) else ["abstencion_sin_motivo"])
+        if texto(motivo):
+            return errores + [(KIND_DOMAIN, "abstencion:" + motivo)]
+        return errores + [(KIND_SCHEMA, "abstencion_sin_motivo")]
     if parsed.get("pertinencia") != "PERTINENTE":
-        errores.append("pertinencia ausente o inválida")
+        errores.append((KIND_SCHEMA, "pertinencia ausente o inválida"))
     if "ruta_desbloqueo" in parsed and not isinstance(parsed["ruta_desbloqueo"], str):
-        errores.append("ruta_desbloqueo debe ser texto")
+        errores.append((KIND_SCHEMA, "ruta_desbloqueo debe ser texto"))
     for campo in ("hipotesis", "mecanismo", "prueba_concreta", "incertidumbre", "novedad"):
         if not texto(parsed.get(campo)):
-            errores.append(f"sin {campo}")
+            errores.append((KIND_SCHEMA, f"sin {campo}"))
         elif len(parsed[campo]) > 12000:
-            errores.append(f"{campo} demasiado largo")
+            errores.append((KIND_SCHEMA, f"{campo} demasiado largo"))
     for campo in ("aportacion_por_tecnica", "supuestos", "cadena_causal", "conocimiento_previo"):
         valor = parsed.get(campo)
         if not isinstance(valor, list) or any(not texto(x) for x in valor):
-            errores.append(f"{campo} debe ser una lista de textos no vacíos")
+            errores.append((KIND_SCHEMA, f"{campo} debe ser una lista de textos no vacíos"))
         elif campo in ("aportacion_por_tecnica", "cadena_causal") and len(valor) < 2:
-            errores.append(f"{campo} requiere al menos dos elementos")
+            errores.append((KIND_SCHEMA, f"{campo} requiere al menos dos elementos"))
     if (
         isinstance(parsed.get("aportacion_por_tecnica"), list)
         and len(parsed["aportacion_por_tecnica"]) != 2
     ):
-        errores.append("aportacion_por_tecnica requiere exactamente dos operaciones")
+        errores.append((KIND_SCHEMA, "aportacion_por_tecnica requiere exactamente dos operaciones"))
     mecanismo = parsed.get("mecanismo")
     if texto(mecanismo):
         if len(mecanismo.split()) < 8:
-            errores.append("mecanismo insuficientemente específico")
+            errores.append((KIND_DOMAIN, "mecanismo insuficientemente específico"))
         for nombre in (idea.get("method1"), idea.get("method2")):
             if texto(nombre) and re.search(
                 r"(?<!\w)" + re.escape(nombre) + r"(?!\w)", mecanismo, re.IGNORECASE
             ):
-                errores.append("mecanismo repite nombres de técnicas")
+                errores.append((KIND_DOMAIN, "mecanismo repite nombres de técnicas"))
                 break
     prueba = parsed.get("prueba")
     if not isinstance(prueba, dict):
-        errores.append("prueba debe ser un objeto con métrica, baseline, umbral y fracaso")
+        errores.append(
+            (KIND_SCHEMA, "prueba debe ser un objeto con métrica, baseline, umbral y fracaso")
+        )
     else:
         for campo in (
             "metrica",
@@ -181,31 +198,180 @@ def validar_propuesta(
             "resultado_favorable_alternativa",
         ):
             if not texto(prueba.get(campo)):
-                errores.append(f"prueba.sin_{campo}")
+                errores.append((KIND_SCHEMA, f"prueba.sin_{campo}"))
         if texto(prueba.get("umbral")) and not re.search(r"\d", prueba["umbral"]):
-            errores.append("prueba.umbral requiere un valor numérico")
+            errores.append((KIND_DOMAIN, "prueba.umbral requiere un valor numérico"))
         h1 = prueba.get("resultado_favorable_mecanismo")
         h2 = prueba.get("resultado_favorable_alternativa")
         if texto(h1) and texto(h2) and h1.strip().casefold() == h2.strip().casefold():
-            errores.append("prueba.predicciones_no_discriminantes")
+            errores.append((KIND_DOMAIN, "prueba.predicciones_no_discriminantes"))
     citas = parsed.get("evidencia_citada")
     cantidad = len(evidencia_entregada(evidence))
-    if not isinstance(citas, list) or any(
-        type(i) is not int or not 1 <= i <= cantidad for i in citas
-    ):
-        errores.append("evidencia_citada contiene índices inexistentes o tipos inválidos")
+    if not isinstance(citas, list) or any(type(i) is not int or not 1 <= i <= cantidad for i in citas):
+        errores.append(
+            (KIND_SCHEMA, "evidencia_citada contiene índices inexistentes o tipos inválidos")
+        )
     comprobaciones = parsed.get("comprobacion_restricciones")
     obligatorias = restricciones_de(idea)
     if not isinstance(comprobaciones, list) or any(not isinstance(c, dict) for c in comprobaciones):
-        errores.append("comprobacion_restricciones debe ser una lista de objetos")
+        errores.append((KIND_SCHEMA, "comprobacion_restricciones debe ser una lista de objetos"))
     else:
         declaradas = [c.get("restriccion") for c in comprobaciones]
         if declaradas != obligatorias:
-            errores.append("restricciones obligatorias no comprobadas exactamente")
+            errores.append((KIND_SCHEMA, "restricciones obligatorias no comprobadas exactamente"))
         for c in comprobaciones:
             if c.get("estado") != "CUMPLE" or not texto(c.get("justificacion")):
-                errores.append("restriccion violada o no verificada")
+                errores.append((KIND_DOMAIN, "restriccion violada o no verificada"))
     return errores
+
+
+def validar_propuesta(
+    parsed: dict[str, Any], idea: dict[str, Any], evidence: list[dict[str, Any]] | None
+) -> list[str]:
+    return [mensaje for _, mensaje in validar_propuesta_estructurada(parsed, idea, evidence)]
+
+
+def schema_propuesta(idea: dict[str, Any], evidence: list[dict[str, Any]] | None) -> dict[str, Any]:
+    """JSON Schema derivado del contrato real, para decodificación restringida.
+
+    La grammar FIJA LA FORMA, nunca el veredicto: no usa ``const`` sobre el
+    contenido salvo para el discriminante ``pertinencia``. Las reglas de
+    contenido (mecanismo >= 8 palabras, que no repita nombres de técnicas,
+    predicciones H1/H2 distintas) las sigue aplicando ``validar_propuesta``.
+    Se genera en cada llamada porque ``evidencia_citada`` y
+    ``comprobacion_restricciones`` dependen de la evidencia y restricciones del
+    caso.
+    """
+    n_ev = len(evidencia_entregada(evidence))
+    obligatorias = restricciones_de(idea)
+    t = {"type": "string", "minLength": 1}
+
+    def lista(min_items: int, max_items: int | None = None) -> dict[str, Any]:
+        s: dict[str, Any] = {"type": "array", "items": t, "minItems": min_items}
+        if max_items is not None:
+            s["maxItems"] = max_items
+        return s
+
+    prueba_campos = [
+        "metrica",
+        "baseline",
+        "umbral",
+        "condicion_fracaso",
+        "alternativa_explicativa",
+        "resultado_favorable_mecanismo",
+        "resultado_favorable_alternativa",
+    ]
+    restr: dict[str, Any] = {
+        "type": "array",
+        "minItems": len(obligatorias),
+        "maxItems": len(obligatorias),
+    }
+    if obligatorias:
+        restr["items"] = {
+            "type": "object",
+            "additionalProperties": False,
+            "required": ["restriccion", "estado", "justificacion"],
+            "properties": {
+                "restriccion": {"enum": obligatorias},
+                "estado": {"enum": ["CUMPLE", "VIOLA", "NO_VERIFICADO"]},
+                "justificacion": t,
+            },
+        }
+    abstener = {
+        "type": "object",
+        "additionalProperties": False,
+        "required": ["pertinencia", "motivo_abstencion"],
+        "properties": {"pertinencia": {"const": "ABSTENER"}, "motivo_abstencion": t},
+    }
+    pertinente = {
+        "type": "object",
+        "additionalProperties": False,
+        "required": [
+            "pertinencia",
+            "hipotesis",
+            "mecanismo",
+            "cadena_causal",
+            "aportacion_por_tecnica",
+            "supuestos",
+            "evidencia_citada",
+            "conocimiento_previo",
+            "incertidumbre",
+            "novedad",
+            "prueba_concreta",
+            "prueba",
+            "comprobacion_restricciones",
+        ],
+        "properties": {
+            "pertinencia": {"const": "PERTINENTE"},
+            "hipotesis": t,
+            "mecanismo": t,
+            "incertidumbre": t,
+            "novedad": t,
+            "prueba_concreta": t,
+            "cadena_causal": lista(2),
+            "aportacion_por_tecnica": lista(2, 2),
+            "supuestos": lista(0),
+            "conocimiento_previo": lista(0),
+            "evidencia_citada": {
+                "type": "array",
+                "maxItems": n_ev,
+                "items": {"type": "integer", "minimum": 1, "maximum": max(n_ev, 1)},
+            },
+            "prueba": {
+                "type": "object",
+                "additionalProperties": False,
+                "required": prueba_campos,
+                "properties": {k: t for k in prueba_campos},
+            },
+            "comprobacion_restricciones": restr,
+            "ruta_desbloqueo": {
+                "enum": ["eliminar_necesidad", "sustituir_mecanismo", "desacoplar_dependencia"]
+            },
+        },
+    }
+    return {"anyOf": [abstener, pertinente]}
+
+
+def schema_critica() -> dict[str, Any]:
+    """JSON Schema de la crítica: fija la forma, NUNCA el veredicto.
+
+    Los seis booleanos son ``{"type": "boolean"}`` (no ``const: true``): si la
+    grammar forzara ``true``, el crítico aprobaría siempre y el banco mediría la
+    grammar en vez del modelo.
+    """
+    t = {"type": "string", "minLength": 1}
+    return {
+        "type": "object",
+        "additionalProperties": False,
+        "required": [
+            "pertinente",
+            "mecanismo_especifico",
+            "falsable",
+            "fiel_evidencia",
+            "restricciones_respetadas",
+            "discrimina_alternativas",
+            "intercambio_tecnicas_generico",
+            "objeciones",
+            "incertidumbre",
+            "respuestas_epistemologicas",
+        ],
+        "properties": {
+            "pertinente": {"type": "boolean"},
+            "mecanismo_especifico": {"type": "boolean"},
+            "falsable": {"type": "boolean"},
+            "fiel_evidencia": {"type": "boolean"},
+            "restricciones_respetadas": {"type": "boolean"},
+            "discrimina_alternativas": {"type": "boolean"},
+            "intercambio_tecnicas_generico": {"type": "boolean"},
+            "objeciones": {"type": "array", "items": t},
+            "incertidumbre": t,
+            "respuestas_epistemologicas": {
+                "type": "object",
+                "required": [p.id for p in PREGUNTAS],
+                "properties": {p.id: t for p in PREGUNTAS},
+            },
+        },
+    }
 
 
 def validar_critica(parsed: dict[str, Any]) -> list[str]:

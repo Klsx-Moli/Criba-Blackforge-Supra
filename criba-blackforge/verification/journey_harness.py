@@ -128,6 +128,9 @@ def main() -> int:
 
     root = Path(sys.argv[1]).resolve()
     root.mkdir(parents=True, exist_ok=True)
+    isolated_localappdata = root / "localappdata"
+    isolated_localappdata.mkdir(parents=True, exist_ok=True)
+    os.environ["LOCALAPPDATA"] = str(isolated_localappdata)
     os.environ["CRIBASHADOW_HOME"] = str(root)
     # CRIBA_MODEL_CONFIG is a separate path and does not follow CRIBASHADOW_HOME.
     # Keep optional idea-generation models inside this isolated run instead of
@@ -195,8 +198,38 @@ def main() -> int:
         raw_text = win.candidates.raw_output.toPlainText()
         entries = sheet.get("entries", [])
         raw_sizes = [len(str(item.get("interpretacion_raw_output") or "")) for item in entries]
-        if not raw_text.strip() or not any(raw_sizes):
-            raise RuntimeError("la salida bruta no llegó al panel visible")
+        entry_diagnostics = [
+            {
+                "title": str(item.get("title") or "")[:100],
+                "state": item.get("estado_interpretacion"),
+                "error": str(item.get("interpretacion_error") or "")[:240],
+                "raw_chars": raw_sizes[index],
+                "model_requests": item.get("interpretacion_model_requests"),
+            }
+            for index, item in enumerate(entries)
+        ]
+        first_entry = entries[0] if entries else {}
+        first_raw = str(first_entry.get("interpretacion_raw_output") or "").strip()
+        interpreter = sheet.get("interpreter") or {}
+        diagnostic = {
+            "raw_panel_chars": len(raw_text),
+            "first_entry_raw_chars": len(first_raw),
+            "entries": entry_diagnostics,
+            "provider": interpreter.get("provider"),
+            "model_requested": interpreter.get("model_requested"),
+            "connected": interpreter.get("conectado"),
+            "reason": interpreter.get("motivo"),
+        }
+        if not first_raw:
+            raise RuntimeError(
+                "primera propuesta sin salida bruta del modelo: "
+                + json.dumps(diagnostic, ensure_ascii=False)
+            )
+        if first_raw not in raw_text:
+            raise RuntimeError(
+                "la salida bruta de la primera propuesta no aparece en el panel: "
+                + json.dumps(diagnostic, ensure_ascii=False)
+            )
         _returned(
             operation_id,
             "INTERPRETER_RAW",

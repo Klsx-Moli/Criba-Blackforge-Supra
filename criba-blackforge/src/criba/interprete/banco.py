@@ -90,29 +90,95 @@ def _tokens(text: str) -> set[str]:
     return set(re.findall(r"\w+", text.lower()))
 
 
+def _clasificar_error(r: InterpretationResult) -> tuple[str | None, str | None, str]:
+    """Separa error TÉCNICO de error DERIVADO. El técnico nunca se sobrescribe.
+
+    El ``kind`` estructurado (``error_kind``) lo fija el validador de contrato;
+    aquí NO se vuelve a interpretar el texto del mensaje salvo para los prefijos
+    de transporte, que ya son un vocabulario cerrado del propio puerto.
+
+    Jerarquía (BANCO-TRACE-01):
+      - json inválido / truncado / timeout / transporte → ERROR técnico
+      - raw_output vacía                                → empty_response, ERROR
+      - error_kind == "schema"                          → schema_invalido, ERROR
+      - error_kind == "domain"                          → técnico None, REJECTED
+      - es propuesta                                    → PASS
+    """
+    err = r.error or ""
+    if err.startswith("json_invalido:") or "json_invalido:" in err:
+        detalle = err[err.index("json_invalido:") :]
+        return detalle, "invalid_json", "ERROR"
+    if err.startswith(("salida_truncada:", "truncated_response")):
+        return "truncated_response", "truncated_response", "ERROR"
+    if err.startswith("timeout"):
+        return "timeout", "timeout", "ERROR"
+    if err.startswith(
+        ("transporte_http:", "http_error_", "plan_agotado", "credenciales",
+         "sin_contenido:", "contenido_tipo", "message_tipo", "tool_calls_sin_contenido",
+         "choice_tipo", "configuracion_invalida", "critica_no_disponible:")
+    ):
+        return err, "transport_failure", "ERROR"
+    raw = r.raw_output
+    if raw is None or (isinstance(raw, str) and not raw.strip()):
+        return "empty_response", "no_interpretable_output", "ERROR"
+    # JSON parseado con éxito: la forma está bien; clasifica el validador.
+    if r.es_propuesta:
+        return None, None, "PASS"
+    if r.error_kind == "schema":
+        detalle = err[len("validacion:") :] if err.startswith("validacion:") else err
+        return f"schema_invalido:{detalle}", "schema_validation_failed", "ERROR"
+    if err:
+        return None, err, "REJECTED"
+    return None, None, "REJECTED"
+
+
 def evaluar_banco(
-    proponer: Proponer, *, repeticiones: int = 2, referencia: Proponer | None = None
+    proponer: Proponer,
+    *,
+    repeticiones: int = 2,
+    referencia: Proponer | None = None,
+    cancel_requested: Callable[[], bool] | None = None,
+    progress: Callable[[dict[str, Any]], None] | None = None,
 ) -> dict[str, Any]:
     if repeticiones < 2:
         raise ValueError("el banco exige al menos dos repeticiones")
     resultados: list[dict[str, Any]] = []
     acuerdos: list[bool] = []
     model_requests = 0
+    completed = 0
+    total = len(CASOS) * repeticiones
+    cancelled = False
     for caso in CASOS:
         estados: list[str] = []
         mecanismos: list[set[str]] = []
         intentos: list[dict[str, Any]] = []
-        for _ in range(repeticiones):
+        for intento in range(repeticiones):
+            if cancel_requested is not None and cancel_requested():
+                cancelled = True
+                break
             r = proponer(caso["query"], caso["idea"], None, caso["evidence"])
+            completed += 1
             model_requests += r.model_requests
+            technical_error, derived_error, result = _clasificar_error(r)
+            provenance = r.provenance.sin_secretos() if r.provenance else {}
+            latency_s = (
+                round(provenance["duration_ms"] / 1000, 3)
+                if isinstance(provenance.get("duration_ms"), int)
+                else None
+            )
             intentos.append(
                 {
+                    "case_id": caso["id"],
                     "resultado": r.to_campos(),
                     "raw_output": r.raw_output,
-                    "provenance": r.provenance.sin_secretos() if r.provenance else {},
+                    "technical_error": technical_error,
+                    "derived_error": derived_error,
+                    "result": result,
+                    "provenance": provenance,
                     "finish_reason": r.finish_reason,
                     "completion_tokens": r.completion_tokens,
                     "reasoning_tokens": r.reasoning_tokens,
+                    "latency_s": latency_s,
                     "model_requests": r.model_requests,
                 }
             )
@@ -128,13 +194,24 @@ def evaluar_banco(
             estados.append(estado)
             if r.es_propuesta:
                 mecanismos.append(_tokens(r.mecanismo))
-        consistente = len(set(estados)) == 1
+            if progress is not None:
+                progress(
+                    {
+                        "phase": "bank",
+                        "completed": completed,
+                        "total": total,
+                        "case": caso["id"],
+                        "attempt": intento + 1,
+                        "status": estado,
+                    }
+                )
+        consistente = bool(estados) and len(set(estados)) == 1
         if mecanismos:
             base = mecanismos[0]
             consistente = consistente and all(
                 len(base & m) / max(1, len(base | m)) >= 0.6 for m in mecanismos[1:]
             )
-        correcto = all(e == caso["expected"] for e in estados)
+        correcto = bool(estados) and all(e == caso["expected"] for e in estados)
         resultados.append(
             {
                 "id": caso["id"],
@@ -145,22 +222,33 @@ def evaluar_banco(
                 "attempts": intentos,
             }
         )
+        if cancel_requested is not None and cancel_requested():
+            cancelled = True
+        if cancelled:
+            break
         if referencia:
             r = referencia(caso["query"], caso["idea"], None, caso["evidence"])
             acuerdos.append(
                 (r.es_propuesta and estados[0] == "PROPUESTA")
                 or (r.pertinencia == "ABSTENER" and estados[0] == "ABSTENER")
             )
+    if not cancelled and cancel_requested is not None and cancel_requested():
+        cancelled = True
     negativos = [r for r in resultados if r["expected"] == "ABSTENER"]
+    total_negativos = sum(1 for caso in CASOS if caso["expected"] == "ABSTENER")
     return {
         "bank_version": BANK_VERSION,
         "prompt_version": PROMPT_VERSION,
         "schema_version": SCHEMA_VERSION,
         "repeticiones": repeticiones,
-        "passed": all(r["correcto"] and r["consistente"] for r in resultados),
+        "cancelled": cancelled,
+        "completed_attempts": completed,
+        "total_attempts": total,
+        "passed": not cancelled and len(resultados) == len(CASOS)
+        and all(r["correcto"] and r["consistente"] for r in resultados),
         "schema_response_rate": sum(e != "ERROR" for r in resultados for e in r["estados"])
-        / (len(CASOS) * repeticiones),
-        "correct_abstention_rate": sum(r["correcto"] for r in negativos) / len(negativos),
+        / total,
+        "correct_abstention_rate": sum(r["correcto"] for r in negativos) / total_negativos,
         "consistency_rate": sum(r["consistente"] for r in resultados) / len(CASOS),
         "reference_agreement": sum(acuerdos) / len(acuerdos) if acuerdos else None,
         "reference_evaluated": bool(acuerdos),

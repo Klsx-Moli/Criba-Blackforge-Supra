@@ -1605,6 +1605,12 @@ class ShadowWindow(QMainWindow):
     # ------------------------------------------------------------------
     # Notificaciones (campana): actividad real de la sesión
     # ------------------------------------------------------------------
+    def closeEvent(self, event) -> None:
+        from criba.ui.actions import _invalidate_generation
+
+        _invalidate_generation(self)
+        super().closeEvent(event)
+
     def record_notification(self, timestamp: str, kind: str, text: str) -> None:
         """Registra una notificación real (la llama panels.add_activity)."""
         self.notifications.append((timestamp, kind, text))

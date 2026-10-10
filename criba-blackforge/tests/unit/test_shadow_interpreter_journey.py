@@ -167,6 +167,44 @@ def test_run_inventar_fija_una_instancia_de_interprete_por_run(monkeypatch, tmp_
     assert [p["completed"] for p in progresos] == [1, 2]
 
 
+def test_run_inventar_offline_no_crea_interprete_ni_consulta_red(monkeypatch, tmp_path):
+    monkeypatch.setenv("CRIBA_INVENTAR_OFFLINE", "1")
+
+    def construir(*_args, **_kwargs):
+        pytest.fail("modo offline no debe construir ni consultar un intérprete")
+
+    def invent_falso(problem: str, *, offline: bool, store: Any, proponer: Any):
+        assert offline is True
+        assert store is None
+        result = proponer(
+            problem,
+            {"title": "candidato", "method1": "A", "method2": "B"},
+            {"title": "dominio"},
+            [],
+        )
+        assert result["estado"] == "PENDIENTE_INTERPRETACION"
+        assert result["error"] == "modo offline"
+        assert result["interpretacion_model_requests"] == 0
+        return {
+            "query": problem,
+            "seed": 1,
+            "mode": "stratified",
+            "entries": [],
+            "totals": {},
+        }
+
+    monkeypatch.setattr("criba.interprete.seleccion.construir_interprete", construir)
+    monkeypatch.setattr("criba.inventar.invent", invent_falso)
+    monkeypatch.setattr("criba.inventar.append_ledger", lambda _sheet: tmp_path / "ledger.jsonl")
+    monkeypatch.setattr("criba.intelligence.refresh.default_store", lambda: None)
+
+    sheet = actions._run_inventar("problema offline", backend="openai_compatible")
+
+    assert sheet["interpreter"]["provider"] == "offline"
+    assert sheet["interpreter"]["conectado"] is False
+    assert "no construido ni consultado" in sheet["interpreter"]["motivo"]
+
+
 def test_shadow_expone_selector_real_y_salidas_copiables(qapp, tmp_path):
     from shadow_window import ShadowWindow
 
