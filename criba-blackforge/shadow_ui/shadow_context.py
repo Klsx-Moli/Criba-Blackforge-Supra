@@ -27,7 +27,7 @@ from typing import Any
 from criba.ui.i18n import t as _t
 from criba.ui.ranking import COL_IDEA, RankingFilterProxy
 from PySide6.QtCore import QProcess, QProcessEnvironment, Qt, QThreadPool
-from PySide6.QtWidgets import QMessageBox, QPushButton
+from PySide6.QtWidgets import QMessageBox, QPushButton, QVBoxLayout, QWidget
 
 
 def _blackforge_launch_env() -> QProcessEnvironment:
@@ -233,6 +233,9 @@ class ShadowActionContext:
         self._live_workers: list[Any] = []
         self._progress_label: Any = None
         self._bf_process: QProcess | None = None
+        self._bf_embedded: QWidget | None = None
+        self._bf_window: Any = None
+        self._bf_prev_widget: Any = None
         self.selected_candidate_id: str | None = None
         self.interpreter_cancel_requested: bool = False
 
@@ -426,10 +429,60 @@ class ShadowActionContext:
     def show_blackforge_page(
         self, history_packet: dict[str, Any] | None = None
     ) -> None:
-        """Lanzamiento REAL vía el bridge existente (criba.ui.app_bridge),
-        mismo contrato que CribaMainWindow.show_blackforge_page. No modifica
-        el motor BLACKFORGE: sólo lo invoca como proceso hijo."""
+        """BLACKFORGE integrado como pestaña en Shadow (premisa: sin aislamiento).
+
+        Embebe ``BlackforgeWindow`` en el área de contenido en lugar de lanzarla
+        como proceso hijo que oculta la ventana. Si el embed falla (p.ej. el
+        motor no importa), degrada al bridge de proceso hijo SIN romper.
+        """
         del history_packet  # compatibilidad con on_historial
+        if self._bf_embedded is not None:
+            self._toggle_blackforge_embedded()
+            return
+        try:
+            self._show_blackforge_embedded()
+        except Exception:  # noqa: BLE001 - degradar, nunca romper la app
+            self._show_blackforge_child()
+
+    def _show_blackforge_embedded(self) -> None:
+        """Inserta BlackforgeWindow como widget dentro del contenido de Shadow."""
+        from criba.ui.blackforge_window import BlackforgeWindow
+
+        container = QWidget(self.win)
+        lay = QVBoxLayout(container)
+        lay.setContentsMargins(0, 0, 0, 0)
+        bf = BlackforgeWindow(self.win.database if hasattr(self.win, "database") else None,
+                              query=self.problem or "")
+        lay.addWidget(bf)
+        # Guardar el contenido previo para poder volver (toggle).
+        self._bf_prev_widget = self.content_layout.parentWidget()
+        # Vaciar el contenido actual y poner BLACKFORGE.
+        while self.content_layout.count():
+            item = self.content_layout.takeAt(0)
+            w = item.widget()
+            if w is not None:
+                w.hide()
+        self.content_layout.addWidget(container)
+        self._bf_embedded = container
+        self._bf_window = bf
+
+    def _toggle_blackforge_embedded(self) -> None:
+        """Vuelve de BLACKFORGE al contenido de CRIBA (toggle del sidebar)."""
+        if self._bf_embedded is None:
+            return
+        self.content_layout.removeWidget(self._bf_embedded)
+        self._bf_embedded.deleteLater()
+        self._bf_embedded = None
+        self._bf_window = None
+        # Re-mostrar el contenido de CRIBA que se ocultó.
+        for i in range(self.content_layout.count()):
+            pass
+        if self._bf_prev_widget is not None:
+            for child in self._bf_prev_widget.findChildren(QWidget):
+                child.show()
+
+    def _show_blackforge_child(self) -> None:
+        """Camino original: lanzar BLACKFORGE como proceso hijo (fallback)."""
         if (self._bf_process is not None
                 and self._bf_process.state() != QProcess.ProcessState.NotRunning):
             self.win.hide()
@@ -455,10 +508,6 @@ class ShadowActionContext:
         if launch.arguments:
             process.setWorkingDirectory(
                 str(Path(__file__).resolve().parents[1]))
-            # FIX (bug real reportado: "BLACKFORGE no abre desde su botón"): el
-            # hijo se lanza como `python -m criba.blackforge_gui` y necesita
-            # `criba` importable. Sin PYTHONPATH moría con ModuleNotFoundError y
-            # no aparecía ninguna ventana. Se hereda el entorno y se añade src/.
             env = _blackforge_launch_env()
             process.setProcessEnvironment(env)
         else:
