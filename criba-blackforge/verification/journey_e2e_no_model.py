@@ -436,7 +436,7 @@ def main() -> int:
             "PARSER_SCHEMA",
             {"validas": len(proposals), "abstenciones": len(abstained)},
             f"propuestas_validas={len(proposals)}/{len(entries)} "
-            f"abstenciones_honestas={len(abstened) if False else len(abstained)}",
+            f"abstenciones_honestas={len(abstained)}",
         )
 
         _entered(operation_id, "DOSSIER", "clic Desarrollar con SUPRA")
@@ -486,9 +486,15 @@ def main() -> int:
                 "env_SUPRA_STORAGE_DIR": os.getenv("SUPRA_STORAGE_DIR"),
                 "expected_root": str(root / "supra_state"),
             }
-            _record(operation_id, "PERSISTENCE", "DIAG", payload=diag, detail="estado real del state_manager")
+            _record(
+                operation_id, "PERSISTENCE", "DIAG",
+                payload=diag, detail="estado real del state_manager",
+            )
         except Exception as exc:  # noqa: BLE001
-            _record(operation_id, "PERSISTENCE", "DIAG_FAILED", detail=f"{type(exc).__name__}: {exc}")
+            _record(
+                operation_id, "PERSISTENCE", "DIAG_FAILED",
+                detail=f"{type(exc).__name__}: {exc}",
+            )
         if missing:
             raise RuntimeError(
                 f"artefactos SUPRA ausentes en disco: {missing} | diag={json.dumps(diag)}"

@@ -31,13 +31,13 @@ CRIBA_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(CRIBA_ROOT))
 sys.path.insert(0, str(CRIBA_ROOT / "shadow_ui"))
 
-import criba_shadow_main as launcher
+import criba_shadow_main as launcher  # noqa: E402
 
 launcher.wire_import_paths()
 
-from supra_agentic.state import state_manager as sm
+from supra_agentic.state import state_manager as sm  # noqa: E402
 
-srv = launcher.SupraServer(ENDPOINT, ROOT / "supra_state", ROOT / "logs" / "recovery.log")
+srv = launcher.SupraServer(ENDPOINT, ROOT / "supra_state", ROOT / "logs" / "recovery.log")  # noqa: E402
 ok, ep = srv.start(wait_s=90.0)
 if not ok:
     print(json.dumps({"error": ep}))
