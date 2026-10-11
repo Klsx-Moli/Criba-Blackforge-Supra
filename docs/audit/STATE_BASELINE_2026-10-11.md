@@ -1,6 +1,6 @@
 # STATE_BASELINE_2026-10-11 (CB-00) — actualizado con verificación real
 
-Fecha de captura: 2026-10-11 (Europe/Madrid, UTC+02:00)
+Fecha de captura: 2026-10-11 (Europe/Madrid, UTC+02:00) — actualización verificada con `git rev-parse HEAD` = 83d50ddd
 Rama activa durante la captura: cb01-bank-provenance-work
 Checkout: C:\ASTRA_WORK\Criba-Blackforge-Supra
 
@@ -16,21 +16,16 @@ Registro sellado (versión anterior del mismo fichero en commit b9b0ce5, rama cb
 
 ## 1. SHA vigente
 
-- HEAD: 7f666cb9ee88f15c97c3b3ffa6434f857bd1f20d (commit CB-00 en rama cb01-bank-provenance-work)
+- HEAD: 83d50dddbe496bc24f85142c81bf49d1b766edeb (CB-X02, rama cb01-bank-provenance-work, verificado 2026-10-11 con `git rev-parse HEAD`)
 - main: 6b3d02b9639466e0dcfd594a66b0744bb46abe57
 - origin/main: 6b3d02b9639466e0dcfd594a66b0744bb46abe57
-- Divergencia explicada: HEAD está 1 commit por delante de origin/main (el commit CB-00 mismo).
+- Divergencia explicada: HEAD está 8 commits por delante de origin/main (trabajo integrado localmente: CB-02/CB-04, CB-I01, CB-I03, CB-R01, CB-S01, CB-S03, CB-I02, CB-I06, CB-L01–L07, CB-X02). Confirmado con `git log --oneline --graph --all -20`.
 - Divergencia inexplicada: NINGUNA.
 
 ## 2. Estado del checkout
 
 - Rama: cb01-bank-provenance-work
-- git status --short --branch:
-  ## cb01-bank-provenance-work
-  A  criba-blackforge/tests/unit/test_bank_provenance_cb01.py
-  A  criba-blackforge/verification/_provenance.py
-  ?? criba-blackforge/tests/integration/test_cb_i01_contract_interpreter_dossier_supra.py
-- Tres ficheros sin resolver: dos staged (contenido CB-01 parcial) + uno untracked (test CB-I01).
+- git status: limpio (working tree clean, verificado con `git status` 2026-10-11). Ningún archivo untracked o staged pendiente de resolución (los archivos mencionados en el baseline anterior ya fueron integrados en commits posteriores hasta 83d50ddd).
 
 ## 3. Ramas y trabajo no integrado
 
