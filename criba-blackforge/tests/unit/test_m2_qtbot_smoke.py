@@ -24,10 +24,10 @@ sys.path.insert(0, str(ROOT / "shadow_ui"))
 
 def test_m2_smoke_problema_generar_estado(qtbot):
     """Escribir problema -> ejercitar Generar -> la UI refleja estado sin fabricar datos."""
+    import criba.ui.actions as actions
     from PySide6.QtWidgets import QApplication, QLineEdit
 
     from shadow_ui.shadow_window import ShadowWindow
-    import criba.ui.actions as actions
 
     app = QApplication.instance() or QApplication(sys.argv)
     win = ShadowWindow()

@@ -12,8 +12,6 @@ import os
 import sys
 from pathlib import Path
 
-import pytest
-
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 
@@ -33,7 +31,6 @@ def test_bundle_root_y_data_root_son_rutas_validas(tmp_path, monkeypatch):
 
 def test_wire_import_paths_es_idempotente():
     """Llamar dos veces wire_import_paths no duplica ni rompe sys.path."""
-    before = list(sys.path)
     m.wire_import_paths()
     m.wire_import_paths()
     after = sys.path
