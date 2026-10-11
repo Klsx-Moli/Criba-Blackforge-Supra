@@ -60,8 +60,8 @@ en nous". Requiere verificación en CB-02/CB-10 sobre qué proveedor queda efect
 defecto tras esos commits (no se afirma aquí sin reproducirlo).
 
 
-PRs — estado completo (CI_REVIEW, API state=all, paginado)
-----------------------------------------------------------
+PRs — estado completo (CI_REVIEW, API state=all, paginado; re-verificado 2026-10-11 post-CB-01)
+-------------------------------------------------------------------------------------------
 MERGED:
   #1  base:main  head:6e5f90c  ASTRA5: reduce CRIBA/BLACKFORGE type debt + scoring
   #2  base:main  head:2a3b48d  SUPRA: rollback every state mutation when persistence fails
@@ -89,12 +89,22 @@ DRAFT abiertos (no mergeables por diseño; trabajo de otros autores):
   #14 base:chatgpt/shadow-supra-reliability-20261008 head:14ec9d2 EXE journey
   #15 base:chatgpt/shadow-exe-journey-20261008 head:19f9085 reconcile Hermes snapshots
 
+ABIERTO propio (Hermes, esta sesión / sesión previa):
+  #21 base:main  head:0344089 (cb01-bank-provenance) CB-01: procedencia obligatoria en
+      artefactos de verificación del banco. MERGEABLE. Checks Monorepo CI sobre 0344089:
+      "CRIBA / BLACKFORGE" SUCCESS (03:55:26Z), "SUPRA" SUCCESS (03:52:28Z),
+      "monorepo-result" SUCCESS (03:55:33Z), run 38109735687. Test local dirigido:
+      .venv/Scripts/python -m pytest tests/unit/test_bank_provenance_cb01.py -> 12 passed.
+      NOTA DE GOBIERNO: gates verdes en CI no autorizan merge; el merge queda pendiente
+      de autorización explícita del propietario (regla vigente). Contiene además el
+      presente documento STATE_BASELINE (CB-00) — unidad coherente baseline+procedencia.
+
 Nota: #10, #12, #13, #14, #15 tienen base distinta de main (ramas de trabajo antiguas).
 Su mergeabilidad contra 6b3d02b no se evalúa aquí; se revisa en CB-06/CB-07/CB-08.
 
 
-Ramas remotas (32) — STATICALLY_INSPECTED
------------------------------------------
+Ramas remotas (33) — STATICALLY_INSPECTED (gh api branches, 2026-10-11)
+---------------------------------------------------------------------
 Clasificación por prefijo:
   astra/*  (9): blackforge-dossier-20261005, blackforge-persistence/15bc23-durable-agentic-audit,
                blackforge-safety/dfca79-auth-state-failclosed, criba-core/22813e65-lottery-storage-integrity,
@@ -102,6 +112,7 @@ Clasificación por prefijo:
                supra-state/ad1a4-atomic-list-snapshot, supra-state/dfca79-atomic-list-snapshot,
                supra-state/edd50814-corrupt-state-load
   astra5-20260930-criba-type-debt (1)
+  cb01-bank-provenance (1)  <- rama propia de esta tarjeta (CB-01, PR #21)
   chatgpt/* (5): criba-shadow-supra-main-candidate-20261009, forensic-all-fixes-20261001,
                reconcile-hermes-deep-20261009, shadow-exe-journey-20261008,
                shadow-supra-reliability-20261008
@@ -112,8 +123,17 @@ Clasificación por prefijo:
                local-snapshot-20261009-convergence-audit, local-snapshot-20261009-dossier,
                local-snapshot-20261009-eval-cbs, local-snapshot-20261009-main-baseline,
                local-snapshot-20261009-pr9-persistence, reconcile-deep-execution-20261009
-  reconcile/local-vs-remote (1)
   main (1)
+  reconcile/local-vs-remote (1)
+
+Corrección de deriva (2026-10-11, segunda pasada): la primera versión de este baseline
+contaba 32 ramas y 201 ficheros de test; ambas cifras eran correctas en su momento y
+quedaron obsoletas al crear la rama cb01-bank-provenance (+1 rama) y el fichero
+tests/unit/test_bank_provenance_cb01.py (+1 test). Verificado con `gh api .../branches`
+y `find criba-blackforge/tests -name 'test_*.py' | wc -l` (202). El conteo local de
+remote-tracking refs (12) es sólo lo que este checkout tiene fetchado; no es el inventario
+remoto. Los SHAs remotos verificados de las ramas astra/* coinciden con los heads de los
+PRs mergeados (#2–#5/#7).
 
 Nota de gobierno: las ramas astra/* corresponden a trabajo ya fusionado vía #1–#5/#7
 (rollback, atomicidad, timestamps, estado corrupto). No se borran aquí; su absorción se
