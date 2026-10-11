@@ -425,3 +425,59 @@ def QTestClick(window, qapp) -> None:  # noqa: N802 - test helper, not an API
         qapp.processEvents()
         time.sleep(0.05)
     qapp.processEvents()
+
+
+def test_displayed_interpretation_crosses_real_button_tcp_and_restart(qapp, monkeypatch, tmp_path):
+    """Synthetic proposal tests transport, NOT LLM quality or mechanism execution."""
+    import json
+
+    from criba.integrations import SupraClient, SupraClientConfig
+    from criba.ui import actions
+    from shadow_window import ShadowWindow
+
+    from verification.interpreter_cases import resultado
+
+    server = _RealSupra(tmp_path / "storage")
+    server.start()
+    monkeypatch.setenv("SUPRA_ENDPOINT", server.endpoint)
+    monkeypatch.setenv("CRIBASHADOW_HOME", str(tmp_path / "shadow-home"))
+    window = ShadowWindow(database=str(tmp_path / "shadow.sqlite3"))
+    window.show()
+    query = "Reducir retornos por registros incompletos"
+    entries = [
+        {**resultado().to_campos(), "candidate_id": f"synthetic-selected-{i}",
+         "estado_interpretacion": "PROPUESTA"}
+        for i in range(2)
+    ]
+    try:
+        window.header.problem_input.setText(query)
+        window.header.problem_input.returnPressed.emit()
+        window.packet = actions.activate(query)
+        window.invent_sheet = {"query": query, "entries": entries}
+        window.candidates.set_interpreter_entries(entries)
+        window.candidates.interpreter_next.click()
+        qapp.processEvents()
+        assert window.candidates.interpretation_index == 1
+        QTestClick(window, qapp)
+        dossier = json.loads(window.candidates.dossier_output.toPlainText())
+        assert dossier["candidate_id"] == "synthetic-selected-1"
+        assert dossier["mecanismo"] == entries[1]["mecanismo"]
+        report = json.loads(window.candidates.supra_output.toPlainText())
+        assert window.candidates.supra_output.isVisibleTo(window)
+        assert "pertinencia UNKNOWN" in window.refs["ideaSummary"].text()
+        project_id = report["project_id"]
+        receipt_before = report["read"]["receipt"]
+        server.stop()
+        server.start()
+        with SupraClient(SupraClientConfig(endpoint=server.endpoint)) as client:
+            lookup = client.get_project(project_id)
+        receipt = lookup.posture.criba_dossier_receipt.model_dump()
+        assert receipt == receipt_before
+        assert receipt["criba_candidate_id"] == dossier["candidate_id"]
+        assert receipt["interpretacion"] == dossier["interpretacion"]
+        assert receipt["execution_status"] == "NOT_EXECUTED"
+        assert lookup.scientific_status == "NOT_VALIDATED"
+    finally:
+        window.close()
+        qapp.processEvents()
+        server.stop()

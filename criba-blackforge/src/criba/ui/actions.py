@@ -18,6 +18,7 @@ from PySide6.QtGui import QColor
 
 from .. import __version__ as ENGINE_VERSION
 from ..engine import activate
+from .i18n import t as _t
 from .ranking import RankingModel
 from .widgets import set_chip
 
@@ -62,10 +63,16 @@ def _now_ts() -> str:
 def _start_worker(win: Any, worker: Worker, operation: str = "") -> None:
     """Retener la referencia del worker hasta que emita: sin esto el GC de
     Python destruye el QObject de señales antes de entregar done/fail
-    (pitfall QRunnable.autoDelete + señal encolada entre hilos)."""
-    if not hasattr(win, "_live_workers"):
-        win._live_workers = []
-    win._live_workers.append(worker)
+    (pitfall QRunnable.autoDelete + señal encolada entre hilos).
+
+    Background workers (enhance) are not tracked in _live_workers so they
+    do not block harnesses or UI waits that only care about the primary
+    operation completing.
+    """
+    if operation != "enhance":
+        if not hasattr(win, "_live_workers"):
+            win._live_workers = []
+        win._live_workers.append(worker)
     loading = None
     cards = getattr(win, "topcards", None)
     mapping = {
@@ -259,11 +266,22 @@ def _apply_new_problem(win: Any, problem: str) -> None:
 # S3 — GENERANDO  (activate() genera Y evalúa; la fase visual se divide)
 # ---------------------------------------------------------------------------
 def _generate_criba_packet(problem: str) -> dict[str, Any]:
-    """Run deterministic CRIBA and its optional semantic language layer."""
+    """Return deterministic generation immediately; enhance in background."""
+    packet = activate(problem)
+    packet.setdefault("semantic_generation", {})
+    packet["semantic_generation"]["status"] = "pending"
+    return packet
 
-    from ..model_runtime import enhance_criba_packet
 
-    return enhance_criba_packet(activate(problem))
+def _enhance_packet_async(packet: dict[str, Any]) -> None:
+    """Enhance packet in background; never blocks the deterministic result."""
+    try:
+        from ..model_runtime import enhance_criba_packet
+        enhance_criba_packet(packet)
+        packet["semantic_generation"]["status"] = "ok"
+    except Exception as exc:
+        packet["semantic_generation"]["status"] = "fallback"
+        packet["semantic_generation"]["error"] = str(exc)
 
 
 def on_generar(win: Any) -> None:
@@ -280,7 +298,14 @@ def on_generar(win: Any) -> None:
 
     # El indicador de actividad está ligado al worker, no a un spinner global.
 
-    worker = Worker(lambda: _generate_criba_packet(win.problem))
+    def _generate_and_enhance() -> dict[str, Any]:
+        packet = _generate_criba_packet(win.problem)
+        # Enhancement runs in background; UI shows deterministic ideas now.
+        enhance_worker = Worker(lambda: _enhance_packet_async(packet))
+        _start_worker(win, enhance_worker, "enhance")
+        return packet
+
+    worker = Worker(_generate_and_enhance)
     worker.signals.done.connect(lambda packet: _on_generated(win, packet))
     worker.signals.fail.connect(
         lambda msg: on_operation_error(win, "navGenerar", "stageGenerar", msg)
@@ -1128,7 +1153,36 @@ def on_modelos(win: Any) -> None:
     win.nav["navModelos"].setChecked(False)
     if open_model_settings(win):
         win.footerSegs["fsModelo"].set_value(f"CRIBA {ENGINE_VERSION} · {active_model_label()}")
+        _refresh_interpreter_selector(win)
         _activity(win, "cyan", f"Modelo activo: {active_model_label()}")
+
+
+def _refresh_interpreter_selector(win: Any) -> None:
+    """Reflect the active local model in the Generación interpreter selector."""
+    from ..model_config import active_model_label, load_model_settings
+
+    selector = getattr(win, "interpreter_selector", None)
+    if selector is None:
+        return
+    try:
+        settings = load_model_settings()
+        if settings.enabled and settings.active_profile() is not None:
+            label = active_model_label(settings)
+            selector.setItemText(1, label)
+            selector.setCurrentIndex(1)
+        else:
+            selector.setItemText(1, _t("shadow.interpreter.local"))
+            selector.setCurrentIndex(0)
+    except Exception:
+        selector.setCurrentIndex(0)
+
+
+def _on_interpreter_changed(win: Any, index: int) -> None:
+    """Handle interpreter selector change from the Generación tab."""
+    if index == 1:
+        _activity(win, "cyan", "Intérprete local seleccionado")
+    else:
+        _activity(win, "cyan", "Intérprete Nous/Hermes seleccionado")
 
 
 # ---------------------------------------------------------------------------
@@ -1150,7 +1204,25 @@ def on_ver_todas(win: Any) -> None:
 def _supra_lookup_read(lookup: Any) -> dict[str, Any]:
     """Serialize the canonical GET response without collapsing state channels."""
     receipt = getattr(getattr(lookup, "posture", None), "criba_dossier_receipt", None)
+    reason = "UNKNOWN"
+    reason_kind = "UNKNOWN"
+    if lookup.stage == "BLOCKED":
+        checkpoints = getattr(lookup.posture, "checkpoints", [])
+        if isinstance(checkpoints, list):
+            for checkpoint in reversed(checkpoints):
+                if isinstance(checkpoint, dict) and checkpoint.get("stage") == "BLOCKED":
+                    declared = checkpoint.get("evidence_summary")
+                    if isinstance(declared, str) and declared.strip():
+                        reason = declared
+                        if (checkpoint.get("actor") == "system:completion_gate"
+                                and "verification must be PASS" in reason):
+                            reason_kind = "VERIFICATION_GATE"
+                        else:
+                            reason_kind = "DECLARED_BLOCK"
+                    break
     return {
+        "block_reason": reason,
+        "block_reason_kind": reason_kind,
         "status": lookup.status,
         "status_scope": lookup.status_scope,
         "completion_status": lookup.completion_status,
@@ -1330,7 +1402,7 @@ def on_desarrollar_supra(win: Any) -> None:
 def _load_latest_supra(client: Any | None = None) -> dict[str, Any]:
     """Recover the latest persisted SUPRA project through LIST + canonical GET."""
     from ..integrations import SupraClient
-    from ..supra_dossier import cargar_ultimo_dossier
+    from ..supra_dossier import cargar_dossier
 
     owned = client is None
     supra = client or SupraClient()
@@ -1352,13 +1424,33 @@ def _load_latest_supra(client: Any | None = None) -> dict[str, Any]:
         if not isinstance(project_id, str) or not project_id:
             raise ValueError("SUPRA listó un proyecto sin project_id")
         lookup = supra.get_project(project_id)
+        read = _supra_lookup_read(lookup)
+        # Recency is not identity: an unsent local draft may be newer than the
+        # project recovered from SUPRA. Only its remote receipt binds a dossier.
+        receipt = read.get("receipt") or {}
+        dossier_id = receipt.get("criba_dossier_id")
+        exact_id = (
+            isinstance(dossier_id, str) and bool(dossier_id) and dossier_id == dossier_id.strip()
+        )
+        dossier = cargar_dossier(dossier_id) if exact_id else None
+        identity_fields = {
+            "candidate_id": "criba_candidate_id",
+            "claim_id": "claim_id",
+            "mechanism_version": "mechanism_version",
+            "protocol_version": "protocol_version",
+        }
+        if dossier is not None and any(
+            not dossier.get(local_key) or dossier.get(local_key) != receipt.get(remote_key)
+            for local_key, remote_key in identity_fields.items()
+        ):
+            dossier = None
         return {
             "empty": False,
             "endpoint": supra.config.endpoint,
             "health": health.model_dump(),
             "project_id": project_id,
-            "dossier": cargar_ultimo_dossier(),
-            "read": _supra_lookup_read(lookup),
+            "dossier": dossier,
+            "read": read,
         }
     finally:
         if owned:
@@ -1376,6 +1468,10 @@ def _on_supra_restore_done(win: Any, report: dict[str, Any]) -> None:
             candidates.dossier_output.setPlainText(
                 json.dumps(dossier, ensure_ascii=False, indent=2)
             )
+        else:
+            # Missing/mismatched local evidence must not leave another case's
+            # dossier visible beside this recovered project's remote receipt.
+            candidates.dossier_output.clear()
         candidates.supra_output.setPlainText(
             json.dumps(report, ensure_ascii=False, indent=2, default=str)
         )
@@ -1398,7 +1494,7 @@ def _on_supra_restore_done(win: Any, report: dict[str, Any]) -> None:
     win.refs["ideaSummary"].setText(
         f"Resultado PREVIO recuperado mediante GET de {_provenance_text(read)} · "
         f"status {read['status']} · stage {read['stage']} · "
-        f"copia durable {_artifact_text(read)}"
+        f"copia durable {_artifact_text(read)} · {_planning_status_text(read)}"
     )
     set_chip(
         win.refs["ideaEstadoChip"],
@@ -1525,8 +1621,37 @@ def _selected_idea(win: Any) -> dict[str, Any] | None:
 
 
 def _prepare_dossier_for_selected_idea(win: Any) -> dict[str, Any]:
-    """Build the dossier from the selected core idea, without inventing fields."""
-    from ..supra_dossier import preparar_dossier_desde_idea
+    """Export the displayed interpretation; keep core-only compatibility."""
+    from ..supra_dossier import preparar_dossier, preparar_dossier_desde_idea
+
+    sheet = getattr(win, "invent_sheet", None)
+    if sheet is not None:
+        if sheet.get("query") != win.problem:
+            raise ValueError("la interpretación pertenece a otro objetivo; vuelve a interpretar")
+        entries = sheet.get("entries") or []
+        index = win.candidates.interpretation_index
+        if type(index) is not int or not 0 <= index < len(entries):
+            raise ValueError("no hay una interpretación seleccionada")
+        entry = entries[index]
+        if entry.get("estado_interpretacion") != "PROPUESTA":
+            raise ValueError(
+                "la interpretación seleccionada está pendiente; "
+                "no se sustituye por ejes"
+            )
+        for field in ("candidate_id", "hipotesis", "mecanismo", "prueba_concreta"):
+            if not isinstance(entry.get(field), str) or not entry[field].strip():
+                raise ValueError(f"propuesta interpretada sin {field}")
+        protocol = entry.get("prueba")
+        if not isinstance(protocol, dict):
+            raise ValueError("propuesta interpretada sin prueba declarada")
+        for field in (
+            "metrica", "baseline", "umbral", "condicion_fracaso",
+            "alternativa_explicativa", "resultado_favorable_mecanismo",
+            "resultado_favorable_alternativa",
+        ):
+            if not isinstance(protocol.get(field), str) or not protocol[field].strip():
+                raise ValueError(f"prueba interpretada sin {field}; no se rellena")
+        return preparar_dossier(entry, sheet["query"], ficha_bloqueo=sheet.get("ficha_bloqueo"))
 
     idea = _selected_idea(win)
     if idea is None:
@@ -1604,8 +1729,23 @@ def _artifact_text(read: dict[str, Any]) -> str:
     }.get(str(read.get("persisted_artifact_status")), "no declarada")
 
 
+def _planning_status_text(read: dict[str, Any]) -> str:
+    """Expose planning limits; never infer relevance from a schema or a 2xx."""
+    receipt = read.get("receipt") or {}
+    context = receipt.get("interpretacion") or {}
+    provenance = context.get("provenance") or {}
+    assessment = provenance.get("planning_assessment") or {}
+    origin = assessment.get("content_origin", "UNKNOWN")
+    text = f"origen {origin} · pertinencia UNKNOWN · prueba propuesta, no validada"
+    if read.get("workflow_status") == "BLOCKED":
+        text += (f" · bloqueo {read.get('block_reason_kind', 'UNKNOWN')}: "
+                 f"{read.get('block_reason', 'UNKNOWN')}")
+    return text
+
+
 def _on_supra_vertical_done(win: Any, report: dict[str, Any]) -> None:
     """Show the real SUPRA read-back state. BLOCKED stays BLOCKED."""
+    win._supra_vertical_running = False
     r = win.refs
     read = report["read"]
     receipt = read.get("receipt") or {}
@@ -1628,7 +1768,7 @@ def _on_supra_vertical_done(win: Any, report: dict[str, Any]) -> None:
         f"sandbox {read['secure_sandbox_status']} · "
         f"dossier {read['criba_planning_receipt_status']} · "
         f"mecanismo CRIBA {read['criba_mechanism_execution_status']} · "
-        f"copia durable {_artifact_text(read)}"
+        f"copia durable {_artifact_text(read)} · {_planning_status_text(read)}"
     )
     if receipt:
         set_chip(
@@ -1671,6 +1811,7 @@ def _on_supra_vertical_done(win: Any, report: dict[str, Any]) -> None:
 
 def _on_supra_vertical_failed(win: Any, message: str) -> None:
     """Failure is shown as failure. No fabricated state on the error path."""
+    win._supra_vertical_running = False
     win.nav["navSupra"].set_state("error", "SUPRA no disponible")
     set_chip(win.refs["ideaEstadoChip"], "SUPRA no confirmado", "exploracion")
     # El fallo Tambien tiene que verse: un chip de error escrito sobre un
@@ -1694,13 +1835,22 @@ def on_supra_vertical(win: Any) -> None:
     """
     import uuid
 
+    # A second click while this dispatch is outstanding is the same user
+    # attempt, not permission to create another remote project.
+    if getattr(win, "_supra_vertical_running", False):
+        return
     if not getattr(win, "problem", ""):
         show_error(win, "SUPRA", "Define primero el problema base (Nueva idea).")
         return
     try:
+        from ..supra_dossier import guardar_dossier
+
         dossier = _prepare_dossier_for_selected_idea(win)
+        # Persist before any remote effect: failure/reopen must not claim that
+        # an in-memory-only dossier was preserved locally.
+        guardar_dossier(dossier)
     except Exception as exc:  # noqa: BLE001 — el motivo real se muestra
-        show_error(win, "SUPRA", f"No se pudo preparar el dossier: {exc}")
+        show_error(win, "SUPRA", f"No se pudo preparar o preservar el dossier: {exc}")
         return
 
     # SUPRA persists projects across runs, so the id must be unique per slice.
@@ -1725,6 +1875,7 @@ def on_supra_vertical(win: Any) -> None:
     worker = Worker(lambda: _execute_supra_vertical(dossier, project_id))
     worker.signals.done.connect(lambda report: _on_supra_vertical_done(win, report))
     worker.signals.fail.connect(lambda message: _on_supra_vertical_failed(win, message))
+    win._supra_vertical_running = True
     _start_worker(win, worker)
 
 

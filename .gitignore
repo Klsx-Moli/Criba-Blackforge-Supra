@@ -1,0 +1,87 @@
+# Root .gitignore for Criba-Blackforge-Supra monorepo
+# Component-level .gitignore files exist in criba-blackforge/ and supra/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Local configuration and credentials
+.env
+.env.*
+!.env.example
+!.env.sample
+!.env.template
+*key*.json
+*credential*.json
+*service-account*.json
+
+# Caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage.json
+htmlcov
+.hypothesis/
+
+# Build outputs
+build/
+dist/
+
+# Local databases and logs
+*.db
+*.sqlite
+*.sqlite3
+*.log
+
+# Local runtime state
+.hermes/supra_state/
+.hermes/state/
+data/projects/*.json
+!data/projects/example-quick-run.json
+
+# Diagnostic probes and temporary scripts
+_probe/
+_probe*/
+_probe_*.py
+fix_state_indent*.py
+env_probe.py
+env_imports.py
+env_min.py
+k1_cache_vs_disk_probe.py
+m2_capture_window.py
+m2_evidence.py
+m2_vertical_slice_e2e.py
+m3_mutation_gate.py
+m3_provenance_real_server.py
+probe_coverage.py
+probe_deps.py
+probe_dossier_contract.py
+probe_engine.py
+
+# Local backups and scratch
+*.bak
+*.tmp
+*.swp
+.DS_Store
+Thumbs.db
+
+# Hermes tmp
+.hermes-tmp.*
+src/**/.hermes-tmp.*
+
+# Local agent tooling
+.agents/
+.codex/
+
+# Editor
+.vscode/
+.idea/

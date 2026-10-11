@@ -828,7 +828,10 @@ class TopCardsWidget(QWidget):
             "Nous/Hermes OAuth · Space Bunny", "openai_compatible"
         )
         self.interpreter_selector.addItem(
-            _t("shadow.interpreter.local"), "local_llama"
+            "Cargar modelo", "local_llama"
+        )
+        self.interpreter_selector.currentIndexChanged.connect(
+            lambda idx: actions._on_interpreter_changed(win, idx)
         )
         selector_row.addWidget(self.interpreter_selector, stretch=1)
         l2.addLayout(selector_row)
@@ -1592,6 +1595,12 @@ class ShadowWindow(QMainWindow):
         self._ctx.apply_initial_state()
         # §12: arranque limpio y honesto (0 candidatos, sin score, sin sesión).
         self.refresh_runtime_state()
+        # Reflect the active local model in the interpreter selector on startup.
+        try:
+            from criba.ui.actions import _refresh_interpreter_selector
+            _refresh_interpreter_selector(self)
+        except Exception:
+            pass
 
     # ------------------------------------------------------------------
     # Notificaciones (campana): actividad real de la sesión

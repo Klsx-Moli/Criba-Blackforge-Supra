@@ -175,7 +175,7 @@ def test_shadow_expone_selector_real_y_salidas_copiables(qapp, tmp_path):
         selector = win.topcards.interpreter_selector
         assert selector.count() == 2
         assert selector.itemData(1) == "local_llama"
-        assert "experimental" in selector.itemText(1)
+        assert selector.itemText(1) == "Cargar modelo"
         assert selector.itemData(0) == "openai_compatible"
         assert "Nous/Hermes" in selector.itemText(0)
         assert "Space Bunny" in selector.itemText(0)
@@ -534,8 +534,28 @@ def test_post_get_y_dossier_se_renderizan_separados_en_shadow(qapp, tmp_path):
         qapp.processEvents()
 
 
-def test_reapertura_recupera_ultimo_get_y_dossier_local(monkeypatch):
+def test_reapertura_recupera_ultimo_get_y_dossier_local(monkeypatch, tmp_path):
+    """Legacy pinned the newest local draft. Recovery now pins the remote receipt.
+
+    The remote project/provenance assertions stay; use real local storage so an
+    unrelated newer draft cannot satisfy this consumer's identity contract.
+    """
+    from criba.supra_dossier import guardar_dossier
+
+    monkeypatch.setenv("CRIBASHADOW_HOME", str(tmp_path))
+    dossier = {
+        "dossier_id": "dossier-real-1", "candidate_id": "candidate-reopen",
+        "claim_id": "claim-reopen", "mechanism_version": "sha256:" + "a" * 64,
+        "protocol_version": "sha256:" + "b" * 64, "mecanismo": "m recuperado",
+    }
+    guardar_dossier(dossier)
+    guardar_dossier({**dossier, "dossier_id": "newer-unsent-draft"})
     lookup = _lookup_falso("proj-reopen-1")
+    lookup.posture.criba_dossier_receipt = SimpleNamespace(model_dump=lambda: {
+        "criba_dossier_id": dossier["dossier_id"],
+        "criba_candidate_id": dossier["candidate_id"],
+        **{key: dossier[key] for key in ("claim_id", "mechanism_version", "protocol_version")},
+    })
 
     class _Cliente:
         config = SimpleNamespace(endpoint="http://127.0.0.1:8765")
@@ -551,10 +571,6 @@ def test_reapertura_recupera_ultimo_get_y_dossier_local(monkeypatch):
             assert project_id == "proj-reopen-1"
             return lookup
 
-    dossier = {"dossier_id": "dossier-real-1", "mecanismo": "m recuperado"}
-    monkeypatch.setattr(
-        "criba.supra_dossier.cargar_ultimo_dossier", lambda: dossier, raising=False
-    )
     report = actions._load_latest_supra(client=_Cliente())
     assert report["project_id"] == "proj-reopen-1"
     assert report["read"]["status_source"] == "PERSISTED_STATE"

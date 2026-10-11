@@ -84,7 +84,9 @@ def _entry_desde_idea(idea: dict[str, Any], problema: str) -> dict[str, Any]:
     The epistemology is preserved end to end: the engine marks its own output
     ``MECHANISM_PROPOSED_UNVALIDATED``, the dossier keeps
     ``SUPRA_EJECUCION_PENDIENTE`` and the protocol keeps ``NO_EJECUTADA``. What
-    this function adds is a *declared, falsifiable* test — never a result.
+    this function adds is a *declared representation-level* protocol — never
+    a result or proof of relevance to the user's objective. Axis changes are
+    not by themselves observations of functional behaviour.
     """
     moves = _axis_moves(idea)
     causal_variables = idea.get("causal_variables")
@@ -105,6 +107,7 @@ def _entry_desde_idea(idea: dict[str, Any], problema: str) -> dict[str, Any]:
 
     return {
         "candidate_id": _text(idea, "id", 256),
+        "interpretacion_provenance": {"interpreter_backend": "deterministic_core"},
         "claim_id": None,
         "hipotesis": hipotesis,
         "mecanismo": _text(idea, "mechanism_causal", 2000),
@@ -309,8 +312,33 @@ def preparar_dossier(
         protocol_version = raw_protocol_version
     delivered = list(entry.get("evidence_delivered", entry.get("evidencia_local_usada", [])))
     documented = list(entry.get("evidence_documented_as_used", []))
+    raw_provenance = entry.get("interpretacion_provenance")
+    provenance = dict(raw_provenance) if isinstance(raw_provenance, dict) else {}
+    limitations: list[str] = []
+    # Exact relational failures are detectable; general semantic relevance is
+    # not established by a JSON schema, self-assertion, or lexical overlap.
+    def normalize(value: object) -> str:
+        return " ".join(str(value).split()).casefold()
+
+    if normalize(alternativa) == normalize(claim) and normalize(claim):
+        limitations.append("RIVAL_RESTATES_HYPOTHESIS")
+    if normalize(resultado_mecanismo) == normalize(resultado_alternativa):
+        limitations.append("PREDICTIONS_NOT_DISTINCT")
+    if not (entry.get("observable") or declarada.get("metrica") or entry.get("metrica")):
+        limitations.append("NO_DECLARED_OBSERVABLE")
+    deterministic = provenance.get("interpreter_backend") == "deterministic_core"
+    if deterministic:
+        limitations.append("REPRESENTATION_ONLY_NOT_FUNCTIONAL_TEST")
+    provenance["planning_assessment"] = {
+        "objective_sha256": hashlib.sha256(problema.encode("utf-8")).hexdigest(),
+        "content_origin": "GENERATED_DETERMINISTIC" if deterministic else "DECLARED_UNVERIFIED",
+        "relevance_status": "UNKNOWN",
+        "discriminant_status": "UNKNOWN",
+        "semantic_validation": "NOT_VALIDATED",
+        "limitations": limitations,
+    }
     interpretacion = {
-        "provenance": entry.get("interpretacion_provenance") or {},
+        "provenance": provenance,
         "critica": entry.get("critica") or {},
         "evidencia_citada": entry.get("evidencia_citada") or [],
         "conocimiento_previo": entry.get("conocimiento_previo") or [],
