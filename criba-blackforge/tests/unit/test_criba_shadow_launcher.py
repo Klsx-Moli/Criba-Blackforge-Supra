@@ -130,8 +130,14 @@ def test_supra_config_builds_without_a_console(launcher, tmp_path):
 
     import uvicorn
 
-    saved_out, saved_err = sys.stdout, sys.stderr
+    # ensure_streams es idempotente POR PROCESO vía _BOUND_STREAMS: si otro test ya
+    # lo llamó (orden aleatorio), retorna temprano sin restaurar los None que este
+    # test pone. Se resetea el global (mismo patrón try/finally que los tests
+    # vecinos de este fichero) para probar la restauración real. NO se fija el orden.
+    saved_bound = launcher._BOUND_STREAMS
+    launcher._BOUND_STREAMS = ()
     try:
+        saved_out, saved_err = sys.stdout, sys.stderr
         sys.stdout = None
         sys.stderr = None
         launcher.ensure_streams(tmp_path / "sin-consola.log")
@@ -162,6 +168,7 @@ def test_supra_config_builds_without_a_console(launcher, tmp_path):
         assert server is not None
     finally:
         sys.stdout, sys.stderr = saved_out, saved_err
+        launcher._BOUND_STREAMS = saved_bound
 
 
 def test_real_server_starts_without_a_console(launcher, tmp_path):
