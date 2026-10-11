@@ -54,8 +54,8 @@ def test_pid_lock_single_instance(tmp_path):
     # Segundo acquire sobre el mismo root: debe denegar (instancia única).
     ok2, msg2 = m.acquire_single_instance(root)
     assert ok2 is False, "segunda instancia debe ser rechazada (single-instance)"
-    # Cleanup: liberar el lock global para no contaminar otros tests.
-    m._release_single_instance() if hasattr(m, "_release_single_instance") else None
+    # Cleanup: liberar el lock global real para no contaminar otros tests.
+    m.release_single_instance(root)
 
 
 def test_pid_alive_con_pid_inexistente():
