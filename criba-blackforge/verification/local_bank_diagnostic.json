@@ -145,5 +145,25 @@
       "error": "validacion:mecanismo repite nombres de técnicas; restriccion violada o no verificada",
       "prompt": "Transferir registros completos entre dos sedes. | idea: Replicación"
     }
-  ]
+  ],
+  "_provenance_cb01": {
+    "repo_head_sha": "83d50dddbe496bc24f85142c81bf49d1b766edeb",
+    "git_dirty": false,
+    "python_version": "3.14.7",
+    "platform": "Windows-11",
+    "file_sha256": "89b9d541dbe5790cacc148f2f896208e8067bc243577ce213f8a7fdd1deb0dad",
+    "uv_lock_sha256": "unknown",
+    "bank_version": "unknown",
+    "prompt_version": "unknown",
+    "schema_version": "unknown",
+    "constrained_decoding": "unknown",
+    "seed": "unknown",
+    "model_requested": "criba-local",
+    "model_reported": "criba-local",
+    "endpoint_sin_secretos": "http://127.0.0.1:8080/v1",
+    "started_at_utc": "unknown",
+    "finished_at_utc": "unknown",
+    "script_sha256": "8d5297f5243a554dd63c5384d4ff3b0946e26cfbfad3c0eccf78fb4c84dc1d08",
+    "evidence_source": "local_file_read_2026-10-11"
+  }
 }
