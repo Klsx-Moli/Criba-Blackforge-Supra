@@ -12,8 +12,11 @@ Design constraints (from user authorization + spec §10):
   ``idempotency_key`` passthrough so retries do not duplicate evidence.
 
 Reuses (no reimplementation):
-- blackforge_causal.canonical_hash for reproducibility hashing.
-- blackforge_safety.evaluate_blackforge_safety for G04 authorization.
+- canonical.canonical_hash for reproducibility hashing.
+- blackforge_safety.evaluate_blackforge_safety for G04 authorization, imported
+  lazily inside G04 because that gate is the only consumer and it is already
+  logically Blackforge-only. Importing it here would make BLACKFORGE a hard
+  dependency of CRIBA Core's import graph for no reason.
 - output_format.CribaOutput / BlackforgeOutput for G01 / G12.
 """
 from __future__ import annotations
@@ -23,11 +26,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
 
-from .blackforge_causal import canonical_hash
-from .blackforge_safety import (
-    DENY,
-    evaluate_blackforge_safety,
-)
+from .canonical import canonical_hash
 
 # ---------------------------------------------------------------------------
 # Verdict
@@ -266,6 +265,18 @@ def G04_authorization_valid(context: Mapping[str, Any],
         return GateResult(
             "G04_authorization_valid", False,
             "Autorización concedida sin stop_conditions válidas.",
+        )
+    # BLACKFORGE's safety evaluator is the only authority for this verdict, and
+    # it is BLACKFORGE. Resolve it here, at the single point that needs it, so
+    # that importing this module never requires BLACKFORGE. If it is absent the
+    # gate cannot be evaluated, and a gate that cannot be evaluated must not
+    # pass: it fails closed with an explicit reason instead of inventing one.
+    try:
+        from .blackforge_safety import DENY, evaluate_blackforge_safety
+    except ImportError as exc:
+        return GateResult(
+            "G04_authorization_valid", False,
+            f"BLACKFORGE no disponible; G04 no puede evaluarse ({exc}).",
         )
     session_ctx = {
         "explicit_authorization": True,

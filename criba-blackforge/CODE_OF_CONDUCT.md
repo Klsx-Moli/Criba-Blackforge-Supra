@@ -45,7 +45,7 @@ an individual is officially representing the community in public spaces.
 
 Instances of abusive, harassing, or otherwise unacceptable behaviour may be
 reported to the community leaders responsible for enforcement via a private
-[GitHub vulnerability report](https://github.com/klssxx/Criba-Blackforge/security/advisories/new)
+[GitHub vulnerability report](https://github.com/Klsx-Moli/Criba-Blackforge-Supra/security/advisories/new)
 or a private issue. All complaints will be reviewed and investigated promptly and fairly.
 
 ## Attribution

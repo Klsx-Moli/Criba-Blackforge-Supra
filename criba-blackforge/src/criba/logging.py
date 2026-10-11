@@ -20,7 +20,7 @@ from datetime import datetime, timezone
 from enum import Enum
 from typing import Any
 
-from .blackforge_causal import canonical_json
+from .canonical import canonical_json
 from .storage import Storage
 
 SCHEMA_VERSION = "1.0.0"

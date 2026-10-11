@@ -41,6 +41,15 @@ class DuplicateProjectError(ValueError):
     """Raised when project creation would overwrite existing persisted state."""
 
 
+def _persisted_error_kind(error_type: str) -> str:
+    """Map a safe exception class name to a stable persisted-artifact category."""
+    if error_type in {"JSONDecodeError", "UnicodeDecodeError"}:
+        return "CORRUPT_JSON"
+    if error_type == "ValidationError":
+        return "INCOMPATIBLE_SCHEMA"
+    return "UNREADABLE"
+
+
 class ProjectStateLoadError(RuntimeError):
     """Raised when a persisted project exists but cannot be trusted or decoded."""
 
@@ -50,6 +59,25 @@ class ProjectStateLoadError(RuntimeError):
         super().__init__(
             f"persisted project {project_id!r} is corrupt or incompatible ({error_type})"
         )
+
+    @property
+    def kind(self) -> str:
+        """Sanitized semantic class for API consumers; never expose file contents."""
+        return _persisted_error_kind(self.error_type)
+
+
+# Where a served posture came from. Declared, never inferred by the consumer.
+PROVENANCE_ARTIFACT = "PERSISTED_STATE"
+PROVENANCE_MEMORY_CACHE = "IN_PROCESS_MEMORY_CACHE"
+
+# Verification verdict for the durable copy that backs the served posture.
+# These are four distinct facts; collapsing them is what made a cached read
+# indistinguishable from a persisted one.
+ARTIFACT_VERIFIED = "VERIFIED_FROM_ARTIFACT"
+ARTIFACT_MATCHES_CACHE = "MATCHES_CACHE"
+ARTIFACT_DIVERGES = "DIVERGES_FROM_CACHE"
+ARTIFACT_UNVERIFIABLE = "UNVERIFIABLE"
+ARTIFACT_MISSING = "MISSING"
 
 
 def _validate_project_id(project_id: str) -> str:
@@ -120,19 +148,50 @@ class ProjectStateManager:
             return posture
 
     def get_project(self, project_id: str) -> ProjectPosture | None:
-        """Retrieve a project state by ID."""
+        """Retrieve a project state by ID.
+
+        Compatibility wrapper: callers that do not care about provenance keep
+        this signature. ``get_project_with_provenance`` is the same read plus
+        the two facts the wrapper used to assert on its behalf.
+        """
+        posture, _source, _artifact, _error_kind = self.get_project_with_provenance(project_id)
+        return posture
+
+    def get_project_with_provenance(
+        self, project_id: str
+    ) -> tuple[ProjectPosture | None, str, str, str | None]:
+        """Retrieve a project state and declare where it actually came from.
+
+        M3 decision on the limitation K1 declared: the in-process cache is
+        sound, the label was not. A cache hit is a real, correct answer, but it
+        is not read from the durable copy, so it must not be published as
+        ``PERSISTED_STATE``. The artifact verdict travels with the answer
+        instead of replacing it, because refusing to serve a correct posture
+        because its duplicate is unverifiable would throw away true state.
+
+        Reproduced by execution against the real server before this change:
+        a live read of a project whose artifact had been corrupted returned
+        200 with ``status_source=PERSISTED_STATE`` and an empty
+        ``storage_errors``, and only the process restart turned it into 500.
+        """
         with self._lock:
             _validate_project_id(project_id)
-            if project_id in self._projects:
-                return self._projects[project_id]
-            # Try to load from disk
             p_file = self.storage_dir / f"{project_id}.json"
+            cached = self._projects.get(project_id)
+
+            if cached is not None:
+                artifact_status, error_kind = self._classify_artifact(p_file, cached)
+                return (
+                    cached,
+                    PROVENANCE_MEMORY_CACHE,
+                    artifact_status,
+                    error_kind,
+                )
+
             if p_file.exists():
                 try:
                     data = json.loads(p_file.read_text(encoding="utf-8"))
                     posture = ProjectPosture.model_validate(data)
-                    self._projects[project_id] = posture
-                    return posture
                 except Exception as exc:
                     error_type = type(exc).__name__
                     logger.error(
@@ -141,7 +200,45 @@ class ProjectStateManager:
                         error_type,
                     )
                     raise ProjectStateLoadError(project_id, error_type) from exc
-            return None
+                self._projects[project_id] = posture
+                return posture, PROVENANCE_ARTIFACT, ARTIFACT_VERIFIED, None
+            return None, PROVENANCE_ARTIFACT, ARTIFACT_MISSING, None
+
+    def _classify_artifact(
+        self, p_file: Path, cached: ProjectPosture
+    ) -> tuple[str, str | None]:
+        """Report what the durable copy says about a memory-served posture.
+
+        Never raises: this describes the duplicate of an answer already being
+        served, and failing here would turn a healthy read into an error.
+        """
+        if not p_file.exists():
+            return ARTIFACT_MISSING, None
+        try:
+            raw = p_file.read_text(encoding="utf-8")
+            data = json.loads(raw)
+        except Exception as exc:  # noqa: BLE001 — any decode failure is UNVERIFIABLE
+            error_kind = _persisted_error_kind(type(exc).__name__)
+            logger.error(
+                "Cached project %s has an unreadable artifact (%s)",
+                cached.project_id,
+                type(exc).__name__,
+            )
+            return ARTIFACT_UNVERIFIABLE, error_kind
+        try:
+            on_disk = ProjectPosture.model_validate(data)
+        except Exception as exc:  # noqa: BLE001 — invalid persisted model is not trusted
+            error_kind = _persisted_error_kind(type(exc).__name__)
+            logger.error(
+                "Cached project %s has an incompatible artifact (%s)",
+                cached.project_id,
+                type(exc).__name__,
+            )
+            return ARTIFACT_UNVERIFIABLE, error_kind
+        return (
+            ARTIFACT_MATCHES_CACHE if on_disk == cached else ARTIFACT_DIVERGES,
+            None,
+        )
 
     def update_decomposition(
         self, project_id: str, decomp: StructuredDecomposition
@@ -476,7 +573,16 @@ class ProjectStateManager:
     def list_projects_with_errors(
         self, limit: int = 50
     ) -> tuple[list[ProjectPosture], list[dict[str, str]]]:
-        """Return projects and storage errors from one locked filesystem snapshot."""
+        """Return projects and storage errors from one locked filesystem snapshot.
+
+        Every artifact on disk is classified, INCLUDING the ones already in
+        the in-process cache. Skipping the cached ones (the previous behaviour)
+        let a corrupt or deleted artifact disappear from ``storage_errors``
+        while the process lived: reproduced by execution, the listing returned
+        an empty error list for a project whose file was no longer valid JSON.
+        The enumeration that reports storage health must not be the one thing
+        that cannot see a storage fault.
+        """
         with self._lock:
             load_errors: list[dict[str, str]] = []
             for p_file in self.storage_dir.glob("*.json"):
@@ -486,19 +592,56 @@ class ProjectStateManager:
                 except ValueError:
                     logger.error("Ignoring project file with invalid storage id: %s", p_file.name)
                     load_errors.append(
-                        {"project_id": pid, "error": "INVALID_PROJECT_FILENAME"}
+                        {
+                            "project_id": pid,
+                            "error": "INVALID_PROJECT_FILENAME",
+                            "kind": "INVALID_PROJECT_FILENAME",
+                        }
                     )
                     continue
-                if pid not in self._projects:
-                    try:
-                        self.get_project(pid)
-                    except ProjectStateLoadError:
+                cached = self._projects.get(pid)
+                if cached is not None:
+                    verdict, error_kind = self._classify_artifact(p_file, cached)
+                    if verdict == ARTIFACT_UNVERIFIABLE:
                         load_errors.append(
                             {
                                 "project_id": pid,
                                 "error": "PERSISTED_STATE_CORRUPT_OR_INCOMPATIBLE",
+                                "kind": error_kind or "UNREADABLE",
                             }
                         )
+                    elif verdict == ARTIFACT_MISSING:
+                        load_errors.append(
+                            {
+                                "project_id": pid,
+                                "error": "PERSISTED_ARTIFACT_MISSING",
+                                "kind": "MISSING_ARTIFACT",
+                            }
+                        )
+                    continue
+                try:
+                    self.get_project(pid)
+                except ProjectStateLoadError as exc:
+                    load_errors.append(
+                        {
+                            "project_id": pid,
+                            "error": "PERSISTED_STATE_CORRUPT_OR_INCOMPATIBLE",
+                            "kind": exc.kind,
+                        }
+                    )
+            # A cached project whose artifact was deleted leaves no file to
+            # glob, so it is checked explicitly instead of silently reported
+            # as healthy.
+            for pid in self._projects:
+                if (self.storage_dir / f"{pid}.json").exists():
+                    continue
+                load_errors.append(
+                    {
+                        "project_id": pid,
+                        "error": "PERSISTED_ARTIFACT_MISSING",
+                        "kind": "MISSING_ARTIFACT",
+                    }
+                )
             self._last_list_load_errors = [dict(item) for item in load_errors]
             items = list(self._projects.values())
             items.sort(key=lambda x: x.updated_at, reverse=True)
@@ -566,14 +709,21 @@ class ProjectStateManager:
     def _persist_transition_or_rollback(
         self, project_id: str, before: ProjectPosture | None
     ) -> None:
-        """Persist one authority transition or restore its prior in-memory state."""
+        """Rollback also restores instances already handed to callers."""
         try:
             self._persist_project(project_id)
         except Exception:
             if before is None:
                 self._projects.pop(project_id, None)
             else:
-                self._projects[project_id] = before
+                live = self._projects.get(project_id)
+                if live is None:
+                    self._projects[project_id] = before
+                else:
+                    live.__dict__.clear()
+                    live.__dict__.update(before.__dict__)
+                    live.__pydantic_fields_set__.clear()
+                    live.__pydantic_fields_set__.update(before.__pydantic_fields_set__)
             raise
 
 

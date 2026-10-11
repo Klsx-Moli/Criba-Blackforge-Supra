@@ -18,3 +18,6 @@ Generation: `ASTRA4-20260928-G000002`
 Library state at migration: `state_version=16`
 
 See `docs/migration/SOURCE_CANON.md` for exact source identities and bundle hashes.
+
+The shared interpreter contract, its runtime checks and its scientific limits are
+documented in [docs/INTERPRETER_CONTRACT.md](docs/INTERPRETER_CONTRACT.md).

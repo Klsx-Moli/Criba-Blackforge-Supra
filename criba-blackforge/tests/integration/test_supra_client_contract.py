@@ -152,6 +152,22 @@ def test_project_id_is_validated_before_transport() -> None:
 
 
 def test_get_project_returns_typed_planning_receipt_snapshot() -> None:
+    """The read path must return the receipt AND the real status channels.
+
+    Regla vieja (commit 0a05119), INVERTIDA a propósito. Este test afirmaba que
+    un proyecto con ``stage == "BLOCKED"`` se leía con ``status == "success"``.
+    Ese payload se contradecía a sí mismo y era el mismo defecto que K1 ya
+    corrigió en el servidor (D2: el read path colapsaba un workflow
+    BLOCKED/verification-FAIL en "success"). Lo que la regla realmente
+    protegía —y lo que aquí se sigue exigiendo— es que el receipt de
+    planificación se lea tipado, con su alcance ``PLANNED_DISCRIMINANT_PROTOCOL_ONLY``,
+    su ``NOT_EXECUTED`` y su ``NOT_VALIDATED`` intactos. Eso no dependía del
+    literal "success", así que sigue intacto; lo que se añade es que el estado
+    se reporte como el servidor realmente lo persiste.
+
+    Mutación: volver ``status`` a ``Literal["success"]`` rompe esto y
+    ``tests/integration/test_m2_read_path_channels.py``.
+    """
     fingerprint = "sha256:" + "c" * 64
 
     def handler(request: httpx.Request) -> httpx.Response:
@@ -160,7 +176,18 @@ def test_get_project_returns_typed_planning_receipt_snapshot() -> None:
         return httpx.Response(
             200,
             json={
-                "status": "success",
+                "status": "blocked",
+                "status_scope": "WORKFLOW_EXECUTION_ONLY",
+                "completion_status": "BLOCKED",
+                "workflow_status": "BLOCKED",
+                "verification_status": "FAIL",
+                "scientific_status": "NOT_VALIDATED",
+                "secure_sandbox_status": "RESTRICTED_BOUND_PASS_NOT_ISOLATED",
+                "criba_planning_receipt_status": "PRESERVED_NOT_EXECUTED",
+                "criba_mechanism_execution_status": "NOT_EXECUTED",
+                "status_source": "PERSISTED_STATE",
+                "persisted_artifact_status": "VERIFIED_FROM_ARTIFACT",
+                "stage": "BLOCKED",
                 "project_id": "restart-contract",
                 "posture": {
                     "project_id": "restart-contract",
@@ -187,6 +214,8 @@ def test_get_project_returns_typed_planning_receipt_snapshot() -> None:
         loaded = client.get_project("restart-contract")
 
     assert isinstance(loaded, SupraProjectLookup)
+    assert loaded.status == "blocked"
+    assert loaded.status_source == "PERSISTED_STATE"
     assert loaded.posture.stage == "BLOCKED"
     assert loaded.posture.criba_dossier_receipt is not None
     assert loaded.posture.criba_dossier_receipt.payload_fingerprint == fingerprint
@@ -522,3 +551,37 @@ def test_client_rejects_noncanonical_criba_hash_versions(field: str, value: str)
         with pytest.raises(ValueError, match="sha256"):
             client.run_project(objective="Evaluate bounded dossier", criba_dossier=dossier)
     assert called is False
+
+
+def test_lookup_schema_declares_artifact_error_classification() -> None:
+    field = SupraProjectLookup.model_json_schema()["properties"].get(
+        "persisted_artifact_error_kind"
+    )
+    assert field is not None
+    serialized = json.dumps(field)
+    for kind in ("CORRUPT_JSON", "INCOMPATIBLE_SCHEMA", "UNREADABLE"):
+        assert kind in serialized
+
+
+def test_get_project_preserves_artifact_error_kind() -> None:
+    payload = {
+        "status": "blocked",
+        "completion_status": "BLOCKED",
+        "workflow_status": "BLOCKED",
+        "verification_status": "FAIL",
+        "status_source": "IN_PROCESS_MEMORY_CACHE",
+        "persisted_artifact_status": "UNVERIFIABLE",
+        "persisted_artifact_error_kind": "INCOMPATIBLE_SCHEMA",
+        "project_id": "version-skew",
+        "stage": "BLOCKED",
+        "posture": {"project_id": "version-skew", "stage": "BLOCKED"},
+    }
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.url.path == "/api/v1/projects/version-skew"
+        return httpx.Response(200, json=payload)
+
+    with _client(handler) as client:
+        lookup = client.get_project("version-skew")
+
+    assert lookup.persisted_artifact_error_kind == "INCOMPATIBLE_SCHEMA"

@@ -1,0 +1,88 @@
+{
+  "colors": [
+    {
+      "name": "background",
+      "hex": "#f8f8f8",
+      "usage": "screen",
+      "confidence": 0.8
+    },
+    {
+      "name": "surface",
+      "hex": "#f7f8f7",
+      "usage": "panels",
+      "confidence": 0.6
+    },
+    {
+      "name": "accent",
+      "hex": "#0d110e",
+      "usage": "highlights",
+      "confidence": 0.45
+    },
+    {
+      "name": "text-light",
+      "hex": "#cfdbdd",
+      "usage": "text on dark",
+      "confidence": 0.5
+    },
+    {
+      "name": "text-dark",
+      "hex": "#7e9291",
+      "usage": "text on light",
+      "confidence": 0.5
+    },
+    {
+      "name": "primary",
+      "hex": "#5b5130",
+      "usage": "actions",
+      "confidence": 0.55
+    }
+  ],
+  "fonts": [
+    {
+      "family": "system-ui",
+      "size_px": 10.0,
+      "weight": 400,
+      "role": "body",
+      "confidence": 0.4
+    },
+    {
+      "family": "system-ui",
+      "size_px": 26.0,
+      "weight": 600,
+      "role": "heading",
+      "confidence": 0.4
+    }
+  ],
+  "radii": [
+    {
+      "name": "md",
+      "px": 6.0,
+      "confidence": 0.25
+    }
+  ],
+  "spacing": [
+    {
+      "name": "stack",
+      "px": 28.0,
+      "confidence": 0.4
+    },
+    {
+      "name": "page",
+      "px": 24.0,
+      "confidence": 0.2
+    }
+  ],
+  "grid": {
+    "columns": 12,
+    "gutter_px": 16
+  },
+  "breakpoints": {
+    "mobile": 640,
+    "tablet": 1024,
+    "desktop": 1440
+  },
+  "raw": {
+    "source": "kmeans+ast",
+    "k": 6
+  }
+}

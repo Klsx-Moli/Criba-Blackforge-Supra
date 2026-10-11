@@ -109,7 +109,10 @@ async def _handle_project_state_load_error(
     )
     return JSONResponse(
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-        content={"detail": "Persisted project state is corrupt or incompatible."},
+        content={
+            "detail": "Persisted project state is corrupt or incompatible.",
+            "kind": exc.kind,
+        },
     )
 
 
@@ -221,10 +224,58 @@ _CRIBA_SUPRA_ENVELOPE_VERSION = "criba-supra/1"
 
 
 def _criba_payload_fingerprint(dossier: CribaDossierRequest) -> str:
-    semantic = dossier.model_dump(exclude_unset=True)
+    """Fingerprint the VALIDATED semantics of a CRIBA dossier.
+
+    Identity must follow what the dossier means, not which keys the client
+    happened to serialize. ``exclude_unset=True`` recorded the serialization
+    accident instead: one dossier that omitted its defaults and one that sent
+    them explicitly hashed differently despite identical validated content, so
+    a legitimate retry was answered with 409 CONFLICT instead of the idempotent
+    replay it was.
+
+    The dump is taken from the validated model with every default applied, so
+    omitted and explicit defaults are one payload. This preserves the intent of
+    the rule it replaces — a client that sends the minimum is not penalized for
+    not knowing the server's defaults — while removing the ability of the wire
+    shape to alter identity.
+
+    ``creado_at`` is excluded because it is non-semantic metadata, not part of
+    the work.
+
+    The dump stays in python mode on purpose. ``model_dump(mode="json")``
+    rewrites NaN and +/-Infinity to ``None``, which would collapse "this value
+    is not representable" into "this value is absent" and give a dossier
+    carrying NaN the same identity as one carrying null. In python mode the
+    non-finite value reaches ``json.dumps(allow_nan=False)``, which refuses it,
+    so such a dossier has no fingerprint instead of a misleading one.
+
+    Unicode is deliberately NOT normalized. The dossier is transmitted and
+    persisted as given; folding NFC into NFD would make the fingerprint
+    describe bytes the system never received.
+    """
+    semantic = dossier.model_dump()
+    if semantic.get("interpretacion") is None:
+        semantic.pop("interpretacion", None)
     semantic.pop("creado_at", None)
-    raw = json.dumps(semantic, ensure_ascii=False, sort_keys=True, separators=(",", ":"), allow_nan=False)
+    raw = json.dumps(
+        semantic,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+        allow_nan=False,
+    )
     return "sha256:" + hashlib.sha256(raw.encode("utf-8")).hexdigest()
+
+
+class CribaInterpretationContextRequest(BaseModel):
+    """Declared model diagnostics; never an execution or validation receipt."""
+
+    model_config = ConfigDict(extra="forbid")
+    provenance: dict[str, Any] = Field(default_factory=dict)
+    critica: dict[str, Any] = Field(default_factory=dict)
+    evidencia_citada: list[int] = Field(default_factory=list)
+    conocimiento_previo: list[str] = Field(default_factory=list)
+    incertidumbre: str = ""
 
 
 class CribaDossierRequest(BaseModel):
@@ -249,6 +300,7 @@ class CribaDossierRequest(BaseModel):
     supuestos: list[Any] = Field(default_factory=list)
     estado: Literal["SUPRA_EJECUCION_PENDIENTE"]
     creado_at: str = Field("", max_length=80)
+    interpretacion: CribaInterpretationContextRequest | None = None
 
 
 def _criba_dossier_receipt(
@@ -264,6 +316,8 @@ def _criba_dossier_receipt(
         "receipt_scope": "PLANNED_DISCRIMINANT_PROTOCOL_ONLY",
         "execution_status": "NOT_EXECUTED",
         "scientific_status": "NOT_VALIDATED",
+        **({"interpretacion": dossier.interpretacion.model_dump()}
+           if dossier.interpretacion is not None else {}),
         "integration_version": integration_version,
         "payload_fingerprint": payload_fingerprint,
         "request_fingerprint": request_fingerprint,
@@ -359,14 +413,24 @@ def _criba_request_fingerprint(req: CreateProjectRequest) -> str:
     return "sha256:" + hashlib.sha256(raw.encode("utf-8")).hexdigest()
 
 
-def _project_execution_payload(
-    posture: Any, *, idempotent_replay: bool = False
-) -> dict[str, Any]:
-    """Serialize the canonical workflow outcome for create and safe replay."""
-    if posture.stage.value not in {"BLOCKED", "COMPLETED"}:
-        raise ValueError("project execution payload requires a terminal non-failed posture")
+_WORKFLOW_STATUS_BY_STAGE = {
+    "COMPLETED": "success",
+    "BLOCKED": "blocked",
+    "FAILED": "error",
+}
+
+
+def _outcome_channels(posture: Any, *, idempotent_replay: bool) -> dict[str, Any]:
+    """Report transport, workflow, verification and scientific status separately.
+
+    ``status`` says whether the request reached a successful workflow outcome;
+    it never stands in for verification or for scientific validation. Keeping
+    the four channels apart here is what stops a read from collapsing a blocked
+    or failed workflow into "success", which is the shape a consumer sees after
+    a restart when the only surviving truth is the persisted posture.
+    """
+    stage = posture.stage.value
     final_output = posture.final_output or {}
-    is_blocked = posture.stage.value == "BLOCKED"
     latest_execution = current_authoritative_execution(posture)
     secure_sandbox_status = (
         "RESTRICTED_BOUND_PASS_NOT_ISOLATED"
@@ -374,10 +438,10 @@ def _project_execution_payload(
         else "NOT_REPORTED"
     )
     return {
-        "status": "blocked" if is_blocked else "success",
+        "status": _WORKFLOW_STATUS_BY_STAGE.get(stage, "pending"),
         "status_scope": "WORKFLOW_EXECUTION_ONLY",
-        "completion_status": "BLOCKED" if is_blocked else "COMPLETED",
-        "workflow_status": posture.stage.value,
+        "completion_status": stage if stage in {"COMPLETED", "BLOCKED"} else "NOT_COMPLETED",
+        "workflow_status": stage,
         "verification_status": (
             posture.verification.verdict if posture.verification else "NOT_EVALUATED"
         ),
@@ -396,9 +460,18 @@ def _project_execution_payload(
         ),
         "idempotent_replay": idempotent_replay,
         "project_id": posture.project_id,
-        "stage": posture.stage.value,
+        "stage": stage,
         "posture": posture.model_dump(),
     }
+
+
+def _project_execution_payload(
+    posture: Any, *, idempotent_replay: bool = False
+) -> dict[str, Any]:
+    """Serialize the canonical workflow outcome for create and safe replay."""
+    if posture.stage.value not in {"BLOCKED", "COMPLETED"}:
+        raise ValueError("project execution payload requires a terminal non-failed posture")
+    return _outcome_channels(posture, idempotent_replay=idempotent_replay)
 
 
 def _failed_project_response(posture: Any, *, idempotent_replay: bool) -> Response:
@@ -637,20 +710,58 @@ def list_projects(limit: int = 20) -> dict[str, Any]:
 
 @app.get("/api/v1/projects/{project_id}", tags=["Taskmaster"])
 def get_project_posture(project_id: str) -> dict[str, Any]:
-    """Retrieve full project telemetry and deliverable ledger."""
-    posture = state_manager.get_project(project_id)
+    """Retrieve full project telemetry and deliverable ledger.
+
+    This is the read path a consumer uses to reconstruct state after a
+    restart, so it publishes the same separated status channels as the create
+    endpoint. Returning a bare {"status": "success"} here reported a BLOCKED,
+    verification-FAIL workflow as a success to exactly the caller that had no
+    other source of truth.
+
+    M3: it also publishes WHERE the served posture came from. The previous
+    hardcoded ``status_source="PERSISTED_STATE"`` was a provenance claim the
+    handler never checked: a cache hit was published as persisted state even
+    when the artifact on disk no longer existed. Reproduced by execution
+    against this server before the fix. The state itself was always served
+    correctly, so the fix corrects the label and adds the artifact verdict
+    instead of refusing an answer that is true.
+    """
+    posture, source, artifact_status, artifact_error_kind = (
+        state_manager.get_project_with_provenance(project_id)
+    )
     if not posture:
         raise HTTPException(status_code=404, detail=f"Project '{project_id}' not found.")
     return {
-        "status": "success",
-        "project_id": posture.project_id,
-        "posture": posture.model_dump(),
+        **_outcome_channels(posture, idempotent_replay=False),
+        "status_source": source,
+        "persisted_artifact_status": artifact_status,
+        "persisted_artifact_error_kind": artifact_error_kind,
     }
 
 
 # Compat alias: the live Cloud Run deployment and all submission docs
 # reference /api/v1/demo/quick-run. Keep it working alongside the new
 # /api/v1/examples/quick-run route.
+_QUICK_RUN_PROJECT_ID = "example-quick-run"
+
+
+def _quick_run_payload(posture: Any, *, idempotent_replay: bool) -> dict[str, Any]:
+    """Serialize the deterministic example outcome with its status channels.
+
+    ``status`` is NOT overridden to "success". The example usually ends BLOCKED
+    with a FAIL coverage verdict and no deliverable, so a hardcoded success
+    told the reader the opposite of the workflow's real state. The channels
+    already published by POST /api/v1/projects carry that truth.
+    """
+    channels = _outcome_channels(posture, idempotent_replay=idempotent_replay)
+    return {
+        **channels,
+        "example": True,
+        "stages_completed": 5 if posture.stage.value == "COMPLETED" else 4,
+        "deliverable": posture.final_output,
+    }
+
+
 @app.post("/api/v1/demo/quick-run", tags=["Examples"], include_in_schema=False)
 def demo_quick_run_alias(request: Request) -> dict[str, Any]:
     """Backwards-compatible alias for the historical demo URL."""
@@ -659,34 +770,39 @@ def demo_quick_run_alias(request: Request) -> dict[str, Any]:
 
 @app.post("/api/v1/examples/quick-run", tags=["Examples"])
 def example_quick_run(request: Request) -> dict[str, Any]:
-    """Run a deterministic example without contacting a model provider."""
+    """Run a deterministic example without contacting a model provider.
+
+    The example owns one fixed project id, so the second call finds persisted
+    state instead of a clean slate. Letting DuplicateProjectError escape made
+    every retry after the first answer 500 with an empty body, permanently and
+    across restarts. A retry now replays the persisted outcome explicitly, or
+    fails explicitly if that outcome is not terminal.
+    """
     _require_mutation_authority(request)
     demo_objective = (
         "Design an autonomous secretless service mesh with real-time continuous "
         "invariant verification and automated counterfactual rollback."
     )
-    posture = taskmaster_runner.run_golden_path(
-        objective=demo_objective,
-        project_id="example-quick-run",
-        domain="cloud_security",
-        allow_disruptive=True,
-    )
-    return {
-        "status": "success",
-        "example": True,
-        "stages_completed": 5 if posture.stage.value == "COMPLETED" else 4,
-        "workflow_status": posture.stage.value,
-        "verification_status": (
-            posture.verification.verdict if posture.verification else "NOT_EVALUATED"
-        ),
-        "scientific_status": (
-            (posture.final_output or {}).get("scientific_status", "NOT_VALIDATED")
-        ),
-        "project_id": posture.project_id,
-        "stage": posture.stage.value,
-        "deliverable": posture.final_output,
-        "posture": posture.model_dump(),
-    }
+    try:
+        posture = taskmaster_runner.run_golden_path(
+            objective=demo_objective,
+            project_id=_QUICK_RUN_PROJECT_ID,
+            domain="cloud_security",
+            allow_disruptive=True,
+        )
+    except DuplicateProjectError as exc:
+        existing = state_manager.get_project(_QUICK_RUN_PROJECT_ID)
+        if existing is None:  # pragma: no cover - lost race; report honestly
+            raise HTTPException(
+                status_code=409, detail="example project is already being created."
+            ) from exc
+        if existing.stage.value not in {"BLOCKED", "COMPLETED", "FAILED"}:
+            raise HTTPException(
+                status_code=409,
+                detail="example project exists in a nonterminal state.",
+            ) from exc
+        return _quick_run_payload(existing, idempotent_replay=True)
+    return _quick_run_payload(posture, idempotent_replay=False)
 
 
 @app.post("/api/v1/mcp", tags=["WebMCP"])

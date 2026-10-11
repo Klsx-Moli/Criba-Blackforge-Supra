@@ -8,12 +8,13 @@ no obvia a otro dominio, contraintuitividad, etc.).
 
 Las preguntas están extraídas del reporte epistemológico del ecosistema
 (CONTEXTO_TECNICO_CRIBA_BLACKFORGE.md §serendipia). Cada una lleva un
-``trigger`` léxico opcional: si la idea ya contiene ese término, la pregunta
-se marca como ``auto_cubierta`` (no se repite).
+metadatos léxicos históricos; ninguna palabra clave acredita una respuesta.
+Las once preguntas se incluyen siempre y sus respuestas se exigen en la crítica.
 """
+
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any
 
 
@@ -28,60 +29,94 @@ class PreguntaExpansion:
 
 PREGUNTAS: tuple[PreguntaExpansion, ...] = (
     PreguntaExpansion(
-        id="Q1", eje="anomalia_observable",
-        pregunta="¿Qué anomalía o patrón observado CONTRADICTA el comportamiento esperado del sistema actual?",
+        id="Q1",
+        eje="anomalia_observable",
+        pregunta=(
+            "¿Qué anomalía observada contradice el comportamiento esperado? "
+            "Si no hay observaciones entregadas, declara desconocido."
+        ),
         trigger="anomal",
         auto_cubrir=("falla", "anomal", "patrón inesperado", "comportamiento inesperado"),
     ),
     PreguntaExpansion(
-        id="Q2", eje="novedad_front",
-        pregunta="¿En qué punto la idea rompe con el estado del arte identificado como dominante para este problema?",
+        id="Q2",
+        eje="novedad_front",
+        pregunta=(
+            "¿Qué antecedentes se conocen y cuál sería la diferencia concreta? "
+            "Si no se han buscado, no afirmes novedad."
+        ),
         trigger="estado del arte",
     ),
     PreguntaExpansion(
-        id="Q3", eje="conexion_no_obvia",
-        pregunta="¿Qué conexión causal NO OBVIA existe entre esta idea y un mecanismo de otro dominio?",
+        id="Q3",
+        eje="conexion_no_obvia",
+        pregunta=(
+            "¿Qué conexión causal NO OBVIA existe entre esta idea y un mecanismo de otro dominio?"
+        ),
         trigger="dominio",
         auto_cubrir=("otro dominio", "dominio opuesto", "biomimética", "análogo a"),
     ),
     PreguntaExpansion(
-        id="Q4", eje="contraintuitividad",
+        id="Q4",
+        eje="contraintuitividad",
         pregunta="¿Qué aspecto de la idea es CONTRAINTUITIVO para un experto en el campo?",
         trigger="intuitiv",
     ),
     PreguntaExpansion(
-        id="Q5", eje="factibilidad_implicita",
-        pregunta="¿Qué implica de factibilidad/falsabilidad la idea según el marco de contención (S1/S2/S3) asignado por el gobierno causal?",
+        id="Q5",
+        eje="factibilidad_implicita",
+        pregunta=(
+            "¿Qué restricciones de factibilidad y contención están declaradas "
+            "y cómo afectan a la falsación? Si no hay marco declarado, "
+            "indica DESCONOCIDO sin inventar S1/S2/S3."
+        ),
         trigger="factibilidad",
     ),
     PreguntaExpansion(
-        id="Q6", eje="implicaciones_no_deseadas",
-        pregunta="¿Qué implicación SISTÉMICA no deseada podría surgir al aplicar esta idea a escala?",
+        id="Q6",
+        eje="implicaciones_no_deseadas",
+        pregunta=(
+            "¿Qué implicación SISTÉMICA no deseada podría surgir al aplicar esta idea a escala?"
+        ),
         trigger="implicacion",
     ),
     PreguntaExpansion(
-        id="Q7", eje="beneficios_opositos",
+        id="Q7",
+        eje="beneficios_opositos",
         pregunta="¿Quién se beneficia y quién se OPONE a esta idea y por qué?",
         trigger="beneficiar",
     ),
     PreguntaExpansion(
-        id="Q8", eje="falsacion_minima",
-        pregunta="¿Qué experimento MÍNIMO haría falsar esta idea, y qué haría la hipótesis nula (H0) respecto al axioma rompido?",
+        id="Q8",
+        eje="falsacion_minima",
+        pregunta=(
+            "¿Qué experimento mínimo refutaría esta idea frente a un baseline, "
+            "con qué métrica, umbral previo y condición de fracaso?"
+        ),
         trigger="falsificacion",
     ),
     PreguntaExpansion(
-        id="Q9", eje="epifenomeno",
-        pregunta="¿Qué epifenómeno o efecto colateral podrïrse interpretar como el VERDADERO motor de cambio?",
+        id="Q9",
+        eje="epifenomeno",
+        pregunta=(
+            "¿Qué mecanismo alternativo o efecto colateral podría producir "
+            "el mismo resultado y cómo lo discriminarías?"
+        ),
         trigger="epifenomeno",
     ),
     PreguntaExpansion(
-        id="Q10", eje="inversa",
+        id="Q10",
+        eje="inversa",
         pregunta="¿Cómo cambia la idea si se INVIERTE el rol de cada actor implicado?",
         trigger="actor",
     ),
     PreguntaExpansion(
-        id="Q11", eje="temporal",
-        pregunta="¿Qué sucede si esta idea se aplica en contextos temporales Opuestos (pasado vs futuro)?",
+        id="Q11",
+        eje="temporal",
+        pregunta=(
+            "¿Qué sucede si esta idea se aplica en contextos temporales "
+            "opuestos (pasado vs futuro)?"
+        ),
         trigger="temporal",
     ),
 )
@@ -93,19 +128,22 @@ POR_EJE: dict[str, PreguntaExpansion] = {p.eje: p for p in PREGUNTAS}
 def protocolo_para(idea: dict[str, Any]) -> dict[str, Any]:
     """Construye el bloque de protocolo para una idea: texto completo + ejes
     auto-cubiertos marcados. Usado como contexto para el modelo interprete."""
-    texto_idea = f"{idea.get('description', '')} {idea.get('mechanism_causal', '')}".lower()
     items = []
     auto = []
     for p in PREGUNTAS:
-        covered = any(t in texto_idea for t in p.auto_cubrir) or (p.trigger and p.trigger in texto_idea)
+        # Una mención léxica nunca demuestra que se respondió una pregunta.
+        # Las once preguntas se entregan siempre al crítico.
+        covered = False
         if covered:
             auto.append(p.id)
-        items.append({
-            "id": p.id,
-            "eje": p.eje,
-            "pregunta": p.pregunta,
-            "auto_cubierta": covered,
-        })
+        items.append(
+            {
+                "id": p.id,
+                "eje": p.eje,
+                "pregunta": p.pregunta,
+                "auto_cubierta": covered,
+            }
+        )
     return {
         "preguntas": items,
         "auto_cubiertas": auto,

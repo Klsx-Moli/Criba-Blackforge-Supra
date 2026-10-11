@@ -67,6 +67,7 @@ def test_list_snapshot_errors_cannot_be_overwritten_by_later_listing(tmp_path) -
         {
             "project_id": "broken",
             "error": "PERSISTED_STATE_CORRUPT_OR_INCOMPATIBLE",
+            "kind": "CORRUPT_JSON",
         }
     ]
 

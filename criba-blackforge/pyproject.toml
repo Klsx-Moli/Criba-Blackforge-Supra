@@ -63,9 +63,9 @@ dev = [
 build = ["pyinstaller>=6.0"]
 
 [project.urls]
-Homepage = "https://github.com/klssxx/Criba-Blackforge"
-Repository = "https://github.com/klssxx/Criba-Blackforge.git"
-Issues = "https://github.com/klssxx/Criba-Blackforge/issues"
+Homepage = "https://github.com/Klsx-Moli/Criba-Blackforge-Supra"
+Repository = "https://github.com/Klsx-Moli/Criba-Blackforge-Supra.git"
+Issues = "https://github.com/Klsx-Moli/Criba-Blackforge-Supra/issues"
 
 [project.scripts]
 criba = "criba.cli:main"
@@ -109,6 +109,7 @@ include = ["criba*", "data"]
 # "." makes the repo root importable so tests can import scripts.* both under
 # `python -m pytest` (CWD on sys.path) and plain `pytest`/`uv run pytest` (CI).
 pythonpath = ["src", "."]
+markers = ["integration: comprobaciones entre componentes o runtimes opcionales"]
 
 [tool.mypy]
 # FASE 3 hardening: strict typing over CRIBA + BLACKFORGE own code.

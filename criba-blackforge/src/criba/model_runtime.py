@@ -29,7 +29,6 @@ from .model_config import ModelProfile, ModelSettings, load_model_settings
 MAX_SEMANTIC_CANDIDATES = 12
 SEMANTIC_BATCH_SIZE = MAX_SEMANTIC_CANDIDATES
 _MAX_HTTP_RESPONSE_BYTES = 8 * 1024 * 1024
-_GENERATION_TIMEOUT_SECONDS = 300.0
 _SEMANTIC_TEXT_LIMITS = {
     "candidate_id": 120,
     "title": 120,
@@ -242,6 +241,8 @@ def _start_llama_server(profile: ModelProfile) -> None:
         "--alias",
         profile.model or "criba-local",
         "--jinja",
+        "--parallel",
+        str(profile.parallel_slots),
     ]
     if profile.gpu_layers >= 0:
         command.extend(("-ngl", str(profile.gpu_layers)))
@@ -566,7 +567,7 @@ def _generate_once(profile: ModelProfile, system: str, prompt: str) -> str:
             result = _http_json(
                 endpoint + "/api/chat",
                 payload=payload,
-                timeout=_GENERATION_TIMEOUT_SECONDS,
+                timeout=profile.timeout,
             )
         except ModelRuntimeError as exc:
             detail = str(exc).casefold()
@@ -578,7 +579,11 @@ def _generate_once(profile: ModelProfile, system: str, prompt: str) -> str:
             result = _http_json(
                 endpoint + "/api/chat",
                 payload=payload,
-                timeout=_GENERATION_TIMEOUT_SECONDS,
+                timeout=profile.timeout,
+            )
+        if result.get("done_reason") == "length":
+            raise ModelRuntimeError(
+                f"Respuesta truncada al alcanzar el límite de {profile.max_output_tokens} tokens."
             )
         message = result.get("message", {})
         if not isinstance(message, dict):
@@ -602,11 +607,15 @@ def _generate_once(profile: ModelProfile, system: str, prompt: str) -> str:
     result = _http_json(
         endpoint + "/v1/chat/completions",
         payload=payload,
-        timeout=_GENERATION_TIMEOUT_SECONDS,
+        timeout=profile.timeout,
     )
     choices = result.get("choices", [])
     if not isinstance(choices, list) or not choices or not isinstance(choices[0], dict):
         raise ModelRuntimeError("llama.cpp no devolvió choices[0].")
+    if choices[0].get("finish_reason") == "length":
+        raise ModelRuntimeError(
+            f"Respuesta truncada al alcanzar el límite de {profile.max_output_tokens} tokens."
+        )
     message = choices[0].get("message", {})
     if not isinstance(message, dict):
         raise ModelRuntimeError("llama.cpp no devolvió message.content.")
@@ -697,9 +706,14 @@ def enhance_ideas_with_model(
         }
     selected = originals[:MAX_SEMANTIC_CANDIDATES]
     try:
+        import time
+        deadline = time.monotonic() + 30.0
         semantic_ideas: list[SemanticIdea] = []
         chunk_errors: list[str] = []
         for offset in range(0, len(selected), SEMANTIC_BATCH_SIZE):
+            if time.monotonic() > deadline:
+                chunk_errors.append("timeout global de 30s agotado")
+                break
             chunk = selected[offset : offset + SEMANTIC_BATCH_SIZE]
             try:
                 batch = _synthesize(
@@ -759,7 +773,11 @@ def enhance_ideas_with_model(
 def enhance_criba_packet(
     packet: dict[str, Any], settings: ModelSettings | None = None
 ) -> dict[str, Any]:
-    """Enhance CRIBA packet wording while preserving deterministic metrics."""
+    """Enhance CRIBA packet wording while preserving deterministic metrics.
+
+    Enhancement is optional: when the local model is unavailable or slow,
+    the deterministic packet is returned unchanged with a fallback marker.
+    """
 
     innovation = packet.get("innovation")
     if not isinstance(innovation, dict):
@@ -767,12 +785,18 @@ def enhance_criba_packet(
     ideas = innovation.get("ideas")
     if not isinstance(ideas, list):
         return packet
-    enhanced, metadata = enhance_ideas_with_model(
-        str(packet.get("original_query") or ""),
-        [idea for idea in ideas if isinstance(idea, Mapping)],
-        product="CRIBA",
-        settings=settings,
-    )
+    try:
+        enhanced, metadata = enhance_ideas_with_model(
+            str(packet.get("original_query") or ""),
+            [idea for idea in ideas if isinstance(idea, Mapping)],
+            product="CRIBA",
+            settings=settings,
+        )
+    except Exception as exc:
+        packet.setdefault("semantic_generation", {})
+        packet["semantic_generation"]["status"] = "fallback"
+        packet["semantic_generation"]["error"] = str(exc)
+        return packet
     innovation["ideas"] = enhanced
     packet["ideas"] = enhanced
     packet["semantic_generation"] = metadata

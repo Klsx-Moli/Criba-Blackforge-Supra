@@ -6,8 +6,8 @@ auditability and zero-friction adoption — keep those three in mind on every ch
 ## Getting started
 
 ```bash
-git clone https://github.com/klssxx/Criba-Blackforge.git
-cd Criba-Blackforge
+git clone https://github.com/Klsx-Moli/Criba-Blackforge-Supra.git
+cd Criba-Blackforge-Supra
 uv sync --all-extras --locked
 uv run pytest -q
 ```
@@ -48,6 +48,6 @@ dependency-injected, off-network tests (the IIE transport injects a fake sender)
 
 ## Questions?
 
-Open a [discussion](https://github.com/klssxx/Criba-Blackforge/discussions) rather
+Open a [discussion](https://github.com/Klsx-Moli/Criba-Blackforge-Supra/discussions) rather
 than an issue for "how do I..." questions. Bugs go in issues with the reproduction
 template filled in.

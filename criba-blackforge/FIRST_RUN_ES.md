@@ -3,7 +3,7 @@
 ## 1. Descargar y abrir
 
 1. Descarga `CRIBA-Blackforge-Portable-Windows-x64.zip` desde la
-   [última release](https://github.com/klssxx/Criba-Blackforge/releases/latest).
+   [última release](https://github.com/Klsx-Moli/Criba-Blackforge-Supra/releases/latest).
 2. Compara el SHA-256 del ZIP con el archivo `.sha256` de la misma release:
 
    ```powershell

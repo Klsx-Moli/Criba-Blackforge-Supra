@@ -15,12 +15,13 @@ import hashlib
 import json
 import os
 import warnings
-from datetime import datetime, timezone
+from collections.abc import Callable
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Callable, TypeGuard
+from typing import Any, TypeGuard
+from uuid import uuid4
 
 DOSSIER_RESULT_SEMANTICS_VERSION = 3
-from uuid import uuid4
 
 
 def _exact_identity_text(value: object) -> TypeGuard[str]:
@@ -28,9 +29,149 @@ def _exact_identity_text(value: object) -> TypeGuard[str]:
     return isinstance(value, str) and bool(value) and value == value.strip()
 
 
+def _text(source: dict[str, Any], key: str, limit: int = 400) -> str:
+    """Read one declared field as bounded text, or fail loudly.
+
+    A missing source field is UNKNOWN, and UNKNOWN is never a placeholder.
+    Callers use this so a dossier cannot be completed with invented content.
+    """
+    value = source.get(key)
+    if not isinstance(value, str) or not value.strip():
+        raise ValueError(f"dossier source field is missing: {key}")
+    return value.strip()[:limit]
+
+
+def _axis_moves(idea: dict[str, Any]) -> list[tuple[str, str, str]]:
+    """Parse the engine's declared ``difference_signature`` into axis moves.
+
+    Measured format: ``(eje:antes→después|eje2:antes2→después2)``. These are the
+    concrete before/after pairs the engine claims the cross mutates; they are
+    what an observation has to show to discriminate the mechanism from the
+    rival explanation. An unparsable signature is an error, never a guess.
+    """
+    signature = _text(idea, "difference_signature", 600)
+    moves: list[tuple[str, str, str]] = []
+    for part in signature.strip("()").split("|"):
+        chunk = part.strip()
+        if not chunk:
+            continue
+        if ":" not in chunk:
+            raise ValueError(f"difference_signature axis has no before/after: {chunk}")
+        axis, _, values = chunk.partition(":")
+        before, arrow, after = values.partition("→")
+        if not arrow or not before.strip() or not after.strip():
+            raise ValueError(f"difference_signature axis is not a move: {chunk}")
+        moves.append((axis.strip(), before.strip(), after.strip()))
+    if not moves:
+        raise ValueError("difference_signature declares no axis move")
+    return moves
+
+
+def _movements_text(moves: list[tuple[str, str, str]]) -> str:
+    return "; ".join(f"{axis}: {before} → {after}" for axis, before, after in moves)
+
+
+def _entry_desde_idea(idea: dict[str, Any], problema: str) -> dict[str, Any]:
+    """Build the dossier entry from a REAL deterministic CRIBA idea.
+
+    Measured against ``criba.engine.activate`` on 2026-10-02: every field this
+    reads is present on 295/295 ideas across three problems, and every field
+    below has exactly one declared source. Nothing is invented and nothing is
+    defaulted, because SUPRA's validated schema requires all eight protocol
+    obligations to be non-empty and a filler string would convert a missing
+    declaration into a declared one.
+
+    The epistemology is preserved end to end: the engine marks its own output
+    ``MECHANISM_PROPOSED_UNVALIDATED``, the dossier keeps
+    ``SUPRA_EJECUCION_PENDIENTE`` and the protocol keeps ``NO_EJECUTADA``. What
+    this function adds is a *declared representation-level* protocol — never
+    a result or proof of relevance to the user's objective. Axis changes are
+    not by themselves observations of functional behaviour.
+    """
+    moves = _axis_moves(idea)
+    causal_variables = idea.get("causal_variables")
+    if not isinstance(causal_variables, dict):
+        raise ValueError("idea has no causal_variables")
+    evidencia = causal_variables.get("evidencia_requerida")
+    if not isinstance(evidencia, str) or not evidencia.strip():
+        raise ValueError("idea has no causal_variables.evidencia_requerida")
+    si_falla = causal_variables.get("si_falla")
+    if not isinstance(si_falla, str) or not si_falla.strip():
+        raise ValueError("idea has no causal_variables.si_falla")
+
+    # H1 is what the engine claims; H2 is the assumption it says the mechanism
+    # breaks, which is precisely the explanation that must be discriminated.
+    hipotesis = _text(idea, "expected_effect", 800)
+    alternativa = _text(idea, "broken_assumption", 1200)
+    firma = _movements_text(moves)
+
+    return {
+        "candidate_id": _text(idea, "id", 256),
+        "interpretacion_provenance": {"interpreter_backend": "deterministic_core"},
+        "claim_id": None,
+        "hipotesis": hipotesis,
+        "mecanismo": _text(idea, "mechanism_causal", 2000),
+        "prueba_concreta": _text(idea, "mechanism_explanation", 600),
+        "observable": (
+            f"los ejes declarados cambian de valor: {firma} "
+            f"(evidencia requerida: {evidencia.strip()})"
+        ),
+        "alternativa_explicativa": alternativa,
+        "resultado_favorable_mecanismo": (
+            f"los ejes {firma} adoptan el valor 'después' y el efecto declarado "
+            f"se observa: {hipotesis}"
+        ),
+        "resultado_favorable_alternativa": (
+            f"los ejes permanecen en 'antes' y el supuesto se sostiene sin cambio: "
+            f"{alternativa}"
+        ),
+        "regla_decision": (
+            f"adoptar el mecanismo solo si el observable confirma {firma}; "
+            f"si los ejes no cambian, la explicación alternativa gana y el "
+            f"mecanismo se descarta"
+        ),
+        "condicion_fracaso": (
+            f"eje sin el movimiento declarado, o fallo observado como "
+            f"{si_falla.strip()[:200]}"
+        ),
+        "evidencia_requerida": evidencia.strip()[:400],
+        "supuestos": [
+            str(idea.get("rupture") or "").strip(),
+            str(idea.get("known_space_element") or "").strip(),
+        ],
+        "causal_claim": str(idea.get("causal_claim") or "").strip(),
+    }
+
+
+def preparar_dossier_desde_idea(
+    idea: dict[str, Any],
+    problema: str,
+    *,
+    ficha_bloqueo: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Dossier with a complete discriminant protocol from a core idea.
+
+    ``preparar_dossier`` is the assembler and stays the single place that
+    computes versions and identity; this only supplies the entry that a real
+    deterministic idea can actually support, so the resulting dossier is
+    accepted by SUPRA's validated schema without any field being filled with a
+    placeholder.
+    """
+    entry = _entry_desde_idea(idea, problema)
+    return preparar_dossier(
+        entry,
+        problema,
+        ficha_bloqueo=ficha_bloqueo,
+        alternativa_explicativa=entry["alternativa_explicativa"],
+    )
+
+
 def _dossiers_dir(override: Path | None = None) -> Path:
     if override is not None:
         return override
+    shadow_home = os.environ.get("CRIBASHADOW_HOME")
+    if shadow_home:
+        return Path(shadow_home) / "dossiers"
     base = Path(os.environ.get("LOCALAPPDATA") or Path.home()) / "CRIBA-Blackforge"
     return base / "dossiers"
 
@@ -80,35 +221,58 @@ def preparar_dossier(
     ``alternativa_explicativa``: la otra explicación que la observación debe
     distinguir. Si no se aporta, el dossier lo declara en lugar de inventarla.
     """
-    bloqueo = (ficha_bloqueo or {})
+    bloqueo = ficha_bloqueo or {}
+    raw_prueba = entry.get("prueba")
+    declarada: dict[str, Any] = raw_prueba if isinstance(raw_prueba, dict) else {}
     prueba_concreta = str(entry.get("prueba_concreta", ""))[:600]
-    observable = str(entry.get("observable") or entry.get("metrica") or "")[:400]
+    claim = str(entry.get("hipotesis", ""))[:800]
+    mechanism = str(entry.get("mecanismo", ""))
+    supuestos = [
+        str(item).strip()
+        for item in (entry.get("supuestos") or [])
+        if str(item).strip()
+    ]
+    # Solo se reutiliza contenido ya declarado por el intérprete. Si tampoco
+    # existe un supuesto alternativo, el campo sigue vacío y el dossier no pasa
+    # a SUPRA: nunca se inventa una explicación para satisfacer el schema.
+    alternativa = (alternativa_explicativa.strip() or declarada.get("alternativa_explicativa")
+                   or (supuestos[0] if supuestos else ""))
+    observable = str(
+        entry.get("observable") or declarada.get("metrica")
+        or entry.get("metrica") or prueba_concreta
+    )[:400]
+    resultado_mecanismo = str(
+        entry.get("resultado_favorable_mecanismo")
+        or declarada.get("resultado_favorable_mecanismo") or claim
+    )[:400]
+    resultado_alternativa = str(
+        entry.get("resultado_favorable_alternativa")
+        or declarada.get("resultado_favorable_alternativa") or alternativa
+    )[:400]
+    regla_decision = str(
+        entry.get("regla_decision") or declarada.get("umbral") or prueba_concreta
+    )[:400]
     prueba = {
         "afirmacion_decisiva": prueba_concreta,
-        "alternativa_explicativa": alternativa_explicativa.strip(),
+        "alternativa_explicativa": alternativa,
         "intervencion_prueba": prueba_concreta,
         "observable": observable,
-        "comparacion": (
+        "comparacion": declarada.get("baseline") or (
             "observación que distinga el mecanismo propuesto de la alternativa; "
             "si no hay alternativa declarada, la prueba no es discriminante"
         ),
         "metrica": observable,
-        "resultado_favorable_mecanismo": str(
-            entry.get("resultado_favorable_mecanismo") or ""
-        )[:400],
-        "resultado_favorable_alternativa": str(
-            entry.get("resultado_favorable_alternativa") or ""
-        )[:400],
-        "regla_decision": str(entry.get("regla_decision") or "")[:400],
+        "resultado_favorable_mecanismo": resultado_mecanismo,
+        "resultado_favorable_alternativa": resultado_alternativa,
+        "regla_decision": regla_decision,
         "condicion_fracaso": str(
             entry.get("condicion_fracaso")
+            or declarada.get("condicion_fracaso")
             or "si la observación no discrimina, el dossier no decide"
         )[:400],
         "coste_permisos": "a evaluar por el responsable antes de ejecutar",
         "estado_prueba": "NO_EJECUTADA",
     }
-    claim = str(entry.get("hipotesis", ""))[:800]
-    mechanism = str(entry.get("mecanismo", ""))
 
     raw_candidate_id = entry.get("candidate_id", "")
     if raw_candidate_id in (None, ""):
@@ -148,6 +312,38 @@ def preparar_dossier(
         protocol_version = raw_protocol_version
     delivered = list(entry.get("evidence_delivered", entry.get("evidencia_local_usada", [])))
     documented = list(entry.get("evidence_documented_as_used", []))
+    raw_provenance = entry.get("interpretacion_provenance")
+    provenance = dict(raw_provenance) if isinstance(raw_provenance, dict) else {}
+    limitations: list[str] = []
+    # Exact relational failures are detectable; general semantic relevance is
+    # not established by a JSON schema, self-assertion, or lexical overlap.
+    def normalize(value: object) -> str:
+        return " ".join(str(value).split()).casefold()
+
+    if normalize(alternativa) == normalize(claim) and normalize(claim):
+        limitations.append("RIVAL_RESTATES_HYPOTHESIS")
+    if normalize(resultado_mecanismo) == normalize(resultado_alternativa):
+        limitations.append("PREDICTIONS_NOT_DISTINCT")
+    if not (entry.get("observable") or declarada.get("metrica") or entry.get("metrica")):
+        limitations.append("NO_DECLARED_OBSERVABLE")
+    deterministic = provenance.get("interpreter_backend") == "deterministic_core"
+    if deterministic:
+        limitations.append("REPRESENTATION_ONLY_NOT_FUNCTIONAL_TEST")
+    provenance["planning_assessment"] = {
+        "objective_sha256": hashlib.sha256(problema.encode("utf-8")).hexdigest(),
+        "content_origin": "GENERATED_DETERMINISTIC" if deterministic else "DECLARED_UNVERIFIED",
+        "relevance_status": "UNKNOWN",
+        "discriminant_status": "UNKNOWN",
+        "semantic_validation": "NOT_VALIDATED",
+        "limitations": limitations,
+    }
+    interpretacion = {
+        "provenance": provenance,
+        "critica": entry.get("critica") or {},
+        "evidencia_citada": entry.get("evidencia_citada") or [],
+        "conocimiento_previo": entry.get("conocimiento_previo") or [],
+        "incertidumbre": entry.get("incertidumbre") or "",
+    }
     return {
         "dossier_id": f"dossier-{uuid4().hex}",
         "candidate_id": candidate_id,
@@ -163,10 +359,11 @@ def preparar_dossier(
         "evidence_delivered": delivered,
         "evidence_documented_as_used": documented,
         "evidencia_utilizada": documented,
+        **({"interpretacion": interpretacion} if any(interpretacion.values()) else {}),
         "prueba_discriminante": prueba,
-        "supuestos": list(entry.get("supuestos", [])),
+        "supuestos": supuestos,
         "estado": "SUPRA_EJECUCION_PENDIENTE",
-        "creado_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "creado_at": datetime.now(UTC).isoformat(timespec="seconds"),
     }
 
 
@@ -205,6 +402,16 @@ def cargar_dossier(
         raise ValueError("dossier_id ambiguo")
     dossier = dossiers.get(identity)
     return dict(dossier) if dossier is not None else None
+
+
+def cargar_ultimo_dossier(directory: Path | None = None) -> dict[str, Any] | None:
+    """Load the newest unambiguous local dossier for Shadow restart recovery."""
+    path = _dossiers_dir(directory) / "dossiers.jsonl"
+    dossiers, ambiguos, _ = _leer_historial(path)
+    for identity, dossier in reversed(list(dossiers.items())):
+        if identity not in ambiguos:
+            return dict(dossier)
+    return None
 
 
 def _discriminant_protocol_complete(dossier: dict[str, Any]) -> bool:
@@ -336,7 +543,7 @@ def registrar_resultado(
     previous_revisions: list[dict[str, Any]] = []
     if execution_identity_valid and protocol_identity_valid:
         observation_id = hashlib.sha256(
-            f"{dossier_id}|{execution_id}|{protocol_version}".encode("utf-8")
+            f"{dossier_id}|{execution_id}|{protocol_version}".encode()
         ).hexdigest()
         previous_revisions = [
             item
@@ -345,11 +552,15 @@ def registrar_resultado(
             and item.get("result_semantics_version") == DOSSIER_RESULT_SEMANTICS_VERSION
         ]
     first_registered_at = (
-        str(previous_revisions[0].get("first_registered_at") or previous_revisions[0].get("registrado_at") or "")
+        str(
+            previous_revisions[0].get("first_registered_at")
+            or previous_revisions[0].get("registrado_at")
+            or ""
+        )
         if previous_revisions
         else ""
     )
-    registered_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    registered_at = datetime.now(UTC).isoformat(timespec="seconds")
     if not first_registered_at:
         first_registered_at = registered_at
 

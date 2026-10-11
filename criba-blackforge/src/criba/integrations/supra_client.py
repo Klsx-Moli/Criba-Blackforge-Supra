@@ -11,6 +11,7 @@ import hashlib
 import json
 import os
 import re
+from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any, Literal
 from urllib.parse import quote
@@ -22,9 +23,76 @@ _PROJECT_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$")
 _CRIBA_SUPRA_ENVELOPE_VERSION = "criba-supra/1"
 
 
-def _dossier_payload_fingerprint(dossier: dict[str, Any]) -> str:
-    semantic = {k: v for k, v in dossier.items() if k != "creado_at"}
-    raw = json.dumps(semantic, ensure_ascii=False, sort_keys=True, separators=(",", ":"), allow_nan=False)
+# SUPRA's CribaDossierRequest defaults. A dossier that omits one of these must
+# still be the same payload as one that sends it explicitly, so CRIBA fills them
+# before hashing. Keep this in step with the SUPRA model: the golden vectors in
+# test_b01_client_server_agreement.py fail on any drift.
+_DOSSIER_DEFAULTS: dict[str, Any] = {
+    "run_id": "",
+    "bloqueo": "",
+    "origen_bloqueo": "",
+    "evidence_delivered": [],
+    "evidence_documented_as_used": [],
+    "evidencia_utilizada": [],
+    "supuestos": [],
+}
+_PROTOCOL_DEFAULTS: dict[str, Any] = {
+    "comparacion": "",
+    "metrica": "",
+    "coste_permisos": "",
+    "estado_prueba": "NO_EJECUTADA",
+}
+_INTERPRETATION_DEFAULTS: dict[str, Any] = {
+    "provenance": {}, "critica": {}, "evidencia_citada": [],
+    "conocimiento_previo": [], "incertidumbre": "",
+}
+
+
+def _with_declared_defaults(dossier: Mapping[str, Any]) -> dict[str, Any]:
+    """Return the semantic payload with every declared SUPRA default applied."""
+    semantic: dict[str, Any] = {
+        key: value for key, value in dossier.items() if key != "creado_at"
+    }
+    for key, default in _DOSSIER_DEFAULTS.items():
+        semantic.setdefault(key, default)
+    protocol = semantic.get("prueba_discriminante")
+    if isinstance(protocol, dict):
+        completed = {key: value for key, value in protocol.items() if key != "creado_at"}
+        for key, default in _PROTOCOL_DEFAULTS.items():
+            completed.setdefault(key, default)
+        semantic["prueba_discriminante"] = completed
+    interpretation = semantic.get("interpretacion")
+    if interpretation is None:
+        semantic.pop("interpretacion", None)
+    elif isinstance(interpretation, dict):
+        semantic["interpretacion"] = {**_INTERPRETATION_DEFAULTS, **interpretation}
+    return semantic
+
+
+def _dossier_payload_fingerprint(dossier: Mapping[str, Any]) -> str:
+    """Fingerprint the semantic content of a CRIBA dossier for SUPRA.
+
+    The value must equal what SUPRA recomputes from its validated
+    ``CribaDossierRequest``; the golden vectors in
+    ``tests/integration/test_b01_client_server_agreement.py`` pin both sides.
+
+    Identity follows validated semantics, so a default that was sent explicitly
+    and the same default that was omitted are one payload. The optional keys
+    above are filled from this module's declared defaults before hashing.
+    ``creado_at`` is excluded because it is non-semantic metadata.
+
+    Unicode is deliberately NOT normalized: the dossier travels and is stored as
+    given, so folding NFC into NFD would make the fingerprint describe bytes the
+    server never received.
+    """
+    semantic = _with_declared_defaults(dossier)
+    raw = json.dumps(
+        semantic,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+        allow_nan=False,
+    )
     return "sha256:" + hashlib.sha256(raw.encode("utf-8")).hexdigest()
 
 
@@ -67,6 +135,70 @@ class SupraClientConfig:
         )
 
 
+#: Workflow stages that terminate a project. Anything else is nonterminal, and a
+#: nonterminal read is a real state the consumer must be able to reconstruct.
+_TERMINAL_STAGES = frozenset({"COMPLETED", "BLOCKED", "FAILED"})
+
+
+def _check_outcome_channels(
+    *,
+    status: str,
+    completion_status: str,
+    workflow_status: str,
+    stage: str,
+    verification_status: str,
+    secure_sandbox_status: str,
+    require_terminal: bool,
+) -> None:
+    """Enforce one completion rule for both the write and the read path.
+
+    Reproduced by execution against the real server on 2026-10-02: the write
+    path published four separated channels while the read path declared
+    ``status: Literal["success"]``. A genuinely BLOCKED project therefore came
+    back as ``{"status": "blocked"}`` and the client raised
+    ``project lookup violated response contract`` — the client could not
+    reconstruct the very state it was built to reconstruct after a restart.
+    The rule now lives here once, so the two paths cannot drift apart.
+
+    ``require_terminal`` is True only for POST, which cannot return a
+    nonterminal outcome; the read path must be able to describe one.
+    """
+    completed = (
+        status == "success"
+        and completion_status == "COMPLETED"
+        and workflow_status == "COMPLETED"
+        and stage == "COMPLETED"
+    )
+    blocked = (
+        status == "blocked"
+        and completion_status == "BLOCKED"
+        and workflow_status != "COMPLETED"
+        and stage != "COMPLETED"
+    )
+    failed = status == "error" and stage == "FAILED"
+    pending = (
+        status == "pending"
+        and completion_status == "NOT_COMPLETED"
+        and stage not in _TERMINAL_STAGES
+    )
+
+    if verification_status in {"FAIL", "NOT_EVALUATED"} and completed:
+        raise ValueError(
+            "SUPRA contract violation: failed/unevaluated verification cannot be COMPLETED"
+        )
+    if completed and secure_sandbox_status != "ISOLATED_BOUND_PASS":
+        raise ValueError(
+            "SUPRA contract violation: COMPLETED requires ISOLATED_BOUND_PASS"
+        )
+    if completed or blocked or failed or pending:
+        return
+    if require_terminal:
+        raise ValueError("SUPRA contract violation: inconsistent completion fields")
+    raise ValueError(
+        "SUPRA contract violation: inconsistent completion fields for a persisted read"
+    )
+
+
 class SupraProjectResult(BaseModel):
     """Stable subset returned by POST /api/v1/projects."""
 
@@ -88,29 +220,15 @@ class SupraProjectResult(BaseModel):
 
     @model_validator(mode="after")
     def reject_contradictory_completion(self) -> "SupraProjectResult":
-        verification_blocks = self.verification_status in {"FAIL", "NOT_EVALUATED"}
-        completed = (
-            self.status == "success"
-            and self.completion_status == "COMPLETED"
-            and self.workflow_status == "COMPLETED"
-            and self.stage == "COMPLETED"
+        _check_outcome_channels(
+            status=self.status,
+            completion_status=self.completion_status,
+            workflow_status=self.workflow_status,
+            stage=self.stage,
+            verification_status=self.verification_status,
+            secure_sandbox_status=self.secure_sandbox_status,
+            require_terminal=True,
         )
-        blocked = (
-            self.status == "blocked"
-            and self.completion_status == "BLOCKED"
-            and self.workflow_status != "COMPLETED"
-            and self.stage != "COMPLETED"
-        )
-        if verification_blocks and completed:
-            raise ValueError(
-                "SUPRA contract violation: failed/unevaluated verification cannot be COMPLETED"
-            )
-        if completed and self.secure_sandbox_status != "ISOLATED_BOUND_PASS":
-            raise ValueError(
-                "SUPRA contract violation: COMPLETED requires ISOLATED_BOUND_PASS"
-            )
-        if not completed and not blocked:
-            raise ValueError("SUPRA contract violation: inconsistent completion fields")
         return self
 
 
@@ -183,18 +301,77 @@ class SupraProjectPostureSnapshot(BaseModel):
 
 
 class SupraProjectLookup(BaseModel):
-    """Typed response from GET /api/v1/projects/{project_id}."""
+    """Typed response from GET /api/v1/projects/{project_id}.
+
+    This is the read path a consumer uses to reconstruct state after a restart,
+    so it must be able to describe every state the server can persist — not only
+    the completed one. ``status`` used to be ``Literal["success"]``, which made
+    a genuinely blocked project unreadable through the canonical client: the
+    server answered ``{"status": "blocked", ...}`` (measured against the real
+    API) and the client refused the response as a contract violation. The
+    channels stay separated exactly as on the write path; collapsing them is
+    what this model must never do.
+
+    M3 adds provenance. ``status_source`` is where the server actually read the
+    posture, and ``persisted_artifact_status`` is what the durable copy behind
+    that answer says. A read served from SUPRA's in-process cache is a real
+    state, but it is not ``PERSISTED_STATE``; the client used to reject such a
+    payload as a contract violation, which made the honest label unusable and
+    left only the dishonest one. Both fields are still REQUIRED and still
+    constrained: an undeclared or unknown provenance is a contract violation.
+    """
 
     model_config = ConfigDict(extra="allow")
 
-    status: Literal["success"]
+    status: Literal["success", "blocked", "error", "pending"]
+    status_scope: str = "WORKFLOW_EXECUTION_ONLY"
+    completion_status: Literal["COMPLETED", "BLOCKED", "NOT_COMPLETED"]
+    workflow_status: str
+    verification_status: str
+    scientific_status: str = "NOT_VALIDATED"
+    secure_sandbox_status: str = "NOT_REPORTED"
+    criba_planning_receipt_status: str = "NOT_APPLICABLE"
+    criba_mechanism_execution_status: str = "NOT_APPLICABLE"
+    idempotent_replay: bool = False
+    status_source: Literal["PERSISTED_STATE", "IN_PROCESS_MEMORY_CACHE"]
+    persisted_artifact_status: Literal[
+        "VERIFIED_FROM_ARTIFACT",
+        "MATCHES_CACHE",
+        "DIVERGES_FROM_CACHE",
+        "UNVERIFIABLE",
+        "MISSING",
+    ]
+    persisted_artifact_error_kind: Literal[
+        "CORRUPT_JSON",
+        "INCOMPATIBLE_SCHEMA",
+        "UNREADABLE",
+    ] | None = None
     project_id: str = Field(min_length=1)
+    stage: str
     posture: SupraProjectPostureSnapshot
 
     @model_validator(mode="after")
     def require_matching_project_identity(self) -> "SupraProjectLookup":
         if self.project_id != self.posture.project_id:
             raise ValueError("SUPRA lookup project_id does not match posture project_id")
+        if self.stage != self.posture.stage:
+            # The summary stage and the persisted stage are two statements about
+            # the same fact. If they disagree, a consumer could report the
+            # summary's stage while the persisted posture says otherwise.
+            raise ValueError("SUPRA lookup stage does not match persisted posture stage")
+        _check_outcome_channels(
+            status=self.status,
+            completion_status=self.completion_status,
+            workflow_status=self.workflow_status,
+            stage=self.stage,
+            verification_status=self.verification_status,
+            secure_sandbox_status=self.secure_sandbox_status,
+            require_terminal=False,
+        )
+        # A memory-served posture whose durable copy is unverifiable is the
+        # exact combination this field exists to make visible. It is not an
+        # error: the served state is real, and the durable copy is separately
+        # declared broken. Pretending it was persisted is what was wrong.
         return self
 
 

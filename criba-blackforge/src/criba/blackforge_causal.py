@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 import math
 import re
 import unicodedata
@@ -9,6 +8,13 @@ from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
 from hashlib import sha256
 from typing import Any
+
+# Canonical serialization lives in a module with no BLACKFORGE meaning so that
+# CRIBA Core can hash evidence without importing BLACKFORGE. These are the same
+# function objects, not copies: one implementation, one set of golden vectors.
+from .canonical import canonical_hash, canonical_json
+
+__all__ = ["canonical_json", "canonical_hash"]
 
 SIGNATURE_SCHEMA_VERSION = "1.0.0"
 REJECTION_CODE = "CAUSAL_PROPOSAL_REJECTED"
@@ -84,14 +90,6 @@ def normalize_id(value: Any, field: str) -> str:
     if result is None:
         raise ValueError(f"{field} cannot be empty")
     return result
-
-
-def canonical_json(value: Any) -> str:
-    return json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"), allow_nan=False)
-
-
-def canonical_hash(value: Any) -> str:
-    return sha256(canonical_json(value).encode("utf-8")).hexdigest()
 
 
 @dataclass(frozen=True)

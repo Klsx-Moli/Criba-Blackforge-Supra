@@ -53,14 +53,14 @@ uvx --from criba criba --help
 ### Desde el código fuente
 
 ```bash
-git clone https://github.com/klssxx/Criba-Blackforge.git
-cd Criba-Blackforge
+git clone https://github.com/Klsx-Moli/Criba-Blackforge-Supra.git
+cd Criba-Blackforge-Supra
 uv sync --all-extras --locked
 uv run criba --help
 ```
 
 > En Windows también puedes usar el ejecutable portable precompilado (ver
-> [Releases](https://github.com/klssxx/Criba-Blackforge/releases)).
+> [Releases](https://github.com/Klsx-Moli/Criba-Blackforge-Supra/releases)).
 
 ## Demo de 60 segundos
 

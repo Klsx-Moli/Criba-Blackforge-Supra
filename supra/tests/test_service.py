@@ -37,16 +37,25 @@ def test_serve_ui():
 
 
 def test_quick_run_example():
+    # Inverted on 2026-10-02 (B03, card K1). The old rule asserted
+    # status == "success" for this endpoint. That rule was wrong: the example
+    # deterministically ends BLOCKED with a FAIL coverage verdict, no
+    # deliverable and scientific_status NOT_VALIDATED, so a hardcoded
+    # "success" contradicted the same payload's other channels and told a
+    # reader the workflow had succeeded. What it actually protected was "the
+    # endpoint answered", which is what HTTP 200 plus a JSON body already say.
+    # The new rule preserves that and adds the demarcation the old one hid.
     with tempfile.TemporaryDirectory() as tmpdir:
         state_manager.storage_dir = type(state_manager.storage_dir)(tmpdir)
 
         response = client.post("/api/v1/examples/quick-run")
         assert response.status_code == 200
         data = response.json()
-        assert data["status"] == "success"
         assert data["example"] is True
         assert data["stage"] == "BLOCKED"
         assert data["workflow_status"] == "BLOCKED"
+        assert data["status"] == "blocked"
+        assert data["status_scope"] == "WORKFLOW_EXECUTION_ONLY"
         assert data["deliverable"] is None
 
 
@@ -475,7 +484,23 @@ def test_criba_envelope_rejects_version_skew() -> None:
     assert response.status_code == 422
 
 
-def test_criba_fingerprint_uses_received_fields_not_parser_injected_defaults() -> None:
+def test_criba_fingerprint_uses_validated_semantics_not_serialization_shape() -> None:
+    """Identity follows the validated dossier, not which keys the client sent.
+
+    HISTORY: this test asserted the opposite rule — that the fingerprint is
+    computed over the fields actually RECEIVED, so that parser-injected defaults
+    never enter the identity. That rule made identity depend on a serialization
+    accident: a dossier that omitted its defaults and the same dossier that sent
+    them explicitly were two different causal identities, and a semantically
+    identical retry was answered with 409 CONFLICT instead of the idempotent
+    replay it was. B01 requires a stable identity, and identity has to follow
+    meaning.
+
+    The rule kept from the original test still holds and is still asserted: a
+    client that computes its fingerprint over the received fields (the legacy
+    serialization) is REJECTED rather than silently accommodated, because that
+    fingerprint does not describe the payload SUPRA validated.
+    """
     import hashlib
     import json
 
@@ -486,8 +511,10 @@ def test_criba_fingerprint_uses_received_fields_not_parser_injected_defaults() -
     raw = json.dumps(
         semantic, ensure_ascii=False, sort_keys=True, separators=(",", ":"), allow_nan=False
     )
-    client_fingerprint = "sha256:" + hashlib.sha256(raw.encode("utf-8")).hexdigest()
+    legacy_client_fingerprint = "sha256:" + hashlib.sha256(raw.encode("utf-8")).hexdigest()
 
+    # A fingerprint over the received fields does not describe the validated
+    # payload and must be refused, not accommodated.
     response = client.post(
         "/api/v1/projects",
         json={
@@ -495,10 +522,33 @@ def test_criba_fingerprint_uses_received_fields_not_parser_injected_defaults() -
             "project_id": "fingerprint-defaults",
             "criba_dossier": dossier,
             "criba_integration_version": "criba-supra/1",
-            "criba_payload_fingerprint": client_fingerprint,
+            "criba_payload_fingerprint": legacy_client_fingerprint,
         },
     )
-    assert response.status_code != 422, response.text
+    assert response.status_code == 422
+    assert "fingerprint mismatch" in response.text
+
+    # The same dossier with its defaults materialized is the SAME payload, and is
+    # accepted when the client fingerprints the validated semantics.
+    from supra_agentic.service import (
+        CribaDossierRequest,
+        _criba_payload_fingerprint,
+    )
+
+    complete = _complete_criba_dossier_payload()
+    accepted = client.post(
+        "/api/v1/projects",
+        json={
+            "objective": "Evaluate parser-default fingerprint compatibility",
+            "project_id": "fingerprint-defaults-accepted",
+            "criba_dossier": complete,
+            "criba_integration_version": "criba-supra/1",
+            "criba_payload_fingerprint": _criba_payload_fingerprint(
+                CribaDossierRequest(**complete)
+            ),
+        },
+    )
+    assert accepted.status_code != 422, accepted.text
 
 
 def test_corrupt_persisted_project_returns_500_not_false_404():
@@ -511,8 +561,41 @@ def test_corrupt_persisted_project_returns_500_not_false_404():
 
         assert response.status_code == 500
         assert response.json() == {
-            "detail": "Persisted project state is corrupt or incompatible."
+            "detail": "Persisted project state is corrupt or incompatible.",
+            "kind": "CORRUPT_JSON",
         }
+
+
+def test_absent_corrupt_and_version_skew_remain_distinct_at_http_boundary(
+    monkeypatch, tmp_path
+):
+    monkeypatch.setattr(state_manager, "storage_dir", tmp_path)
+    monkeypatch.setattr(state_manager, "_projects", {})
+
+    state_manager.create_project("valid before skew", project_id="schema-skew")
+    skew_path = tmp_path / "schema-skew.json"
+    valid_json = skew_path.read_text(encoding="utf-8").rstrip()
+    skew_path.write_text(
+        valid_json[:-1] + ',"schema_version":999}', encoding="utf-8"
+    )
+    state_manager.create_project("will be corrupted", project_id="corrupt-json")
+    (tmp_path / "corrupt-json.json").write_text("{not-json", encoding="utf-8")
+    state_manager._projects.clear()
+
+    missing = client.get("/api/v1/projects/absent")
+    corrupt = client.get("/api/v1/projects/corrupt-json")
+    skew = client.get("/api/v1/projects/schema-skew")
+
+    assert missing.status_code == 404
+    assert corrupt.status_code == 500
+    assert corrupt.json().get("kind") == "CORRUPT_JSON"
+    assert skew.status_code == 500
+    assert skew.json().get("kind") == "INCOMPATIBLE_SCHEMA"
+
+    listing = client.get("/api/v1/projects")
+    errors = {item["project_id"]: item for item in listing.json()["storage_errors"]}
+    assert errors["corrupt-json"].get("kind") == "CORRUPT_JSON"
+    assert errors["schema-skew"].get("kind") == "INCOMPATIBLE_SCHEMA"
 
 
 def test_project_list_surfaces_storage_errors_without_dropping_healthy_projects():

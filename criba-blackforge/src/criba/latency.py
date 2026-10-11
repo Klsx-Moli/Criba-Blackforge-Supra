@@ -17,7 +17,7 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from .blackforge_causal import canonical_hash
+from .canonical import canonical_hash
 
 # ---------------------------------------------------------------------------
 # Budget (§9.3)

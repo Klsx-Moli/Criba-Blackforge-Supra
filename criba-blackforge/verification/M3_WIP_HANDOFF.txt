@@ -1,0 +1,82 @@
+M3 / CRIBA SHADOW - WIP HANDOFF
+
+Estado: IN_PROGRESS. No aceptación funcional todavía.
+Rama: hermes/astra/shadow-supra-20261002
+Base antes de este checkpoint: c7d7cd20eb8b61ea6932aef29b6c202b466db9b2
+
+RESULTADOS REALES DE ESTA SESION
+
+1. Baseline trazado:
+   C:\ASTRA_WORK\trace-shadow-before-20261003-053435\home\harness_trace.json
+   operation_id ec377ca33021: NOT_REACHED tras Generar porque invent_sheet era None.
+
+2. Nous/Hermes Subscription Proxy oficial:
+   http://127.0.0.1:8645/v1, OAuth Nous, sin API key copiada.
+   Modelo usado: stealth/space-bunny-alpha.
+   Catálogo del proxy: precio prompt/completion 0.
+   Petición real: PROPUESTA, finish_reason=stop, content=str (1739 chars),
+   model_requested=model_reported=stealth/space-bunny-alpha, esquema válido.
+
+3. Regresiones dirigidas finales:
+   67 passed in 21.15s.
+   Archivos: test_interprete_puerto.py, test_shadow_interpreter_journey.py,
+   test_criba_shadow_launcher.py, test_gui_inventar.py y guard ASTRA-018.
+
+4. Ruff final sobre todos los archivos tocados de este alcance:
+   All checks passed. Exit code 0.
+
+5. Integración real:
+   Corrida completa inicial: 2 passed, 1 failed por HTTP 422 en el POST SUPRA.
+   Causa demostrada: el dossier interpretado dejaba vacíos campos obligatorios
+   del protocolo discriminante.
+   Parche: mapeo únicamente desde contenido ya declarado por el intérprete
+   (hipótesis, prueba concreta y supuestos), sin inventar datos ni relajar schema.
+   Repetición focal del borde dossier -> POST -> persistencia -> GET:
+   1 passed in 217.44s.
+   Falta repetir la corrida completa sobre el snapshot final.
+
+CAMBIOS FUNCIONALES
+
+- Adaptador OpenAI-compatible robusto ante choices vacío, content None/vacío/tipo
+  inesperado, tool_calls sin texto, finish_reason=length, 401/403/429/500,
+  timeout, JSON inválido y esquema incompleto.
+- Salida bruta, finish_reason, usage y provenance preservados sin secretos.
+- Selector Shadow real: Nous/Hermes OAuth + Space Bunny. Local no aparece como
+  seleccionable porque la interpretación local aún no es una implementación real.
+- Una instancia/configuración del intérprete queda fijada por run.
+- Progreso y cancelación cooperativa después de la petición HTTP en curso.
+- Paneles separados y copiables: Salida bruta, Interpretación, Dossier, SUPRA/GET.
+- Un run nuevo limpia el resultado anterior; el recuperado se etiqueta PREVIO.
+- done significa worker terminado. La UI muestra N propuestas válidas, pendientes
+  y SUPRA no ejecutado; no equipara done con interpretación válida.
+- Dossier interpretado hace POST y GET por el SupraClient canónico.
+- El launcher publica el endpoint SUPRA real elegido al cliente.
+- Reinicio: LIST + GET del último proyecto y recuperación del último dossier local.
+- CRIBASHADOW_HOME gobierna también el directorio de dossiers.
+
+FUENTE UI
+
+shadow_ui/shadow_window.py y shadow_ui/shadow_context.py son fuentes editables
+usadas directamente por criba_shadow_main.py. El árbol generado separado es
+shadow_ui/GENERATED/. Git no contiene generador que reescriba esos dos archivos.
+
+PENDIENTES
+
+- Ejecutar journey completo desde Shadow fuente con callbacks y render reales.
+- Probar la ventana visible, no solo Qt offscreen.
+- Repetir la integración completa sobre el snapshot final.
+- Reconstruir CribaShadow.exe.
+- Repetir en el EXE nuevo: generación -> interpretación -> dossier -> POST ->
+  persistencia -> GET -> render, cierre, reapertura y recuperación.
+- Ejecutar suites completas relevantes después de cualquier corrección restante.
+
+EXCLUSIONES DEL CHECKPOINT
+
+No incluir verification/blackforge_*.json, _probe/*, venvs, temporales ni
+verification/journey_harness.py hasta corregirlo y ejecutarlo. No hay secretos.
+
+SIGUIENTE ACCION EXACTA
+
+Corregir verification/journey_harness.py para procesar el event loop y trazar un
+solo operation_id por todos los bordes; ejecutarlo con CRIBASHADOW_HOME aislado,
+Space Bunny y SUPRA real. Después, prueba visible y build.
