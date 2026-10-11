@@ -19,6 +19,8 @@ Salida: JSON de traza en <dir>/journey_trace.json. Exit 0 = GREEN, 1 = RED
 (con PRIMER_BORDE_PROBLEMATICO), 2 = uso incorrecto.
 """
 
+from __future__ import annotations
+
 # --- CB-03 PROVENANCE (verificado 2026-10-11, sin modificar código funcional) ---
 CB03_FILE_SHA256 = "6cd7ee84883c2b415abd91c805072aea89c8464f259d4019547e488cc72f72d2"
 CB03_REPO_HEAD_SHA = "83d50dddbe496bc24f85142c81bf49d1b766edeb"
@@ -28,8 +30,6 @@ CB03_PLATFORM = "Windows-11"
 CB03_FILE_LINES = 698
 CB03_EVIDENCE_SOURCE = "local_file_read_2026-10-11"
 # --- Fin procedencia ---
-
-from __future__ import annotations
 
 import json
 import os
