@@ -1,0 +1,926 @@
+{
+ "a_nogrammar": [
+  {
+   "constrained": "",
+   "seed": 20261011,
+   "elapsed_s": 223.0,
+   "summary": {
+    "passed": false,
+    "schema_response_rate": 0.5,
+    "correct_abstention_rate": 0.6666666666666666
+   },
+   "intentos": [
+    {
+     "case_id": "pertinente",
+     "attempt": 1,
+     "raw_sha256": "3b70c46a0cd18596",
+     "constrained_decoding": "",
+     "seed": 20261011,
+     "finish_reason": "stop",
+     "estado": "ERROR",
+     "campo_truncado": []
+    },
+    {
+     "case_id": "pertinente",
+     "attempt": 2,
+     "raw_sha256": "3b70c46a0cd18596",
+     "constrained_decoding": "",
+     "seed": 20261011,
+     "finish_reason": "stop",
+     "estado": "ERROR",
+     "campo_truncado": []
+    },
+    {
+     "case_id": "irrelevante",
+     "attempt": 1,
+     "raw_sha256": "a4eec985614e0691",
+     "constrained_decoding": "",
+     "seed": 20261011,
+     "finish_reason": "stop",
+     "estado": "ABSTENER",
+     "campo_truncado": []
+    },
+    {
+     "case_id": "irrelevante",
+     "attempt": 2,
+     "raw_sha256": "a4eec985614e0691",
+     "constrained_decoding": "",
+     "seed": 20261011,
+     "finish_reason": "stop",
+     "estado": "ABSTENER",
+     "campo_truncado": []
+    },
+    {
+     "case_id": "contradiccion",
+     "attempt": 1,
+     "raw_sha256": "2c396b4d446f860e",
+     "constrained_decoding": "",
+     "seed": 20261011,
+     "finish_reason": "stop",
+     "estado": "ERROR",
+     "campo_truncado": []
+    },
+    {
+     "case_id": "contradiccion",
+     "attempt": 2,
+     "raw_sha256": "2c396b4d446f860e",
+     "constrained_decoding": "",
+     "seed": 20261011,
+     "finish_reason": "stop",
+     "estado": "ERROR",
+     "campo_truncado": []
+    },
+    {
+     "case_id": "imposible",
+     "attempt": 1,
+     "raw_sha256": "970bc5d2451e9283",
+     "constrained_decoding": "",
+     "seed": 20261011,
+     "finish_reason": "stop",
+     "estado": "ABSTENER",
+     "campo_truncado": []
+    },
+    {
+     "case_id": "imposible",
+     "attempt": 2,
+     "raw_sha256": "970bc5d2451e9283",
+     "constrained_decoding": "",
+     "seed": 20261011,
+     "finish_reason": "stop",
+     "estado": "ABSTENER",
+     "campo_truncado": []
+    }
+   ]
+  },
+  {
+   "constrained": "",
+   "seed": 20261012,
+   "elapsed_s": 204.1,
+   "summary": {
+    "passed": false,
+    "schema_response_rate": 0.5,
+    "correct_abstention_rate": 0.6666666666666666
+   },
+   "intentos": [
+    {
+     "case_id": "pertinente",
+     "attempt": 1,
+     "raw_sha256": "5c645a3e4904480e",
+     "constrained_decoding": "",
+     "seed": 20261012,
+     "finish_reason": "stop",
+     "estado": "ERROR",
+     "campo_truncado": []
+    },
+    {
+     "case_id": "pertinente",
+     "attempt": 2,
+     "raw_sha256": "5c645a3e4904480e",
+     "constrained_decoding": "",
+     "seed": 20261012,
+     "finish_reason": "stop",
+     "estado": "ERROR",
+     "campo_truncado": []
+    },
+    {
+     "case_id": "irrelevante",
+     "attempt": 1,
+     "raw_sha256": "c5d43b63e99ab2df",
+     "constrained_decoding": "",
+     "seed": 20261012,
+     "finish_reason": "stop",
+     "estado": "ABSTENER",
+     "campo_truncado": []
+    },
+    {
+     "case_id": "irrelevante",
+     "attempt": 2,
+     "raw_sha256": "c5d43b63e99ab2df",
+     "constrained_decoding": "",
+     "seed": 20261012,
+     "finish_reason": "stop",
+     "estado": "ABSTENER",
+     "campo_truncado": []
+    },
+    {
+     "case_id": "contradiccion",
+     "attempt": 1,
+     "raw_sha256": "8ed80b94e8a5e2a6",
+     "constrained_decoding": "",
+     "seed": 20261012,
+     "finish_reason": "stop",
+     "estado": "ERROR",
+     "campo_truncado": []
+    },
+    {
+     "case_id": "contradiccion",
+     "attempt": 2,
+     "raw_sha256": "8ed80b94e8a5e2a6",
+     "constrained_decoding": "",
+     "seed": 20261012,
+     "finish_reason": "stop",
+     "estado": "ERROR",
+     "campo_truncado": []
+    },
+    {
+     "case_id": "imposible",
+     "attempt": 1,
+     "raw_sha256": "d1ccaacc6a3c1ad7",
+     "constrained_decoding": "",
+     "seed": 20261012,
+     "finish_reason": "stop",
+     "estado": "ABSTENER",
+     "campo_truncado": []
+    },
+    {
+     "case_id": "imposible",
+     "attempt": 2,
+     "raw_sha256": "d1ccaacc6a3c1ad7",
+     "constrained_decoding": "",
+     "seed": 20261012,
+     "finish_reason": "stop",
+     "estado": "ABSTENER",
+     "campo_truncado": []
+    }
+   ]
+  },
+  {
+   "constrained": "",
+   "seed": 20261013,
+   "elapsed_s": 194.6,
+   "summary": {
+    "passed": false,
+    "schema_response_rate": 0.5,
+    "correct_abstention_rate": 0.6666666666666666
+   },
+   "intentos": [
+    {
+     "case_id": "pertinente",
+     "attempt": 1,
+     "raw_sha256": "167dea2b39e8a692",
+     "constrained_decoding": "",
+     "seed": 20261013,
+     "finish_reason": "stop",
+     "estado": "ERROR",
+     "campo_truncado": []
+    },
+    {
+     "case_id": "pertinente",
+     "attempt": 2,
+     "raw_sha256": "14518eac88708fe8",
+     "constrained_decoding": "",
+     "seed": 20261013,
+     "finish_reason": "stop",
+     "estado": "ERROR",
+     "campo_truncado": []
+    },
+    {
+     "case_id": "irrelevante",
+     "attempt": 1,
+     "raw_sha256": "c2b7d67b4aecb0f3",
+     "constrained_decoding": "",
+     "seed": 20261013,
+     "finish_reason": "stop",
+     "estado": "ABSTENER",
+     "campo_truncado": []
+    },
+    {
+     "case_id": "irrelevante",
+     "attempt": 2,
+     "raw_sha256": "c2b7d67b4aecb0f3",
+     "constrained_decoding": "",
+     "seed": 20261013,
+     "finish_reason": "stop",
+     "estado": "ABSTENER",
+     "campo_truncado": []
+    },
+    {
+     "case_id": "contradiccion",
+     "attempt": 1,
+     "raw_sha256": "dbd4a1276b6f0d43",
+     "constrained_decoding": "",
+     "seed": 20261013,
+     "finish_reason": "stop",
+     "estado": "ERROR",
+     "campo_truncado": []
+    },
+    {
+     "case_id": "contradiccion",
+     "attempt": 2,
+     "raw_sha256": "dbd4a1276b6f0d43",
+     "constrained_decoding": "",
+     "seed": 20261013,
+     "finish_reason": "stop",
+     "estado": "ERROR",
+     "campo_truncado": []
+    },
+    {
+     "case_id": "imposible",
+     "attempt": 1,
+     "raw_sha256": "bdf68dceacc8fec5",
+     "constrained_decoding": "",
+     "seed": 20261013,
+     "finish_reason": "stop",
+     "estado": "ABSTENER",
+     "campo_truncado": []
+    },
+    {
+     "case_id": "imposible",
+     "attempt": 2,
+     "raw_sha256": "bdf68dceacc8fec5",
+     "constrained_decoding": "",
+     "seed": 20261013,
+     "finish_reason": "stop",
+     "estado": "ABSTENER",
+     "campo_truncado": []
+    }
+   ]
+  },
+  {
+   "constrained": "",
+   "seed": 20261014,
+   "elapsed_s": 210.1,
+   "summary": {
+    "passed": false,
+    "schema_response_rate": 0.5,
+    "correct_abstention_rate": 0.6666666666666666
+   },
+   "intentos": [
+    {
+     "case_id": "pertinente",
+     "attempt": 1,
+     "raw_sha256": "cc1416d1b5ef2f51",
+     "constrained_decoding": "",
+     "seed": 20261014,
+     "finish_reason": "stop",
+     "estado": "ERROR",
+     "campo_truncado": []
+    },
+    {
+     "case_id": "pertinente",
+     "attempt": 2,
+     "raw_sha256": "cc1416d1b5ef2f51",
+     "constrained_decoding": "",
+     "seed": 20261014,
+     "finish_reason": "stop",
+     "estado": "ERROR",
+     "campo_truncado": []
+    },
+    {
+     "case_id": "irrelevante",
+     "attempt": 1,
+     "raw_sha256": "26b075d62f7178ee",
+     "constrained_decoding": "",
+     "seed": 20261014,
+     "finish_reason": "stop",
+     "estado": "ABSTENER",
+     "campo_truncado": []
+    },
+    {
+     "case_id": "irrelevante",
+     "attempt": 2,
+     "raw_sha256": "26b075d62f7178ee",
+     "constrained_decoding": "",
+     "seed": 20261014,
+     "finish_reason": "stop",
+     "estado": "ABSTENER",
+     "campo_truncado": []
+    },
+    {
+     "case_id": "contradiccion",
+     "attempt": 1,
+     "raw_sha256": "439115be45872fab",
+     "constrained_decoding": "",
+     "seed": 20261014,
+     "finish_reason": "stop",
+     "estado": "ERROR",
+     "campo_truncado": []
+    },
+    {
+     "case_id": "contradiccion",
+     "attempt": 2,
+     "raw_sha256": "439115be45872fab",
+     "constrained_decoding": "",
+     "seed": 20261014,
+     "finish_reason": "stop",
+     "estado": "ERROR",
+     "campo_truncado": []
+    },
+    {
+     "case_id": "imposible",
+     "attempt": 1,
+     "raw_sha256": "2a71c828bea34dc8",
+     "constrained_decoding": "",
+     "seed": 20261014,
+     "finish_reason": "stop",
+     "estado": "ABSTENER",
+     "campo_truncado": []
+    },
+    {
+     "case_id": "imposible",
+     "attempt": 2,
+     "raw_sha256": "2a71c828bea34dc8",
+     "constrained_decoding": "",
+     "seed": 20261014,
+     "finish_reason": "stop",
+     "estado": "ABSTENER",
+     "campo_truncado": []
+    }
+   ]
+  },
+  {
+   "constrained": "",
+   "seed": 20261015,
+   "elapsed_s": 190.1,
+   "summary": {
+    "passed": false,
+    "schema_response_rate": 0.5,
+    "correct_abstention_rate": 0.6666666666666666
+   },
+   "intentos": [
+    {
+     "case_id": "pertinente",
+     "attempt": 1,
+     "raw_sha256": "113f5f650fbb33c8",
+     "constrained_decoding": "",
+     "seed": 20261015,
+     "finish_reason": "stop",
+     "estado": "ERROR",
+     "campo_truncado": []
+    },
+    {
+     "case_id": "pertinente",
+     "attempt": 2,
+     "raw_sha256": "113f5f650fbb33c8",
+     "constrained_decoding": "",
+     "seed": 20261015,
+     "finish_reason": "stop",
+     "estado": "ERROR",
+     "campo_truncado": []
+    },
+    {
+     "case_id": "irrelevante",
+     "attempt": 1,
+     "raw_sha256": "4db08adc5393e1e3",
+     "constrained_decoding": "",
+     "seed": 20261015,
+     "finish_reason": "stop",
+     "estado": "ABSTENER",
+     "campo_truncado": []
+    },
+    {
+     "case_id": "irrelevante",
+     "attempt": 2,
+     "raw_sha256": "4db08adc5393e1e3",
+     "constrained_decoding": "",
+     "seed": 20261015,
+     "finish_reason": "stop",
+     "estado": "ABSTENER",
+     "campo_truncado": []
+    },
+    {
+     "case_id": "contradiccion",
+     "attempt": 1,
+     "raw_sha256": "2d09d42f527b01f1",
+     "constrained_decoding": "",
+     "seed": 20261015,
+     "finish_reason": "stop",
+     "estado": "ERROR",
+     "campo_truncado": []
+    },
+    {
+     "case_id": "contradiccion",
+     "attempt": 2,
+     "raw_sha256": "b404c9c211f33344",
+     "constrained_decoding": "",
+     "seed": 20261015,
+     "finish_reason": "stop",
+     "estado": "ERROR",
+     "campo_truncado": []
+    },
+    {
+     "case_id": "imposible",
+     "attempt": 1,
+     "raw_sha256": "bdf68dceacc8fec5",
+     "constrained_decoding": "",
+     "seed": 20261015,
+     "finish_reason": "stop",
+     "estado": "ABSTENER",
+     "campo_truncado": []
+    },
+    {
+     "case_id": "imposible",
+     "attempt": 2,
+     "raw_sha256": "bdf68dceacc8fec5",
+     "constrained_decoding": "",
+     "seed": 20261015,
+     "finish_reason": "stop",
+     "estado": "ABSTENER",
+     "campo_truncado": []
+    }
+   ]
+  }
+ ],
+ "b_grammar": [
+  {
+   "constrained": "json_schema",
+   "seed": 20261011,
+   "elapsed_s": 208.0,
+   "summary": {
+    "passed": false,
+    "schema_response_rate": 0.5,
+    "correct_abstention_rate": 0.6666666666666666
+   },
+   "intentos": [
+    {
+     "case_id": "pertinente",
+     "attempt": 1,
+     "raw_sha256": "3b70c46a0cd18596",
+     "constrained_decoding": "",
+     "seed": 20261011,
+     "finish_reason": "stop",
+     "estado": "ERROR",
+     "campo_truncado": []
+    },
+    {
+     "case_id": "pertinente",
+     "attempt": 2,
+     "raw_sha256": "3b70c46a0cd18596",
+     "constrained_decoding": "",
+     "seed": 20261011,
+     "finish_reason": "stop",
+     "estado": "ERROR",
+     "campo_truncado": []
+    },
+    {
+     "case_id": "irrelevante",
+     "attempt": 1,
+     "raw_sha256": "a4eec985614e0691",
+     "constrained_decoding": "",
+     "seed": 20261011,
+     "finish_reason": "stop",
+     "estado": "ABSTENER",
+     "campo_truncado": []
+    },
+    {
+     "case_id": "irrelevante",
+     "attempt": 2,
+     "raw_sha256": "a4eec985614e0691",
+     "constrained_decoding": "",
+     "seed": 20261011,
+     "finish_reason": "stop",
+     "estado": "ABSTENER",
+     "campo_truncado": []
+    },
+    {
+     "case_id": "contradiccion",
+     "attempt": 1,
+     "raw_sha256": "2c396b4d446f860e",
+     "constrained_decoding": "",
+     "seed": 20261011,
+     "finish_reason": "stop",
+     "estado": "ERROR",
+     "campo_truncado": []
+    },
+    {
+     "case_id": "contradiccion",
+     "attempt": 2,
+     "raw_sha256": "2c396b4d446f860e",
+     "constrained_decoding": "",
+     "seed": 20261011,
+     "finish_reason": "stop",
+     "estado": "ERROR",
+     "campo_truncado": []
+    },
+    {
+     "case_id": "imposible",
+     "attempt": 1,
+     "raw_sha256": "970bc5d2451e9283",
+     "constrained_decoding": "",
+     "seed": 20261011,
+     "finish_reason": "stop",
+     "estado": "ABSTENER",
+     "campo_truncado": []
+    },
+    {
+     "case_id": "imposible",
+     "attempt": 2,
+     "raw_sha256": "970bc5d2451e9283",
+     "constrained_decoding": "",
+     "seed": 20261011,
+     "finish_reason": "stop",
+     "estado": "ABSTENER",
+     "campo_truncado": []
+    }
+   ]
+  },
+  {
+   "constrained": "json_schema",
+   "seed": 20261012,
+   "elapsed_s": 203.1,
+   "summary": {
+    "passed": false,
+    "schema_response_rate": 0.5,
+    "correct_abstention_rate": 0.6666666666666666
+   },
+   "intentos": [
+    {
+     "case_id": "pertinente",
+     "attempt": 1,
+     "raw_sha256": "5c645a3e4904480e",
+     "constrained_decoding": "",
+     "seed": 20261012,
+     "finish_reason": "stop",
+     "estado": "ERROR",
+     "campo_truncado": []
+    },
+    {
+     "case_id": "pertinente",
+     "attempt": 2,
+     "raw_sha256": "5c645a3e4904480e",
+     "constrained_decoding": "",
+     "seed": 20261012,
+     "finish_reason": "stop",
+     "estado": "ERROR",
+     "campo_truncado": []
+    },
+    {
+     "case_id": "irrelevante",
+     "attempt": 1,
+     "raw_sha256": "c5d43b63e99ab2df",
+     "constrained_decoding": "",
+     "seed": 20261012,
+     "finish_reason": "stop",
+     "estado": "ABSTENER",
+     "campo_truncado": []
+    },
+    {
+     "case_id": "irrelevante",
+     "attempt": 2,
+     "raw_sha256": "c5d43b63e99ab2df",
+     "constrained_decoding": "",
+     "seed": 20261012,
+     "finish_reason": "stop",
+     "estado": "ABSTENER",
+     "campo_truncado": []
+    },
+    {
+     "case_id": "contradiccion",
+     "attempt": 1,
+     "raw_sha256": "8ed80b94e8a5e2a6",
+     "constrained_decoding": "",
+     "seed": 20261012,
+     "finish_reason": "stop",
+     "estado": "ERROR",
+     "campo_truncado": []
+    },
+    {
+     "case_id": "contradiccion",
+     "attempt": 2,
+     "raw_sha256": "8ed80b94e8a5e2a6",
+     "constrained_decoding": "",
+     "seed": 20261012,
+     "finish_reason": "stop",
+     "estado": "ERROR",
+     "campo_truncado": []
+    },
+    {
+     "case_id": "imposible",
+     "attempt": 1,
+     "raw_sha256": "d1ccaacc6a3c1ad7",
+     "constrained_decoding": "",
+     "seed": 20261012,
+     "finish_reason": "stop",
+     "estado": "ABSTENER",
+     "campo_truncado": []
+    },
+    {
+     "case_id": "imposible",
+     "attempt": 2,
+     "raw_sha256": "d1ccaacc6a3c1ad7",
+     "constrained_decoding": "",
+     "seed": 20261012,
+     "finish_reason": "stop",
+     "estado": "ABSTENER",
+     "campo_truncado": []
+    }
+   ]
+  },
+  {
+   "constrained": "json_schema",
+   "seed": 20261013,
+   "elapsed_s": 192.8,
+   "summary": {
+    "passed": false,
+    "schema_response_rate": 0.5,
+    "correct_abstention_rate": 0.6666666666666666
+   },
+   "intentos": [
+    {
+     "case_id": "pertinente",
+     "attempt": 1,
+     "raw_sha256": "167dea2b39e8a692",
+     "constrained_decoding": "",
+     "seed": 20261013,
+     "finish_reason": "stop",
+     "estado": "ERROR",
+     "campo_truncado": []
+    },
+    {
+     "case_id": "pertinente",
+     "attempt": 2,
+     "raw_sha256": "14518eac88708fe8",
+     "constrained_decoding": "",
+     "seed": 20261013,
+     "finish_reason": "stop",
+     "estado": "ERROR",
+     "campo_truncado": []
+    },
+    {
+     "case_id": "irrelevante",
+     "attempt": 1,
+     "raw_sha256": "c2b7d67b4aecb0f3",
+     "constrained_decoding": "",
+     "seed": 20261013,
+     "finish_reason": "stop",
+     "estado": "ABSTENER",
+     "campo_truncado": []
+    },
+    {
+     "case_id": "irrelevante",
+     "attempt": 2,
+     "raw_sha256": "c2b7d67b4aecb0f3",
+     "constrained_decoding": "",
+     "seed": 20261013,
+     "finish_reason": "stop",
+     "estado": "ABSTENER",
+     "campo_truncado": []
+    },
+    {
+     "case_id": "contradiccion",
+     "attempt": 1,
+     "raw_sha256": "dbd4a1276b6f0d43",
+     "constrained_decoding": "",
+     "seed": 20261013,
+     "finish_reason": "stop",
+     "estado": "ERROR",
+     "campo_truncado": []
+    },
+    {
+     "case_id": "contradiccion",
+     "attempt": 2,
+     "raw_sha256": "dbd4a1276b6f0d43",
+     "constrained_decoding": "",
+     "seed": 20261013,
+     "finish_reason": "stop",
+     "estado": "ERROR",
+     "campo_truncado": []
+    },
+    {
+     "case_id": "imposible",
+     "attempt": 1,
+     "raw_sha256": "bdf68dceacc8fec5",
+     "constrained_decoding": "",
+     "seed": 20261013,
+     "finish_reason": "stop",
+     "estado": "ABSTENER",
+     "campo_truncado": []
+    },
+    {
+     "case_id": "imposible",
+     "attempt": 2,
+     "raw_sha256": "bdf68dceacc8fec5",
+     "constrained_decoding": "",
+     "seed": 20261013,
+     "finish_reason": "stop",
+     "estado": "ABSTENER",
+     "campo_truncado": []
+    }
+   ]
+  },
+  {
+   "constrained": "json_schema",
+   "seed": 20261014,
+   "elapsed_s": 210.4,
+   "summary": {
+    "passed": false,
+    "schema_response_rate": 0.5,
+    "correct_abstention_rate": 0.6666666666666666
+   },
+   "intentos": [
+    {
+     "case_id": "pertinente",
+     "attempt": 1,
+     "raw_sha256": "cc1416d1b5ef2f51",
+     "constrained_decoding": "",
+     "seed": 20261014,
+     "finish_reason": "stop",
+     "estado": "ERROR",
+     "campo_truncado": []
+    },
+    {
+     "case_id": "pertinente",
+     "attempt": 2,
+     "raw_sha256": "cc1416d1b5ef2f51",
+     "constrained_decoding": "",
+     "seed": 20261014,
+     "finish_reason": "stop",
+     "estado": "ERROR",
+     "campo_truncado": []
+    },
+    {
+     "case_id": "irrelevante",
+     "attempt": 1,
+     "raw_sha256": "26b075d62f7178ee",
+     "constrained_decoding": "",
+     "seed": 20261014,
+     "finish_reason": "stop",
+     "estado": "ABSTENER",
+     "campo_truncado": []
+    },
+    {
+     "case_id": "irrelevante",
+     "attempt": 2,
+     "raw_sha256": "26b075d62f7178ee",
+     "constrained_decoding": "",
+     "seed": 20261014,
+     "finish_reason": "stop",
+     "estado": "ABSTENER",
+     "campo_truncado": []
+    },
+    {
+     "case_id": "contradiccion",
+     "attempt": 1,
+     "raw_sha256": "439115be45872fab",
+     "constrained_decoding": "",
+     "seed": 20261014,
+     "finish_reason": "stop",
+     "estado": "ERROR",
+     "campo_truncado": []
+    },
+    {
+     "case_id": "contradiccion",
+     "attempt": 2,
+     "raw_sha256": "439115be45872fab",
+     "constrained_decoding": "",
+     "seed": 20261014,
+     "finish_reason": "stop",
+     "estado": "ERROR",
+     "campo_truncado": []
+    },
+    {
+     "case_id": "imposible",
+     "attempt": 1,
+     "raw_sha256": "2a71c828bea34dc8",
+     "constrained_decoding": "",
+     "seed": 20261014,
+     "finish_reason": "stop",
+     "estado": "ABSTENER",
+     "campo_truncado": []
+    },
+    {
+     "case_id": "imposible",
+     "attempt": 2,
+     "raw_sha256": "2a71c828bea34dc8",
+     "constrained_decoding": "",
+     "seed": 20261014,
+     "finish_reason": "stop",
+     "estado": "ABSTENER",
+     "campo_truncado": []
+    }
+   ]
+  },
+  {
+   "constrained": "json_schema",
+   "seed": 20261015,
+   "elapsed_s": 190.0,
+   "summary": {
+    "passed": false,
+    "schema_response_rate": 0.5,
+    "correct_abstention_rate": 0.6666666666666666
+   },
+   "intentos": [
+    {
+     "case_id": "pertinente",
+     "attempt": 1,
+     "raw_sha256": "113f5f650fbb33c8",
+     "constrained_decoding": "",
+     "seed": 20261015,
+     "finish_reason": "stop",
+     "estado": "ERROR",
+     "campo_truncado": []
+    },
+    {
+     "case_id": "pertinente",
+     "attempt": 2,
+     "raw_sha256": "113f5f650fbb33c8",
+     "constrained_decoding": "",
+     "seed": 20261015,
+     "finish_reason": "stop",
+     "estado": "ERROR",
+     "campo_truncado": []
+    },
+    {
+     "case_id": "irrelevante",
+     "attempt": 1,
+     "raw_sha256": "4db08adc5393e1e3",
+     "constrained_decoding": "",
+     "seed": 20261015,
+     "finish_reason": "stop",
+     "estado": "ABSTENER",
+     "campo_truncado": []
+    },
+    {
+     "case_id": "irrelevante",
+     "attempt": 2,
+     "raw_sha256": "4db08adc5393e1e3",
+     "constrained_decoding": "",
+     "seed": 20261015,
+     "finish_reason": "stop",
+     "estado": "ABSTENER",
+     "campo_truncado": []
+    },
+    {
+     "case_id": "contradiccion",
+     "attempt": 1,
+     "raw_sha256": "2d09d42f527b01f1",
+     "constrained_decoding": "",
+     "seed": 20261015,
+     "finish_reason": "stop",
+     "estado": "ERROR",
+     "campo_truncado": []
+    },
+    {
+     "case_id": "contradiccion",
+     "attempt": 2,
+     "raw_sha256": "b404c9c211f33344",
+     "constrained_decoding": "",
+     "seed": 20261015,
+     "finish_reason": "stop",
+     "estado": "ERROR",
+     "campo_truncado": []
+    },
+    {
+     "case_id": "imposible",
+     "attempt": 1,
+     "raw_sha256": "bdf68dceacc8fec5",
+     "constrained_decoding": "",
+     "seed": 20261015,
+     "finish_reason": "stop",
+     "estado": "ABSTENER",
+     "campo_truncado": []
+    },
+    {
+     "case_id": "imposible",
+     "attempt": 2,
+     "raw_sha256": "bdf68dceacc8fec5",
+     "constrained_decoding": "",
+     "seed": 20261015,
+     "finish_reason": "stop",
+     "estado": "ABSTENER",
+     "campo_truncado": []
+    }
+   ]
+  }
+ ]
+}

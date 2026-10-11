@@ -59,6 +59,8 @@ dev = [
   "pre-commit>=4.6",
   "semgrep>=1.176",
   "cyclonedx-bom>=7.0",
+  "pytest-randomly>=3.15",
+  "pytest-qt>=4.4",
 ]
 build = ["pyinstaller>=6.0"]
 
