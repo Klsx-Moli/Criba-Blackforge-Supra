@@ -213,9 +213,7 @@ def _extract_morphological_axes() -> list[dict]:
 @app.function(timeout=600, cpu=4)
 def full_audit() -> dict[str, Any]:
     import subprocess
-    import json
     import re
-    import sys
     from pathlib import Path
 
     sys.path.insert(0, "/criba/src")
@@ -487,7 +485,6 @@ def full_audit() -> dict[str, Any]:
 
 @app.local_entrypoint()
 def main() -> None:
-    import json
     from pathlib import Path
 
     print("Lanzando auditoría Modal CRIBA/BLACKFORGE...")

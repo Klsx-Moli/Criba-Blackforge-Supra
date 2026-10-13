@@ -337,7 +337,7 @@ class ArxivSource(IntelligenceSource):
             return res
         entries = re.findall(r"<entry>(.*?)</entry>", resp.text, re.S)
         for e in entries[:limit]:
-            def _tag(t: str) -> str:
+            def _tag(t: str, e: str = e) -> str:
                 m = re.search(rf"<{t}[^>]*>(.*?)</{t}>", e, re.S)
                 return (m.group(1).strip() if m else "")
             title = _tag("title").replace("\n", " ")
