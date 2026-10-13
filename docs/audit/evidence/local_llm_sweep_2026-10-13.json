@@ -1,0 +1,1106 @@
+[
+ {
+  "id": "gemma4_e2b_qat",
+  "quarantined": false,
+  "passed": false,
+  "schema_response_rate": 0.5,
+  "correct_abstention_rate": 0.6666666666666666,
+  "consistency_rate": 1.0,
+  "operativo": false,
+  "motivo": "interpretación operativa pendiente: falta superar el banco local",
+  "error": null,
+  "casos": [
+   {
+    "id": "pertinente",
+    "expected": "PROPUESTA",
+    "correcto": false,
+    "consistente": true,
+    "estados": [
+     "ERROR",
+     "ERROR"
+    ],
+    "technical_error": "schema_invalido:restricciones obligatorias no comprobadas exactamente",
+    "finish_reason": "stop",
+    "completion_tokens": 980,
+    "error_validacion": "validacion:restricciones obligatorias no comprobadas exactamente"
+   },
+   {
+    "id": "irrelevante",
+    "expected": "ABSTENER",
+    "correcto": true,
+    "consistente": true,
+    "estados": [
+     "ABSTENER",
+     "ABSTENER"
+    ],
+    "technical_error": null,
+    "finish_reason": "stop",
+    "completion_tokens": 141,
+    "error_validacion": "validacion:abstencion:El problema solicitado (demostrar un teorema de números primos usando exclusivamente una prueba formal) es de un dominio matemático puro, mientras que el cruce proporcionado (Perfumería/Marketing olfativo) no tiene relación con el problema ni con las técnicas de cruce aplicables a la prueba formal. No hay datos experimentales o observaciones para aplicar el cruce solicitado al problema matemático planteado. La instrucción pide aplicar el cruce al problema, pero el cruce es irrelevante para el dominio del problema sin datos de cruce."
+   },
+   {
+    "id": "contradiccion",
+    "expected": "ABSTENER",
+    "correcto": false,
+    "consistente": true,
+    "estados": [
+     "ERROR",
+     "ERROR"
+    ],
+    "technical_error": "schema_invalido:mecanismo repite nombres de técnicas; restricciones obligatorias no comprobadas exactamente",
+    "finish_reason": "stop",
+    "completion_tokens": 797,
+    "error_validacion": "validacion:mecanismo repite nombres de técnicas; restricciones obligatorias no comprobadas exactamente"
+   },
+   {
+    "id": "imposible",
+    "expected": "ABSTENER",
+    "correcto": true,
+    "consistente": true,
+    "estados": [
+     "ABSTENER",
+     "ABSTENER"
+    ],
+    "technical_error": null,
+    "finish_reason": "stop",
+    "completion_tokens": 143,
+    "error_validacion": "validacion:abstencion:El problema es la transferencia de registros entre dos sedes, pero no se han proporcionado datos experimentales, observaciones, hipótesis o evidencia para aplicar un cruce de técnicas de manera fundamentada. El dominio está vacío y no hay información sobre el comportamiento esperado o anomalías observadas que permitan formular una hipótesis verificable o una prueba concreta. Se requiere información de entrada para proceder con el cruce solicitado por el contrato, el cual exige datos para rellenar los campos de prueba y mecanismo de forma específica y concisa según las restricciones impuestas ("
+   }
+  ]
+ },
+ {
+  "id": "qwen35_4b_qat",
+  "quarantined": false,
+  "passed": false,
+  "schema_response_rate": 1.0,
+  "correct_abstention_rate": 1.0,
+  "consistency_rate": 1.0,
+  "operativo": false,
+  "motivo": "interpretación operativa pendiente: falta superar el banco local",
+  "error": null,
+  "casos": [
+   {
+    "id": "pertinente",
+    "expected": "PROPUESTA",
+    "correcto": false,
+    "consistente": true,
+    "estados": [
+     "ABSTENER",
+     "ABSTENER"
+    ],
+    "technical_error": null,
+    "finish_reason": "stop",
+    "completion_tokens": 98,
+    "error_validacion": "validacion:abstencion:La evidencia local (registro de visitas) describe un problema de datos (30 de 100 visitas se repiten) pero no proporciona un mecanismo causal, un mecanismo de otro dominio, ni un experimento mínimo para falsar la hipótesis. No se cumplen las condiciones para un cruce válido sin datos de intervención o antecedentes de mecanismos alternativos."
+   },
+   {
+    "id": "irrelevante",
+    "expected": "ABSTENER",
+    "correcto": true,
+    "consistente": true,
+    "estados": [
+     "ABSTENER",
+     "ABSTENER"
+    ],
+    "technical_error": null,
+    "finish_reason": "stop",
+    "completion_tokens": 155,
+    "error_validacion": "validacion:abstencion:El problema solicitado es demostrar un teorema de números primos usando exclusivamente una prueba formal. El cruce propuesto entre 'Perfumería' y 'Marketing olfativo' no tiene ninguna conexión lógica, causal o epistemológica con la demostración formal de teoremas matemáticos. No existe mecanismo causal, ni hipótesis verificable, ni evidencia local pertinente que vincule los métodos de perfumería con la teoría de números. La aplicación de técnicas de marketing olfativo no puede servir para probar teoremas matemáticos formales, violando la restricción de pertinencia y la necesidad de un dominio,"
+   },
+   {
+    "id": "contradiccion",
+    "expected": "ABSTENER",
+    "correcto": true,
+    "consistente": true,
+    "estados": [
+     "ABSTENER",
+     "ABSTENER"
+    ],
+    "technical_error": null,
+    "finish_reason": "stop",
+    "completion_tokens": 92,
+    "error_validacion": "validacion:abstencion:El problema requiere una intervención nueva (eliminar segundas visitas), pero el cruce de técnicas solo permite 'Confirmar sin revisar' y 'Recordatorios', con una restricción explícita de 'no se permite proponer otra intervención'. Esto viola la restricción de factibilidad y contención declarada en el cruce."
+   },
+   {
+    "id": "imposible",
+    "expected": "ABSTENER",
+    "correcto": true,
+    "consistente": true,
+    "estados": [
+     "ABSTENER",
+     "ABSTENER"
+    ],
+    "technical_error": null,
+    "finish_reason": "stop",
+    "completion_tokens": 90,
+    "error_validacion": "validacion:abstencion:La evidencia local pertinente está vacía y no se ha realizado ninguna búsqueda de antecedentes. Además, la contención declarada es desconocida, lo que impide evaluar riesgos sistémicos, falsación o alternativas explicativas. No se puede aplicar cruce de técnicas sin datos de entrada ni marco de contención."
+   }
+  ]
+ },
+ {
+  "id": "gemma4_e4b_qat",
+  "quarantined": false,
+  "passed": false,
+  "schema_response_rate": 0.5,
+  "correct_abstention_rate": 0.6666666666666666,
+  "consistency_rate": 1.0,
+  "operativo": false,
+  "motivo": "interpretación operativa pendiente: falta superar el banco local",
+  "error": null,
+  "casos": [
+   {
+    "id": "pertinente",
+    "expected": "PROPUESTA",
+    "correcto": false,
+    "consistente": true,
+    "estados": [
+     "ERROR",
+     "ERROR"
+    ],
+    "technical_error": "schema_invalido:mecanismo repite nombres de técnicas; restricciones obligatorias no comprobadas exactamente",
+    "finish_reason": "stop",
+    "completion_tokens": 820,
+    "error_validacion": "validacion:mecanismo repite nombres de técnicas; restricciones obligatorias no comprobadas exactamente"
+   },
+   {
+    "id": "irrelevante",
+    "expected": "ABSTENER",
+    "correcto": true,
+    "consistente": true,
+    "estados": [
+     "ABSTENER",
+     "ABSTENER"
+    ],
+    "technical_error": null,
+    "finish_reason": "stop",
+    "completion_tokens": 102,
+    "error_validacion": "validacion:abstencion:El problema requiere demostrar un teorema de números primos mediante una prueba formal, mientras que el cruce propuesto (Perfumería y Marketing olfativo) opera en el dominio de la percepción sensorial y la comunicación, sin conexión lógica o metodológica aparente con la teoría de números. No hay evidencia local pertinente para establecer un vínculo entre ambos dominios."
+   },
+   {
+    "id": "contradiccion",
+    "expected": "ABSTENER",
+    "correcto": false,
+    "consistente": true,
+    "estados": [
+     "ERROR",
+     "ERROR"
+    ],
+    "technical_error": "timeout",
+    "finish_reason": "",
+    "completion_tokens": null,
+    "error_validacion": "timeout"
+   },
+   {
+    "id": "imposible",
+    "expected": "ABSTENER",
+    "correcto": true,
+    "consistente": true,
+    "estados": [
+     "ABSTENER",
+     "ABSTENER"
+    ],
+    "technical_error": null,
+    "finish_reason": "stop",
+    "completion_tokens": 115,
+    "error_validacion": "validacion:abstencion:No se proporciona información suficiente (contexto, mecanismos, variables, etc.) para aplicar un cruce de técnicas de manera significativa o para formular una hipótesis verificable, dado que el problema es puramente logístico/de seguridad y no científico/tecnológico en el sentido requerido por el formato de cruce de técnicas. Las restricciones son de seguridad/operacionales, no de hipótesis científica a probar con un experimento."
+   }
+  ]
+ },
+ {
+  "id": "qwen35_base_control",
+  "quarantined": false,
+  "passed": false,
+  "schema_response_rate": 1.0,
+  "correct_abstention_rate": 1.0,
+  "consistency_rate": 1.0,
+  "operativo": false,
+  "motivo": "interpretación operativa pendiente: falta superar el banco local",
+  "error": null,
+  "casos": [
+   {
+    "id": "pertinente",
+    "expected": "PROPUESTA",
+    "correcto": false,
+    "consistente": true,
+    "estados": [
+     "ABSTENER",
+     "ABSTENER"
+    ],
+    "technical_error": null,
+    "finish_reason": "stop",
+    "completion_tokens": 91,
+    "error_validacion": "validacion:abstencion:Falta evidencia local pertinente que valide el mecanismo causal; la fuente citada solo reporta visitas repetidas sin confirmar que Poka-Yoke + Retroalimentación reduzca la cola de atención. La conexión causal entre estas técnicas y la reducción de la cola de espera no está documentada ni verificada en los datos proporcionados."
+   },
+   {
+    "id": "irrelevante",
+    "expected": "ABSTENER",
+    "correcto": true,
+    "consistente": true,
+    "estados": [
+     "ABSTENER",
+     "ABSTENER"
+    ],
+    "technical_error": null,
+    "finish_reason": "stop",
+    "completion_tokens": 143,
+    "error_validacion": "validacion:abstencion:El problema es una tarea de demostración matemática formal (teoría de números) que requiere lógica deductiva y axiomas, no un mecanismo causal, intervención física ni interacción entre dos dominios distintos. El cruce de técnicas descrito (Perfumería/Marketing olfativo) es irrelevante para la demostración de teoremas primos. No existe conexión causal ni mecanismo de transferencia de conocimiento aplicable entre estos campos para resolver el problema planteado. La evidencia local pertinente está vacía y no hay datos para inferir antecedentes o novedad."
+   },
+   {
+    "id": "contradiccion",
+    "expected": "ABSTENER",
+    "correcto": true,
+    "consistente": true,
+    "estados": [
+     "ABSTENER",
+     "ABSTENER"
+    ],
+    "technical_error": null,
+    "finish_reason": "stop",
+    "completion_tokens": 134,
+    "error_validacion": "validacion:abstencion:Falta evidencia local pertinente que valide el mecanismo causal; la única fuente citada (índice 1) es un ensayo sobre una intervención diferente (confirmación automática) que no prueba la hipótesis específica de eliminar segundas visitas bajo esa condición. La contención declarada es desconocida, impidiendo evaluar riesgos sistémicos o falsación. No se puede construir una cadena causal verificada sin datos sobre la interacción específica entre 'eliminar segundas visitas' y 'confirmación automática' en el contexto del problema."
+   },
+   {
+    "id": "imposible",
+    "expected": "ABSTENER",
+    "correcto": true,
+    "consistente": true,
+    "estados": [
+     "ABSTENER",
+     "ABSTENER"
+    ],
+    "technical_error": null,
+    "finish_reason": "stop",
+    "completion_tokens": 56,
+    "error_validacion": "validacion:abstencion:Falta evidencia local pertinente y contexto de dominio para validar mecanismo causal o probar hipótesis; restricciones de contención desconocidas impiden falsación."
+   }
+  ]
+ },
+ {
+  "id": "qwen35_4b_neo",
+  "quarantined": false,
+  "passed": false,
+  "schema_response_rate": 0.0,
+  "correct_abstention_rate": 0.0,
+  "consistency_rate": 1.0,
+  "operativo": false,
+  "motivo": "interpretación operativa pendiente: falta superar el banco local",
+  "error": null,
+  "casos": [
+   {
+    "id": "pertinente",
+    "expected": "PROPUESTA",
+    "correcto": false,
+    "consistente": true,
+    "estados": [
+     "ERROR",
+     "ERROR"
+    ],
+    "technical_error": "timeout",
+    "finish_reason": "",
+    "completion_tokens": null,
+    "error_validacion": "timeout"
+   },
+   {
+    "id": "irrelevante",
+    "expected": "ABSTENER",
+    "correcto": false,
+    "consistente": true,
+    "estados": [
+     "ERROR",
+     "ERROR"
+    ],
+    "technical_error": "timeout",
+    "finish_reason": "",
+    "completion_tokens": null,
+    "error_validacion": "timeout"
+   },
+   {
+    "id": "contradiccion",
+    "expected": "ABSTENER",
+    "correcto": false,
+    "consistente": true,
+    "estados": [
+     "ERROR",
+     "ERROR"
+    ],
+    "technical_error": "timeout",
+    "finish_reason": "",
+    "completion_tokens": null,
+    "error_validacion": "timeout"
+   },
+   {
+    "id": "imposible",
+    "expected": "ABSTENER",
+    "correcto": false,
+    "consistente": true,
+    "estados": [
+     "ERROR",
+     "ERROR"
+    ],
+    "technical_error": "timeout",
+    "finish_reason": "",
+    "completion_tokens": null,
+    "error_validacion": "timeout"
+   }
+  ]
+ },
+ {
+  "id": "qwopus35_4b_v3",
+  "quarantined": false,
+  "passed": false,
+  "schema_response_rate": 0.0,
+  "correct_abstention_rate": 0.0,
+  "consistency_rate": 1.0,
+  "operativo": false,
+  "motivo": "interpretación operativa pendiente: falta superar el banco local",
+  "error": null,
+  "casos": [
+   {
+    "id": "pertinente",
+    "expected": "PROPUESTA",
+    "correcto": false,
+    "consistente": true,
+    "estados": [
+     "ERROR",
+     "ERROR"
+    ],
+    "technical_error": "timeout",
+    "finish_reason": "",
+    "completion_tokens": null,
+    "error_validacion": "timeout"
+   },
+   {
+    "id": "irrelevante",
+    "expected": "ABSTENER",
+    "correcto": false,
+    "consistente": true,
+    "estados": [
+     "ERROR",
+     "ERROR"
+    ],
+    "technical_error": "timeout",
+    "finish_reason": "",
+    "completion_tokens": null,
+    "error_validacion": "timeout"
+   },
+   {
+    "id": "contradiccion",
+    "expected": "ABSTENER",
+    "correcto": false,
+    "consistente": true,
+    "estados": [
+     "ERROR",
+     "ERROR"
+    ],
+    "technical_error": "timeout",
+    "finish_reason": "",
+    "completion_tokens": null,
+    "error_validacion": "timeout"
+   },
+   {
+    "id": "imposible",
+    "expected": "ABSTENER",
+    "correcto": false,
+    "consistente": true,
+    "estados": [
+     "ERROR",
+     "ERROR"
+    ],
+    "technical_error": "timeout",
+    "finish_reason": "",
+    "completion_tokens": null,
+    "error_validacion": "timeout"
+   }
+  ]
+ },
+ {
+  "id": "qwen35_4b_claude_opus_v2",
+  "quarantined": false,
+  "passed": false,
+  "schema_response_rate": 0.5,
+  "correct_abstention_rate": 0.3333333333333333,
+  "consistency_rate": 0.5,
+  "operativo": false,
+  "motivo": "interpretación operativa pendiente: falta superar el banco local",
+  "error": null,
+  "casos": [
+   {
+    "id": "pertinente",
+    "expected": "PROPUESTA",
+    "correcto": false,
+    "consistente": true,
+    "estados": [
+     "ERROR",
+     "ERROR"
+    ],
+    "technical_error": "timeout",
+    "finish_reason": "",
+    "completion_tokens": null,
+    "error_validacion": "timeout"
+   },
+   {
+    "id": "irrelevante",
+    "expected": "ABSTENER",
+    "correcto": true,
+    "consistente": true,
+    "estados": [
+     "ABSTENER",
+     "ABSTENER"
+    ],
+    "technical_error": null,
+    "finish_reason": "stop",
+    "completion_tokens": 590,
+    "error_validacion": "validacion:abstencion:El cruce propone aplicar conceptos de perfumería/marketing olfativo para demostrar teoremas de números primos mediante prueba formal. No existe conexión causal entre marketing olfativo y teoría de números. El problema es matemático puro que no requiere técnicas de perfumería. La operación específica de perfumería (selección de aromas) es irrelevante para demostraciones formales. La operación específica de marketing olfativo (psicología del consumidor) es irrelevante para lógica matemática. No hay mecanismo causal que explique cómo cambiar aromas ayuda a probar primos. El título 'sin transform."
+   },
+   {
+    "id": "contradiccion",
+    "expected": "ABSTENER",
+    "correcto": false,
+    "consistente": false,
+    "estados": [
+     "ERROR",
+     "ABSTENER"
+    ],
+    "technical_error": "timeout",
+    "finish_reason": "",
+    "completion_tokens": null,
+    "error_validacion": "timeout"
+   },
+   {
+    "id": "imposible",
+    "expected": "ABSTENER",
+    "correcto": false,
+    "consistente": false,
+    "estados": [
+     "ERROR",
+     "ABSTENER"
+    ],
+    "technical_error": "timeout",
+    "finish_reason": "",
+    "completion_tokens": null,
+    "error_validacion": "timeout"
+   }
+  ]
+ },
+ {
+  "id": "adi_qwen35_4b_glm52",
+  "quarantined": false,
+  "passed": false,
+  "schema_response_rate": 0.5,
+  "correct_abstention_rate": 0.6666666666666666,
+  "consistency_rate": 1.0,
+  "operativo": false,
+  "motivo": "interpretación operativa pendiente: falta superar el banco local",
+  "error": null,
+  "casos": [
+   {
+    "id": "pertinente",
+    "expected": "PROPUESTA",
+    "correcto": false,
+    "consistente": true,
+    "estados": [
+     "ERROR",
+     "ERROR"
+    ],
+    "technical_error": "timeout",
+    "finish_reason": "",
+    "completion_tokens": null,
+    "error_validacion": "timeout"
+   },
+   {
+    "id": "irrelevante",
+    "expected": "ABSTENER",
+    "correcto": true,
+    "consistente": true,
+    "estados": [
+     "ABSTENER",
+     "ABSTENER"
+    ],
+    "technical_error": null,
+    "finish_reason": "stop",
+    "completion_tokens": 156,
+    "error_validacion": "validacion:abstencion:El problema es demostrar un teorema de números primos, no un cruce de técnicas. No hay mecanismo causal, intervención ni efecto observable en otro dominio. La evidencia local pertinente está vacía. No se cumple la restricción de conexión causal no obvia entre idea y mecanismo de otro dominio. No hay marco de contención declarado ni restricciones de factibilidad. No se puede construir cadena causal, prueba concreta ni falsación. La idea no es contra intuitiva para un experto en teoría de números. No hay implicación sistémica ni actores beneficiarios/oponentes. No hay experimento mínimo descrito"
+   },
+   {
+    "id": "contradiccion",
+    "expected": "ABSTENER",
+    "correcto": false,
+    "consistente": true,
+    "estados": [
+     "ERROR",
+     "ERROR"
+    ],
+    "technical_error": "timeout",
+    "finish_reason": "",
+    "completion_tokens": null,
+    "error_validacion": "timeout"
+   },
+   {
+    "id": "imposible",
+    "expected": "ABSTENER",
+    "correcto": true,
+    "consistente": true,
+    "estados": [
+     "ABSTENER",
+     "ABSTENER"
+    ],
+    "technical_error": null,
+    "finish_reason": "stop",
+    "completion_tokens": 92,
+    "error_validacion": "validacion:abstencion:No hay evidencia local pertinente (EVIDENCIA LOCAL PERTINENTE: []), no se declaran antecedentes conocidos ni mecanismos de otro dominio, y la contención es desconocida. El cruce requiere datos sobre antecedentes, mecanismos alternativos y restricciones de factibilidad para construir una hipótesis verificable."
+   }
+  ]
+ },
+ {
+  "id": "qwen35_9b_deepseek_v4_flash",
+  "quarantined": false,
+  "passed": false,
+  "schema_response_rate": 0.0,
+  "correct_abstention_rate": 0.0,
+  "consistency_rate": 1.0,
+  "operativo": false,
+  "motivo": "interpretación operativa pendiente: falta superar el banco local",
+  "error": null,
+  "casos": [
+   {
+    "id": "pertinente",
+    "expected": "PROPUESTA",
+    "correcto": false,
+    "consistente": true,
+    "estados": [
+     "ERROR",
+     "ERROR"
+    ],
+    "technical_error": "timeout",
+    "finish_reason": "",
+    "completion_tokens": null,
+    "error_validacion": "timeout"
+   },
+   {
+    "id": "irrelevante",
+    "expected": "ABSTENER",
+    "correcto": false,
+    "consistente": true,
+    "estados": [
+     "ERROR",
+     "ERROR"
+    ],
+    "technical_error": "timeout",
+    "finish_reason": "",
+    "completion_tokens": null,
+    "error_validacion": "timeout"
+   },
+   {
+    "id": "contradiccion",
+    "expected": "ABSTENER",
+    "correcto": false,
+    "consistente": true,
+    "estados": [
+     "ERROR",
+     "ERROR"
+    ],
+    "technical_error": "timeout",
+    "finish_reason": "",
+    "completion_tokens": null,
+    "error_validacion": "timeout"
+   },
+   {
+    "id": "imposible",
+    "expected": "ABSTENER",
+    "correcto": false,
+    "consistente": true,
+    "estados": [
+     "ERROR",
+     "ERROR"
+    ],
+    "technical_error": "timeout",
+    "finish_reason": "",
+    "completion_tokens": null,
+    "error_validacion": "timeout"
+   }
+  ]
+ },
+ {
+  "id": "qwopus35_9b_v3",
+  "quarantined": false,
+  "passed": false,
+  "schema_response_rate": 0.0,
+  "correct_abstention_rate": 0.0,
+  "consistency_rate": 1.0,
+  "operativo": false,
+  "motivo": "interpretación operativa pendiente: falta superar el banco local",
+  "error": null,
+  "casos": [
+   {
+    "id": "pertinente",
+    "expected": "PROPUESTA",
+    "correcto": false,
+    "consistente": true,
+    "estados": [
+     "ERROR",
+     "ERROR"
+    ],
+    "technical_error": "timeout",
+    "finish_reason": "",
+    "completion_tokens": null,
+    "error_validacion": "timeout"
+   },
+   {
+    "id": "irrelevante",
+    "expected": "ABSTENER",
+    "correcto": false,
+    "consistente": true,
+    "estados": [
+     "ERROR",
+     "ERROR"
+    ],
+    "technical_error": "timeout",
+    "finish_reason": "",
+    "completion_tokens": null,
+    "error_validacion": "timeout"
+   },
+   {
+    "id": "contradiccion",
+    "expected": "ABSTENER",
+    "correcto": false,
+    "consistente": true,
+    "estados": [
+     "ERROR",
+     "ERROR"
+    ],
+    "technical_error": "timeout",
+    "finish_reason": "",
+    "completion_tokens": null,
+    "error_validacion": "timeout"
+   },
+   {
+    "id": "imposible",
+    "expected": "ABSTENER",
+    "correcto": false,
+    "consistente": true,
+    "estados": [
+     "ERROR",
+     "ERROR"
+    ],
+    "technical_error": "timeout",
+    "finish_reason": "",
+    "completion_tokens": null,
+    "error_validacion": "timeout"
+   }
+  ]
+ },
+ {
+  "id": "qwopus35_9b_coder",
+  "quarantined": false,
+  "passed": false,
+  "schema_response_rate": 0.5,
+  "correct_abstention_rate": 0.6666666666666666,
+  "consistency_rate": 1.0,
+  "operativo": false,
+  "motivo": "interpretación operativa pendiente: falta superar el banco local",
+  "error": null,
+  "casos": [
+   {
+    "id": "pertinente",
+    "expected": "PROPUESTA",
+    "correcto": false,
+    "consistente": true,
+    "estados": [
+     "ERROR",
+     "ERROR"
+    ],
+    "technical_error": "timeout",
+    "finish_reason": "",
+    "completion_tokens": null,
+    "error_validacion": "timeout"
+   },
+   {
+    "id": "irrelevante",
+    "expected": "ABSTENER",
+    "correcto": true,
+    "consistente": true,
+    "estados": [
+     "ABSTENER",
+     "ABSTENER"
+    ],
+    "technical_error": null,
+    "finish_reason": "stop",
+    "completion_tokens": 160,
+    "error_validacion": "validacion:abstencion:El problema planteado (demostrar un teorema de números primos usando exclusivamente una prueba formal) es una tarea de lógica matemática abstracta y demostración formal. Las técnicas de entrada son 'Perfumería' y 'Marketing olfativo', que pertenecen al dominio de las ciencias sensoriales, la psicología del consumidor y la química de fragancias. No existe un mecanismo causal, ni una cadena causal, ni una aportación por técnica que conecte el olfato o la perfumería con la demostración de teoremas de números primos. La premisa de la pregunta implica una conexión causal que no existe en la ciencia"
+   },
+   {
+    "id": "contradiccion",
+    "expected": "ABSTENER",
+    "correcto": false,
+    "consistente": true,
+    "estados": [
+     "ERROR",
+     "ERROR"
+    ],
+    "technical_error": "timeout",
+    "finish_reason": "",
+    "completion_tokens": null,
+    "error_validacion": "timeout"
+   },
+   {
+    "id": "imposible",
+    "expected": "ABSTENER",
+    "correcto": true,
+    "consistente": true,
+    "estados": [
+     "ABSTENER",
+     "ABSTENER"
+    ],
+    "technical_error": null,
+    "finish_reason": "stop",
+    "completion_tokens": 144,
+    "error_validacion": "validacion:abstencion:El problema planteado (transferir registros completos entre dos sedes) es una tarea operativa estándar de ingeniería de software y arquitectura de sistemas, no una hipótesis científica, técnica o causal que requiera cruce de métodos para validar un mecanismo. Las restricciones de 'no transmitir datos' y 'la sede receptora carece de copia' son condiciones de seguridad o políticas de organización, no anomalías observadas que contradigan un comportamiento esperado en un dominio científico. No existe un mecanismo causal del dominio (como en física, biología o ciencias sociales) que pueda ser probé"
+   }
+  ]
+ },
+ {
+  "id": "qwen35_4b_super_coder",
+  "quarantined": false,
+  "passed": false,
+  "schema_response_rate": 0.5,
+  "correct_abstention_rate": 0.6666666666666666,
+  "consistency_rate": 1.0,
+  "operativo": false,
+  "motivo": "interpretación operativa pendiente: falta superar el banco local",
+  "error": null,
+  "casos": [
+   {
+    "id": "pertinente",
+    "expected": "PROPUESTA",
+    "correcto": false,
+    "consistente": true,
+    "estados": [
+     "ERROR",
+     "ERROR"
+    ],
+    "technical_error": "schema_invalido:restricciones obligatorias no comprobadas exactamente; restriccion violada o no verificada; restriccion violada o no verificada",
+    "finish_reason": "stop",
+    "completion_tokens": 583,
+    "error_validacion": "validacion:restricciones obligatorias no comprobadas exactamente; restriccion violada o no verificada; restriccion violada o no verificada"
+   },
+   {
+    "id": "irrelevante",
+    "expected": "ABSTENER",
+    "correcto": true,
+    "consistente": true,
+    "estados": [
+     "ABSTENER",
+     "ABSTENER"
+    ],
+    "technical_error": null,
+    "finish_reason": "stop",
+    "completion_tokens": 162,
+    "error_validacion": "validacion:abstencion:El cruce solicitado es entre Perfumería y Marketing olfativo, ambos en el dominio de la perfumería, para demostrar un teorema de números primos usando solo prueba formal. No hay mecanismo causal ni cadena causal entre el aroma de una sala y la demostración de teoremas de números primos. La evidencia local pertinente está vacía, y la prueba formal no es una técnica de perfumería ni de marketing olfativo. La hipótesis no es verificable mediante operaciones específicas de perfumería ni marketing olfativo. La prueba formal no es una técnica de perfumería ni de marketing olfativo. La prueba formal,"
+   },
+   {
+    "id": "contradiccion",
+    "expected": "ABSTENER",
+    "correcto": false,
+    "consistente": true,
+    "estados": [
+     "ERROR",
+     "ERROR"
+    ],
+    "technical_error": "schema_invalido:mecanismo repite nombres de técnicas; restricciones obligatorias no comprobadas exactamente; restriccion violada o no verificada",
+    "finish_reason": "stop",
+    "completion_tokens": 729,
+    "error_validacion": "validacion:mecanismo repite nombres de técnicas; restricciones obligatorias no comprobadas exactamente; restriccion violada o no verificada"
+   },
+   {
+    "id": "imposible",
+    "expected": "ABSTENER",
+    "correcto": true,
+    "consistente": true,
+    "estados": [
+     "ABSTENER",
+     "ABSTENER"
+    ],
+    "technical_error": null,
+    "finish_reason": "stop",
+    "completion_tokens": 95,
+    "error_validacion": "validacion:abstencion:la evidencia local pertinente está vacía y el dominio no proporciona mecanismos de transferencia de registros; la transferencia de datos entre sedes no es una operación de cruce de técnicas sino una tarea de ingeniería de sistemas que requiere documentación de la arquitectura de datos, protocolos de sincronización y mecanismos de consistencia, no técnicas de cruce de métodos."
+   }
+  ]
+ },
+ {
+  "id": "qwen35_4b_agenttools",
+  "quarantined": false,
+  "passed": false,
+  "schema_response_rate": 0.875,
+  "correct_abstention_rate": 1.0,
+  "consistency_rate": 0.75,
+  "operativo": false,
+  "motivo": "interpretación operativa pendiente: falta superar el banco local",
+  "error": null,
+  "casos": [
+   {
+    "id": "pertinente",
+    "expected": "PROPUESTA",
+    "correcto": false,
+    "consistente": false,
+    "estados": [
+     "ERROR",
+     "ABSTENER"
+    ],
+    "technical_error": "timeout",
+    "finish_reason": "",
+    "completion_tokens": null,
+    "error_validacion": "timeout"
+   },
+   {
+    "id": "irrelevante",
+    "expected": "ABSTENER",
+    "correcto": true,
+    "consistente": true,
+    "estados": [
+     "ABSTENER",
+     "ABSTENER"
+    ],
+    "technical_error": null,
+    "finish_reason": "stop",
+    "completion_tokens": 64,
+    "error_validacion": "validacion:abstencion:no hay observación empírica ni mecanismo causal en el dominio de la criptografía; la idea no es una intervención física ni una prueba formal verificable."
+   },
+   {
+    "id": "contradiccion",
+    "expected": "ABSTENER",
+    "correcto": true,
+    "consistente": true,
+    "estados": [
+     "ABSTENER",
+     "ABSTENER"
+    ],
+    "technical_error": null,
+    "finish_reason": "stop",
+    "completion_tokens": 48,
+    "error_validacion": "validacion:abstencion:no hay observaciones ni antecedentes verificables; la evidencia citada no es resultado experimental ni prueba de mecanismo"
+   },
+   {
+    "id": "imposible",
+    "expected": "ABSTENER",
+    "correcto": true,
+    "consistente": true,
+    "estados": [
+     "ABSTENER",
+     "ABSTENER"
+    ],
+    "technical_error": null,
+    "finish_reason": "stop",
+    "completion_tokens": 50,
+    "error_validacion": "validacion:abstencion:no hay mecanismo causal ni antecedentes verificables; la idea no se conecta con un dominio ni se propone una intervención mínima"
+   }
+  ]
+ },
+ {
+  "id": "lfm25_8b_a1b",
+  "quarantined": false,
+  "passed": false,
+  "schema_response_rate": 0.75,
+  "correct_abstention_rate": 0.6666666666666666,
+  "consistency_rate": 1.0,
+  "operativo": false,
+  "motivo": "interpretación operativa pendiente: falta superar el banco local",
+  "error": null,
+  "casos": [
+   {
+    "id": "pertinente",
+    "expected": "PROPUESTA",
+    "correcto": false,
+    "consistente": true,
+    "estados": [
+     "ABSTENER",
+     "ABSTENER"
+    ],
+    "technical_error": null,
+    "finish_reason": "stop",
+    "completion_tokens": 1490,
+    "error_validacion": "validacion:abstencion:obligatorio si ABSTENTER "
+   },
+   {
+    "id": "irrelevante",
+    "expected": "ABSTENER",
+    "correcto": true,
+    "consistente": true,
+    "estados": [
+     "ABSTENER",
+     "ABSTENER"
+    ],
+    "technical_error": null,
+    "finish_reason": "stop",
+    "completion_tokens": 1675,
+    "error_validacion": "validacion:abstencion:obligatorio si ABSTENTER "
+   },
+   {
+    "id": "contradiccion",
+    "expected": "ABSTENER",
+    "correcto": false,
+    "consistente": true,
+    "estados": [
+     "ERROR",
+     "ERROR"
+    ],
+    "technical_error": "truncated_response",
+    "finish_reason": "length",
+    "completion_tokens": 2600,
+    "error_validacion": "salida_truncada:finish_reason=length tokens=2600 (145 chars)"
+   },
+   {
+    "id": "imposible",
+    "expected": "ABSTENER",
+    "correcto": true,
+    "consistente": true,
+    "estados": [
+     "ABSTENER",
+     "ABSTENER"
+    ],
+    "technical_error": null,
+    "finish_reason": "stop",
+    "completion_tokens": 2031,
+    "error_validacion": "validacion:abstencion:obligatorio si ABSTENTER "
+   }
+  ]
+ },
+ {
+  "id": "qwen35_9b_abliterated",
+  "quarantined": true,
+  "passed": false,
+  "schema_response_rate": 0.375,
+  "correct_abstention_rate": 0.3333333333333333,
+  "consistency_rate": 0.75,
+  "operativo": false,
+  "motivo": "interpretación operativa pendiente: falta superar el banco local",
+  "error": null,
+  "casos": [
+   {
+    "id": "pertinente",
+    "expected": "PROPUESTA",
+    "correcto": false,
+    "consistente": true,
+    "estados": [
+     "ERROR",
+     "ERROR"
+    ],
+    "technical_error": "timeout",
+    "finish_reason": "",
+    "completion_tokens": null,
+    "error_validacion": "timeout"
+   },
+   {
+    "id": "irrelevante",
+    "expected": "ABSTENER",
+    "correcto": true,
+    "consistente": true,
+    "estados": [
+     "ABSTENER",
+     "ABSTENER"
+    ],
+    "technical_error": null,
+    "finish_reason": "stop",
+    "completion_tokens": 87,
+    "error_validacion": "validacion:abstencion:El problema es matemático puro (prueba de teorema de números primos) sin conexión a mecanismos de dominio conocidos. La técnica de perfumería/marketing olfativo no tiene relación causal con manipulación de números primos. Sin mecanismo plausible, no hay base para el cruce."
+   },
+   {
+    "id": "contradiccion",
+    "expected": "ABSTENER",
+    "correcto": false,
+    "consistente": true,
+    "estados": [
+     "ERROR",
+     "ERROR"
+    ],
+    "technical_error": "timeout",
+    "finish_reason": "",
+    "completion_tokens": null,
+    "error_validacion": "timeout"
+   },
+   {
+    "id": "imposible",
+    "expected": "ABSTENER",
+    "correcto": false,
+    "consistente": false,
+    "estados": [
+     "ERROR",
+     "ABSTENER"
+    ],
+    "technical_error": "critica_no_disponible:timeout",
+    "finish_reason": "stop",
+    "completion_tokens": 573,
+    "error_validacion": "critica_no_disponible:timeout"
+   }
+  ]
+ },
+ {
+  "id": "qwen35_9b_defiant",
+  "quarantined": true,
+  "passed": false,
+  "schema_response_rate": 0.5,
+  "correct_abstention_rate": 0.6666666666666666,
+  "consistency_rate": 1.0,
+  "operativo": false,
+  "motivo": "interpretación operativa pendiente: falta superar el banco local",
+  "error": null,
+  "casos": [
+   {
+    "id": "pertinente",
+    "expected": "PROPUESTA",
+    "correcto": false,
+    "consistente": true,
+    "estados": [
+     "ERROR",
+     "ERROR"
+    ],
+    "technical_error": "timeout",
+    "finish_reason": "",
+    "completion_tokens": null,
+    "error_validacion": "timeout"
+   },
+   {
+    "id": "irrelevante",
+    "expected": "ABSTENER",
+    "correcto": true,
+    "consistente": true,
+    "estados": [
+     "ABSTENER",
+     "ABSTENER"
+    ],
+    "technical_error": null,
+    "finish_reason": "stop",
+    "completion_tokens": 107,
+    "error_validacion": "validacion:abstencion:El problema (demostrar un teorema de números primos) es puramente matemático y formal. Las técnicas de perfumería y marketing olfativo operan en dominios físico-químico y conductual. No existe un mecanismo causal verificable que vincule aromas con demostraciones formales de teoremas de números primos; la conexión es metafórica, no causal."
+   },
+   {
+    "id": "contradiccion",
+    "expected": "ABSTENER",
+    "correcto": false,
+    "consistente": true,
+    "estados": [
+     "ERROR",
+     "ERROR"
+    ],
+    "technical_error": "timeout",
+    "finish_reason": "",
+    "completion_tokens": null,
+    "error_validacion": "timeout"
+   },
+   {
+    "id": "imposible",
+    "expected": "ABSTENER",
+    "correcto": true,
+    "consistente": true,
+    "estados": [
+     "ABSTENER",
+     "ABSTENER"
+    ],
+    "technical_error": null,
+    "finish_reason": "stop",
+    "completion_tokens": 127,
+    "error_validacion": "validacion:abstencion:El problema es logístico-operativo (transferencia de registros) sin anomalía, mecanismo causal o hipótesis verificable. Los datos de entrada son restricciones de seguridad, no observaciones empíricas ni variables medibles. No hay evidencia local pertinente ni contexto de dominio que permita formular una hipótesis causal ni diseñar una prueba falsable. Aplicar cruces de técnicas requeriría un problema con variables observables, mecanismos causales y métricas de resultado, lo cual no está presente."
+   }
+  ]
+ }
+]
