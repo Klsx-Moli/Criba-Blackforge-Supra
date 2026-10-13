@@ -157,14 +157,63 @@ def test_timeout_invalido_es_configuracion(monkeypatch) -> None:
 # --------------------------------------------------------------------------
 
 
+class _SinRed:
+    """Sustituto de httpx.Client que falla el test si alguien intenta conectar."""
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        raise AssertionError("se intentó abrir una conexión HTTP: debió rechazarse antes")
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "http://user:pass@127.0.0.1:8645/v1",  # credenciales embebidas
+        "http://:solo-pass@127.0.0.1:8645/v1",  # solo contraseña
+        "http://api.ejemplo-remoto.com/v1",  # http en claro hacia host remoto
+        "ftp://127.0.0.1/v1",  # esquema no permitido
+        "http:///v1",  # sin host
+    ],
+)
+def test_endpoint_inseguro_se_rechaza_sin_abrir_conexion(monkeypatch, url: str) -> None:
+    """operativo() y proponer() rechazan el endpoint ANTES de conectar y sin Bearer."""
+    monkeypatch.setattr(oc.httpx, "Client", _SinRed)
+    interp = _interprete(base_url=url)
+
+    listo, motivo = interp.operativo()
+    assert listo is False
+    assert "rechazado antes de conectar" in motivo
+    assert "secreto-de-prueba" not in motivo and "pass" not in motivo.replace("rechazado", "")
+
+    resultado = interp.proponer("problema", _idea(), None)
+    campos = resultado.to_campos()
+    assert campos["error"].startswith("configuracion_invalida:endpoint:")
+    assert campos["hipotesis"] == ""
+    assert resultado.model_requests == 0
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "http://127.0.0.1:8645/v1",
+        "http://localhost:8080/v1",
+        "http://[::1]:8080/v1",
+        "https://api.ejemplo-remoto.com/v1",
+    ],
+)
+def test_endpoint_aceptable_no_se_rechaza_por_validacion(url: str) -> None:
+    assert oc.endpoint_problem(url) is None
+
+
 def test_url_con_credenciales_rechazada() -> None:
     """Un endpoint con usuario:password@ se rechaza como no operable (sin conectar)."""
 
     interp = _interprete(base_url="http://user:pass@127.0.0.1:8645/v1")
     listo, motivo = interp.operativo()
     assert listo is False
-    bajo = motivo.casefold()
-    assert "loopback" in bajo or "credencial" in bajo or "endpoint" in bajo
+    # Antes se aceptaba la palabra "endpoint" suelta, que también aparece en
+    # "el modelo no está en el catálogo del endpoint": el test pasaba tras
+    # CONECTAR. Ahora exige el rechazo explícito previo a cualquier conexión.
+    assert "credenciales embebidas" in motivo
 
 
 def test_endpoint_no_loopback_rechazado() -> None:
