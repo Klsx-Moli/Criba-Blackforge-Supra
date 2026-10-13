@@ -16,6 +16,8 @@ can replace the local implementation later without touching the rest.
 from __future__ import annotations
 
 import json
+import re
+import unicodedata
 import uuid
 from collections.abc import Callable
 from datetime import datetime, timezone
@@ -62,6 +64,102 @@ def _novelty_verbs(query: str) -> bool:
                                        "raro", "diferente", "original", "reinvent", "romper"))
 
 
+# ---------------------------------------------------------------------------
+# Tokenización y dominio (auditoría 2026-10-13)
+# Antes: ``q.split()`` dejaba "¿cómo" / "churn?" como conceptos y todas las ideas
+# se anclaban a la primera palabra; el dominio se decidía por subcadenas
+# ("red" dentro de "reducir", "api" dentro de "rápido").
+# ---------------------------------------------------------------------------
+_WORD_RE = re.compile(r"[^\W\d_]+|\d+", re.UNICODE)
+
+# Palabras funcionales, interrogativas y verbos de TAREA (la intención de la
+# consulta, no su tema). Se comparan plegadas (sin acentos, en minúsculas).
+_STOP_FOLDED = frozenset(
+    """
+    como cual cuales cuando donde quien quienes porque para por con sin sobre contra
+    dentro fuera antes despues ademas ahora siempre nunca cuanto cuantos algun alguna
+    ningun ninguna tanto tanta
+    entre hacia desde hasta segun ante bajo tras durante mediante que una uno unos unas
+    del las los este esta estos estas eso esto esas esos todo toda todos todas mas menos
+    muy tambien pero sino aunque cada otro otra otros otras mismo misma puede pueden
+    podemos podria podrian debe deben debemos hay ser son era fue estar esta estan tener
+    tiene tienen tengo hacer hace hacen hacemos quiero queremos necesito necesitamos
+    the and for with without how what which when where who why can could should would
+    into from over under this that these those have has are was were
+    disenar mejorar reducir aumentar crear construir desarrollar optimizar evitar lograr
+    conseguir resolver usar utilizar implementar generar proponer encontrar analizar
+    evaluar diseno idea ideas problema solucion forma manera
+    """.split()
+)
+
+
+def _fold(text: str) -> str:
+    """Minúsculas y sin diacríticos: "Diseñar" -> "disenar"."""
+    decomposed = unicodedata.normalize("NFKD", text.casefold())
+    return "".join(c for c in decomposed if not unicodedata.combining(c))
+
+
+def extract_key_concepts(query: str, limit: int = 5) -> list[str]:
+    """Conceptos temáticos de la consulta, en orden de aparición y sin repetidos.
+
+    Sin puntuación, sin acentos en la comparación (se conserva la forma original
+    en minúsculas para mostrarla), sin palabras funcionales ni verbos de tarea.
+    """
+    seen: set[str] = set()
+    out: list[str] = []
+    for match in _WORD_RE.finditer(query):
+        word = match.group(0)
+        folded = _fold(word)
+        if len(folded) < 4 or folded in _STOP_FOLDED or folded in seen:
+            continue
+        seen.add(folded)
+        out.append(word.casefold())
+        if len(out) >= limit:
+            break
+    return out
+
+
+# Orden = prioridad de desempate (igual que la antigua cadena if/elif).
+_DOMAIN_KEYWORDS: tuple[tuple[str, tuple[str, ...]], ...] = (
+    ("tecnologia", ("api", "software", "sistema", "codigo", "algoritmo", "red", "app", "plataforma")),
+    ("seguridad", ("seguridad", "ataque", "vulnerabilidad", "amenaza", "proteger", "defensa",
+                   "phishing", "malware", "ransomware", "pentest", "exploit")),
+    ("negocio", ("negocio", "mercado", "cliente", "empresa", "ventas", "churn", "pyme",
+                 "suscripcion", "ingresos", "precio")),
+    ("ia", ("ia", "inteligencia artificial", "machine learning", "modelo", "llm")),
+    ("gobernanza", ("gobernanza", "dao", "organizacion", "equipo", "coordinar")),
+    ("etica", ("etica", "sesgo", "justo", "equidad", "ninos")),
+    ("salud", ("salud", "medico", "hospital", "paciente")),
+    ("educacion", ("educacion", "aprendizaje", "estudiante", "escuela")),
+    ("transporte", ("transporte", "movilidad", "vehiculo", "logistica")),
+    ("energia", ("energia", "consumo", "edificio", "sostenible")),
+    ("alimentos", ("alimento", "supermercado", "desperdicio", "cadena")),
+    ("recursos_humanos", ("trabajo", "descanso", "turno", "jornada")),
+)
+
+
+def _detect_domain(query: str) -> str:
+    """Dominio con más coincidencias de PALABRA (no subcadena); empate -> prioridad.
+
+    Una palabra clave larga (>=5) también acepta flexiones por prefijo
+    ("vulnerabilidades"); las cortas ("red", "ia", "api") solo coinciden exactas.
+    """
+    folded_query = _fold(query)
+    tokens = [_fold(m.group(0)) for m in _WORD_RE.finditer(query)]
+    best, best_hits = "general", 0
+    for domain, keywords in _DOMAIN_KEYWORDS:
+        hits = 0
+        for kw in keywords:
+            if " " in kw:
+                found = re.search(rf"\b{re.escape(kw)}\b", folded_query) is not None
+            else:
+                found = any(t == kw or (len(kw) >= 5 and t.startswith(kw)) for t in tokens)
+            hits += found
+        if hits > best_hits:
+            best, best_hits = domain, hits
+    return best
+
+
 def cartograph_and_break(query: str, context: dict[str, Any], selection: dict[str, Any]) -> dict[str, Any]:
     """Phase 1+2 (Cartografiar + Romper). Query-driven.
 
@@ -70,40 +168,11 @@ def cartograph_and_break(query: str, context: dict[str, Any], selection: dict[st
     """
     q = query.casefold()
 
-    # --- Domain detection ---
-    domain = "general"
-    if any(w in q for w in ("api", " software", "sistema", "codigo", "algoritmo", "red")):
-        domain = "tecnologia"
-    elif any(w in q for w in ("seguridad", "ataque", "vulnerabilidad", "amenaza", "proteger", "defensa")):
-        domain = "seguridad"
-    elif any(w in q for w in ("negocio", "mercado", "cliente", "empresa", "ventas", "churn")):
-        domain = "negocio"
-    elif any(w in q for w in ("ia", "inteligencia artificial", "machine learning", "modelo")):
-        domain = "ia"
-    elif any(w in q for w in ("gobernanza", "dao", "organizacion", "equipo", "coordinar")):
-        domain = "gobernanza"
-    elif any(w in q for w in ("etica", "sesgo", "justo", "equidad", "niños")):
-        domain = "etica"
-    elif any(w in q for w in ("salud", "medico", "hospital", "paciente")):
-        domain = "salud"
-    elif any(w in q for w in ("educacion", "aprendizaje", "estudiante", "escuela")):
-        domain = "educacion"
-    elif any(w in q for w in ("transporte", "movilidad", "vehiculo", "logistica")):
-        domain = "transporte"
-    elif any(w in q for w in ("energia", "consumo", "edificio", "sostenible")):
-        domain = "energia"
-    elif any(w in q for w in ("alimento", "supermercado", "desperdicio", "cadena")):
-        domain = "alimentos"
-    elif any(w in q for w in ("trabajo", "descanso", "turno", "jornada")):
-        domain = "recursos_humanos"
+    # --- Domain detection (puntuación por palabra completa, no por subcadena) ---
+    domain = _detect_domain(query)
 
     # --- Query-specific elements extraction ---
-    # Extract key nouns/concepts from query
-    query_tokens = [w for w in q.split() if len(w) > 3]
-    key_concepts = [w for w in query_tokens if w not in (
-        "como", "podemos", "para", "que", "sin", "una", "del", "las", "los",
-        "por", "con", "este", "esta", "todo", "mas", "sobre", "entre", "hacia",
-    )]
+    key_concepts = extract_key_concepts(query)
 
     # --- Actors detection ---
     actors = []
@@ -456,6 +525,79 @@ _VALID_MECH = {"elimination", "inversion", "isolation", "verification", "delegat
                "market_exchange", "capability_proof"}
 
 
+# ---------------------------------------------------------------------------
+# Genoma (auditoría 2026-10-13): el motor escribía valores en español libre
+# ("centralizada") en una ontología cerrada en inglés ("centralized"), así que
+# TODAS las ideas salían con el mismo genoma y se aparcaban 2 propiedades por
+# idea. Traducción explícita y conservadora: lo que no se puede mapear con
+# defensa es "unknown" (honesto), no un valor inventado.
+# ---------------------------------------------------------------------------
+_ACTOR_ONTOLOGY = {
+    "operador humano": "operator",
+    "usuarios/destinatarios finales": "end_user",
+    "organizacion/implementadores": "organization",
+    "adversario/amenaza externa": "adversary",
+    "regulador/autoridad": "regulator",
+}
+_TOPOLOGY_ONTOLOGY = {
+    "centralizada": "centralized",
+    "reensamblada por dimensiones": "hybrid",
+    "topologia efimera que se recrea por operacion": "ephemeral",
+    "dos mecanismos cruzados en malla": "mesh",
+}
+_MECH_BY_FAMILY = {
+    "inversion": "inversion",
+    "sustraccion": "elimination",
+    "verificacion": "verification",
+    "ciencia_realidad": "verification",
+    "investigacion": "verification",
+    "recombinacion": "transformation",
+    "morfologia": "transformation",
+    "actores_roles": "delegation",
+    "incentivos": "market_exchange",
+    "escenarios": "prediction",
+    "facilitacion": "coordination",
+    "mejora": "adaptation",
+    "innovacion": "adaptation",
+    "prototipado": "isolation",
+}
+_EVIDENCE_BACKED = frozenset(
+    {
+        "exige reproduccion y falsabilidad",
+        "metodo cientifico",
+        "hipotesis -> experimento -> conclusion",
+        "relacion reproducible no predicha",
+    }
+)
+
+
+def _genome_from_vector(base: dict[str, str], cv: dict[str, str], family: str) -> dict[str, list[str]]:
+    """Clasificación heurística y trazable del vector causal en la ontología cerrada."""
+    if "efimera" in cv.get("topologia", ""):
+        time_model = "ephemeral_per_operation"
+    elif cv.get("velocidad_respuesta") == "ciclo continuo":
+        time_model = "continuous"
+    elif cv.get("cuando") in ("despues de validar", "antes de comprometer, en sombra"):
+        time_model = "staged"
+    else:
+        time_model = "unknown"
+    if cv.get("relacion_confianza") == "desconfianza_verificable" or (
+        cv.get("evidencia_requerida") in _EVIDENCE_BACKED
+    ):
+        trust = "evidence_based"
+    elif cv.get("relacion_confianza") == "confianza_ciega":
+        trust = "implicit"
+    else:
+        trust = "unknown"
+    return {
+        "actor": [_ACTOR_ONTOLOGY.get(base.get("quien_decide", ""), "unknown")],
+        "mechanism": [_MECH_BY_FAMILY.get(family, "unknown")],
+        "topology": [_TOPOLOGY_ONTOLOGY.get(cv.get("topologia", ""), "unknown")],
+        "trust_model": [trust],
+        "time_model": [time_model],
+    }
+
+
 def _apply_family(family: str, base: dict[str, str], extreme: bool) -> dict[str, str]:
     """Apply ONE operator family to a causal-vector base (the REAL mutation used
     by diverge). Returns a new vector. Used directly by tests so they exercise the
@@ -541,11 +683,11 @@ def diverge(carto: dict[str, Any], rupture: dict[str, Any], selected: dict[str, 
             divergence_real = len(moved) >= 1
 
             fam_a, fam_b = ma["family"], mb["family"]
-            lead = fam_a if fam_a in _VALID_MECH else "capability_proof"
+            lead = _MECH_BY_FAMILY.get(fam_a, "unknown")
             mech_pair = f"{fam_a}+{fam_b}"
 
             # --- Query-anchored description ---
-            anchor = key_concepts[0] if key_concepts else "el problema"
+            anchor = key_concepts[(seq - 1) % len(key_concepts)] if key_concepts else "el problema"
             actor = actors[0] if actors else "el sistema"
             asset = assets[0] if assets else "el recurso"
 
@@ -589,13 +731,7 @@ def diverge(carto: dict[str, Any], rupture: dict[str, Any], selected: dict[str, 
             diff_values = [f"{k}:{base[k]}→{cv[k]}" for k in moved]
             difference_signature = f"({'|'.join(diff_values)})"
 
-            genome = {
-                "actor": [base["quien_decide"]],
-                "mechanism": [lead],
-                "topology": [cv["topologia"]],
-                "trust_model": ["evidence_based" if ("evidencia" in cv["evidencia_requerida"]) else "implicit"],
-                "time_model": ["ephemeral_per_operation" if "ephemeral" in cv["topologia"] else "staged"],
-            }
+            genome = _genome_from_vector(base, cv, fam_a)
             g, _ = normalize_proposal(dict(genome), source_idea=f"I{seq:02d}")
 
             idea = {
@@ -658,6 +794,7 @@ def _detect_duplicates(ideas: list[Any]) -> list[dict[str, Any]]:
     report: list[dict[str, Any]] = []
     seen: list[Any] = []
     for idea in ideas:
+        matched_prev: Any = None
         cv = idea.get("causal_variables", {})
         axes_changed = set(idea.get("causal_axes_changed", []))
         matched = None
@@ -668,9 +805,12 @@ def _detect_duplicates(ideas: list[Any]) -> list[dict[str, Any]]:
             if axes_changed == prev_axes:
                 # Same axes changed -> check if values are similar
                 same_values = sum(1 for k in axes_changed if cv.get(k) == prev_cv.get(k))
-                if same_values >= len(axes_changed) - 1:  # at most 1 value differs
+                # Con un solo eje movido, "a lo sumo 1 valor distinto" lo declaraba
+                # duplicado aunque el valor difiriera: exige al menos 1 coincidencia.
+                if same_values >= max(1, len(axes_changed) - 1):
                     matched = {"verdict": "probable_duplicate", "similarity": 0.95,
                                "reason": f"mismos ejes {axes_changed} con valores casi idénticos"}
+                    matched_prev = prev
                     break
             # Overlapping axes (share at least 1 axis)
             overlap = axes_changed & prev_axes
@@ -680,12 +820,13 @@ def _detect_duplicates(ideas: list[Any]) -> list[dict[str, Any]]:
                 if len(diff_axes) <= 2:
                     matched = {"verdict": "close_variant", "similarity": 0.75,
                                "reason": f"comparten ejes {sorted(overlap)}, difieren en {sorted(diff_axes)}"}
+                    matched_prev = prev
         if matched:
             idea["duplicate_status"] = "duplicate" if matched["verdict"] == "probable_duplicate" else "variant"
             report.append({
                 "idea_id": idea["id"], "verdict": matched["verdict"],
                 "similarity": matched["similarity"], "reason": matched["reason"],
-                "vs": prev["id"] if matched else None,
+                "vs": matched_prev["id"] if matched_prev is not None else None,
             })
         else:
             idea["duplicate_status"] = "distinct"
@@ -773,7 +914,15 @@ def _evaluate_idea(idea: dict[str, Any]) -> dict[str, Any]:
     fam_b = idea.get("family2", "")
 
     # NOVELTY heuristic: only explicitly present changed axes count.
-    moved_axes = [k for k in _CAUSAL_AXES if k in cv and cv[k] != _BASE_VALUES.get(k)]
+    # Si la idea declara los ejes que movió (calculados contra la base dinámica de la
+    # consulta) se usan ésos. Antes se comparaba contra la base ESTÁTICA, de modo que
+    # ejes ya adaptados por la consulta (p. ej. ``quien_decide``) contaban como
+    # "movidos" en todas las ideas e inflaban novedad y evidencia.
+    declared = idea.get("causal_axes_changed")
+    if isinstance(declared, list):
+        moved_axes = [k for k in _CAUSAL_AXES if k in declared and k in cv]
+    else:
+        moved_axes = [k for k in _CAUSAL_AXES if k in cv and cv[k] != _BASE_VALUES.get(k)]
 
     # Si no hay ejes movidos, novelty es 0 (regla original)
     if len(moved_axes) == 0:
@@ -785,11 +934,7 @@ def _evaluate_idea(idea: dict[str, Any]) -> dict[str, Any]:
 
     # EVIDENCE heuristic: only explicitly present changed axes contribute.
     # Text length/verbosity never increases evidence.
-    concrete = sum(
-        1
-        for k in _CAUSAL_AXES
-        if k in cv and cv[k] and cv[k] != _BASE_VALUES.get(k)
-    )
+    concrete = sum(1 for k in moved_axes if cv.get(k))
     axes_evidence = concrete / len(_CAUSAL_AXES)
     evidence = round(0.3 + 0.7 * axes_evidence, 4)
 
@@ -966,20 +1111,20 @@ def activate(query: str, current: str = "auto", mode: str = "balanced", supporti
     kept = [i for i, r in zip(real_ideas, duplicate_report) if r["verdict"] != "probable_duplicate"]
 
     # Si no hay suficientes ideas únicas, tomar las mejores sin duplicados
-    if len(kept) < 8:
-        seen_ids = set(i["id"] for i in kept)
-        for i in real_ideas:
-            if len(kept) >= 8:
-                break
-            if i["id"] not in seen_ids:
-                kept.append(i)
-                seen_ids.add(i["id"])
+    # (El relleno hasta 8 reintroducía los duplicados probables que se acababan de
+    # excluir; ahora un duplicado probable nunca vuelve a la salida.)
 
     families = sorted({i["family"] for i in kept})
-    unclassified = []
+    unclassified: list[dict[str, Any]] = []
+    _seen_unclassified: set[tuple[str, str]] = set()
     for i in kept:
         for up in i["genome"].get("unclassified_properties", []):
-            unclassified.append(up if isinstance(up, dict) else up.model_dump())
+            item = up if isinstance(up, dict) else up.model_dump()
+            ident = (str(item.get("field")), str(item.get("value")))
+            if ident in _seen_unclassified:  # una entrada por concepto, no una por idea
+                continue
+            _seen_unclassified.add(ident)
+            unclassified.append(item)
     real_divergent = sum(1 for i in kept if i.get("divergence_real"))
 
     # Convergence layer: score each kept idea (operator-produced content) and rank.
