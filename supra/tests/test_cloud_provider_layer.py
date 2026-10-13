@@ -132,6 +132,8 @@ class TestSuccessPath:
 
 class TestFailurePaths:
     def test_provider_error_does_not_propagate(self) -> None:
+        # 500 del proveedor: ni rate, ni auth, ni modelo. El cuerpo no se
+        # filtra (ver NoSecretLeakage); aqui solo se clasifica la categoria.
         def handler(_: httpx.Request) -> httpx.Response:
             return httpx.Response(500, text="boom")
 
@@ -172,6 +174,47 @@ class TestFailurePaths:
         layer.provider_factory = None  # fuerza resolución por nombre
         with pytest.raises(InvalidRequest):
             layer.complete("hola", system="sistema")
+
+    def test_http_404_with_credential_marker_is_auth_not_model(self) -> None:
+        # El proveedor SUPRA emite "check endpoint and credentials" en su
+        # ProviderError para HTTP >= 400. Cuando el 404 es por credito/saldo
+        # (no por modelo inexistente), el mensaje del proveedor ademas
+        # menciona credit/balance. Verificar que eso se clasifica como
+        # auth_required, no model_unavailable.
+        def handler(_: httpx.Request) -> httpx.Response:
+            return httpx.Response(
+                404,
+                text="requires available credits. Your account balance is too low",
+            )
+
+        # El proveedor OpenAICompatibleProvider construye el ProviderError
+        # con el status; simulamos el mensaje real que incluye credit/balance.
+        from supra_agentic.providers.base import ProviderError
+
+        real_factory = _make_layer(handler=handler)[0].provider_factory
+
+        def factory_with_credit_message() -> object:
+            provider = real_factory()
+            original_generate = provider.generate
+
+            def generate_raises(*args, **kwargs):  # type: ignore[no-untyped-def]
+                raise ProviderError(
+                    "test-provider provider returned HTTP 404; "
+                    "requires available credits. balance too low; "
+                    "check endpoint and credentials"
+                )
+
+            provider.generate = generate_raises  # type: ignore[method-assign]
+            return provider
+
+        layer = CloudProviderLayer(
+            config=CloudLayerConfig(provider="test-provider", model_id="m", enabled=True),
+            provider_factory=factory_with_credit_message,
+            lineage="t",
+        )
+        _, trace = layer.complete("hola", system="sistema")
+        assert trace.status == "error"
+        assert trace.error_category == "auth_required"
 
 
 class TestRetryBounded:

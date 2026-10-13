@@ -184,7 +184,16 @@ def _classify_error(exc: Exception) -> tuple[str, str]:
         return "error", "auth_required"
     if name in {"RateLimited"} or "429" in text:
         return "error", "rate_limited"
-    if name in {"ModelUnavailable"} or "404" in text or "model" in text.lower() and "not" in text.lower():
+    # El proveedor OpenAI-compatible de SUPRA emite SIEMPRE "check endpoint
+    # and credentials" en su ProviderError para cualquier HTTP >= 400, asi
+    # que esa frase sola no distingue causas. Lo que si distingue: el codigo
+    # HTTP concreto. Un 404 cuyo cuerpo habla de credito/saldo es un problema
+    # de cuenta, NO modelo ausente. Solo se inspecciona el codigo y la marca
+    # "credit"/"balance" que el proveedor incluye en su propio mensaje; nunca
+    # el cuerpo crudo de la respuesta (eso no llega aqui).
+    if "404" in text and ("credit" in text.lower() or "balance" in text.lower()):
+        return "error", "auth_required"
+    if name in {"ModelUnavailable"} or "404" in text:
         return "error", "model_unavailable"
     if name in {"InvalidRequest", "ValueError"}:
         return "error", "invalid_request"
