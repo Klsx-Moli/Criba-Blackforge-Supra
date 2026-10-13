@@ -197,6 +197,11 @@ class OpenAICompatibleInterpreter:
         configuracion: tiene que responder."""
         if not self.base:
             return False, "sin CRIBA_EXTERNAL_BASE_URL"
+        from urllib.parse import urlsplit
+
+        endpoint = urlsplit(self.base)
+        if endpoint.username or endpoint.password:
+            return False, "endpoint rechazado: credenciales embebidas en la URL"
         try:
             with httpx.Client(timeout=min(self.timeout_s, 15.0)) as client:
                 resp = client.get(f"{self.base}/models", headers=self._headers())
