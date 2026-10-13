@@ -117,6 +117,45 @@ def construir_prompt(
     return prompt_propuesta(query, idea, domain, evidence)
 
 
+
+def endpoint_problem(base: str) -> str | None:
+    """Motivo por el que un endpoint NO debe contactarse, o ``None`` si es aceptable.
+
+    Se evalúa ANTES de abrir ninguna conexión, para que ni la URL ni el
+    ``Authorization: Bearer`` lleguen a un destino no confiable:
+
+    - esquema distinto de http/https o sin host -> rechazado;
+    - usuario/contraseña embebidos en la URL -> rechazado (credenciales en claro);
+    - http sin TLS hacia un host que no es loopback -> rechazado (el Bearer
+      viajaría sin cifrar). https remoto sigue permitido.
+    """
+    import ipaddress
+    from urllib.parse import urlsplit
+
+    try:
+        url = urlsplit(base)
+        host = url.hostname
+        _ = url.port  # fuerza la validación del puerto
+    except ValueError:
+        return "URL malformada"
+    if url.scheme not in ("http", "https"):
+        return "esquema no permitido (solo http/https)"
+    if not host:
+        return "URL sin host"
+    if url.username or url.password:
+        return "credenciales embebidas en la URL"
+    if url.scheme == "http":
+        loopback = host == "localhost"
+        if not loopback:
+            try:
+                loopback = ipaddress.ip_address(host).is_loopback
+            except ValueError:
+                loopback = False
+        if not loopback:
+            return "http sin TLS hacia un host que no es loopback"
+    return None
+
+
 class OpenAICompatibleInterpreter:
     """Un interprete, un endpoint. Sin llave embebida y sin estado global."""
 
@@ -197,11 +236,9 @@ class OpenAICompatibleInterpreter:
         configuracion: tiene que responder."""
         if not self.base:
             return False, "sin CRIBA_EXTERNAL_BASE_URL"
-        from urllib.parse import urlsplit
-
-        endpoint = urlsplit(self.base)
-        if endpoint.username or endpoint.password:
-            return False, "endpoint rechazado: credenciales embebidas en la URL"
+        problema = endpoint_problem(self.base)
+        if problema:
+            return False, f"endpoint rechazado antes de conectar: {problema}"
         try:
             with httpx.Client(timeout=min(self.timeout_s, 15.0)) as client:
                 resp = client.get(f"{self.base}/models", headers=self._headers())
@@ -314,6 +351,13 @@ class OpenAICompatibleInterpreter:
                 completion_tokens=completion_tokens,
                 reasoning_tokens=reasoning_tokens,
                 model_requests=1,
+            )
+
+        problema_endpoint = endpoint_problem(self.base)
+        if problema_endpoint:
+            return replace(
+                _fallo(f"configuracion_invalida:endpoint:{problema_endpoint}"),
+                model_requests=0,
             )
 
         try:

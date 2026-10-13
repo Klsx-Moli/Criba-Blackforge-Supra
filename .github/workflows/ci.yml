@@ -46,6 +46,46 @@ jobs:
       - name: Enforce mypy baseline
         shell: pwsh
         run: uv run --locked python scripts/check_mypy_baseline.py
+      - name: Ruff (reglas de corrección, sin estilo)
+        shell: pwsh
+        run: >
+          uv run --locked ruff check src scripts tests shadow_ui criba_shadow_main.py
+          --select E9,F63,F7,F82,F601,F811,B023
+
+  criba-blackforge-linux:
+    # Informativo: no bloquea el merge hasta confirmar que es estable en Actions.
+    name: CRIBA / BLACKFORGE (Linux, informativo)
+    runs-on: ubuntu-24.04
+    continue-on-error: true
+    timeout-minutes: 25
+    env:
+      QT_QPA_PLATFORM: offscreen
+    defaults:
+      run:
+        working-directory: criba-blackforge
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: '3.11'
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d
+        with:
+          version: '0.11.28'
+          enable-cache: true
+          cache-dependency-glob: criba-blackforge/uv.lock
+      - name: Librerías de sistema para Qt offscreen
+        run: sudo apt-get update && sudo apt-get install -y libegl1 libgl1 libxkbcommon0 libdbus-1-3 libfontconfig1
+      - name: Install locked dependencies
+        run: uv sync --all-extras --locked
+      - name: Install SUPRA for the real vertical slice
+        run: uv sync --project ../supra --all-extras --locked
+      - name: Run CRIBA / BLACKFORGE tests
+        run: uv run --locked pytest -q
+      - name: mypy gate (linux)
+        run: uv run --locked python scripts/check_mypy_baseline.py
 
   supra:
     name: SUPRA

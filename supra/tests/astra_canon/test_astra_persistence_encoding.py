@@ -51,7 +51,7 @@ from supra_agentic.models import CheckpointRecord, TaskmasterStage
 from supra_agentic.state import ProjectStateManager
 
 storage = Path(sys.argv[1])
-objective = sys.argv[2]
+objective = Path(sys.argv[2]).read_text(encoding="utf-8")
 
 manager = ProjectStateManager(storage)
 posture = manager.create_project(objective, project_id="locale-probe")
@@ -117,9 +117,17 @@ def test_persistence_survives_hostile_non_utf8_locale() -> None:
     """Real persistence under a forced non-UTF-8 locale must not lose lineage."""
     src_root = str(Path(__file__).resolve().parents[2] / "src")
     with tempfile.TemporaryDirectory() as tmpdir:
+        # El script y el objetivo van por FICHERO UTF-8, no por argv/-c: bajo
+        # LC_ALL=C en Linux/macOS el intérprete no puede decodificar un `-c` con
+        # caracteres no ASCII y el hijo moría antes de ejercitar la persistencia
+        # (el test solo era portable en Windows). El sujeto bajo prueba sigue siendo
+        # la codificación por defecto del hijo al persistir, que sí es hostil.
+        script_path = Path(tmpdir) / "_locale_probe.py"
+        script_path.write_text(HOSTILE_LOCALE_SCRIPT, encoding="utf-8")
+        objective_path = Path(tmpdir) / "_objective.txt"
+        objective_path.write_text(NON_ASCII_OBJECTIVE, encoding="utf-8")
         completed = subprocess.run(
-            [sys.executable, "-X", "utf8=0", "-c", HOSTILE_LOCALE_SCRIPT,
-             tmpdir, NON_ASCII_OBJECTIVE],
+            [sys.executable, "-X", "utf8=0", str(script_path), tmpdir, str(objective_path)],
             cwd=tmpdir,
             capture_output=True,
             text=True,
