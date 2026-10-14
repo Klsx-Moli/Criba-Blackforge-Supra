@@ -1,15 +1,24 @@
-# HANDOFF — checkpoint para reanudar con /new + palabra
+# HANDOFF — checkpoint para reanudar (reconciliado 2026-10-14)
 
 Fecha: 2026-10-14
 Rama aislada: hermes/cloud-provider-layer-20261013
-HEAD: 72a2155 (pusheada a origin, sin merge a main)
+HEAD documento: ver seccion SHAs (commit documental final registrado al cierre).
 Remoto: Klsx-Moli/Criba-Blackforge-Supra
-Writer: Hermes (único). Worktree: C:\ASTRA_WORK\Criba-Blackforge-Supra
+Writer: Hermes (unico). Worktree: C:\ASTRA_WORK\Criba-Blackforge-Supra
 
-## Contexto de la tarea
-Ejecutando TAREA_LARGA_UNIFICADA_CRIBA_SUPRA_V3 (leer
-C:\Users\KLSX\Downloads\TAREA_LARGA_UNIFICADA_CRIBA_SUPRA_V3.md).
-Prioridad explícita de moli: mover verificación pesada a Modal, NO cargar GPU local.
+## Contexto
+TAREA_LARGA_UNIFICADA_CRIBA_SUPRA_V3. Prioridad explicita de moli: verificacion
+pesada a Modal, NO cargar GPU local. Rama aislada; NUNCA merge/push a main sin
+OK explicito de moli. BLACKFORGE HARD_PAUSE (no inicializar, sin key, sus tests
+no bloquean el producto activo).
+
+## Regla de gates (vigente, decision operador 2026-10-14)
+- gate_windows_full: AUTORITATIVO. Suite local Windows con el venv del proyecto.
+  Es el unico gate que cierra milestones de CRIBA/SUPRA.
+- gate_modal_mypy: gate de TIPOS. Resultado ligado al SHA verificado (abajo).
+- gate_modal_pytest_linux: EXPERIMENTAL. NO sustituye al gate Windows.
+  NO presentar pytest_full verde en Modal como requisito suficiente para G2.
+- gate_modal_smoke: POR CREAR (no lanzado por este mandato).
 
 ## Estado de gates (V3)
 - G0/F0 BASELINE: OK. BASE_SHA=defd0fd (main), sin stashes, diff limpio.
@@ -34,7 +43,17 @@ NUNCA merge/push main sin OK explícito de moli.
 2o intento (proc_af68d66ebfc0): rc=0 — "Success: no issues found in 167
   source files". Log: C:\ASTRA_WORK\modal_mypy_scoped_2.log. App:
   ap-A4bYls5AS7E4qRvzzdhkC5. Imagen im-arkPf8idKZHRNIECaj25t7 ya cacheada.
-Gate mypy_scoped PASS. Pendiente: pytest_full.
+- gate_modal_mypy: PASS sobre el codigo de la rama aislada tal como estaba al
+  ejecutarse. mypy "Success: no issues found in 167 source files".
+  Log: C:\ASTRA_WORK\modal_mypy_scoped_2.log. App: ap-A4bYls5AS7E4qRvzzdhkC5.
+  Imagen: im-arkPf8idKZHRNIECaj25t7. NO re-verificado contra SHA posterior.
+- gate_modal_pytest_linux: EXPERIMENTAL, NO verde. 25 failed / 2037 passed /
+  8 skipped, seed 1. 25 fallos de ENTORNO Linux con mensaje real del JUnit XML
+  (10 uvicorn ausente, 10 venv Windows Exec format errno 8, 3 criba no
+  instalado, 2 git ausente, 1 mutmut API, 2 cp1252, 1 race barrier a revisar).
+  Segfault Qt rc=-11 con seed 2/12345 y con -e install: rc VERIFIED, causa NO
+  aislada. Detalle: docs/audit/MODAL_LINUX_GATE_REPORT.{json,md}.
+  /nonexistent RETIRADO del runner (prohibido por operador).
 
 ## pytest_full en Modal — decision operador 2026-10-14 (NO verde)
 25 failed / 2037 passed / 8 skipped, seed 1. Los 25 fallos son de ENTORNO
@@ -52,18 +71,19 @@ Gates separados (decision operador):
   gate_modal_smoke    POR CREAR — imports/Qt offscreen/arranque CRIBA-SUPRA.
 BLACKFORGE HARD_PAUSE respetado. G2 NO avanzado hasta cerrar esta decision.
 
-## Verificacion board 2026-10-14 — premisas caducadas (shadow_ui)
-Tres tarjetas blocked se construyeron sobre la premisa "shadow_ui/ NO existe
-en el monorepo canonico". Verificado contra origin/main (defd0fd):
-shadow_ui/ SI EXISTE, con commits ya en main (26e166c, 0445e87, 14ec9d2).
-  - t_1a76292e (SHADOW-00): premisa falsa; la migracion YA ocurrio. Candidata
-    a ALREADY-DONE por decision del operador. NO cerrada por Hermes.
-  - t_2a1adba0 (K3): deja de ser migracion; pasa a readiness de UI presente.
-  - t_6143a46a (SHADOW-MIGRATE-01): alcance cambia a verificacion/endurecimiento.
-Comentarios operator publicados en las 3 tarjetas (readback OK). Estados y
-padres NO modificados. Detalle:
-C:/ASTRA_WORK/kanban_shadow_ui_premisa_verificacion_20261014.txt
-La ruta historica CRIBA_SHADOW_UI en Music/INNOVATIONS ya no existe en disco.
+## Reconciliacion de board 2026-10-14 (shadow_ui)
+Premisa "shadow_ui/ NO existe en el monorepo" era FALSA contra origin/main.
+- t_1a76292e SHADOW-00: CERRADA como ALREADY-DONE (unidad de DECISION cumplida;
+  migracion ya ejecutada). run #38. Alcance pendiente (arranque/wiring/packaging/
+  E2E) NO propagado: vive en K3 / SHADOW-MIGRATE-01 / M2 / M3.
+- t_2a1adba0 K3: REESCRITA a "Readiness funcional de la UI existente".
+- t_6143a46a SHADOW-MIGRATE-01: REESCRITA a "verificacion de integracion
+  canonica". Ambas quedan blocked; padres NO alterados.
+Evidencia base: origin/main=defd0fd. shadow_ui/ presente (30 rutas). Commits
+26e166c/0445e87/14ec9d2 en main. criba_shadow_main.py y CribaShadow.spec estan
+en la RAIZ criba-blackforge/ (no en shadow_ui/). Ruta historica Music/INNOVATIONS
+ya no existe en disco.
+Detalle: C:\ASTRA_WORK\cierre_shadow00_20261014.txt
 
 ## Modal — cómo lanzar (reglas ya validadas)
 - CLI: /c/Users/KLSX/AppData/Local/Programs/Python/Python312/python.exe -m modal
@@ -77,12 +97,11 @@ La ruta historica CRIBA_SHADOW_UI en Music/INNOVATIONS ya no existe en disco.
 - Imagen tarda ~15 min en construir la 1a vez (PySide6); luego cached.
 
 ## Siguiente punto exacto
-1. mypy_scoped PASS en la nube (hecho: 2o intento, rc=0, 167 files).
-2. pytest_full en Modal (suite 2074 — lo que más cargaba la GPU local).
-   Comando: PYTHONUTF8=1 PYTHONIOENCODING=utf-8 "<python312>" -m modal run \
-   .autoregen/cloud/modal_runner.py --gate pytest_full
-   (imagen ya cacheada im-arkPf8idKZHRNIECaj25t7, lanzamiento <2 min).
-3. Con pytest_full verde: cerrar G0/G1 y arrancar G2 de la V3.
+Tras reconciliar board+handoff (hecho), el siguiente trabajo es el primer
+criterio funcional NO demostrado de K3: arranque visible de Shadow en Windows
+(entrypoint shadow_ui/entrypoint.py o launcher criba_shadow_main.py) ejecutado
+desde el venv del proyecto, comprobando que NO exige BLACKFORGE.
+NO dar por verde M2/M3 sin releer su evidencia y SHA.
 
 ## Datos técnicos útiles
 - Nous SIN saldo para modelos de pago (404 insufficient_credits): usar
@@ -94,9 +113,13 @@ La ruta historica CRIBA_SHADOW_UI en Music/INNOVATIONS ya no existe en disco.
 - mypy local: .venv/Scripts/python.exe -m mypy src/ (167 archivos, limpio).
 
 ## SHAs
-- main/defd0fd (no tocar).
-- rama aislada 72a2155 (handoff anterior) — HEAD de trabajo actual e735f10
-  (docs: HANDOFF checkpoint). Ambos sin merge a main.
-- Pendiente de commit: fix types-PyYAML en .autoregen/cloud/modal_runner.py
-  + actualización de este HANDOFF (mypy_scoped PASS).
-- commits sesión: 57f0ae7 (F1) -> 4e47ea7 (G1) -> 72a2155 (Modal) -> e735f10 (handoff).
+- origin/main = defd0fd9955c5aaf3f7ff8b23fdf016639ed062b (NO tocar; base de toda
+  la evidencia de board de esta sesion).
+- rama aislada hermes/cloud-provider-layer-20261013: HEAD publicado al cierre de
+  este handoff = <COMMIT_DOCUMENTAL_FINAL> (git rev-parse tras el commit de esta
+  reconciliacion). Commits de la sesion sobre la rama: 106b546 (mypy PASS) ->
+  eb24690 (gate Linux NO verde + runner) -> 5d1cabd (verificacion board shadow_ui)
+  -> <COMMIT_DOCUMENTAL_FINAL> (cierre SHADOW-00 + reescritura K3/MIGRATE + este
+  handoff reconciliado).
+- El SHA de CODIGO verificado por gate_modal_mypy es el de la rama aislada en el
+  momento de ejecucion (pre-eb24690); mypy NO se ha re-ejecutado contra HEAD actual.
