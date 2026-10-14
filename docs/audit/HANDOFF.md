@@ -116,10 +116,9 @@ NO dar por verde M2/M3 sin releer su evidencia y SHA.
 - origin/main = defd0fd9955c5aaf3f7ff8b23fdf016639ed062b (NO tocar; base de toda
   la evidencia de board de esta sesion).
 - rama aislada hermes/cloud-provider-layer-20261013: HEAD publicado al cierre de
-  este handoff = <COMMIT_DOCUMENTAL_FINAL> (git rev-parse tras el commit de esta
-  reconciliacion). Commits de la sesion sobre la rama: 106b546 (mypy PASS) ->
+  este handoff = faed27013ecccfd52b4e4cece36213c11f6a99cc (COMMIT_DOCUMENTAL_FINAL).
+  Commits de la sesion sobre la rama: 106b546 (mypy PASS) ->
   eb24690 (gate Linux NO verde + runner) -> 5d1cabd (verificacion board shadow_ui)
-  -> <COMMIT_DOCUMENTAL_FINAL> (cierre SHADOW-00 + reescritura K3/MIGRATE + este
-  handoff reconciliado).
+  -> faed270 (cierre SHADOW-00 + reescritura K3/MIGRATE + este handoff reconciliado).
 - El SHA de CODIGO verificado por gate_modal_mypy es el de la rama aislada en el
   momento de ejecucion (pre-eb24690); mypy NO se ha re-ejecutado contra HEAD actual.
