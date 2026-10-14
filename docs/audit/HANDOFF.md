@@ -52,6 +52,19 @@ Gates separados (decision operador):
   gate_modal_smoke    POR CREAR — imports/Qt offscreen/arranque CRIBA-SUPRA.
 BLACKFORGE HARD_PAUSE respetado. G2 NO avanzado hasta cerrar esta decision.
 
+## Verificacion board 2026-10-14 — premisas caducadas (shadow_ui)
+Tres tarjetas blocked se construyeron sobre la premisa "shadow_ui/ NO existe
+en el monorepo canonico". Verificado contra origin/main (defd0fd):
+shadow_ui/ SI EXISTE, con commits ya en main (26e166c, 0445e87, 14ec9d2).
+  - t_1a76292e (SHADOW-00): premisa falsa; la migracion YA ocurrio. Candidata
+    a ALREADY-DONE por decision del operador. NO cerrada por Hermes.
+  - t_2a1adba0 (K3): deja de ser migracion; pasa a readiness de UI presente.
+  - t_6143a46a (SHADOW-MIGRATE-01): alcance cambia a verificacion/endurecimiento.
+Comentarios operator publicados en las 3 tarjetas (readback OK). Estados y
+padres NO modificados. Detalle:
+C:/ASTRA_WORK/kanban_shadow_ui_premisa_verificacion_20261014.txt
+La ruta historica CRIBA_SHADOW_UI en Music/INNOVATIONS ya no existe en disco.
+
 ## Modal — cómo lanzar (reglas ya validadas)
 - CLI: /c/Users/KLSX/AppData/Local/Programs/Python/Python312/python.exe -m modal
   (Python312 global, NO el venv; perfil klssxx, token OK).
