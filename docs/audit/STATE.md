@@ -126,12 +126,35 @@ Fuente: governance/ANTI_GOODHART_STATUS.yaml + HANDOFF. No se promueven por test
 
 ---
 
-## 9. ESTADO DE LA CAMPAÑA (OBSERVED_AT 2026-10-15 00:38)
+## 9. ESTADO DE LA CAMPAÑA (OBSERVED_AT 2026-10-15 01:20)
 
 - K-INT-00: CERRADO (reconciliación + STATE.md + correcciones aplicadas).
-- K-INT-04: PREPARADO_LOCAL / PENDIENTE_DE_REVISIÓN. Rama k-int-04-cbs-docs
-  @ 0c289fd. NO en main. NO publicado.
-- K-INT-01/02/03: pendientes. BLACKFORGE (K-BF-00): HARD_PAUSE, no integrado.
+  Commit f05de79 preserva STATE.md + kanban en rama de trabajo (NO main).
+- K-INT-04: PREPARADO_LOCAL / VERIFICADO_LOCAL. Rama k-int-04-cbs-docs @ 0c289fd.
+  13 docs CBS revisados: sin secretos, sin contradicción de código (docs-only).
+  NO en main. NO publicado.
+- K-INT-01/02/03: NO integrar, con evidencia (H-CAMP-01/02/03 del kanban).
+- BLACKFORGE (K-BF-00): HARD_PAUSE, no integrado.
 
-PRÓXIMO PASO: continuar con unidades elegibles locales sin publicación,
-respetando dependencias del kanban. NO merge a main sin autorización específica.
+EVIDENCIA FRESCA de esta sesión (VERIFIED_BY_EXECUTION, sobre HEAD 4f2c8c1):
+- Shadow subset: 51 passed / 0 failed (loadings, journey, runtime boundary,
+  recovery identity, cli entry), EXIT 0, 23.37s. venv criba-blackforge.
+- SUPRA contratos de estado: 44 passed / 0 failed (state_corruption,
+  state_persistence_atomicity, service), EXIT 0, 8.08s. venv supra.
+
+HALLAZGO DE CAMPAÑA H-CAMP-04 (VERIFIED_BY_EXECUTION, NO integrar):
+Ramas astra/* con commits únicos vs main NO integrables sin destruir producto:
+- astra/supra-state/{22813e65-persistence-rollback, ad1a4-atomic-list-snapshot,
+  dfca79-atomic-list-snapshot, edd50814-corrupt-state-load}
+- astra/criba-core/22813e65-lottery-storage-integrity
+- astra/criba-outcome/edd50814-aware-timestamps
+Motivo: su base es un árbol distinto (split). Un diff vs main borra ~32k líneas
+e incluye borrado de contratos protegidos (test_m3_restart_provenance_contract,
+test_state_persistence_atomicity, test_criba_envelope_*, source_progress.py).
+Y su trabajo ÚNICO YA está absorbido en 4f2c8c1: _corrupt_state_response
+("no degradar autoridad corrupta a 404 falso") vive en service.py; outcome_store.py
+ya rechaza timestamps naive/ambiguos. Integrar = redundante + destructivo.
+Veredicto: DIFERIDO. Requeriría re-base sobre el split real, no merge de rama.
+
+PRÓXIMO PASO: continuar con unidades elegibles locales sin publicación.
+NO merge a main sin autorización específica.
