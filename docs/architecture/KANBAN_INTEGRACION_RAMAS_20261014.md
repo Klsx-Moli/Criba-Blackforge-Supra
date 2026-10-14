@@ -265,6 +265,25 @@ La única divergencia viva es supra_result_status en actions.py (main lo quitó,
 deep-exec lo conserva). Decisión de UX/producto, no técnica. APARCADA pendiente
 de moli. No es bloqueo mecánico.
 
+## H-CAMP-04: ramas astra/* (producto activo SUPRA/CRIBA) — NO integrar, trabajo único YA absorbido
+VERIFIED (OBSERVED_AT 2026-10-15 01:20, base main=defd0fd, HEAD trabajo=4f2c8c1).
+Ramas con commits únicos vs main pero NO integrables sin destruir producto:
+- astra/supra-state/{22813e65-persistence-rollback, ad1a4-atomic-list-snapshot,
+  dfca79-atomic-list-snapshot, edd50814-corrupt-state-load}
+- astra/criba-core/22813e65-lottery-storage-integrity
+- astra/criba-outcome/edd50814-aware-timestamps
+Motivo del rechazo:
+1. Su base es un árbol distinto (split de SUPRA/CRIBA). Un diff vs main borra
+   ~32k líneas e incluye borrado de contratos PROTEGIDOS que el árbol actual
+   SÍ tiene y pasa: test_m3_restart_provenance_contract, test_state_persistence_
+   atomicity, test_criba_envelope_{vectors,fingerprint,b01_identity}, source_progress.py.
+2. Su trabajo ÚNICO YA está absorbido en 4f2c8c1:
+   - "no degradar autoridad corrupta a 404 falso" (_corrupt_state_response) vive
+     en supra/src/supra_agentic/service.py;
+   - outcome_store.py ya rechaza timestamps naive/ambiguos (tzinfo/utcoffset None).
+Integrar = redundante + destructivo. DIFERIDO: requeriría re-base sobre el split
+real (identificar qué commit del split es el padre correcto), NO merge de rama.
+
 ## RESUMEN DE CAMPAÑA LOCAL
 - K-INT-00: CERRADO (STATE.md canónico + 7 correcciones aplicadas).
 - K-INT-04: PREPARADO_LOCAL (rama k-int-04-cbs-docs @ 0c289fd). NO en main.
