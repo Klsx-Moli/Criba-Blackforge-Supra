@@ -103,6 +103,25 @@ criterio funcional NO demostrado de K3: arranque visible de Shadow en Windows
 desde el venv del proyecto, comprobando que NO exige BLACKFORGE.
 NO dar por verde M2/M3 sin releer su evidencia y SHA.
 
+## Evidencia ejecutada 2026-10-14 (K3 / SHADOW-MIGRATE-01), rama aislada 4a290d5
+- Probe arranque shadow_ui/_k3_launch_probe.py (venv, QT_QPA_PLATFORM=offscreen):
+  ShadowWindow CONSTRUIDA, QT_EXEC_RC=0, BLACKFORGE modules loaded = [] antes y
+  despues. EXIT=0. Criterio K3 "sin BLACKFORGE obligatorio" DEMOSTRADO por
+  ejecucion (arranque real QApplication+ShadowWindow, no mock).
+- Arranque VISIBLE en Windows: PENDIENTE (exige operador viendo la ventana).
+- Estados loading/error veraces (K3-4) y recorrido real CRIBA/SUPRA (K3-5):
+  PENDIENTES.
+- Dependencia ruta vieja Music/INNOVATIONS (MIGRATE-2): 0 refs en shadow_ui/,
+  criba_shadow_main.py, CribaShadow.spec y src/criba/ui/ (solo cadena i18n, no
+  ruta). DEMOSTRADO. Refs restantes en .hermes/iie/ = doc historica, no arranque.
+- Prueba regresion integracion (MIGRATE-3), suite Windows autoritativa:
+  subconjunto Shadow = 94 passed / 0 failed (24+23+47), EXIT=0. NO es la suite
+  completa; es el subconjunto Shadow.
+- Revision spec/recursos packaging (MIGRATE-4): PENDIENTE.
+Evidencia completa en comentarios operator de t_2a1adba0 y t_6143a46a.
+K3 y SHADOW-MIGRATE-01 siguen blocked (no done: falta arranque visible, E2E y
+revision packaging). BLACKFORGE HARD_PAUSE intacto.
+
 ## Datos técnicos útiles
 - Nous SIN saldo para modelos de pago (404 insufficient_credits): usar
   modelos :free vía proxy OAuth de Hermes (127.0.0.1:8645, bearer 'local',
