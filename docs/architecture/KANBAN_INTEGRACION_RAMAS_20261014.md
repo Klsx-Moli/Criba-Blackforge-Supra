@@ -287,7 +287,7 @@ real (identificar qué commit del split es el padre correcto), NO merge de rama.
 ## RESUMEN DE CAMPAÑA LOCAL
 - K-INT-00: CERRADO (STATE.md canónico + 7 correcciones aplicadas).
 - K-INT-04: PREPARADO_LOCAL (rama k-int-04-cbs-docs @ 0c289fd). NO en main.
-- K-INT-01/02/03: premisa revisada; NO integradas (absorbidas o riesgo). 
+- K-INT-01/02/03: premisa revisada; NO integradas (absorbidas o riesgo).
   Estado corregido en kanban sin fabricar implementación.
 - BLACKFORGE: HARD_PAUSE intacto.
 - main: defd0fd intacto. Nada publicado.
