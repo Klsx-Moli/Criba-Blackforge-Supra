@@ -27,10 +27,14 @@ Prioridad explícita de moli: mover verificación pesada a Modal, NO cargar GPU 
 STANDARD=DISABLED, G3=NOT_VERIFIED, D3/D4/D6 sin resolver. BLACKFORGE inerte.
 NUNCA merge/push main sin OK explícito de moli.
 
-## En curso (proceso Modal en background)
-Gate mypy_scoped lanzado en Modal (sesión proc_d32d6eb3fa89). Al reanudar:
-revisar si terminó (process poll) y leer rc/stdout. mypy_scoped corre
-`python -m mypy src/` en criba-blackforge con la config del proyecto.
+## En curso — mypy_scoped PASS en la nube (2026-10-14 09:0x)
+1er intento (proc_d32d6eb3fa89): rc=1 — imagen Modal no incluía types-PyYAML;
+  mypy: 1 error en 167 archivos (registry.py:81 "Library stubs not installed
+  for yaml"). Fix en el runner (añadir types-PyYAML a uv_pip_install).
+2o intento (proc_af68d66ebfc0): rc=0 — "Success: no issues found in 167
+  source files". Log: C:\ASTRA_WORK\modal_mypy_scoped_2.log. App:
+  ap-A4bYls5AS7E4qRvzzdhkC5. Imagen im-arkPf8idKZHRNIECaj25t7 ya cacheada.
+Gate mypy_scoped PASS. Pendiente: pytest_full.
 
 ## Modal — cómo lanzar (reglas ya validadas)
 - CLI: /c/Users/KLSX/AppData/Local/Programs/Python/Python312/python.exe -m modal
@@ -43,11 +47,13 @@ revisar si terminó (process poll) y leer rc/stdout. mypy_scoped corre
   pytest_file admite --path tests/unit/test_x.py
 - Imagen tarda ~15 min en construir la 1a vez (PySide6); luego cached.
 
-## Siguiente punto exacto (tras mypy_scoped)
-1. Confirmar mypy_scoped PASS en la nube.
-2. Autorizar pytest_full en Modal (suite 2074 — lo que más cargaba la GPU local).
-3. Con ambos verdes: cerrar G0/G1 y arrancar G2 de la V3 (CRIBA/SUPRA sin
-   llave ni BLACKFORGE; es ligero).
+## Siguiente punto exacto
+1. mypy_scoped PASS en la nube (hecho: 2o intento, rc=0, 167 files).
+2. pytest_full en Modal (suite 2074 — lo que más cargaba la GPU local).
+   Comando: PYTHONUTF8=1 PYTHONIOENCODING=utf-8 "<python312>" -m modal run \
+   .autoregen/cloud/modal_runner.py --gate pytest_full
+   (imagen ya cacheada im-arkPf8idKZHRNIECaj25t7, lanzamiento <2 min).
+3. Con pytest_full verde: cerrar G0/G1 y arrancar G2 de la V3.
 
 ## Datos técnicos útiles
 - Nous SIN saldo para modelos de pago (404 insufficient_credits): usar
@@ -60,5 +66,8 @@ revisar si terminó (process poll) y leer rc/stdout. mypy_scoped corre
 
 ## SHAs
 - main/defd0fd (no tocar).
-- rama aislada 72a2155.
-- commits sesión: 57f0ae7 (F1) -> 4e47ea7 (G1) -> 72a2155 (Modal).
+- rama aislada 72a2155 (handoff anterior) — HEAD de trabajo actual e735f10
+  (docs: HANDOFF checkpoint). Ambos sin merge a main.
+- Pendiente de commit: fix types-PyYAML en .autoregen/cloud/modal_runner.py
+  + actualización de este HANDOFF (mypy_scoped PASS).
+- commits sesión: 57f0ae7 (F1) -> 4e47ea7 (G1) -> 72a2155 (Modal) -> e735f10 (handoff).

@@ -41,6 +41,7 @@ image = (
         "pytest-xdist",
         "pytest-randomly",
         "mypy",
+        "types-PyYAML",
         "PySide6",
         "httpx",
         "pydantic",
