@@ -36,6 +36,22 @@ NUNCA merge/push main sin OK explícito de moli.
   ap-A4bYls5AS7E4qRvzzdhkC5. Imagen im-arkPf8idKZHRNIECaj25t7 ya cacheada.
 Gate mypy_scoped PASS. Pendiente: pytest_full.
 
+## pytest_full en Modal — decision operador 2026-10-14 (NO verde)
+25 failed / 2037 passed / 8 skipped, seed 1. Los 25 fallos son de ENTORNO
+Linux con mensaje real del JUnit XML: 10 uvicorn ausente, 10 venv Windows
+(Exec format error), 3 criba no instalado, 2 git ausente, 1 mutmut API,
+2 encoding cp1252, 1 race barrier a revisar. NO es gate verde.
+Segfault Qt (rc=-11) con seed 2/12345 y con -e install: VERIFIED el rc,
+CAUSA_NO_AISLADA. /nonexistent RETIRADO del runner (prohibido por operador).
+Detalle completo: docs/audit/MODAL_LINUX_GATE_REPORT.{json,md}.
+
+Gates separados (decision operador):
+  gate_windows_full   AUTORITATIVO — suite local Windows con venv proyecto.
+  gate_modal_mypy     PASS.
+  gate_modal_pytest_linux  EXPERIMENTAL — 25 fallos entorno documentados.
+  gate_modal_smoke    POR CREAR — imports/Qt offscreen/arranque CRIBA-SUPRA.
+BLACKFORGE HARD_PAUSE respetado. G2 NO avanzado hasta cerrar esta decision.
+
 ## Modal — cómo lanzar (reglas ya validadas)
 - CLI: /c/Users/KLSX/AppData/Local/Programs/Python/Python312/python.exe -m modal
   (Python312 global, NO el venv; perfil klssxx, token OK).
