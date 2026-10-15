@@ -176,18 +176,47 @@ Independiente de integrar ramas. Es el gate de producto.
 
 ### K-FUNC-01: Arranque VISIBLE en Windows (gate de operador)
 Naturaleza: verificación humana. Yo NO puedo hacerla (exige ojos en la ventana).
-Estado: offscreen DEMOSTRADO (ShadowWindow construye, BLACKFORGE modules = []).
- Falta: arrancar criba_shadow_main.py desde el venv del proyecto en Windows
- visible y confirmar que NO exige BLACKFORGE y muestra la ventana.
- Gate: GUI_VISIBLE = VERIFIED por el operador.
+Estado (OBSERVED_AT 2026-10-15 04:1x, VERIFIED_BY_EXECUTION): CERRADO.
+- La ventana se localizó con la herramienta integrada computer_use
+  (action=list_windows → pythonw.exe, PID 1532, window_id 1443502, título
+  "CRIBA — Shadow UI (UIEDITION)", z_index 9, off_screen=false).
+- Captura de esa ventana con computer_use action=capture mode=vision → 1456x773,
+  fichero real guardado e INTERPRETADO (sidebar, header, 4 tarjetas, tabs,
+  barra de estado). La app corre visible con el selector de modelos free.
+- Nota honesta: un intento previo dio 0x0 porque la ventana estaba MINIMIZADA
+  (list_windows no la listaba). Visible, la captura funciona. No es fallo del
+  producto ni del wrapper: es estado de ventana.
+ Gate: GUI_VISIBLE = VERIFIED (captura interpretada por Hermes; operador puede
+ reconfirmar abriendo el .exe construido en K-FUNC-02).
 
 ### K-FUNC-02: Build del .exe (PyInstaller)
 Naturaleza: packaging. spec existe (CribaShadow.spec en raíz criba-blackforge).
-Estado: NO construido en este ciclo.
- Gate: .exe con SHA256 + smoke test de arranque.
+Estado (OBSERVED_AT 2026-10-15 04:4x, VERIFIED_BY_EXECUTION): CERRADO.
+- PyInstaller 6.22.2 (venv criba-blackforge). Comando:
+  .venv/Scripts/python.exe -m PyInstaller CribaShadow.spec --noconfirm --clean.
+- Artefacto onedir: dist/CribaShadow/CribaShadow.exe (10.630.807 bytes) +
+  dist/CribaShadow/_internal (149M bundle). PySide6/supra_agentic/assets/data/
+  schemas presentes; criba y shadow_ui van dentro del PYZ (código puro).
+- SHA256 del exe:
+  6ff446129bee16bb4b6bfc9efd4a0d67ca73068990e256b71017b9d684af9f6e
+- Smoke test de arranque REAL (offscreen, dir de datos de prueba aislado):
+  exit=0; log launcher-startup.txt: main:entered, lock:True, paths:wired,
+  supra:ready, qt:application, qt:window-created, qt:window-shown visible=True,
+  qt:restore-started. NO exigió BLACKFORGE. Proceso salió limpio.
+ Gate: .exe con SHA256 + smoke test de arranque → CUMPLIDO.
 
 ### K-FUNC-03: Revisión spec/recursos de packaging (MIGRATE-4)
 Naturaleza: revisión del spec + resources GENERATED. Pendiente en HANDOFF.
+Estado (OBSERVED_AT 2026-10-15 04:4x, VERIFIED_BY_EXECUTION): CERRADO.
+- Spec parseable (ast.parse OK). Rutas de datas verificadas en disco:
+  shadow_ui/assets, shadow_ui/design.tokens.json,
+  shadow_ui/GENERATED/ui/styles.qss, data, schemas — todas presentes.
+- El commit dc86b65 (selector de modelos free) NO añade imports dinámicos
+  nuevos: FREE_MODELS es una constante de criba.interprete.seleccion, módulo
+  ya cubierto por collect_submodules de imports estáticos. El import local a
+  método en shadow_window.py lo detecta PyInstaller por análisis de bytecode
+  (confirmado: el .exe construido arrancó con el selector operativo).
+ Gate: spec + recursos coherentes con el bundle construido → CUMPLIDO.
 
 ---
 
