@@ -159,40 +159,20 @@ def _call_interpreter_structured(interprete_externo, case: dict) -> dict:
     allowing us to test the model's ability to reason over structured
     observations and produce a schema-valid response.
     """
-    interp = interprete_externo
-    input_text = _build_interpreter_input(case)
-
-    payload = {
-        "model": interp.model,
-        "messages": [
-            {"role": "system", "content": _SYSTEM_PROMPT},
-            {"role": "user", "content": input_text},
-        ],
-        "temperature": interp.temperature,
-        "max_tokens": interp.max_tokens,
-        "response_format": {"type": "json_object"},
-    }
-    headers = {"Content-Type": "application/json"}
-    if interp._api_key:
-        headers["Authorization"] = f"Bearer {interp._api_key}"
-
-    resp = httpx.Client(timeout=120).post(
-        f"{interp.base}/chat/completions", json=payload, headers=headers
+    from criba.interprete.openai_compatible import (
+        ExternalModelEmptyResponse,
+        ExternalModelInvalidJSON,
+        ExternalModelRateLimited,
     )
-    if resp.status_code == 429:
-        pytest.skip(f"rate_limit_429: modelo {interp.model} agotado")
-    if resp.status_code >= 400:
-        pytest.skip(f"http_error_{resp.status_code}: modelo no disponible")
-    data = resp.json()
-    message = data["choices"][0]["message"]
-    content = message.get("content")
-    if content is None:
-        finish_reason = message.get("finish_reason", "unknown")
-        pytest.skip(f"model_returned_none_content: model={interp.model} finish_reason={finish_reason}")
+
     try:
-        return json.loads(content)
-    except (json.JSONDecodeError, ValueError, TypeError) as exc:
-        pytest.fail(f"respuesta no es JSON valido: {exc}; contenido={content[:500]}")
+        return interprete_externo.analizar_caso(case)
+    except ExternalModelRateLimited as exc:
+        pytest.skip(f"proveedor externo temporalmente limitado: {exc}")
+    except ExternalModelEmptyResponse as exc:
+        pytest.fail(f"respuesta externa vacía o no utilizable: {exc}")
+    except ExternalModelInvalidJSON as exc:
+        pytest.fail(f"el modelo no devolvió JSON válido: {exc}")
 
 
 # -- Structured evidence E2E tests (github-2018-10-21 incident case) ----
