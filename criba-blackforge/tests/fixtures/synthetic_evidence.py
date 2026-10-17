@@ -17,8 +17,9 @@ from criba.intelligence.storage.store import IntelligenceStore
 _EVIDENCE_DOCS: list[dict[str, Any]] = [
     {
         "doc_id": "obs-agriculture-water-001",
+        "observation_id": "obs-001",
         "source_id": "synthetic_e2e_fixture",
-        "title": "Water table decline in agricultural regions of the Central Valley",
+        "title": "Water table decline and night irrigation evaporation reduction",
         "abstract": (
             "Observational studies from 2023-2025 document a 0.4 m/year decline "
             "in the water table across 12 agricultural valleys. Ground-penetrating "
@@ -29,6 +30,7 @@ _EVIDENCE_DOCS: list[dict[str, Any]] = [
         ),
         "url": "https://fixture.local/obs/agriculture-water-001",
         "published": "2026-10-15",
+        "epistemic_status": "SOURCE_CONTENT_NOT_INDEPENDENTLY_VALIDATED",
         "provenance": {
             "source_id": "synthetic_e2e_fixture",
             "retrieved_at": "2026-10-17T16:53:00Z",
@@ -37,6 +39,7 @@ _EVIDENCE_DOCS: list[dict[str, Any]] = [
     },
     {
         "doc_id": "obs-agriculture-water-002",
+        "observation_id": "obs-002",
         "source_id": "synthetic_e2e_fixture",
         "title": "Soil cracking patterns under deficit irrigation vs. continuous flooding",
         "abstract": (
@@ -44,10 +47,12 @@ _EVIDENCE_DOCS: list[dict[str, Any]] = [
             "irrigation reduces water consumption by 28-42% compared to continuous "
             "flooding, without yield reduction. Soil cracking was observed within "
             "48-72 hours after flood recession, indicating deep percolation loss "
-            "of 12-18% of applied water under continuous flooding protocols."
+            "of 12-18% of applied water under continuous flooding protocols. "
+            "Measured soil moisture: 12% (deficit) vs 18% (continuous flood)."
         ),
         "url": "https://fixture.local/obs/agriculture-water-002",
         "published": "2026-10-15",
+        "epistemic_status": "SOURCE_CONTENT_NOT_INDEPENDENTLY_VALIDATED",
         "provenance": {
             "source_id": "synthetic_e2e_fixture",
             "retrieved_at": "2026-10-17T16:53:00Z",
@@ -56,6 +61,7 @@ _EVIDENCE_DOCS: list[dict[str, Any]] = [
     },
     {
         "doc_id": "obs-agriculture-water-003",
+        "observation_id": "obs-003",
         "source_id": "synthetic_e2e_fixture",
         "title": "Temporal separation of irrigation cycles and evaporation reduction",
         "abstract": (
@@ -68,6 +74,7 @@ _EVIDENCE_DOCS: list[dict[str, Any]] = [
         ),
         "url": "https://fixture.local/obs/agriculture-water-003",
         "published": "2026-10-15",
+        "epistemic_status": "SOURCE_CONTENT_NOT_INDEPENDENTLY_VALIDATED",
         "provenance": {
             "source_id": "synthetic_e2e_fixture",
             "retrieved_at": "2026-10-17T16:53:00Z",

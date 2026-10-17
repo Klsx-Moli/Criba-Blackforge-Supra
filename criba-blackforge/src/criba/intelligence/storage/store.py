@@ -210,6 +210,22 @@ def _js(v: Any) -> str:
     return json.dumps(v, ensure_ascii=False, sort_keys=True)
 
 
+def _text(value: Any) -> str:
+    """Normaliza un campo textual: acepta str y None, rechaza tipos inválidos.
+
+    No normaliza tuplas/listas/dicts: un tipo incorrecto indica un bug de
+    origen (ej. coma final accidental) y debe lanzar TypeError con contexto
+    claro en vez de un error SQLite opaco o una conversión silenciosa.
+    """
+    if value is None:
+        return ""
+    if isinstance(value, str):
+        return value
+    raise TypeError(
+        f"expected_str_or_none, got {type(value).__name__}"
+    )
+
+
 def _unjs(s: str, default: Any = None) -> Any:
     try:
         return json.loads(s) if s else default
@@ -316,16 +332,16 @@ class IntelligenceStore:
                     (
                         doc_id,
                         run_id,
-                        doc.get("source_id", ""),
-                        doc.get("title", ""),
-                        doc.get("kind", "document"),
-                        doc.get("published", ""),
-                        doc.get("url", ""),
-                        doc.get("language", "en"),
-                        doc.get("abstract", ""),
+                        _text(doc.get("source_id", "")),
+                        _text(doc.get("title", "")),
+                        _text(doc.get("kind", "document")),
+                        _text(doc.get("published", "")),
+                        _text(doc.get("url", "")),
+                        _text(doc.get("language", "en")),
+                        _text(doc.get("abstract", "")),
                         _js(doc.get("provenance") or {}),
                         _js(doc.get("metadata") or {}),
-                        doc.get("content_hash", "") or "",
+                        _text(doc.get("content_hash", "") or ""),
                     ),
                 )
                 rowid = self._conn.execute(
@@ -334,7 +350,7 @@ class IntelligenceStore:
                 self._conn.execute(
                     "INSERT INTO intel_documents_fts(rowid, doc_id, title, abstract) "
                     "VALUES (?,?,?,?)",
-                    (rowid, doc_id, doc.get("title", ""), doc.get("abstract", "")),
+                    (rowid, doc_id, _text(doc.get("title", "")), _text(doc.get("abstract", ""))),
                 )
                 self._conn.execute("DELETE FROM intel_fragments WHERE doc_id=?", (doc_id,))
                 for frag in doc.get("fragments", []):

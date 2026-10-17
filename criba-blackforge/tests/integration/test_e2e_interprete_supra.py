@@ -239,11 +239,19 @@ def test_interprete_externo_produce_una_propuesta_real(interprete_externo, tmp_p
 
     store = build_evidence_store(tmp_path)
     idea = {
-        "title": "cruce prueba",
-        "method1": "principio de contradiccion",
-        "method2": "separacion temporal",
-        "description": "d",
+        "title": "cruce temporal: riego nocturno + intermitente deficitario",
+        "method1": "separacion temporal",
+        "method2": "principio de contradiccion",
+        "description": "Combinar riego nocturno (reduccion de evaporacion) con riego deficitario intermitente (reduccion de consumo total), usando el contraste entre dia/noche para validar",
         "evidence_context": {"retrieval_status": "RETRIEVED", "scope": "local_observational"},
+        "bloqueo": {
+            "restricciones_obligatorias": [
+                "La hipótesis debe estar respaldada por al menos una observación local.",
+                "El mecanismo debe diferenciar H1 de H2 usando el contraste temporal dia/noche.",
+                "La prueba_concreta debe usar metricas observables en riego agricola.",
+            ],
+        },
+        "containment_class": "INVESTIGACION_LOCAL",
     }
     evidence = retrieve_evidence_context(
         "reducir el consumo de agua en el riego agricola", store
