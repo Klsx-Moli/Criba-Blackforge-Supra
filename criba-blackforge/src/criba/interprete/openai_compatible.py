@@ -332,10 +332,16 @@ class OpenAICompatibleInterpreter:
         def _numero_opcional(value: Any) -> int | None:
             return value if type(value) is int and value >= 0 else None
 
-        def _fallo(motivo: str, *, raw_para_hash: str | None = None) -> InterpretationResult:
+        def _fallo(
+            motivo: str,
+            *,
+            raw_para_hash: str | None = None,
+            error_kind: str = "",  # NEW: clasificación estructurada del fallo
+        ) -> InterpretationResult:
             return InterpretationResult(
                 estado=ESTADO_PENDIENTE,
                 error=motivo,
+                error_kind=error_kind,
                 provenance=self._provenance(
                     request_id=request_id,
                     inicio=inicio,
@@ -356,7 +362,7 @@ class OpenAICompatibleInterpreter:
         problema_endpoint = endpoint_problem(self.base)
         if problema_endpoint:
             return replace(
-                _fallo(f"configuracion_invalida:endpoint:{problema_endpoint}"),
+                _fallo(f"configuracion_invalida:endpoint:{problema_endpoint}", error_kind="config"),
                 model_requests=0,
             )
 
@@ -366,12 +372,12 @@ class OpenAICompatibleInterpreter:
                 if not 1 <= max_tokens <= 32768:
                     raise ValueError("max_tokens debe ser positivo")
             except ValueError:
-                return replace(_fallo("configuracion_invalida:max_tokens"), model_requests=0)
+                return replace(_fallo("configuracion_invalida:max_tokens", error_kind="config"), model_requests=0)
             payload["max_tokens"] = max_tokens
             if not math.isfinite(self.timeout_s) or not 0 < self.timeout_s <= 1800:
-                return replace(_fallo("configuracion_invalida:timeout"), model_requests=0)
+                return replace(_fallo("configuracion_invalida:timeout", error_kind="config"), model_requests=0)
             if not math.isfinite(self.temperature) or not 0 <= self.temperature <= 2:
-                return replace(_fallo("configuracion_invalida:temperature"), model_requests=0)
+                return replace(_fallo("configuracion_invalida:temperature", error_kind="config"), model_requests=0)
             if self.reasoning_effort:
                 if self.reasoning_effort not in {
                     "none",
@@ -383,7 +389,7 @@ class OpenAICompatibleInterpreter:
                     "max",
                 }:
                     return replace(
-                        _fallo("configuracion_invalida:reasoning_effort"), model_requests=0
+                        _fallo("configuracion_invalida:reasoning_effort", error_kind="config"), model_requests=0
                     )
                 from urllib.parse import urlsplit
 
@@ -400,25 +406,25 @@ class OpenAICompatibleInterpreter:
             if resp.status_code == 429:
                 # El cuerpo puede contener metadatos de cuenta: se hashea para
                 # procedencia, pero no se muestra ni se guarda como salida.
-                return _fallo("plan_agotado_429", raw_para_hash=resp.text[:2000])
+                return _fallo("plan_agotado_429", error_kind="rate_limit", raw_para_hash=resp.text[:2000])
             if resp.status_code in (401, 403):
-                return _fallo(f"credenciales rechazadas: HTTP {resp.status_code}")
+                return _fallo(f"credenciales rechazadas: HTTP {resp.status_code}", error_kind="auth")
             if resp.status_code >= 400:
-                return _fallo(f"http_error_{resp.status_code}")
+                return _fallo(f"http_error_{resp.status_code}", error_kind="http")
 
             try:
                 cuerpo = resp.json()
             except ValueError as exc:
-                return _fallo(f"respuesta_json_invalida:{type(exc).__name__}")
+                return _fallo(f"respuesta_json_invalida:{type(exc).__name__}", error_kind="schema")
             if not isinstance(cuerpo, dict):
-                return _fallo(f"respuesta_tipo_inesperado:{type(cuerpo).__name__}")
+                return _fallo(f"respuesta_tipo_inesperado:{type(cuerpo).__name__}", error_kind="schema")
             model_reported = str(cuerpo.get("model") or "")
             choices = cuerpo.get("choices")
             if not isinstance(choices, list) or not choices:
-                return _fallo("respuesta_sin_choices")
+                return _fallo("respuesta_sin_choices", error_kind="schema")
             eleccion = choices[0]
             if not isinstance(eleccion, dict):
-                return _fallo(f"choice_tipo_inesperado:{type(eleccion).__name__}")
+                return _fallo(f"choice_tipo_inesperado:{type(eleccion).__name__}", error_kind="schema")
 
             finish_reason = str(eleccion.get("finish_reason") or "")
             uso = cuerpo.get("usage")
@@ -427,40 +433,46 @@ class OpenAICompatibleInterpreter:
                 detalles = uso.get("completion_tokens_details")
                 if isinstance(detalles, dict):
                     reasoning_tokens = _numero_opcional(detalles.get("reasoning_tokens"))
-
+            # Truncation takes priority: a truncated response is a length issue,
+            # not a schema/empty-content issue, even if content is empty.
             message = eleccion.get("message")
+            if finish_reason == "length":
+                raw_output = message.get("content") if isinstance(message, dict) else None
+                if not isinstance(raw_output, str) or not raw_output.strip():
+                    raw_output = ""
+                return _fallo(
+                    f"salida_truncada:finish_reason=length "
+                    f"tokens={completion_tokens} ({len(raw_output)} chars)",
+                    error_kind="truncated",
+                )
             if not isinstance(message, dict):
-                return _fallo(f"message_tipo_inesperado:{type(message).__name__}")
+                return _fallo(f"message_tipo_inesperado:{type(message).__name__}", error_kind="schema")
             contenido = message.get("content")
             if contenido is None or (isinstance(contenido, str) and not contenido.strip()):
                 if message.get("tool_calls"):
-                    return _fallo("tool_calls_sin_contenido")
+                    return _fallo("tool_calls_sin_contenido", error_kind="schema")
                 return _fallo(
                     f"sin_contenido:finish_reason={finish_reason or 'desconocido'} "
-                    f"tokens={completion_tokens} razonamiento={reasoning_tokens}"
+                    f"tokens={completion_tokens} razonamiento={reasoning_tokens}",
+                    error_kind="schema",
                 )
             if not isinstance(contenido, str):
-                return _fallo(f"contenido_tipo_inesperado:{type(contenido).__name__}")
+                return _fallo(f"contenido_tipo_inesperado:{type(contenido).__name__}", error_kind="schema")
             raw_output = contenido
-            if finish_reason == "length":
-                return _fallo(
-                    f"salida_truncada:finish_reason=length "
-                    f"tokens={completion_tokens} ({len(raw_output)} chars)"
-                )
             try:
                 _extraer_json(raw_output)
             except (json.JSONDecodeError, ValueError) as exc:
-                return _fallo(f"json_invalido:{type(exc).__name__}")
+                return _fallo(f"json_invalido:{type(exc).__name__}", error_kind="parse_error")
         except httpx.TimeoutException:
-            return _fallo("timeout")
+            return _fallo("timeout", error_kind="timeout")
         except httpx.HTTPError as exc:
             tipo = type(exc).__name__
             log.warning("interpretacion %s fallo de transporte: %s", request_id, tipo)
-            return _fallo(f"transporte_http:{tipo}")
+            return _fallo(f"transporte_http:{tipo}", error_kind="transport")
         except Exception as exc:  # noqa: BLE001 - una propuesta nunca rompe el loop
             tipo = type(exc).__name__
             log.warning("interpretacion %s fallo: %s", request_id, tipo)
-            return _fallo(f"proposal_failed:{tipo}")
+            return _fallo(f"proposal_failed:{tipo}", error_kind="internal_error")
 
         return InterpretationResult(
             estado=ESTADO_PROPUESTA,

@@ -306,7 +306,7 @@ def test_reasoning_without_content_is_not_content(
     assert not result.mecanismo
     assert result.finish_reason == "stop"
     assert result.error_kind in {
-        None,
+        "schema",
         "invalid_response",
         "empty_content",
         "abstention",
@@ -505,3 +505,131 @@ def test_valid_proposal_with_failed_critique_is_explicit(
 
     assert result.estado == "PENDIENTE_INTERPRETACION"
     assert "timeout" in result.error.lower()
+
+
+def test_error_kind_regression_timeout(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """REGRESSION: _fallo timeout debe setear error_kind='timeout'.
+
+    Bug: _fallo() retornaba error_kind='' (default del dataclass) para todos
+    los fallos, incluido timeout. El test I chequea 'timeout' en result.error
+    pero NO validaba error_kind. Esta regresión asegura que el campo estructurado
+    esté seteado correctamente.
+    """
+    response = FakeHTTPResponse(
+        exception=httpx.ReadTimeout("read timed out")
+    )
+    interpreter, _ = _make_interpreter(monkeypatch, response)
+    problem, idea, context, evidence = _inputs()
+
+    result = interpreter.proponer(problem, idea, context, evidence)
+
+    assert result.estado == "PENDIENTE_INTERPRETACION"
+    assert result.error_kind == "timeout"
+    assert "timeout" in result.error.lower()
+
+
+def test_error_kind_regression_rate_limit(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """REGRESSION: HTTP 429 debe setear error_kind='rate_limit'.
+
+    Bug: antes retornaba error_kind='' para 429.
+    """
+    response = FakeHTTPResponse(
+        status_code=429,
+        payload={"error": {"message": "rate limited"}},
+    )
+    interpreter, _ = _make_interpreter(monkeypatch, response)
+    problem, idea, context, evidence = _inputs()
+
+    result = interpreter.proponer(problem, idea, context, evidence)
+
+    assert result.estado == "PENDIENTE_INTERPRETACION"
+    assert result.error_kind == "rate_limit"
+    assert "429" in result.error or "rate" in result.error.lower()
+
+
+def test_error_kind_regression_parse_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """REGRESSION: JSON inválido debe setear error_kind='parse_error'.
+
+    Bug: antes retornaba error_kind='' para json_invalido.
+    """
+    response = FakeHTTPResponse(
+        payload={
+            "choices": [
+                {
+                    "message": {
+                        "content": "{pertinencia: PERTINENTE, hipotesis: incompleto",
+                        "reasoning": "",
+                    },
+                    "finish_reason": "stop",
+                }
+            ],
+        }
+    )
+    interpreter, _ = _make_interpreter(monkeypatch, response)
+    problem, idea, context, evidence = _inputs()
+
+    result = interpreter.proponer(problem, idea, context, evidence)
+
+    assert result.estado == "PENDIENTE_INTERPRETACION"
+    assert result.error_kind == "parse_error"
+    assert "json_invalido" in result.error
+
+
+def test_error_kind_regression_truncated(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """REGRESSION: finish_reason=length debe setear error_kind='truncated'.
+
+    Bug: antes retornaba error_kind='' para salida_truncada.
+    """
+    response = FakeHTTPResponse(
+        payload={
+            "choices": [
+                {
+                    "message": {"content": "", "reasoning": ""},
+                    "finish_reason": "length",
+                }
+            ],
+        }
+    )
+    interpreter, _ = _make_interpreter(monkeypatch, response)
+    problem, idea, context, evidence = _inputs()
+
+    result = interpreter.proponer(problem, idea, context, evidence)
+
+    assert result.estado == "PENDIENTE_INTERPRETACION"
+    assert result.error_kind == "truncated"
+    assert "truncada" in result.error or "length" in result.error
+
+
+def test_error_kind_regression_empty_content(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """REGRESSION: contenido vacío + stop debe setear error_kind='schema'.
+
+    Bug: antes retornaba error_kind='' para sin_contenido.
+    """
+    response = FakeHTTPResponse(
+        payload={
+            "choices": [
+                {
+                    "message": {"content": "", "reasoning": ""},
+                    "finish_reason": "stop",
+                }
+            ],
+        }
+    )
+    interpreter, _ = _make_interpreter(monkeypatch, response)
+    problem, idea, context, evidence = _inputs()
+
+    result = interpreter.proponer(problem, idea, context, evidence)
+
+    assert result.estado == "PENDIENTE_INTERPRETACION"
+    assert result.error_kind == "schema"
+    assert "sin_contenido" in result.error
