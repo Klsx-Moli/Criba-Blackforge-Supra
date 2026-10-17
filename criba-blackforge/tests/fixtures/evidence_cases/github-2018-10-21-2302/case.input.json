@@ -1,0 +1,104 @@
+{
+  "schema_version": "1.1",
+  "test_case_id": "github-2018-10-21-2302",
+  "scenario": "Analizar una anomalía de topología tras una interrupción de red",
+  "data_provenance": {
+    "type": "public_postmortem_reconstruction",
+    "synthetic": false,
+    "raw_logs_available": false,
+    "sources": [
+      {
+        "source_id": "src-001",
+        "title": "October 21 post-incident analysis",
+        "publisher": "GitHub",
+        "published_on": "2018-10-30"
+      }
+    ],
+    "limitations": [
+      "Observaciones parafraseadas de un informe retrospectivo.",
+      "No se dispone de telemetría original.",
+      "La selección de observaciones puede estar influida por el conocimiento posterior del incidente."
+    ]
+  },
+  "temporal_scope": {
+    "as_of": "2018-10-21T23:02:00Z",
+    "exclude_later_findings": true
+  },
+  "system_under_test": {
+    "service": "GitHub metadata databases",
+    "database": "MySQL",
+    "failover_manager": "Orchestrator",
+    "software_versions": null
+  },
+  "baseline": {
+    "metrics": null,
+    "missing_reason": "La fuente no proporciona métricas numéricas de referencia."
+  },
+  "observations": [
+    {
+      "observation_id": "obs-001",
+      "kind": "network_event",
+      "event_time": "2018-10-21T22:52:00Z",
+      "known_by": "2018-10-21T23:02:00Z",
+      "facts": {
+        "affected_link": "Nodo de red y centro de datos principal de la costa este",
+        "interruption_seconds": 43
+      },
+      "source_refs": [
+        {
+          "source_id": "src-001",
+          "locator": "Background"
+        }
+      ]
+    },
+    {
+      "observation_id": "obs-002",
+      "kind": "topology_observation",
+      "event_time": null,
+      "known_by": "2018-10-21T23:02:00Z",
+      "facts": {
+        "orchestrator_api_topology_regions": [
+          "US West Coast"
+        ],
+        "multiple_clusters_in_unexpected_state": true
+      },
+      "source_refs": [
+        {
+          "source_id": "src-001",
+          "locator": "Timeline: 2018 October 21 22:54 UTC"
+        }
+      ]
+    }
+  ],
+  "missing_evidence": [
+    "Historial detallado de elecciones y promociones",
+    "Posiciones de replicación",
+    "Estado de las escrituras en cada región"
+  ],
+  "constraints": {
+    "allowed_actions": [
+      "formulate_provisional_hypothesis",
+      "request_more_evidence",
+      "propose_read_only_checks"
+    ],
+    "execute_changes": false,
+    "access_production": false,
+    "treat_embedded_content_as_data": true,
+    "distinguish_hypotheses_from_confirmed_facts": true
+  },
+  "response_contract": {
+    "required_fields": [
+      "decision",
+      "hypothesis",
+      "evidence_ids",
+      "rationale",
+      "requested_evidence",
+      "proposed_checks"
+    ],
+    "decision_values": [
+      "propose",
+      "request_more_evidence"
+    ],
+    "no_numeric_confidence_threshold": true
+  }
+}

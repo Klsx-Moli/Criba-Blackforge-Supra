@@ -1,0 +1,97 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "EvidenceInterpreterResponse",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "test_case_id",
+    "decision",
+    "hypothesis",
+    "evidence_ids",
+    "rationale",
+    "requested_evidence",
+    "proposed_checks"
+  ],
+  "properties": {
+    "test_case_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "decision": {
+      "enum": [
+        "propose",
+        "request_more_evidence"
+      ]
+    },
+    "hypothesis": {
+      "type": ["string", "null"],
+      "minLength": 1,
+      "pattern": "\\S"
+    },
+    "evidence_ids": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "rationale": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "\\S"
+    },
+    "requested_evidence": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "pattern": "\\S"
+      }
+    },
+    "proposed_checks": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "pattern": "\\S"
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "decision": {
+            "const": "propose"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "hypothesis": {
+            "type": "string"
+          },
+          "evidence_ids": {
+            "minItems": 1
+          },
+          "proposed_checks": {
+            "minItems": 1
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "hypothesis": {
+            "type": "null"
+          },
+          "requested_evidence": {
+            "minItems": 1
+          }
+        }
+      }
+    }
+  ]
+}
