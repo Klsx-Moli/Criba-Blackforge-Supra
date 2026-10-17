@@ -433,18 +433,7 @@ class OpenAICompatibleInterpreter:
                 detalles = uso.get("completion_tokens_details")
                 if isinstance(detalles, dict):
                     reasoning_tokens = _numero_opcional(detalles.get("reasoning_tokens"))
-            # Truncation takes priority: a truncated response is a length issue,
-            # not a schema/empty-content issue, even if content is empty.
             message = eleccion.get("message")
-            if finish_reason == "length":
-                raw_output = message.get("content") if isinstance(message, dict) else None
-                if not isinstance(raw_output, str) or not raw_output.strip():
-                    raw_output = ""
-                return _fallo(
-                    f"salida_truncada:finish_reason=length "
-                    f"tokens={completion_tokens} ({len(raw_output)} chars)",
-                    error_kind="truncated",
-                )
             if not isinstance(message, dict):
                 return _fallo(f"message_tipo_inesperado:{type(message).__name__}", error_kind="schema")
             contenido = message.get("content")
@@ -459,6 +448,12 @@ class OpenAICompatibleInterpreter:
             if not isinstance(contenido, str):
                 return _fallo(f"contenido_tipo_inesperado:{type(contenido).__name__}", error_kind="schema")
             raw_output = contenido
+            if finish_reason == "length":
+                return _fallo(
+                    f"salida_truncada:finish_reason=length "
+                    f"tokens={completion_tokens} ({len(raw_output)} chars)",
+                    error_kind="truncated",
+                )
             try:
                 _extraer_json(raw_output)
             except (json.JSONDecodeError, ValueError) as exc:

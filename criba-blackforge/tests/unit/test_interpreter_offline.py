@@ -584,15 +584,20 @@ def test_error_kind_regression_parse_error(
 def test_error_kind_regression_truncated(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """REGRESSION: finish_reason=length debe setear error_kind='truncated'.
+    """REGRESSION: finish_reason=length con content no vacío debe setear error_kind='truncated'.
 
     Bug: antes retornaba error_kind='' para salida_truncada.
+    Nota: content=None + finish_reason=length produce 'sin_contenido' (empty
+    content check takes priority), per test_modelo_sin_contenido_por_presupuesto_de_tokens.
     """
     response = FakeHTTPResponse(
         payload={
             "choices": [
                 {
-                    "message": {"content": "", "reasoning": ""},
+                    "message": {
+                        "content": "{\"pertinencia\": \"PERTINENTE\"",  # JSON incomplete - truncated
+                        "reasoning": "",
+                    },
                     "finish_reason": "length",
                 }
             ],
