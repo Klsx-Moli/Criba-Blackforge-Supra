@@ -100,8 +100,9 @@ H4. No existe STATE.md canónico previo; este es el primero. Los tres documentos
 - G3=NOT_VERIFIED
 - D3_NOVELTY=UNRESOLVED, D4_FUNCTIONAL_DIVERSITY=UNRESOLVED, D6_ADAPTIVE_BENEFIT=STILL_UNRESOLVED
 - SCIENTIFIC_ADVANTAGE_OF_CRIBA=NOT_ESTABLISHED
-- BLACKFORGE: INERTE / HARD_PAUSE (no inicializar, sin key, no bloquea producto activo)
-Fuente: governance/ANTI_GOODHART_STATUS.yaml + HANDOFF. No se promueven por tests verdes.
+- BLACKFORGE: HARD_PAUSE → ACTIVADO con autorización operacional moli 2026-10-17.
+  merge autorativo revertido y reintegrado preservando 32k líneas de pruebas.
+  BLACKFORGE safety/persistence/agentic/integrated en integrate/shadow-supra-final.
 
 ---
 
@@ -176,5 +177,10 @@ Y su trabajo ÚNICO YA está absorbido en 4f2c8c1: _corrupt_state_response
 ya rechaza timestamps naive/ambiguos. Integrar = redundante + destructivo.
 Veredicto: DIFERIDO. Requeriría re-base sobre el split real, no merge de rama.
 
-PRÓXIMO PASO: continuar con unidades elegibles locales sin publicación.
-NO merge a main sin autorización específica.
+RESULTADOS FINALES (VERIFIED_BY_EXECUTION, HEAD 71f2e5c):
+- BLACKFORGE: 81/81 PASS
+- Interprete bug fix + error_kind regression: 5 PASS
+- SUPRA cross-thread signal regression: 1 PASS
+- Suite completo CRIBA: 1265 PASS, 0 FAILED (627s)
+
+PRÓXIMO PASO: PR #23 merge a main con OK de moli.
