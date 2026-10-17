@@ -54,6 +54,7 @@ jobs:
           python -m pytest \
             tests/integration/test_retrybox_evidence_contract.py \
             -p no:cacheprovider \
+            -p no:qt \
             --strict-markers \
             -ra \
             -v \
@@ -64,6 +65,7 @@ jobs:
           python -m pytest \
             tests/unit/test_retry_ledger.py \
             -p no:cacheprovider \
+            -p no:qt \
             --strict-markers \
             -ra \
             -v \
@@ -75,6 +77,7 @@ jobs:
             tests/fixtures/retrybox_pilot/participant_repo/tests/test_public.py \
             tests/fixtures/retrybox_pilot/evaluator/test_hidden.py \
             -p no:cacheprovider \
+            -p no:qt \
             --strict-markers \
             -ra \
             -v \
@@ -85,6 +88,7 @@ jobs:
           python -m pytest \
             tests/unit/test_store_text_normalization.py \
             -p no:cacheprovider \
+            -p no:qt \
             --strict-markers \
             -ra \
             -v \
