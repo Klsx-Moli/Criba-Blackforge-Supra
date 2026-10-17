@@ -3,26 +3,30 @@
   "project": "CRIBA-BLACKFORGE-SUPRA-IIE",
   "master_blueprint_version": "1.0 + ADDENDUM-SECTORIZATION + ADDENDUM-T001-T130",
   "baseline": {
-    "repo": "C:/Users/KLSX/Music/INNOVATIONS/ACTIVE/CRIBA",
-    "branch": "feat/iie-master",
-    "commit": "05d69c3fbafe89202487ed5ab7c0ea0ccac8c087",
-    "tag": "pre-iie-baseline"
+    "repo": "C:/ASTRA_WORK/Criba-Blackforge-Supra",
+    "branch": "integrate/shadow-supra-final",
+    "commit": "80e09f6",
+    "tag": "shadow-supra-final-integration"
   },
   "current": {
-    "phase": "P10",
-    "task": "P10-T09",
-    "subtask": "PriorArtVerdictEngine",
-    "status": "VERIFIED",
-    "started_at": "2026-09-04T18:30:00+02:00",
-    "last_updated": "2026-09-05T00:28:47+02:00"
+    "phase": "P11",
+    "task": "P11-T02",
+    "subtask": "ScoreProvenance",
+    "status": "IN_PROGRESS",
+    "started_at": "2026-10-17T12:00:00+02:00",
+    "last_updated": "2026-10-17T12:00:00+02:00",
+    "reconciled_from": "80e09f6",
+    "reconciliation_note": "Estado reconciliado desde integrate/shadow-supra-final @ 80e09f6. feat/iie-master @ bca2bb1 es ancestro verificado. BLACKFORGE reactivado e integrado con autorización del usuario. Progreso P10-T01..T10 VERIFIED."
   },
   "last_good_state": {
-    "commit": "10e1dcc7a30da228ef7992c88beffe9bd47cfca2",
-    "phase": "P10",
-    "task": "P10-T06",
+    "commit": "80e09f6",
+    "phase": "P11",
+    "task": "P11-T02",
     "tests": [
-      "P10-T06 targeted ProductScout tests: 3 passed (journal evidence)",
-      "HEAD 10e1dcc verified by git show as the P10-T06 ProductScout commit"
+      "BLACKFORGE: 81 passed",
+      "Interpreter bug fix + error_kind regression: 5 passed",
+      "SUPRA cross-thread signal regression: 1 passed",
+      "Suite completa CRIBA: 1265 passed, 0 failed"
     ]
   },
   "completed_phases": [

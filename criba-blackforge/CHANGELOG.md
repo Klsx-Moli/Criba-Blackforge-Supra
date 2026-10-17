@@ -267,3 +267,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - Initial local CRIBA engine: deterministic selector, packet generation,
   SQLite evidence store, CLI, local API, MCP stdio server and optional GUI.
+
+## Unreleased - Mejoras integradas desde UIEDITION/NPSC
+- [INTEGRATED] Theme color scheme from NeuroPromptSemanticCompiler (alpha) - 
+  primary/secondary/tertiary palette con dark-mode optimizado
+- [INTEGRATED] Typography tokens (Inter family, 12-28px range) desde NPSC
+- [INTEGRATED] border-radius tokens y spacing scale desde NPSC
+- Nota: No se eliminó código existente, solo se agregaron tokens de diseño

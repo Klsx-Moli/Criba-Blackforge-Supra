@@ -24,8 +24,17 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
-          fetch-depth: 1
-          persist-credentials: false
+          fetch-depth: 0
+      - name: EEIMC-001 Policy presence check (gate)
+        run: |
+          test -f ESTATUTO_EXCELENCIA_INTEGRIDAD_MEJORA_CONTINUA.md || { echo "ERROR: EEIMC-001 Estatuto missing"; exit 1; }
+          test -f AGENTS.md || { echo "ERROR: AGENTS.md missing"; exit 1; }
+          echo "EEIMC-001 policy verified present"
+      - name: Verify state reconciliation
+        run: |
+          echo "HEAD: $(git rev-parse --short HEAD)"
+          echo "Branch: $(git branch --show-current)"
+          python -c "import json; s=json.load(open('criba-blackforge/.hermes/iie/STATE.json')); print(f'Phase: {s.get(\"current\",{}).get(\"phase\",\"unknown\")}'); print(f'Last good: {s.get(\"last_good_state\",{}).get(\"commit\",\"unknown\")}')"
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
         with:
           python-version: '3.11'

@@ -178,7 +178,7 @@ class OpenAICompatibleInterpreter:
         self.base = (
             base_url or os.getenv("CRIBA_EXTERNAL_BASE_URL") or "http://127.0.0.1:8645/v1"
         ).rstrip("/")
-        self.model = model or os.getenv("CRIBA_EXTERNAL_MODEL") or "stealth/space-bunny-alpha"
+        self.model = model or os.getenv("CRIBA_EXTERNAL_MODEL") or "poolside/laguna-s-2.1:free"
         self.critic_model = critic_model or os.getenv("CRIBA_CRITIC_MODEL") or self.model
         # La clave se lee SOLO del entorno y nunca se escribe en logs ni en la
         # procedencia. Un proxy local acepta cualquier bearer.
