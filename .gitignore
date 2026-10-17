@@ -85,3 +85,5 @@ src/**/.hermes-tmp.*
 # Editor
 .vscode/
 .idea/
+criba-blackforge/dist_final/
+criba-blackforge/build/CribaShadow/
