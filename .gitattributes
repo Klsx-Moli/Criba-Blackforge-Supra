@@ -1,0 +1,18 @@
+# Normalización de finales de línea en el índice (misma convención que
+# criba-blackforge/.gitattributes).
+#
+# Motivo verificado: con core.autocrlf=true los .sh se materializarían con CRLF
+# en el checkout, y un script POSIX con CRLF falla en Linux (`\r: command not
+# found`). Los gates de CI y los hooks de pre-commit invocan estos scripts con
+# `sh`, así que deben conservar LF en el índice y en el checkout.
+*.sh text eol=lf
+.gitattributes text eol=lf
+*.py text eol=lf
+*.yaml text eol=lf
+*.yml text eol=lf
+*.json text eol=lf
+*.md text eol=lf
+*.lock text eol=lf
+*.spec text eol=lf
+*.ps1 text eol=crlf
+*.bat text eol=crlf

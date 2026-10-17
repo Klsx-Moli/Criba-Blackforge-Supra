@@ -26,11 +26,23 @@ jobs:
         with:
           fetch-depth: 0
       - name: EEIMC-001 Policy presence check (gate)
+        shell: bash
+        working-directory: .
         run: |
           test -f ESTATUTO_EXCELENCIA_INTEGRIDAD_MEJORA_CONTINUA.md || { echo "ERROR: EEIMC-001 Estatuto missing"; exit 1; }
           test -f AGENTS.md || { echo "ERROR: AGENTS.md missing"; exit 1; }
+          test -f PROMPT_ARRANQUE.md || { echo "ERROR: PROMPT_ARRANQUE.md missing (AGENTS.md lo exige)"; exit 1; }
+          test -f CONTROL_PREVIO.md || { echo "ERROR: CONTROL_PREVIO.md missing (AGENTS.md lo exige)"; exit 1; }
           echo "EEIMC-001 policy verified present"
+      - name: EEIMC-001 Policy checks (gate)
+        shell: bash
+        working-directory: .
+        run: |
+          sh scripts/check_eeimc_policy.sh
+          sh scripts/check_eeimc_state.sh
       - name: Verify state reconciliation
+        shell: bash
+        working-directory: .
         run: |
           echo "HEAD: $(git rev-parse --short HEAD)"
           echo "Branch: $(git branch --show-current)"
