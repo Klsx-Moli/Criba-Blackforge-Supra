@@ -63,34 +63,27 @@
   "allOf": [
     {
       "if": {
-        "properties": {
-          "decision": {
-            "const": "propose"
-          }
-        }
+        "properties": { "decision": { "const": "propose" } }
       },
       "then": {
         "properties": {
-          "hypothesis": {
-            "type": "string"
-          },
-          "evidence_ids": {
-            "minItems": 1
-          },
-          "proposed_checks": {
-            "minItems": 1
-          }
-        }
+          "hypothesis": { "type": "string", "minLength": 1 },
+          "evidence_ids": { "minItems": 1 },
+          "proposed_checks": { "minItems": 1 }
+        },
+        "required": ["hypothesis", "evidence_ids", "proposed_checks"]
+      }
+    },
+    {
+      "if": {
+        "properties": { "decision": { "const": "request_more_evidence" } }
       },
-      "else": {
+      "then": {
         "properties": {
-          "hypothesis": {
-            "type": "null"
-          },
-          "requested_evidence": {
-            "minItems": 1
-          }
-        }
+          "hypothesis": { "type": "null" },
+          "requested_evidence": { "minItems": 1 }
+        },
+        "required": ["requested_evidence"]
       }
     }
   ]

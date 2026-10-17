@@ -65,12 +65,16 @@
           "proposed_checks": { "minItems": 1 }
         },
         "required": ["hypothesis", "evidence_ids", "proposed_checks"]
-      },
-      "else": {
+      }
+    },
+    {
+      "if": { "properties": { "decision": { "const": "request_more_evidence" } } },
+      "then": {
         "properties": {
           "hypothesis": { "type": "null" },
           "requested_evidence": { "minItems": 1 }
-        }
+        },
+        "required": ["requested_evidence"]
       }
     }
   ]
