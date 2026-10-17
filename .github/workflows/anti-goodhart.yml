@@ -1,0 +1,91 @@
+name: Anti-Goodhart RETRYBOX Gate
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  anti-goodhart:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: criba-blackforge
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Validate evidence case oracles
+        run: |
+          python -c "
+          import json, sys
+          from pathlib import Path
+          from criba.verification.retrybox_contract import validate_oracle_file
+
+          base = Path('tests/fixtures/evidence_cases')
+          ok = True
+          for oracle_file in sorted((base).rglob('case.oracle.json')):
+              passed, reason = validate_oracle_file(oracle_file)
+              if not passed:
+                  print(f'FAIL: {oracle_file}: {reason}')
+                  ok = False
+              else:
+                  print(f'PASS: {oracle_file.name}')
+          if not ok:
+              sys.exit(1)
+          print('All oracle files validated.')
+          "
+
+      - name: Run RetryBox evidence contract tests (deterministic)
+        run: |
+          python -m pytest \
+            tests/integration/test_retrybox_evidence_contract.py \
+            -p no:cacheprovider \
+            --strict-markers \
+            -ra \
+            -v \
+            --timeout=30
+
+      - name: Run retry ledger unit tests
+        run: |
+          python -m pytest \
+            tests/unit/test_retry_ledger.py \
+            -p no:cacheprovider \
+            --strict-markers \
+            -ra \
+            -v \
+            --timeout=30
+
+      - name: Run retrybox pilot tests (public + hidden)
+        run: |
+          python -m pytest \
+            tests/fixtures/retrybox_pilot/participant_repo/tests/test_public.py \
+            tests/fixtures/retrybox_pilot/evaluator/test_hidden.py \
+            -p no:cacheprovider \
+            --strict-markers \
+            -ra \
+            -v \
+            --timeout=30
+
+      - name: Run store text normalization tests
+        run: |
+          python -m pytest \
+            tests/unit/test_store_text_normalization.py \
+            -p no:cacheprovider \
+            --strict-markers \
+            -ra \
+            -v \
+            --timeout=30
