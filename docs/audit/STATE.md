@@ -126,7 +126,27 @@ Fuente: governance/ANTI_GOODHART_STATUS.yaml + HANDOFF. No se promueven por test
 
 ---
 
-## 9. ESTADO DE LA CAMPAÑA (OBSERVED_AT 2026-10-15 01:20)
+## 9. ESTADO DE LA CAMPAÑA (OBSERVED_AT 2026-10-17 TRAS M4/M5)
+
+CAMPAÑA MVA (Master Value Archive 2026-10-02) — MAPEO FLUJO PRODUCTO ACTIVO:
+
+CRIBA SHADOW UI → CRIBA CORE REAL → DOSSIER/EVIDENCIA DISCRIMINANTE → SupraClient → SUPRA REAL → PERSISTENCIA → GET/RELOAD/RESTART/REPLAY → VERDAD EN SHADOW
+
+1. Shadow launchable — VERIFIED_BY_EXECUTION (criba_shadow_main.py, abrir_criba.cmd)
+2. CRIBA real desde Shadow — VERIFIED (engine.py, lottery.py, selector.py)
+3. Dossier real — VERIFIED (supra/src/supra_agentic/dossier.py + contrato evidencia discriminante)
+4. SupraClient real — VERIFIED (criba/integrations/supra_client.py:378)
+5. SUPRA real — VERIFIED (service.py: FastAPI + health + providers endpoints)
+6. Persistencia durable — VERIFIED (state.py: proyectos, rollback, atomicidad)
+7. GET/RELOAD/RESTART/REPLAY — VERIFIED (test_b03_replay_restart_contract.py + test_m3_restart_provenance_contract.py)
+8. Verdad representada en Shadow — VERIFIED (ui_actions.on_restore_latest_supra + startup trace)
+9. Windows one-command — VERIFIED_BY_CREATION (abrir_criba.cmd)
+10. User journeys — VERIFIED (verify_shadow_bundle_journey.py + verify_shadow_windows.py)
+11. MVP package — VERIFIED (PyInstaller 6.22.2, CribaShadow.exe 10.6MB, recursos incluidos)
+12. Hardening/observabilidad/polish — PARCIAL (K-INT-01/02 diferidos por seguridad/moli)
+
+PRÓXIMO PASO: PR #23 merge a main con OK de moli.
+NO merge a main sin autorización específica.
 
 - K-INT-00: CERRADO (reconciliación + STATE.md + correcciones aplicadas).
   Commit f05de79 preserva STATE.md + kanban en rama de trabajo (NO main).
