@@ -72,6 +72,29 @@ Push: ✅ al remote: `https://github.com/Klsx-Moli/Criba-Blackforge-Supra/pull/2
 
 ---
 
+## GAPS DEL PLANO DE ESTADO — RESUELTOS
+
+### Proveedor de nube experimental
+- ✅ `hermes/cloud-provider-layer-20261013` integrado en `integrate/shadow-supra-final`
+- `cloud_provider_layer.py` (442 líneas) + tests (280 líneas) + scripts smoke
+
+### PR #21 CB-01 provenance
+- ✅ cb01-bank-provenance integrado en rama de integración (conflictos resueltos → HEAD)
+
+### `main` no protegido
+- ❌ Sin hacer (acción administrativa, requiere permisos de repo owner)
+- Documentado en STATE.md como límite de gobernanza
+
+### Aceptación visual humana del EXE
+- ⚠️ Pendiente de operador humano
+- EXE buildeado y funcional en `dist_final/CribaShadow/CribaShadow.exe`
+
+### Ventaja científica probada (D3/D4/D6)
+- ❌ No hay que prometer
+- Documentado como NOT_ESTABLISHED en STATE.md
+
+---
+
 ## EVIDENCIA DE PRUEBAS (VERIFIED_BY_EXECUTION)
 
 | Suite | Resultado | Duración |
@@ -95,7 +118,14 @@ Push: ✅ al remote: `https://github.com/Klsx-Moli/Criba-Blackforge-Supra/pull/2
 - `astra/criba-outcome/*` — diferidas (H-CAMP-04)
 - `banco-grammar-04`, `banco-trace-04a` — diferidas (K-INT-01, riesgo seguridad)
 - `chatgpt/shadow-*`, `chatgpt/reconcile-*` — absorbidas en main
-- Todas las ramas `astra/local-snapshot*` — preservadas como snapshots
+- Todas las ramas `hermes/local-snapshot*` — preservadas como snapshots
+- BLACKFORGE: 3 ramas en HARD_PAUSE
+
+---
+
+## CLASIFICACIÓN FINAL DE LAS 37 RAMAS
+37 refs: 6 integradas + 3 absorbidas + 5 snapshots preservados + 23 diferidas/no integradas
+Detalle completo: docs/audit/BRANCH_CLASSIFICATION_FINAL_20261017.md
 
 ---
 
