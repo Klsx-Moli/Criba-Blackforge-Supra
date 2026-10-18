@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 import sys
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 from unittest.mock import patch, MagicMock
@@ -30,10 +30,24 @@ class FakeHTTPResponse:
     payload: dict[str, Any] | None = None
     exception: Exception | None = None
 
+    # `headers` es obligatorio en la forma real: ExternalModelRateLimited
+    # construye su mensaje leyendo `response.headers.get('retry-after')`. Sin
+    # este atributo, un 429 moria con AttributeError y el motivo real se perdia.
+    headers: dict[str, str] = field(default_factory=dict)
+
     def json(self) -> dict[str, Any]:
         if self.payload is None:
             raise AssertionError("json() called on an error response")
         return self.payload
+
+    def raise_for_status(self) -> None:
+        """Mismo borde que httpx: >=400 levanta HTTPStatusError con su response."""
+        if self.status_code >= 400:
+            import httpx
+
+            raise httpx.HTTPStatusError(
+                f"HTTP {self.status_code}", request=None, response=self
+            )
 
     @property
     def text(self) -> str:
@@ -67,7 +81,11 @@ class FakeTransport:
                 "timeout": timeout,
             }
         )
-        response = self.responses.pop(0)
+        # Repite la última respuesta cuando se agotan las previstas: el cliente
+        # real reintenta errores transitorios (hasta 4 intentos) y un fallo
+        # persistente se repite en cada reintento. Sin esto, el fake lanzaba
+        # IndexError y enmascaraba el motivo real bajo prueba.
+        response = self.responses[0] if len(self.responses) == 1 else self.responses.pop(0)
         if response.exception is not None:
             raise response.exception
         return response
@@ -429,7 +447,13 @@ def test_abstention_is_not_timeout(
 def test_http_429_is_rate_limit(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """H. HTTP 429 -> rate limit, sin fallback ni retry."""
+    """H. HTTP 429 -> rate limit diagnosticable tras agotar el plan de reintentos.
+
+    El 429 se reintenta (4 intentos / 45s, tenacity) porque el límite del
+    proveedor suele ser transitorio; lo que se fija aquí es que, agotado el
+    plan, el motivo conserva el código (plan_agotado_429) y no se convierte en
+    un error genérico ni se inventa una propuesta.
+    """
     response = FakeHTTPResponse(
         status_code=429,
         payload={"error": {"message": "rate limited"}},
@@ -441,7 +465,8 @@ def test_http_429_is_rate_limit(
 
     assert result.estado == "PENDIENTE_INTERPRETACION"
     assert "429" in result.error or "rate" in result.error.lower()
-    assert len(transport.requests) == 1
+    # El 429 agota el plan de reintentos (4 intentos / 45s) antes de rendirse.
+    assert len(transport.requests) == 4
 
 
 def test_read_timeout_is_timeout(
@@ -458,7 +483,8 @@ def test_read_timeout_is_timeout(
 
     assert result.estado == "PENDIENTE_INTERPRETACION"
     assert "timeout" in result.error.lower()
-    assert len(transport.requests) == 1
+    # Un timeout es transitorio: se reintenta hasta agotar el plan (4 intentos).
+    assert len(transport.requests) == 4
 
 
 def test_valid_proposal_with_failed_critique_is_explicit(
