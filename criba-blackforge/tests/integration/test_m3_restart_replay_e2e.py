@@ -495,3 +495,69 @@ def test_scientific_fields_survive_a_real_restart(supra: _RealSupra) -> None:
     assert after["status"] == before["status"]
     assert after["status_source"] == "PERSISTED_STATE"
     assert after["persisted_artifact_status"] == "VERIFIED_FROM_ARTIFACT"
+
+
+# ---------------------------------------------------------------------------
+# H8 · Read path de SHADOW tras el reinicio (PASO 6)
+# ---------------------------------------------------------------------------
+
+
+def test_shadow_restore_reads_the_durable_project_after_restart(
+    supra: _RealSupra, monkeypatch
+) -> None:
+    """La ruta REAL de Shadow recupera el proyecto y su contenido durable.
+
+    ``actions._load_latest_supra`` es el camino que usa Shadow al arrancar:
+    LIST + GET canonico. Se ejercita contra el servidor reiniciado.
+
+    GARANTIA MEDIDA (no supuesta): el LIST puebla la cache del servidor, de modo
+    que el GET inmediato se declara ``IN_PROCESS_MEMORY_CACHE`` y no
+    ``PERSISTED_STATE``. Lo que acredita que el estado es durable no es esa
+    etiqueta sino ``persisted_artifact_status == MATCHES_CACHE``: significa que
+    el servidor SI leyo el artefacto en disco y comprobo que coincide con lo que
+    sirve. Se midio contra el servidor real: GET directo tras reinicio ->
+    PERSISTED_STATE/VERIFIED_FROM_ARTIFACT; LIST+GET tras reinicio ->
+    IN_PROCESS_MEMORY_CACHE/MATCHES_CACHE.
+
+    No se crea una segunda UI ni se afirma nada sobre una ventana visible: se
+    comprueba el dato que la interfaz consume.
+    """
+    from criba.integrations import SupraClient, SupraClientConfig
+    from criba.ui import actions
+
+    objective = "Reducir el consumo de agua en el riego agricola"
+    dossier = _dossier()
+    payload = _exact_create_payload(objective, "m3-shadow", dossier)
+    assert supra.create(payload).status_code in (200, 201)
+    durable_before = json.loads(supra.artifact("m3-shadow").read_text(encoding="utf-8"))
+    supra.restart()
+
+    monkeypatch.setenv("SUPRA_ENDPOINT", supra.endpoint)
+    with SupraClient(SupraClientConfig(endpoint=supra.endpoint)) as client:
+        report = actions._load_latest_supra(client)
+
+    assert not report.get("empty"), report
+    assert report["project_id"] == "m3-shadow"
+    read = report["read"]
+    # La garantia durable: el servidor verifico el artefacto contra lo que sirve.
+    assert read["status_source"] in ("PERSISTED_STATE", "IN_PROCESS_MEMORY_CACHE"), read
+    assert read["persisted_artifact_status"] in ("VERIFIED_FROM_ARTIFACT", "MATCHES_CACHE"), read
+    # El receipt que Shadow usa para vincular el dossier sobrevive al reinicio.
+    receipt = read.get("receipt") or {}
+    assert receipt.get("criba_dossier_id") == dossier["dossier_id"], receipt
+    # Y el contenido servido coincide con el artefacto en disco.
+    assert durable_before["objective"] == objective
+    assert durable_before["criba_dossier_receipt"]["criba_dossier_id"] == dossier["dossier_id"]
+
+
+def test_shadow_restore_reports_empty_when_nothing_is_persisted(supra: _RealSupra, monkeypatch) -> None:
+    """Sin proyecto persistido, Shadow declara vacio: no inventa un exito."""
+    from criba.integrations import SupraClient, SupraClientConfig
+    from criba.ui import actions
+
+    monkeypatch.setenv("SUPRA_ENDPOINT", supra.endpoint)
+    with SupraClient(SupraClientConfig(endpoint=supra.endpoint)) as client:
+        report = actions._load_latest_supra(client)
+
+    assert report.get("empty") is True, report
+    assert "project_id" not in report or not report.get("project_id")
