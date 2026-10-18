@@ -1,53 +1,50 @@
 @echo off
-REM M4 - Windows One-Command Launcher for CRIBA Shadow UI
+REM M4 - Windows One-Command Launcher for CRIBA Shadow UI (Option A)
 REM Objetivo: launcher/orquestador canónico; puerto dinámico/libre; comprobación
-REM config/env; backend arrancado una vez; Shadow arrancado; shutdown limpio;
+REM config/env; backend arrancado una sola vez; Shadow arrancado; shutdown limpio;
 REM SIN requisito BLACKFORGE key.
+REM
+REM Toda la orquestación real (single-instance lock, puerto libre, SUPRA
+REM in-process o reuso de backend existente, health real, shutdown limpio via
+REM finally, estado fuera del bundle, SUPRA_USE_MODEL=false) vive en
+REM criba_shadow_main.py. Este .cmd SOLO valida el entorno mínimo y ejecuta el
+REM entrypoint canónico: `python -m criba criba gui`.
+REM
+REM PROHIBIDO en este archivo:
+REM   - arrancar SUPRA como proceso separado
+REM   - elegir puerto en batch
+REM   - sleep ciego (timeout)
+REM   - escribir/leer supra.pid
+REM   - duplicar health checks
+REM   - requerir llave física BLACKFORGE
 setlocal enabledelayedexpansion
 
-REM === Configuración ===
-set "SCRIPT_DIR=%~dp0"
-set "SCRIPT_DIR=%SCRIPT_DIR:~0,-1%"
-set "_CMD_NAME=%~n0"
-set "LOCALAPPDATA_LOW=%LOCALAPPDATA%\Supra"
-set "SUPRA_STORAGE_DIR=%LOCALAPPDATA_LOW%\supra_state"
-set "SUPRA_LOGS_DIR=%LOCALAPPDATA_LOW%\logs"
-
-REM Crear carpetas de datos si no existen (no requiere BLACKFORGE)
-if not exist "%SUPRA_STORAGE_DIR%" mkdir "%SUPRA_STORAGE_DIR%"
-if not exist "%SUPRA_LOGS_DIR%" mkdir "%SUPRA_LOGS_DIR%"
-
-REM Puerto dinámico/libre: dejar que el launcher elija el primer puerto libre
-set "SUPRA_PORT="
-
-REM === Comprobación config/env ===
+REM === Validar Python disponible ===
 where python >nul 2>&1
 if errorlevel 1 (
     echo [ERROR] Python no encontrado en PATH. Instala Python 3.11+ y reintenta.
     exit /b 1
 )
 
-REM === Arrancar backend SUPRA una sola vez ===
-if not exist "%LOCALAPPDATA_LOW%\supra.pid" (
-    echo [INFO] Arrancando SUPRA en puerto dinamico...
-    cd /d "%SCRIPT_DIR%"
-    start /b python -m supra_agentic.service --port 0 > "%SUPRA_LOGS_DIR%\supra.log" 2>&1
-    echo [INFO] SUPRA arrancado. PID en %LOCALAPPDATA_LOW%\supra.pid
-    timeout /t 2 >nul
+REM === Validar raíz mínima: este .cmd vive al lado del paquete criba-blackforge ===
+set "_CMD_DIR=%~dp0"
+set "_CMD_DIR=%_CMD_DIR:~0,-1%"
+if not exist "%_CMD_DIR%\pyproject.toml" (
+    if not exist "%_CMD_DIR%\..\pyproject.toml" (
+        echo [ERROR] No se encontro pyproject.toml. Ejecuta desde el monorepo criba-blackforge-supra.
+        exit /b 1
+    )
 )
 
-REM === Arranque Shadow UI ===
-echo [INFO] Iniciando CRIBA Shadow UI...
-cd /d "%SCRIPT_DIR%"
-python -c "from criba_shadow_main import main; raise SystemExit(main())"
+REM === Ejecutar entrypoint canonico (single command) ===
+REM `criba gui` delega en criba_shadow_main.py, que:
+REM   - adquiere el OS lock single-instance
+REM   - elige un puerto libre dinamico
+REM   - arranca SUPRA in-process con SUPRA_USE_MODEL=false (NO requiere BLACKFORGE key)
+REM   - verifica /health real antes de lanzar la UI
+REM   - reusa un backend ya corriente si existe y pasa health
+REM   - hace shutdown limpio del backend en el finally del proceso
+REM   - mantiene el estado fuera del bundle (CRIBASHADOW_HOME redirigible)
+python -m criba gui
 set "_EXIT_CODE=%ERRORLEVEL%"
-
-REM === Shutdown limpio ===
-if exist "%LOCALAPPDATA_LOW%\supra.pid" (
-    echo [INFO] Cerrando SUPRA...
-    for /f %%i in ('type "%LOCALAPPDATA_LOW%\supra.pid"') do taskkill /pid %%i /f >nul 2>&1
-    del "%LOCALAPPDATA_LOW%\supra.pid"
-)
-
-echo [INFO] Cierre completo. Exit code: %_EXIT_CODE%
 exit /b %_EXIT_CODE%
