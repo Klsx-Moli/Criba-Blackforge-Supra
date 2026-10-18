@@ -385,7 +385,7 @@ class CloudProviderLayer:
         cost_reported = None
         if isinstance(raw_usage, Mapping):
             cost = raw_usage.get("cost")
-            if type(cost) in (int, float):
+            if isinstance(cost, (int, float)) and not isinstance(cost, bool):
                 cost_reported = float(cost)
 
         trace = ExecutionTrace(

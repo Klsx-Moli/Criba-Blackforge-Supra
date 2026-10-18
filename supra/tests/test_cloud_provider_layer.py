@@ -265,6 +265,64 @@ class TestTypedErrors:
             assert issubclass(exc, Exception)
 
 
+class TestCostReportNarrowing:
+    """Valida el narrowing de cost: solo int/float reales se reportan.
+
+    Regla: cost_reported debe ser float(c) para int/float reales;
+    None para None, str, bool (bool excluido pese a ser subclase de int).
+    """
+
+    def _handler(self, cost: object) -> object:
+        def _h(_: httpx.Request) -> httpx.Response:
+            return httpx.Response(
+                200,
+                json={
+                    "id": "chat-c",
+                    "model": "model-ok",
+                    "choices": [{"message": {"role": "assistant", "content": "respuesta"}}],
+                    "usage": {
+                        "prompt_tokens": 10,
+                        "completion_tokens": 20,
+                        "cost": cost,
+                    },
+                },
+            )
+
+        return _h
+
+    def test_float_cost_reported(self) -> None:
+        layer, _ = _make_layer(handler=self._handler(12.5))
+        _, trace = layer.complete("hola", system="sistema")
+        assert trace.cost_reported == 12.5
+
+    def test_int_cost_coerced_to_float(self) -> None:
+        layer, _ = _make_layer(handler=self._handler(7))
+        _, trace = layer.complete("hola", system="sistema")
+        assert trace.cost_reported == 7.0
+        assert isinstance(trace.cost_reported, float)
+
+    def test_none_cost_is_none(self) -> None:
+        layer, _ = _make_layer(handler=self._handler(None))
+        _, trace = layer.complete("hola", system="sistema")
+        assert trace.cost_reported is None
+
+    def test_string_cost_is_none(self) -> None:
+        layer, _ = _make_layer(handler=self._handler("12.5"))
+        _, trace = layer.complete("hola", system="sistema")
+        assert trace.cost_reported is None
+
+    def test_bool_true_cost_is_none(self) -> None:
+        # bool es subclase de int en Python; float(True) == 1.0 no es un costo
+        layer, _ = _make_layer(handler=self._handler(True))
+        _, trace = layer.complete("hola", system="sistema")
+        assert trace.cost_reported is None
+
+    def test_bool_false_cost_is_none(self) -> None:
+        layer, _ = _make_layer(handler=self._handler(False))
+        _, trace = layer.complete("hola", system="sistema")
+        assert trace.cost_reported is None
+
+
 class TestCostEstimate:
     def test_estimate_disabled(self) -> None:
         layer, _ = _make_layer(enabled=False)
