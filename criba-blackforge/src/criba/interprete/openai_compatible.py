@@ -248,7 +248,7 @@ class wait_retry_after(wait_base):
                     except (TypeError, ValueError):
                         pass
 
-        return self.fallback(retry_state)
+        return float(self.fallback(retry_state))
 
 
 @retry(
