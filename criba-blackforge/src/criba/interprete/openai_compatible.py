@@ -680,6 +680,11 @@ class OpenAICompatibleInterpreter:
                         f"tokens={completion_tokens} razonamiento={reasoning_tokens}",
                         error_kind="truncated",
                     )
+                # Un content de tipo inesperado no se convierte a texto: se
+                # nombra el tipo real para que el diagnóstico sea accionable.
+                if "invalid_content_type" in str(exc):
+                    tipo = str(exc).rsplit(":", 1)[-1]
+                    return _fallo(f"contenido_tipo_inesperado:{tipo}", error_kind="schema")
                 if message.get("tool_calls"):
                     return _fallo("tool_calls_sin_contenido", error_kind="schema")
                 return _fallo(
@@ -692,9 +697,36 @@ class OpenAICompatibleInterpreter:
             try:
                 _extraer_json(raw_output)
             except (json.JSONDecodeError, ValueError) as exc:
+                # Una respuesta cortada por límite de tokens NO es JSON inválido:
+                # decir "JSONDecodeError" oculta la causa real. Se atribuye al
+                # truncamiento cuando el modelo lo declaró con finish_reason.
+                if finish_reason == "length":
+                    return _fallo(
+                        f"salida_truncada:finish_reason=length "
+                        f"tokens={completion_tokens} razonamiento={reasoning_tokens}",
+                        error_kind="truncated",
+                    )
                 return _fallo(f"json_invalido:{type(exc).__name__}", error_kind="parse_error")
         except httpx.TimeoutException:
             return _fallo("timeout", error_kind="timeout")
+        except ExternalModelRateLimited as exc:
+            # El 429 se reintenta en _post_chat_completion (4 intentos / 45s) y
+            # agota el plan: se conserva el código y NO se vuelca el cuerpo de la
+            # respuesta. Sin este manejador el error caía en el `except Exception`
+            # genérico y el motivo real se perdía como proposal_failed:AttributeError.
+            return _fallo(
+                "plan_agotado_429",
+                error_kind="rate_limit",
+                raw_para_hash=exc.response.text[:2000],
+            )
+        except httpx.HTTPStatusError as exc:
+            # Contrato restaurado del flujo previo al refactor de tenacity:
+            # 401/403 -> credenciales rechazadas; cualquier otro -> http_error_N.
+            # En ninguno de los dos se vuelca el cuerpo de la respuesta.
+            codigo = exc.response.status_code if exc.response is not None else 0
+            if codigo in (401, 403):
+                return _fallo(f"credenciales rechazadas: HTTP {codigo}", error_kind="auth")
+            return _fallo(f"http_error_{codigo}", error_kind="http")
         except httpx.HTTPError as exc:
             tipo = type(exc).__name__
             log.warning("interpretacion %s fallo de transporte: %s", request_id, tipo)
