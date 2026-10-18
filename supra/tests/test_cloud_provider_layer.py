@@ -17,7 +17,6 @@ from __future__ import annotations
 
 import httpx
 import pytest
-
 from supra_agentic.cloud_provider_layer import (
     AuthRequired,
     CloudLayerConfig,
@@ -195,7 +194,6 @@ class TestFailurePaths:
 
         def factory_with_credit_message() -> object:
             provider = real_factory()
-            original_generate = provider.generate
 
             def generate_raises(*args, **kwargs):  # type: ignore[no-untyped-def]
                 raise ProviderError(

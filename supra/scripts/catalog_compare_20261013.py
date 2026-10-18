@@ -10,7 +10,6 @@ razonamiento NO mandatorio, y los :free con esfuerzo "none" soportado.
 
 from __future__ import annotations
 
-import json
 import os
 from pathlib import Path
 

@@ -7,7 +7,6 @@ del smoke aprobado: es una llamada de diagnóstico con el mismo modelo.
 
 from __future__ import annotations
 
-import json
 import os
 
 os.environ["SUPRA_BASE_URL"] = "http://127.0.0.1:8645/v1"

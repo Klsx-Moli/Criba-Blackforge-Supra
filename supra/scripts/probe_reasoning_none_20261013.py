@@ -12,7 +12,6 @@ NO imprime credenciales: ruta A usa el proxy OAuth (bearer "local").
 from __future__ import annotations
 
 import json
-import os
 import time
 
 import httpx
