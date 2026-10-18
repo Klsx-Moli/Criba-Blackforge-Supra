@@ -31,8 +31,14 @@ IDEA = {
 
 
 def respuesta(data, *, status=200, model="reportado"):
+    # httpx >= 0.28 exige `request` en Response para poder evaluar el estado:
+    # sin él, raise_for_status() lanza RuntimeError y enmascara el motivo real
+    # (el error de validación que este test comprueba). Se adjunta la petición
+    # para que la respuesta se comporte como una real.
+    request = httpx.Request("POST", "http://test.local/v1/chat/completions")
     return httpx.Response(
         status,
+        request=request,
         json={
             "model": model,
             "choices": [{"finish_reason": "stop", "message": {"content": json.dumps(data)}}],
@@ -55,7 +61,12 @@ def transporte(monkeypatch, responses):
 
         def post(self, url, json=None, headers=None):
             enviados.append((url, json))
-            response = responses[len(enviados) - 1]
+            # Repite la última respuesta cuando se agotan las previstas: el
+            # cliente real reintenta los errores transitorios (hasta 4 intentos)
+            # y un servidor con un timeout persistente devuelve el mismo fallo
+            # en cada reintento. Sin esto, el fake lanzaba IndexError y
+            # enmascaraba el motivo real del fallo bajo prueba.
+            response = responses[min(len(enviados) - 1, len(responses) - 1)]
             if isinstance(response, Exception):
                 raise response
             return response

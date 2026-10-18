@@ -827,6 +827,15 @@ class TopCardsWidget(QWidget):
         self.interpreter_selector.addItem(
             "Nous/Hermes OAuth · Space Bunny", "openai_compatible"
         )
+        # Modelos gratuitos del proxy Hermes (suscripción Nous). Se listan por
+        # ejecución real contra el proxy; el operador elige uno concreto. El
+        # userData lleva (backend, model) para que el run use ese modelo.
+        from criba.interprete.seleccion import FREE_MODELS
+
+        for model_id, label in FREE_MODELS:
+            self.interpreter_selector.addItem(
+                f"{label} · free", ("openai_compatible", model_id)
+            )
         self.interpreter_selector.addItem(
             "Cargar modelo", "local_llama"
         )

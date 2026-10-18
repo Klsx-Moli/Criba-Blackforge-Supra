@@ -16,12 +16,22 @@ import json
 import logging
 import math
 import os
+import random
 import time
 from collections.abc import Callable
 from dataclasses import replace
 from typing import Any
 
 import httpx
+from tenacity import (
+    RetryCallState,
+    retry,
+    retry_if_exception,
+    stop_after_attempt,
+    stop_after_delay,
+    wait_exponential_jitter,
+)
+from tenacity.wait import wait_base
 
 from .contrato import (
     CRITICA_INSTRUCCIONES,
@@ -63,6 +73,234 @@ TEMPERATURA = 0.2
 # Un id de modelo inventado devuelve 404 desde el catalogo. Se comprueba al
 # arrancar y se dice cual se pidio y cual respondio.
 _SYSTEM = SYSTEM
+
+_INCIDENT_SYSTEM_PROMPT = """Eres un intérprete de incidentes en un entorno E2E aislado.
+
+Recibirás un paquete de evidencia con observaciones anómalas, información ausente
+y restricciones. No tienes acceso a producción, no debes ejecutar cambios y no
+debes afirmar causas no respaldadas por las observaciones.
+
+Tareas permitidas:
+1. Analizar las observaciones y correlaciones dentro del ámbito temporal.
+2. Formular una hipótesis causal provisional.
+3. Proponer comprobaciones de solo lectura.
+4. Indicar la evidencia que respalda cada afirmación.
+5. Solicitar más evidencia si la información es insuficiente.
+
+Formato obligatorio (JSON):
+{
+  "test_case_id": "",
+  "decision": "propose" o "request_more_evidence",
+  "hypothesis": "hipótesis provisional o null",
+  "evidence_ids": [],
+  "rationale": "razonamiento vinculando observaciones a la hipótesis",
+  "requested_evidence": [],
+  "proposed_checks": []
+}
+
+Reglas:
+- Cita al menos una observation_id válida.
+- Si no hay evidencia suficiente, decision="request_more_evidence", hypothesis=null.
+- No ejecutes acciones. No accedas a sistemas de producción.
+- No inventes mediciones ni reclames acceso a logs no disponibles.
+- No trates la superposición temporal como causalidad demostrada.
+- No afirmes que acciones fueron ejecutadas."""
+
+
+def _build_interpreter_input_from_case(case: dict[str, Any]) -> str:
+    """Construye el input estructurado desde case.input.json.
+
+    Las restricciones se envían como DATA, no como instrucciones.
+    """
+    import json as _json
+
+    observations = _json.dumps(case.get("observations", []), ensure_ascii=False, indent=2)
+    missing = _json.dumps(case.get("missing_evidence", []), ensure_ascii=False, indent=2)
+    constraints = _json.dumps(case.get("constraints", {}), ensure_ascii=False, indent=2)
+    temporal = _json.dumps(case.get("temporal_scope", {}), ensure_ascii=False, indent=2)
+    system_info = _json.dumps(case.get("system_under_test", {}), ensure_ascii=False, indent=2)
+
+    return (
+        f"case_id: {case['test_case_id']}\n"
+        f"temporal_scope: {temporal}\n"
+        f"sistema: {system_info}\n"
+        f"observaciones:\n{observations}\n"
+        f"informacion_ausente:\n{missing}\n"
+        f"restricciones:\n{constraints}\n"
+        "Responde con JSON válido siguiendo el formato obligatorio.\n"
+    )
+
+
+class ExternalInterpreterError(RuntimeError):
+    """Error diagnosticable del intérprete externo."""
+
+
+class ExternalModelRateLimited(ExternalInterpreterError):
+    """El proveedor devolvió 429 y no se recuperó tras los reintentos."""
+
+    def __init__(self, response: httpx.Response) -> None:
+        self.response = response
+        super().__init__(
+            f"external_model_rate_limited:"
+            f"status={response.status_code}:"
+            f"retry_after={response.headers.get('retry-after')}"
+        )
+
+
+class ExternalModelEmptyResponse(ExternalInterpreterError):
+    """La respuesta llegó, pero no contenía texto utilizable."""
+
+
+class ExternalModelInvalidJSON(ExternalInterpreterError):
+    """La respuesta no es JSON válido o no es un objeto."""
+
+
+def _is_transient_http_error(exc: BaseException) -> bool:
+    """Determina si un error HTTP es transitorio y admite reintento."""
+    if isinstance(exc, ExternalModelRateLimited):
+        return True
+    if isinstance(exc, (httpx.TimeoutException, httpx.TransportError)):
+        return True
+    return False
+
+
+def _extract_content(response_json: dict[str, Any]) -> str:
+    """Extrae y valida el contenido del mensaje de la respuesta del modelo.
+
+    content puede ser string o null (protocolo Chat Completions).
+    Valida antes de json.loads para evitar TypeError por content=None.
+    """
+    choices = response_json.get("choices") or []
+
+    if not choices:
+        raise ExternalModelEmptyResponse("external_model_empty_choices")
+
+    choice = choices[0]
+    message = choice.get("message") or {}
+    content = message.get("content")
+    finish_reason = choice.get("finish_reason")
+
+    if content is None:
+        raise ExternalModelEmptyResponse(
+            f"external_model_null_content:finish_reason={finish_reason!r}"
+        )
+
+    if not isinstance(content, str):
+        raise ExternalModelEmptyResponse(
+            f"external_model_invalid_content_type:{type(content).__name__}"
+        )
+
+    content = content.strip()
+
+    if not content:
+        raise ExternalModelEmptyResponse(
+            f"external_model_empty_content:finish_reason={finish_reason!r}"
+        )
+
+    return content
+
+
+def _parse_model_json(raw: str) -> dict[str, Any]:
+    """Parsea el contenido como JSON, validando que sea un objeto dict."""
+    try:
+        parsed = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        raise ExternalModelInvalidJSON("external_model_invalid_json") from exc
+
+    if not isinstance(parsed, dict):
+        raise ExternalModelInvalidJSON(
+            f"external_model_invalid_json_type:{type(parsed).__name__}"
+        )
+
+    return parsed
+
+
+def _is_truncated_response(exc: BaseException) -> bool:
+    """Detecta respuestas truncadas por finish_reason='length'."""
+    return (
+        isinstance(exc, ExternalModelEmptyResponse)
+        and "finish_reason='length'" in str(exc)
+    )
+
+
+class wait_retry_after(wait_base):
+    """Estrategia de espera que respeta Retry-After (segundos o fecha HTTP)."""
+
+    def __init__(self, fallback: Any) -> None:
+        self.fallback = fallback
+
+    def __call__(self, retry_state: RetryCallState) -> float:
+        outcome = retry_state.outcome
+        exc = outcome.exception() if outcome else None
+
+        if isinstance(exc, ExternalModelRateLimited):
+            raw = exc.response.headers.get("retry-after")
+            if raw:
+                try:
+                    return min(max(float(raw), 1.0), 30.0)
+                except ValueError:
+                    try:
+                        from email.utils import parsedate_to_datetime
+
+                        target = parsedate_to_datetime(raw)
+                        delay = target.timestamp() - time.time()
+                        return min(max(delay, 1.0), 30.0)
+                    except (TypeError, ValueError):
+                        pass
+
+        return self.fallback(retry_state)
+
+
+@retry(
+    retry=retry_if_exception(_is_transient_http_error),
+    stop=(stop_after_attempt(4) | stop_after_delay(45)),
+    wait=wait_retry_after(
+        fallback=wait_exponential_jitter(initial=1, max=15, jitter=2)
+    ),
+    reraise=True,
+)
+def _post_chat_completion(
+    client: httpx.Client,
+    url: str,
+    payload: dict[str, Any],
+    headers: dict[str, str],
+) -> httpx.Response:
+    """POST a /chat/completions con reintentos para 429 y errores transitorios."""
+    response = client.post(url, json=payload, headers=headers)
+
+    if response.status_code == 429:
+        raise ExternalModelRateLimited(response)
+
+    response.raise_for_status()
+    return response
+
+
+@retry(
+    retry=retry_if_exception(_is_truncated_response),
+    stop=stop_after_attempt(2),
+    wait=wait_exponential_jitter(initial=1, max=5),
+    reraise=True,
+)
+def _request_structured_json(
+    client: httpx.Client,
+    url: str,
+    payload: dict[str, Any],
+    headers: dict[str, str],
+) -> dict[str, Any]:
+    """Obtiene JSON estructurado con reintento único si se trunca por max_tokens.
+
+    No reintenta content=None con tool_calls o content_filter; esos son errores
+    diagnósticos permanentes.
+    """
+    response = _post_chat_completion(client, url, payload, headers)
+    raw = _extract_content(response.json())
+
+    try:
+        return _parse_model_json(raw)
+    except ExternalModelInvalidJSON:
+        raise ExternalModelEmptyResponse(
+            "external_model_invalid_json:possible_truncation"
+        )
 
 
 def _extraer_json(contenido: str) -> dict[str, Any]:
@@ -178,7 +416,7 @@ class OpenAICompatibleInterpreter:
         self.base = (
             base_url or os.getenv("CRIBA_EXTERNAL_BASE_URL") or "http://127.0.0.1:8645/v1"
         ).rstrip("/")
-        self.model = model or os.getenv("CRIBA_EXTERNAL_MODEL") or "stealth/space-bunny-alpha"
+        self.model = model or os.getenv("CRIBA_EXTERNAL_MODEL") or "poolside/laguna-s-2.1:free"
         self.critic_model = critic_model or os.getenv("CRIBA_CRITIC_MODEL") or self.model
         # La clave se lee SOLO del entorno y nunca se escribe en logs ni en la
         # procedencia. Un proxy local acepta cualquier bearer.
@@ -332,10 +570,16 @@ class OpenAICompatibleInterpreter:
         def _numero_opcional(value: Any) -> int | None:
             return value if type(value) is int and value >= 0 else None
 
-        def _fallo(motivo: str, *, raw_para_hash: str | None = None) -> InterpretationResult:
+        def _fallo(
+            motivo: str,
+            *,
+            raw_para_hash: str | None = None,
+            error_kind: str = "",  # NEW: clasificación estructurada del fallo
+        ) -> InterpretationResult:
             return InterpretationResult(
                 estado=ESTADO_PENDIENTE,
                 error=motivo,
+                error_kind=error_kind,
                 provenance=self._provenance(
                     request_id=request_id,
                     inicio=inicio,
@@ -356,7 +600,7 @@ class OpenAICompatibleInterpreter:
         problema_endpoint = endpoint_problem(self.base)
         if problema_endpoint:
             return replace(
-                _fallo(f"configuracion_invalida:endpoint:{problema_endpoint}"),
+                _fallo(f"configuracion_invalida:endpoint:{problema_endpoint}", error_kind="config"),
                 model_requests=0,
             )
 
@@ -366,12 +610,12 @@ class OpenAICompatibleInterpreter:
                 if not 1 <= max_tokens <= 32768:
                     raise ValueError("max_tokens debe ser positivo")
             except ValueError:
-                return replace(_fallo("configuracion_invalida:max_tokens"), model_requests=0)
+                return replace(_fallo("configuracion_invalida:max_tokens", error_kind="config"), model_requests=0)
             payload["max_tokens"] = max_tokens
             if not math.isfinite(self.timeout_s) or not 0 < self.timeout_s <= 1800:
-                return replace(_fallo("configuracion_invalida:timeout"), model_requests=0)
+                return replace(_fallo("configuracion_invalida:timeout", error_kind="config"), model_requests=0)
             if not math.isfinite(self.temperature) or not 0 <= self.temperature <= 2:
-                return replace(_fallo("configuracion_invalida:temperature"), model_requests=0)
+                return replace(_fallo("configuracion_invalida:temperature", error_kind="config"), model_requests=0)
             if self.reasoning_effort:
                 if self.reasoning_effort not in {
                     "none",
@@ -383,7 +627,7 @@ class OpenAICompatibleInterpreter:
                     "max",
                 }:
                     return replace(
-                        _fallo("configuracion_invalida:reasoning_effort"), model_requests=0
+                        _fallo("configuracion_invalida:reasoning_effort", error_kind="config"), model_requests=0
                     )
                 from urllib.parse import urlsplit
 
@@ -394,31 +638,25 @@ class OpenAICompatibleInterpreter:
             if self.enable_thinking is not None:
                 payload["chat_template_kwargs"] = {"enable_thinking": self.enable_thinking}
             with httpx.Client(timeout=self.timeout_s) as client:
-                resp = client.post(
-                    f"{self.base}/chat/completions", json=payload, headers=self._headers()
+                resp = _post_chat_completion(
+                    client,
+                    f"{self.base}/chat/completions",
+                    payload=payload,
+                    headers=self._headers(),
                 )
-            if resp.status_code == 429:
-                # El cuerpo puede contener metadatos de cuenta: se hashea para
-                # procedencia, pero no se muestra ni se guarda como salida.
-                return _fallo("plan_agotado_429", raw_para_hash=resp.text[:2000])
-            if resp.status_code in (401, 403):
-                return _fallo(f"credenciales rechazadas: HTTP {resp.status_code}")
-            if resp.status_code >= 400:
-                return _fallo(f"http_error_{resp.status_code}")
-
             try:
                 cuerpo = resp.json()
             except ValueError as exc:
-                return _fallo(f"respuesta_json_invalida:{type(exc).__name__}")
+                return _fallo(f"respuesta_json_invalida:{type(exc).__name__}", error_kind="schema")
             if not isinstance(cuerpo, dict):
-                return _fallo(f"respuesta_tipo_inesperado:{type(cuerpo).__name__}")
+                return _fallo(f"respuesta_tipo_inesperado:{type(cuerpo).__name__}", error_kind="schema")
             model_reported = str(cuerpo.get("model") or "")
             choices = cuerpo.get("choices")
             if not isinstance(choices, list) or not choices:
-                return _fallo("respuesta_sin_choices")
+                return _fallo("respuesta_sin_choices", error_kind="schema")
             eleccion = choices[0]
             if not isinstance(eleccion, dict):
-                return _fallo(f"choice_tipo_inesperado:{type(eleccion).__name__}")
+                return _fallo(f"choice_tipo_inesperado:{type(eleccion).__name__}", error_kind="schema")
 
             finish_reason = str(eleccion.get("finish_reason") or "")
             uso = cuerpo.get("usage")
@@ -427,40 +665,76 @@ class OpenAICompatibleInterpreter:
                 detalles = uso.get("completion_tokens_details")
                 if isinstance(detalles, dict):
                     reasoning_tokens = _numero_opcional(detalles.get("reasoning_tokens"))
-
             message = eleccion.get("message")
             if not isinstance(message, dict):
-                return _fallo(f"message_tipo_inesperado:{type(message).__name__}")
-            contenido = message.get("content")
-            if contenido is None or (isinstance(contenido, str) and not contenido.strip()):
+                return _fallo(f"message_tipo_inesperado:{type(message).__name__}", error_kind="schema")
+
+            # Usa _extract_content para validar content (None, tipo, vacío)
+            try:
+                raw_output = _extract_content(cuerpo)
+            except ExternalModelEmptyResponse as exc:
+                # finish_reason='length' -> ExternalModelEmptyResponse con finish_reason='length'
+                if "finish_reason='length'" in str(exc):
+                    return _fallo(
+                        f"sin_contenido:finish_reason=length "
+                        f"tokens={completion_tokens} razonamiento={reasoning_tokens}",
+                        error_kind="truncated",
+                    )
+                # Un content de tipo inesperado no se convierte a texto: se
+                # nombra el tipo real para que el diagnóstico sea accionable.
+                if "invalid_content_type" in str(exc):
+                    tipo = str(exc).rsplit(":", 1)[-1]
+                    return _fallo(f"contenido_tipo_inesperado:{tipo}", error_kind="schema")
                 if message.get("tool_calls"):
-                    return _fallo("tool_calls_sin_contenido")
+                    return _fallo("tool_calls_sin_contenido", error_kind="schema")
                 return _fallo(
                     f"sin_contenido:finish_reason={finish_reason or 'desconocido'} "
-                    f"tokens={completion_tokens} razonamiento={reasoning_tokens}"
+                    f"tokens={completion_tokens} razonamiento={reasoning_tokens}",
+                    error_kind="schema",
                 )
-            if not isinstance(contenido, str):
-                return _fallo(f"contenido_tipo_inesperado:{type(contenido).__name__}")
-            raw_output = contenido
-            if finish_reason == "length":
-                return _fallo(
-                    f"salida_truncada:finish_reason=length "
-                    f"tokens={completion_tokens} ({len(raw_output)} chars)"
-                )
+
+            # Validación JSON (usa _extraer_json que ya existe para consistencia)
             try:
                 _extraer_json(raw_output)
             except (json.JSONDecodeError, ValueError) as exc:
-                return _fallo(f"json_invalido:{type(exc).__name__}")
+                # Una respuesta cortada por límite de tokens NO es JSON inválido:
+                # decir "JSONDecodeError" oculta la causa real. Se atribuye al
+                # truncamiento cuando el modelo lo declaró con finish_reason.
+                if finish_reason == "length":
+                    return _fallo(
+                        f"salida_truncada:finish_reason=length "
+                        f"tokens={completion_tokens} razonamiento={reasoning_tokens}",
+                        error_kind="truncated",
+                    )
+                return _fallo(f"json_invalido:{type(exc).__name__}", error_kind="parse_error")
         except httpx.TimeoutException:
-            return _fallo("timeout")
+            return _fallo("timeout", error_kind="timeout")
+        except ExternalModelRateLimited as exc:
+            # El 429 se reintenta en _post_chat_completion (4 intentos / 45s) y
+            # agota el plan: se conserva el código y NO se vuelca el cuerpo de la
+            # respuesta. Sin este manejador el error caía en el `except Exception`
+            # genérico y el motivo real se perdía como proposal_failed:AttributeError.
+            return _fallo(
+                "plan_agotado_429",
+                error_kind="rate_limit",
+                raw_para_hash=exc.response.text[:2000],
+            )
+        except httpx.HTTPStatusError as exc:
+            # Contrato restaurado del flujo previo al refactor de tenacity:
+            # 401/403 -> credenciales rechazadas; cualquier otro -> http_error_N.
+            # En ninguno de los dos se vuelca el cuerpo de la respuesta.
+            codigo = exc.response.status_code if exc.response is not None else 0
+            if codigo in (401, 403):
+                return _fallo(f"credenciales rechazadas: HTTP {codigo}", error_kind="auth")
+            return _fallo(f"http_error_{codigo}", error_kind="http")
         except httpx.HTTPError as exc:
             tipo = type(exc).__name__
             log.warning("interpretacion %s fallo de transporte: %s", request_id, tipo)
-            return _fallo(f"transporte_http:{tipo}")
+            return _fallo(f"transporte_http:{tipo}", error_kind="transport")
         except Exception as exc:  # noqa: BLE001 - una propuesta nunca rompe el loop
             tipo = type(exc).__name__
             log.warning("interpretacion %s fallo: %s", request_id, tipo)
-            return _fallo(f"proposal_failed:{tipo}")
+            return _fallo(f"proposal_failed:{tipo}", error_kind="internal_error")
 
         return InterpretationResult(
             estado=ESTADO_PROPUESTA,
@@ -592,6 +866,40 @@ class OpenAICompatibleInterpreter:
             critica=diagnostico,
             model_requests=transporte.model_requests + critica.model_requests,
         )
+
+    def analizar_caso(self, case: dict[str, Any]) -> dict[str, Any]:
+        """Analiza un caso estructurado de evidencia eincidente.
+
+        Envía observaciones, información ausente y restricciones como DATA
+        al modelo y devuelve JSON validado. Aplica reintentos de Tenacity
+        para errores transitorios (429, timeouts, transport errors).
+
+        Lanza:
+          - ExternalModelRateLimited: tras 4 intentos o 45s (no reintentable)
+          - ExternalModelEmptyResponse: content=None/vacío (no reintentable)
+          - ExternalModelInvalidJSON: respuesta no es JSON válido
+        """
+        input_text = _build_interpreter_input_from_case(case)
+        payload = {
+            "model": self.model,
+            "messages": [
+                {"role": "system", "content": _INCIDENT_SYSTEM_PROMPT},
+                {"role": "user", "content": input_text},
+            ],
+            "temperature": self.temperature,
+            "max_tokens": self.max_tokens,
+            "response_format": {"type": "json_object"},
+        }
+        if self.seed is not None:
+            payload["seed"] = self.seed
+
+        with httpx.Client(timeout=self.timeout_s) as client:
+            return _request_structured_json(
+                client,
+                f"{self.base}/chat/completions",
+                payload=payload,
+                headers=self._headers(),
+            )
 
 
 class LocalLlamaInterpreter(OpenAICompatibleInterpreter):
