@@ -516,6 +516,9 @@ def on_cancel_inventar(win: Any) -> None:
 def _on_invent_failed(win: Any, message: str) -> None:
     _finish_invent_controls(win)
     on_operation_error(win, "navInventar", None, message)
+    # on_operation_error no re-habilita navInventar cuando hay problema pero
+    # no packet (has_packet=False), dejando los botones bloqueados tras fallo.
+    _restore_buttons_after_op(win)
 
 
 def _render_interpreter_outputs(win: Any, sheet: dict[str, Any]) -> None:

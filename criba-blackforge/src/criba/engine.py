@@ -37,9 +37,140 @@ from .constants import (
 from .genome import ONTOLOGY_VERSION, normalize_proposal
 from .methods import select_methods
 from .selector import select
+from .causal_model import (
+    CausalState,
+    Intervention,
+    FAMILY_SPECS,
+    apply_family,
+    causal_overlap,
+    get_family_spec,
+    legacy_apply_family,
+)
 
 SCHEMA = "mandatory_model_packet"
 SCHEMA_VERSION = "2.0.0"
+
+
+# ===========================================================================
+# Scientific cycle: activate → dossier → SUPRA → GET (ASTRA compliance)
+# ===========================================================================
+def scientific_cycle(
+    query: str,
+    *,
+    cartograph_fn: CartographFn | None = None,
+    diverge_fn: DivergeFn | None = None,
+    context: dict[str, Any] | None = None,
+    safety_level: str = "strict",
+    manual_methods: list[str] | None = None,
+) -> dict[str, Any]:
+    """Execute a complete scientific cycle with discriminant dossier.
+
+    Route: activate() → preparar_dossier_desde_idea() → SupraClient.run_project() → GET
+
+    Returns dict with:
+    - packet: full MANDATORY_MODEL_PACKET from activate()
+    - idea: first generated idea
+    - dossier: discriminant dossier with 8 ASTRA fields
+    - receipt: SUPRA receipt (if sent)
+    - error: error message (if any)
+    """
+    from .supra_dossier import preparar_dossier_desde_idea
+    from .integrations import SupraClient, objective_from_dossier
+
+    result: dict[str, Any] = {
+        "query": query,
+        "packet": None,
+        "idea": None,
+        "dossier": None,
+        "receipt": None,
+        "error": None,
+    }
+
+    try:
+        # 1. Generate ideas
+        packet = activate(
+            query,
+            cartograph_fn=cartograph_fn,
+            diverge_fn=diverge_fn,
+            context=context,
+            safety_level=safety_level,
+            manual_methods=manual_methods,
+        )
+        result["packet"] = packet
+
+        ideas = packet.get("innovation", {}).get("ideas", [])
+        if not ideas:
+            result["error"] = "No ideas generated"
+            return result
+
+        idea = ideas[0]
+        result["idea"] = idea
+
+        # 2. Prepare discriminant dossier (ASTRA: 8 fields)
+        dossier = preparar_dossier_desde_idea(idea, query)
+        result["dossier"] = dossier
+
+        # 3. Send to SUPRA
+        client = SupraClient()
+        try:
+            import uuid
+            project_id = "astra" + uuid.uuid4().hex[:12]
+            run_result = client.run_project(
+                objective=objective_from_dossier(dossier),
+                domain="criba_blackforge",
+                allow_disruptive=True,
+                project_id=project_id,
+                criba_dossier=dossier,
+            )
+            lookup = client.get_project(project_id)
+            result["receipt"] = {
+                "project_id": project_id,
+                "status": run_result.status,
+                "completion_status": run_result.completion_status,
+                "workflow_status": run_result.workflow_status,
+                "verification_status": run_result.verification_status,
+                "scientific_status": run_result.scientific_status,
+                "criba_mechanism_execution_status": run_result.criba_mechanism_execution_status,
+                "dossier_id": dossier["dossier_id"],
+                "candidate_id": dossier["candidate_id"],
+                "mechanism_version": dossier["mechanism_version"],
+                "protocol_version": dossier["protocol_version"],
+            }
+        finally:
+            client.close()
+
+    except Exception as exc:
+        result["error"] = str(exc)
+
+    return result
+
+
+def verify_dossier_astra(dossier: dict[str, Any]) -> dict[str, Any]:
+    """Verify all 8 ASTRA discriminant fields are present in a dossier.
+
+    Returns dict with:
+    - complete: bool (all 8 fields present)
+    - missing: list of missing field names
+    - present: list of present field names
+    """
+    required_fields = (
+        "afirmacion_decisiva",
+        "alternativa_explicativa",
+        "intervencion_prueba",
+        "observable",
+        "resultado_favorable_mecanismo",
+        "resultado_favorable_alternativa",
+        "regla_decision",
+        "condicion_fracaso",
+    )
+    prueba = dossier.get("prueba_discriminante", {})
+    present = [f for f in required_fields if f in prueba and prueba[f]]
+    missing = [f for f in required_fields if f not in present]
+    return {
+        "complete": len(missing) == 0,
+        "present": present,
+        "missing": missing,
+    }
 
 INSTRUCTION = """Antes de responder al usuario, aplica obligatoriamente el paquete CRIBA adjunto.
 
