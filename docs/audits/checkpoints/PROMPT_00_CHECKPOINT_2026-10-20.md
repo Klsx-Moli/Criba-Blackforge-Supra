@@ -158,8 +158,57 @@ real de T09 (línea 189). Limitación declarada: scout simulado en frontera.
 **Obligación pendiente:** corrección de esos artefactos. **No se ejecutó** y no se
 declara satisfecha.
 
-### Paso F — PENDIENTE
-Salidas exigidas del prompt canónico. No iniciado.
+### Paso F — COMPLETADO (con READY_FOR_PROMPT_10 = NO)
+Informe: `docs/audits/PROMPT_00_PASO_F_SALIDAS.md`.
+
+### ADENDA 2026-10-20 (tercera sesión) — Paso F cerrado
+
+**SHA:** inicial `d9558693932615055878a3bbfa526a9a4a209255` → HEAD actual
+`7b035a3b664d2412e5fc95928fcca00f85146f36`.
+
+**Aclaración de SHAs:** `9172ce79…` y `7b035a3` están en el **mismo linaje**.
+`9172ce79` es **ancestro** de `7b035a3`; `git rev-list --left-right --count 9172ce7…HEAD`
+→ `0 1`. `7b035a3` está exactamente **1 commit por delante** y es **solo documentación**
+(2 ficheros de docs). No hay dos commits rivales.
+
+**Diferencia código vs documentación:**
+- `58e6171` — **único commit de código de producto** (i18n.py +1, shadow_window.py 2).
+- `6dbda2e` — corrección del **sentinel de test**.
+- `d955869`, `9172ce7`, `7b035a3` — **solo documentación** (checkpoint, Paso E, Paso F).
+
+**Gates locales sobre `7b035a3` (todos PASS):**
+| Gate | Resultado |
+|---|---|
+| Suite CRIBA completa (cwd=criba-blackforge) | 2226 passed / 16 skipped / exit 0 |
+| Suite SUPRA completa | 325 passed / exit 0 |
+| Tests P10 | 39 passed |
+| Sentinel i18n | 6 passed |
+| Sentinel import boundary | 3 passed |
+| **mypy baseline** | **Success: 174 source files, debt 0/0** |
+| **ruff (reglas CI)** | **All checks passed** |
+
+**Hallazgo PHYSICAL_REPOS — clasificado `CONTINUITY_TOOLING`:**
+`multi_repo_state.py` apunta a `C:/Users/KLSX/Music/INNOVATIONS/ACTIVE/{CRIBA,SUPRA}`,
+que **no existen**. `_git()` devuelve `""` en error (sin excepción) → registro vacío
+silencioso. **Evidencia ejecutada:** `python .hermes/iie/multi_repo_state.py validate`
+→ **exit 2** (`CRIBA: STATE_STALE`, `SUPRA: STATE_STALE`, `BLACKFORGE: STATE_STALE`).
+`snapshot()` escribiría `commit=""`. Ninguna prueba actual lo detecta: los tests hacen
+`monkeypatch.setattr(tool, "PHYSICAL_REPOS", …)` y **sustituyen** las rutas.
+**Efecto en el producto: ninguno** — `src/`, `shadow_ui/` y `supra/src` no importan
+`multi_repo_state`; feature flags todos en false. **No se repararon las rutas** (solo
+lectura): se documentó contrato, causa y prueba de refutación.
+
+**E6–E9:** confirmados como defectos de **documentación de estado**, no de producto.
+
+**READY_FOR_PROMPT_10 = NO.** Bloqueos concretos:
+- **B1 (duro):** CI remoto del SHA candidato `NOT_EXECUTED` (rama no publicada).
+  Siguiente acción: decidir si se autoriza publicar la candidata y confirmar
+  `Monorepo CI` verde. **Requiere autorización de push.**
+- **B2:** PHYSICAL_REPOS roto — no se puede reanudar con garantía. Decisión del propietario.
+- **B3:** E6–E9 sin reconciliar — el estado declarado no es fiable. Decisión del propietario.
+
+**No se inició PROMPT 10.** No merge a main, no push, no release, no executor activado.
+No se añadió ningún cambio de producto.
 
 ### Estado de CI
 - CI remoto histórico (run 39194815285): `4 failed, 2186 passed, 38 skipped`.
@@ -168,7 +217,7 @@ Salidas exigidas del prompt canónico. No iniciado.
 
 ### SHA y publicación
 - SHA inicial de sesión: `d9558693932615055878a3bbfa526a9a4a209255`
-- HEAD local: `9172ce79c6f75473ff24f12c3784e8c7b7d87362` (rama `reconcile/candidate-fix-20261020`)
+- HEAD local: `7b035a3b664d2412e5fc95928fcca00f85146f36` (rama `reconcile/candidate-fix-20261020`)
 - **NO está publicado en `origin`.** No se afirmó que las reparaciones lo estén.
 - `main` local y `origin/main`: `defd0fd9955c5aaf3f7ff8b23fdf016639ed062b` (intacto)
 - PR #23 remota: `b27ccd63fd3f25c445ddc88e8ecb8300a25a6e90`
@@ -176,4 +225,15 @@ Salidas exigidas del prompt canónico. No iniciado.
 ### WIP preservado
 `blackforge_broker.py` y `blackforge_case.py`: solo CRLF→LF (numstat vacío). No tocados.
 Backups íntegros (MD5 `1b799fc50ddcde91810a255351212b50` verificado).
+Procesos activos: solo los del propio Hermes. Sin escritores externos.
+
+### Entregables de PROMPT 00 (ubicación)
+- `docs/audits/PROMPT_00_PASO_E_CONTINUIDAD.md` — informe Paso E
+- `docs/audits/PROMPT_00_PASO_F_SALIDAS.md` — informe Paso F
+- `docs/audits/checkpoints/PROMPT_00_CHECKPOINT_2026-10-20.md` — este checkpoint
+
+### Siguiente acción exacta
+1. **B1:** decidir publicación de la candidata para obtener CI remoto.
+2. **B2/B3:** decidir corrección de `PHYSICAL_REPOS` y reconciliación E6–E9.
+3. No iniciar PROMPT 10 hasta que B1 esté resuelto.
 
