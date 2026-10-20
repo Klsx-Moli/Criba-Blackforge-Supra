@@ -237,3 +237,62 @@ Procesos activos: solo los del propio Hermes. Sin escritores externos.
 2. **B2/B3:** decidir corrección de `PHYSICAL_REPOS` y reconciliación E6–E9.
 3. No iniciar PROMPT 10 hasta que B1 esté resuelto.
 
+---
+
+## ADENDA 2026-10-20 (cuarta sesión) — B2 y B3 resueltos
+
+**Autorización:** reparaciones locales, acotadas y reversibles. **Sin** push, merge, publicación ni despliegue.
+
+### Preflight
+Sin discrepancia material. HEAD inicial `12987f1`. Sin escritor concurrente (solo procesos del propio Hermes). Backup íntegro (MD5 `1b799fc5…`). WIP de CRLF intacto.
+
+### B2 — PHYSICAL_REPOS: `FIXED_AND_VERIFIED`
+**Causa raíz real:** los "tres repositorios" son **UNO**. Verificado: `git rev-parse --show-toplevel` desde la raíz, `criba-blackforge` y `supra` devuelve el mismo path; ninguno tiene `.git` propio; sin `.gitmodules`.
+
+**Fix mínimo** (`multi_repo_state.py`, commit `8d729c8`):
+- `PHYSICAL_REPOS` resuelto desde `ROOT.parents[2]`, sin ruta personal hardcodeada.
+- `_repo_probe()` distingue `missing` / `unreadable` / `ok`; el registro incluye `access_state` y `access_error`. Una ruta ausente ya no produce un snapshot aparentemente válido.
+- `validate()` reporta `REPO_UNAVAILABLE` en lugar de `STATE_STALE`.
+
+**Pruebas nuevas:** `test_multi_repo_state_access.py` (8 tests) sobre **rutas reales**, sin sustituirlas por `monkeypatch`. Las de rutas temporales se conservan.
+
+**Mutación:** restaurando las rutas muertas, el sistema reporta `REPO_UNAVAILABLE (missing)` explícitamente. Fix restaurado tras la mutación.
+
+**Evidencia:** `validate()` sobre rutas reales → DIRTY/SYNCED, **exit 0**. 64 tests dirigidos, intelligence 426, CRIBA completo **2234 passed / 16 skipped**, mypy debt 0/0, ruff clean.
+
+**Daño colateral detectado y revertido:** la primera versión del test de snapshot reescribió el `STATE.json` real; se revirtió y el test ahora usa copia aislada.
+
+### B3 — E6/E8/E9: `RECONCILED`
+- **E6:** `open_questions` afirmaba que P10-T09 no existe. Corregido el texto; `completed_tasks` ya era correcto y no se tocó.
+- **E9:** `P10-T07.json` declaraba PARTIAL sin fundamento. Se añadió `status_superseded` / `status_reconciled` / `reconciliation` con evidencia. **El `status` original se conserva.**
+- **E8:** `CONTINUITY.md` (2026-09-05) obsoleto respecto a P10. Se añadió aviso de cabecera; **contenido original sin reescribir**.
+- **E7:** documentado como limitación de esquema (STATE.json no usa los 7 estados del Paso E). No se rehízo la estructura que leen los consumidores.
+- **T09 no se declaró hecho por aparecer en una lista:** se exigió el contrato. `PriorArtVerdict` no incluye `PROVEN_NEW`; el motor emite solo 3 valores; 6 tests lo verifican.
+
+### Decisión final
+```
+B2_STATUS = FIXED_AND_VERIFIED
+B3_STATUS = RECONCILED
+READY_FOR_PROMPT_10 = NO
+PUSH_AUTHORIZED = NO
+MAIN_MERGED = NO
+EXECUTOR = OFF
+```
+
+**B1 persiste:** CI remoto del SHA candidato `NOT_EXECUTED` (rama no publicada). Es una decisión de push, no trabajo local.
+
+### SHAs
+- HEAD inicial: `12987f17589ad2cebc290c6ed072999d3a79ca1d`
+- HEAD final: `b297884fbd755012272af72a06655bc05b74b843`
+- Commits: `8d729c8` (B2 código+tests), `17cb658` (B3 reconciliación), `b297884` (informe)
+- `main` local y `origin/main`: `defd0fd` (intacto). **No publicado.**
+
+### Entregables
+- `docs/audits/PROMPT_00_B2_B3_RESOLUCION.md` — informe de la resolución
+- `docs/audits/checkpoints/PROMPT_00_CHECKPOINT_2026-10-20.md` — este checkpoint
+
+### Siguiente acción exacta
+1. **B1:** decidir si se autoriza publicar `reconcile/candidate-fix-20261020` para obtener CI remoto.
+2. Si se publica: verificar que las rutas de B2 resuelven también en el runner.
+3. No iniciar PROMPT 10 hasta que B1 esté resuelto.
+
