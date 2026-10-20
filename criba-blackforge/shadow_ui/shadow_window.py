@@ -1004,12 +1004,12 @@ class CandidatesWidget(QWidget):
 
         interp_title = QLabel("Interpretación")
         interp_title.setProperty("interpretation_title", True)
-        bind_text(interp_title, "shadow.interpretacion_titulo")
+        bind_text(interp_title, "shadow.interpretacion.titulo")
         interp_lay.addWidget(interp_title)
 
         interp_sub = QLabel("Propuesta seleccionada")
         interp_sub.setProperty("interpretation_hint", True)
-        bind_text(interp_sub, "shadow.interpretacion_sub")
+        bind_text(interp_sub, "shadow.interpretacion.sub")
         interp_lay.addWidget(interp_sub)
 
         # Resultados completos y copiables. La navegación muestra UNA

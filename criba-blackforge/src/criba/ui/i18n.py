@@ -319,6 +319,7 @@ _STRINGS: dict[str, dict[str, str]] = {
         "shadow.interpretacion.titulo": "Interpretation",
         "shadow.interpretacion.sub": "Selected proposal",
         "shadow.mas_expandir": "More ▼",
+        "shadow.exp_result": "Click to run",
         "shadow.idea_sel": "Selected idea",
         "shadow.inventar": "⚗ Invent",
         "shadow.ir_bf": "Go to Blackforge  →",
