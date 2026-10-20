@@ -1,109 +1,117 @@
-# PROMPT 00 CHECKPOINT — 2026-10-20
+# PROMPT 00 CHECKPOINT — 2026-10-20 (REANUDACIÓN)
 
 ## Fecha y hora local
-2026-10-20 ~04:55 (Hora de verano romance, UTC+02:00)
+2026-10-20 ~17:00 (Hora de verano romance, UTC+02:00)
 
 ## Estado del repositorio
 
 - **Rama:** reconcile/candidate-fix-20261020
-- **HEAD anterior:** b27ccd63fd3f25c445ddc88e8ecb8300a25a6e90
-- **HEAD checkpoint:** 6dbda2e
-- **Worktree:** CLEAN (solo untracked .hermes/ y P10.md)
+- **SHA inicio (checkpoint previo):** d9558693932615055878a3bbfa526a9a4a209255
+- **SHA final (esta sesión):** 58e617130078bddc0e9aebf4f0a9c1797ac2c123
+- **main intacto:** defd0fd == origin/main (sin tocar, sin push, VERIFICADO)
 
-## Cambios conservados en commit 6dbda2e
+## Contraste checkpoint previo vs Git real
+
+El checkpoint previo declaraba HEAD checkpoint = 6dbda2e. El Git real mostraba
+d955869 = 6dbda2e + 1 commit docs (el propio informe del checkpoint).
+**Discrepancia resuelta:** el HEAD real prevaleció y se confirmó que el commit
+adicional era únicamente el informe del checkpoint. Sin trabajo perdido.
+
+## Cambios realizados (commit 58e6171)
 
 | Archivo | Cambio | Procedencia |
 |---------|--------|-------------|
-| criba-blackforge/tests/unit/test_blackforge_regression.py | Fix: regex para imports reales vs substring | PROMPT_00 Paso D |
+| criba-blackforge/src/criba/ui/i18n.py | +1 clave EN `shadow.exp_result` | PROMPT_00 Paso D |
+| criba-blackforge/shadow_ui/shadow_window.py | 2 claves realineadas a la forma con punto | PROMPT_00 Paso D |
 
-## Cambios pendientes (no incluidos en commit)
+**Diff total:** 2 archivos, +3/-2 líneas. Mínimo, sin cambios accidentales.
 
-| Archivo | Estado | Motivo |
-|---------|--------|--------|
-| .hermes/ | untracked | No es producto |
-| criba-blackforge/.hermes/iie/checkpoints/P10.md | untracked | Checkpoint interno |
+### Defecto 1 — tabla EN incompleta (causa raíz confirmada por Git)
+El commit b27ccd6 añadió 4 claves al bloque ES (`interpretacion.titulo`,
+`interpretacion.sub`, `mas_expandir`, `exp_result`) pero solo 3 al bloque EN.
+La tabla EN tenía 88 claves `shadow.*` frente a 89 en ES.
+**Fix:** `"shadow.exp_result": "Click to run"` en el bloque EN.
 
-## WIP protegido y ubicación
+### Defecto 2 — claves huérfanas en el consumidor (causa raíz confirmada por Git)
+`shadow_window.py` enlazaba `shadow.interpretacion_titulo` y
+`shadow.interpretacion_sub` (guion bajo), pero `i18n.py` solo define la forma
+con punto (`shadow.interpretacion.titulo` / `.sub`). `i18n.t()` hace fallback a
+la propia clave, así que la ventana renderizaba **nombres de clave crudos** en vez
+de texto.
+**Decisión de diseño:** se corrigió el consumidor, no el diccionario. La convención
+con punto es la dominante (`shadow.nav.*.sub`, `shadow.bf_card.sub`,
+`shadow.footer.modelo_off.sub`, `shadow.detail.vacio.desc`) y la que usa el
+propio test del sentinel.
+**Fix:** 2 llamadas `bind_text` repuntadas a la forma con punto.
 
-- **Bundle:** C:/ASTRA_WORK/PREFLIGHT_BACKUP_20261020/bundle_20261020.bundle
-- **Bundle MD5:** 1b799fc50ddcde91810a255351212b50
-- **WIP files:** C:/ASTRA_WORK/PREFLIGHT_BACKUP_20261020/wip_files/ (10 archivos)
-- **Remote refs:** C:/ASTRA_WORK/PREFLIGHT_BACKUP_20261020/remote_refs.json (38 refs)
-- **Branch manifest:** C:/ASTRA_WORK/PREFLIGHT_BACKUP_20261020/branch_manifest.json
+## Alcance del fallo i18n (P13 — reescaneo adversarial)
 
-## Último paso completado de PROMPT_00
+Sondeo exhaustivo de referencias i18n en `shadow_ui/*.py` contra las claves
+definidas:
+- `shadow_window.py`: 2 referencias huérfanas → corregidas.
+- `shadow_context.py`: 8 referencias, todas definidas.
+- **Total huérfanas tras el fix: 0.** No hay más claves rotas.
 
-Paso D: Corregido test_criba_engine_does_not_import_blackforge_on_load.
-- Problema: test verificaba substring "blackforge" en engine.py, pero domain="criba_blackforge" es identificador de SUPRA, no import.
-- Fix: regex que匹配 imports reales (from criba.blackforge / import criba.blackforge).
-- Resultado: 3/3 tests PASS en test_blackforge_regression.py.
-
-## Último comando ejecutado y resultado
-
-```
-criba-blackforge/.venv/Scripts/python.exe -m pytest criba-blackforge/tests/unit/test_blackforge_regression.py -v --tb=short
-→ 3 passed in 4.86s
-```
-
-## Fallos de CI investigados y reparaciones
-
-### 1. test_criba_engine_does_not_import_blackforge_on_load — FIXED
-- **Causa:** test demasiado estricto (substring vs import)
-- **Fix:** regex para imports reales
-- **Estado:** VERIFIED (3/3 PASS)
-
-### 2. test_both_languages_define_the_same_shadow_keys[es] — REPRODUCED, FIX PENDING
-- **Causa:** shadow.exp_result existe en EN (L135) pero no en ES
-- **Fix necesario:** añadir "shadow.exp_result": "Pulsa para ejecutar" al bloque ES de i18n.py
-- **Estado:** REPRODUCED, NO FIXED (pendiente de sesión futura)
-
-### 3. test_criba_engine_does_not_import_blackforge_on_load — VERIFIED
-- **Causa:** engine.py no importa blackforge (domain identifier no es import)
-- **Estado:** PASS después del fix
-
-## Pruebas ejecutadas
+## Verificación ejecutada (criba-blackforge/.venv, Python 3.11.15)
 
 | Prueba | Resultado | SHA |
 |--------|-----------|-----|
-| test_blackforge_regression.py | 3/3 PASS | b27ccd6 |
-| test_shadow_i18n_keys.py | 1 FAIL (shadow.exp_result ES) | b27ccd6 |
-| Suite completa criba-blackforge/tests/ | INTERRUPTED (152 passed, 1 failed) | b27ccd6 |
+| test_shadow_i18n_keys.py | **6 passed** (antes: 3 failed / 3 passed) | 58e6171 |
+| Mutación 1: borrar `shadow.exp_result` de EN | 2 tests en rojo | 58e6171 |
+| Mutación 2: renombrar clave en el consumidor | test de ventana en rojo | 58e6171 |
+| Regresión dirigida UI/Shadow (5 ficheros) | **43 passed** | 58e6171 |
+| Suite completa criba-blackforge/tests/unit | **1310 passed, 11 skipped, exit 0** | 58e6171 |
+| sentinel ×3 corridas + seed fija 12345 | 6 passed cada una | 58e6171 |
+
+**Los 11 skipped** son todos de `test_scientific_cycle.py` y se deben a que el
+servicio SUPRA externo en `http://127.0.0.1:9479` no está disponible (HTTP 000,
+comprobado). **No están relacionados con este cambio.**
+
+**Prueba de mutación:** el sentinel detecta ambos defectos que existe para
+cazar, así que la cobertura no es falsa en este contrato.
 
 ## Pruebas NO ejecutadas
 
-- Suite SUPRA completa (no ejecutada en esta sesión)
-- E2E Shadow + BLACKFORGE (no ejecutada)
-- Build Windows (no ejecutada)
-- CI del SHA final (no ejecutada)
+- Suite SUPRA completa (`supra/tests`, 29 ficheros) — no ejecutada en esta sesión.
+- E2E Shadow + BLACKFORGE.
+- Build Windows / packaging.
+- CI del SHA 58e6171 (no ejecutada).
 
-## Riesgos y dudas pendientes
+## WIP preservado
 
-1. El fix de i18n (shadow.exp_result en ES) está pendiente de aplicar y verificar
-2. No se ha verificado si hay más claves i18n faltantes además de shadow.exp_result
-3. No se ha ejecutado la suite completa después del fix del sentinel
-4. No se ha verificado el build Windows con los cambios del sentinel
+- **Bundle:** C:/ASTRA_WORK/PREFLIGHT_BACKUP_20261020/bundle_20261020.bundle
+- **MD5 verificado:** 1b799fc50ddcde91810a255351212b50 (coincide con el informe previo)
+- **WIP files:** C:/ASTRA_WORK/PREFLIGHT_BACKUP_20261020/wip_files/
+- **Remote refs:** C:/ASTRA_WORK/PREFLIGHT_BACKUP_20261020/remote_refs.json
+- Sin stashes. Sin procesos de pytest interrumpidos (los 3 procesos python
+  activos eran el propio Hermes).
 
-## Siguiente acción exacta para reanudar PROMPT_00
+## Cambios no atribuibles a esta sesión
 
-1. Añadir "shadow.exp_result": "Pulsa para ejecutar" al bloque ES de criba-blackforge/src/criba/ui/i18n.py
-2. Ejecutar: `criba-blackforge/.venv/Scripts/python.exe -m pytest criba-blackforge/tests/unit/test_shadow_i18n_keys.py -v --tb=short`
-3. Si PASS, ejecutar suite completa: `criba-blackforge/.venv/Scripts/python.exe -m pytest criba-blackforge/tests/ -x -q --tb=short`
-4. Continuar con Paso E (estado/continuidad honesta) y Paso F (salidas exigidas)
+`blackforge_broker.py` y `blackforge_case.py` aparecen como modificados en el
+árbol de trabajo. Verificado: **solo cambios de fin de línea (CRLF→LF)**, sin
+diff de contenido (`git diff --ignore-all-space` vacío). No se tocaron ni se
+incluyeron en el commit. Se preservan tal cual.
 
-## Comandos de inspección para recuperar estado
+## Estado de PROMPT 00
 
-```bash
-git status --short --branch
-git log --oneline -5
-git diff HEAD~1 --stat
-ls -la C:/ASTRA_WORK/PREFLIGHT_BACKUP_20261020/
-```
+**COMPLETADO** el Paso D (i18n). Pendientes de esta sesión:
+- Paso E: estado/continuidad honesta.
+- Paso F: salidas exigidas.
 
-## Confirmación
+## Siguiente acción exacta
 
-- NO se hizo merge a main
-- NO se hizo push
-- NO se hizo release
-- NO se activó el executor
-- NO se eliminó ningún ref ni WIP
-- NO se ejecutó reset --hard, git clean, ni operaciones destructivas
+1. Paso E — estado/continuidad honesta. Revisar `docs/continuity/` y el contrato
+   de continuidad CBS contra el estado real del repo.
+2. Paso F — salidas exigidas. Comprobar que las salidas declaradas de PROMPT 00
+   se producen de verdad (no por nombre de variable).
+
+## Límites respetados
+
+- NO merge a main. NO push. NO release.
+- NO activación del executor de BLACKFORGE.
+- NO borrado de WIP, backups, ramas ni worktrees.
+- NO se descartaron cambios anteriores.
+- NO se avanzó a PROMPT 07 ni PROMPT 10.
+- NO se declaró DONE: quedan Pasos E y F sin ejecutar.
+
