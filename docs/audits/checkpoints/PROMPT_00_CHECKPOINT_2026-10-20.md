@@ -101,10 +101,12 @@ incluyeron en el commit. Se preservan tal cual.
 
 ## Siguiente acción exacta
 
-1. Paso E — estado/continuidad honesta. Revisar `docs/continuity/` y el contrato
-   de continuidad CBS contra el estado real del repo.
-2. Paso F — salidas exigidas. Comprobar que las salidas declaradas de PROMPT 00
-   se producen de verdad (no por nombre de variable).
+1. **Paso E — COMPLETADO.** Informe en
+   `docs/audits/PROMPT_00_PASO_E_CONTINUIDAD.md`.
+2. **Paso F — PENDIENTE.** Salidas exigidas del prompt canónico.
+3. **PENDIENTE DE DECISIÓN DEL PROPIETARIO:** corrección de los artefactos de
+   estado (E6, E7, E8, E9). No se ejecutó: el Paso E condiciona la actualización
+   a que estén alineados al SHA elegido y la decisión corresponde al propietario.
 
 ## Límites respetados
 
@@ -113,5 +115,65 @@ incluyeron en el commit. Se preservan tal cual.
 - NO borrado de WIP, backups, ramas ni worktrees.
 - NO se descartaron cambios anteriores.
 - NO se avanzó a PROMPT 07 ni PROMPT 10.
-- NO se declaró DONE: quedan Pasos E y F sin ejecutar.
+- NO se declaró DONE: el Paso F está pendiente.
+
+---
+
+## ADENDA 2026-10-20 (segunda sesión) — Pasos D completado, E completado, F pendiente
+
+### Fuente canónica recuperada
+`PROMPT_00_CANONICAL_SOURCE = RECOVERED`
+Ubicación: `C:\Users\KLSX\Downloads\PROMPT_00_CONTINUIDAD_Y_RECONCILIACION.md` (2026-10-20 03:09).
+
+### Paso D — COMPLETADO (commit 58e6171, local no publicado)
+Dos defectos, confirmados por Git (`git log -S` sobre `b27ccd6`):
+1. Tabla EN sin `shadow.exp_result` (88 vs 89 claves `shadow.*`).
+2. `shadow_window.py` enlazaba claves huérfanas con guion bajo; la UI renderizaba
+   nombres de clave crudos en pantalla.
+
+**Verificación:** `test_shadow_i18n_keys.py` 6/6 (antes 3 failed). Mutaciones 1 y 2
+detectadas. Regresión dirigida UI/Shadow 43 passed.
+
+### Paso E — COMPLETADO con obligación pendiente declarada
+Informe: `docs/audits/PROMPT_00_PASO_E_CONTINUIDAD.md`.
+
+**Evidencia ejecutada (SHA 9172ce7):**
+- Suite CRIBA completa (cwd=`criba-blackforge`, como CI): **2226 passed, 16 skipped, EXIT 0**
+- Suite SUPRA completa: **325 passed, EXIT 0**
+- Tests P10 (T07/T08/T09/T10): **39 passed**
+- Sentinel import boundary: **3 passed**
+
+**Cobertura T07→T10:** CONFIRMADA por ejecución. `test_prior_art_mutation_loop.py`
+encadena T07→T08→T09 con objetos reales (líneas 170-179) y T10 consume la salida
+real de T09 (línea 189). Limitación declarada: scout simulado en frontera.
+
+**Contradicciones confirmadas en artefactos de estado (no de producto):**
+- E6: `STATE.json` dice en `open_questions` que P10-T09 no existe, pero lo lista
+  como completado y `verdict.py` está commiteado en `91246df`.
+- E8: `CONTINUITY.md` (2026-09-05) declara P10-T07 PARTIAL y P10-T09 NOT_STARTED;
+  ambos están commiteados y probados.
+- E7: `STATE.json` no usa ninguno de los 7 estados mínimos que exige el Paso E.
+- E9: journal `P10-T07.json` dice PARTIAL; el resto dice VERIFIED.
+
+**Obligación pendiente:** corrección de esos artefactos. **No se ejecutó** y no se
+declara satisfecha.
+
+### Paso F — PENDIENTE
+Salidas exigidas del prompt canónico. No iniciado.
+
+### Estado de CI
+- CI remoto histórico (run 39194815285): `4 failed, 2186 passed, 38 skipped`.
+  Los 4 fallos son los corregidos en `58e6171`/`6dbda2e`.
+- CI del candidato local: **NOT_EXECUTED** (rama no publicada). No se afirmó verde.
+
+### SHA y publicación
+- SHA inicial de sesión: `d9558693932615055878a3bbfa526a9a4a209255`
+- HEAD local: `9172ce79c6f75473ff24f12c3784e8c7b7d87362` (rama `reconcile/candidate-fix-20261020`)
+- **NO está publicado en `origin`.** No se afirmó que las reparaciones lo estén.
+- `main` local y `origin/main`: `defd0fd9955c5aaf3f7ff8b23fdf016639ed062b` (intacto)
+- PR #23 remota: `b27ccd63fd3f25c445ddc88e8ecb8300a25a6e90`
+
+### WIP preservado
+`blackforge_broker.py` y `blackforge_case.py`: solo CRLF→LF (numstat vacío). No tocados.
+Backups íntegros (MD5 `1b799fc50ddcde91810a255351212b50` verificado).
 
