@@ -296,3 +296,115 @@ EXECUTOR = OFF
 2. Si se publica: verificar que las rutas de B2 resuelven también en el runner.
 3. No iniciar PROMPT 10 hasta que B1 esté resuelto.
 
+---
+
+## CIERRE DE SESIÓN 2026-10-21 — Publicación autorizada de la candidata
+
+### Autorización recibida
+`git push` normal de avance rápido de la candidata a la rama origen de la PR #23.
+**Excluido:** force-push, merge a `main`, releases, despliegues, activar el executor de BLACKFORGE.
+
+### Estado de cierre
+
+```
+B2_STATUS = FIXED_AND_VERIFIED
+B3_STATUS = RECONCILED
+B1_STATUS = PENDING_REMOTE_VERIFICATION     # hasta que termine el CI del SHA publicado
+SCIENTIFIC_PROMPT_10 = NOT_AUTHORIZED       # no se inicia automáticamente aunque el CI sea verde
+MAIN_MERGED = NO
+PUSH_RELEASE = NO                           # el push de la candidata SÍ está autorizado
+EXECUTOR = OFF
+```
+
+### SHAs
+
+| Campo | Valor |
+|---|---|
+| HEAD previo (documental) | `2cae687917779bd764230cc23fc1bc9a5819b53b` |
+| HEAD con el plan B1 | `c3b89a375732879ba42211725b35979c05ee5224` |
+| HEAD a publicar | **ver §5 tras el push** |
+| Remoto origen PR #23 (antes) | `b27ccd63fd3f25c445ddc88e8ecb8300a25a6e90` |
+| `main` local / `origin/main` | `defd0fd9955c5aaf3f7ff8b23fdf016639ed062b` (intacto) |
+
+### Verificación de avance rápido (pre-push)
+
+```
+git merge-base --is-ancestor b27ccd6 HEAD   -> SI
+git rev-list --left-right --count b27ccd6...HEAD  ->  0  11
+```
+
+**0 commits divergentes.** Avance rápido válido; `--force` innecesario y no usado.
+
+### Diff que se publica (14 ficheros, +1726/−10)
+
+| Categoría | Archivos | Líneas |
+|---|---|---|
+| Código de producto | `shadow_window.py`, `i18n.py` | +3 / −2 |
+| Tests | `test_blackforge_regression.py`, `test_multi_repo_state_access.py` (nuevo) | +160 / −1 |
+| Tooling de continuidad (B2) | `multi_repo_state.py` | +48 / −2 |
+| Artefactos de estado (B3) | `STATE.json`, `CONTINUITY.md`, `P10-T07.json`, `P10-T09.json` | +51 / −5 |
+| Documentación y plan B1 | 5 ficheros | +1464 / −0 |
+
+**Sin credenciales** en las líneas nuevas (búsqueda de api_key/secret/token/bearer/ghp_ sin hallazgos).
+**Sin WIP ajeno** (los dos ficheros CRLF no aparecen en el diff).
+
+### PHYSICAL_REPOS (B2) — estado
+
+`multi_repo_state.py` resuelve desde `ROOT.parents[2]`. Verificado que los tres "repositorios" son **un único monorepo**. `_repo_probe()` distingue `missing`/`unreadable`/`ok`; `validate()` reporta `REPO_UNAVAILABLE` en lugar de `STATE_STALE`. **Pendiente de confirmación en el runner** tras el push.
+
+### Estados E6–E9 (B3) — reconciliados
+
+| ID | Estado | Certeza |
+|---|---|---|
+| E6 | RESUELTO — `open_questions` corregido; `completed_tasks` no se tocó | VERIFIED_BY_EXECUTION |
+| E7 | LIMITACIÓN DE ESQUEMA documentada (STATE.json no usa los 7 estados del Paso E) | FACT |
+| E8 | RESUELTO — `CONTINUITY.md` marcado OBSOLETO con aviso; contenido original conservado | VERIFIED_BY_EXECUTION |
+| E9 | RESUELTO — `P10-T07.json` con `status_reconciled=VERIFIED`; `status` original conservado | VERIFIED_BY_EXECUTION |
+
+**T09 no se declaró hecho por aparecer en una lista:** se exigió el contrato. `PriorArtVerdict` no incluye `PROVEN_NEW`; el motor emite solo 3 valores; 6 tests lo verifican.
+
+### Pruebas verificadas (limitaciones incluidas)
+
+| Prueba | Resultado |
+|---|---|
+| Tests dirigidos B2/B3 (7 ficheros) | 64 passed |
+| Suite `tests/intelligence` | 426 passed |
+| Suite CRIBA completa (cwd=criba-blackforge) | 2234 passed / 16 skipped / exit 0 |
+| mypy baseline | 174 files, debt 0/0 |
+| ruff (reglas CI, paquete completo) | clean |
+| Sentinels i18n + import boundary | 9 passed |
+| Tests de estado (STATE/locks/access) | 28 passed |
+| Mutación B2 (rutas muertas) | falla explícitamente (`REPO_UNAVAILABLE`) |
+
+**No ejecutado:** CI remoto del SHA candidato (hasta este push), E2E Shadow+BLACKFORGE, build Windows, Anti-Goodhart y Smoke locales.
+
+### Plan de publicación
+`docs/audits/PROMPT_00_B1_PLAN_PUBLICACION.md` — comando, SHA, referencia, diff e impacto sobre la PR #23.
+
+### WIP preservado (NO incluido en el push)
+```
+ M criba-blackforge/src/criba/blackforge_broker.py     (solo CRLF, numstat vacío)
+ M criba-blackforge/src/criba/blackforge_case.py       (solo CRLF, numstat vacío)
+?? .hermes/
+?? criba-blackforge/.hermes/iie/checkpoints/P10.md
+```
+No normalizados, no sobrescritos, no incluidos.
+
+### Backup
+`C:/ASTRA_WORK/PREFLIGHT_BACKUP_20261020/bundle_20261020.bundle` — 14.334.541 bytes, MD5 `1b799fc50ddcde91810a255351212b50` (verificado).
+
+### Comandos seguros para reanudar
+```bash
+cd /c/ASTRA_WORK/Criba-Blackforge-Supra
+git status --short --branch
+git log --oneline -6
+git ls-remote origin refs/heads/integrate/shadow-supra-final
+gh pr view 23 --repo Klsx-Moli/Criba-Blackforge-Supra --json state,headRefOid,baseRefName,statusCheckRollup
+gh run list --repo Klsx-Moli/Criba-Blackforge-Supra --branch integrate/shadow-supra-final --limit 6
+```
+
+### Siguiente acción exacta
+1. Verificar que `Monorepo CI` está verde sobre el SHA publicado (ver §5 del cierre).
+2. Confirmar que la ruta de B2 resuelve en el runner.
+3. **No iniciar PROMPT 10** aunque el CI sea verde: la decisión queda para la siguiente sesión.
+
