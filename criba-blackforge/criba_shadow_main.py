@@ -339,14 +339,21 @@ class SupraServer:
         self.log_path.parent.mkdir(parents=True, exist_ok=True)
         self.bound_streams = ensure_streams(self.log_path)
         port = endpoint_port(self.endpoint)
-        if not health_ok(self.endpoint):
-            port = free_port()  # el puerto pedido esta ocupado: usa uno libre y no chocas
+        already_healthy = health_ok(self.endpoint)
+        if not already_healthy:
+            port = free_port()  # el puerto pedido está ocupado: usa uno libre y no chocas
             self.endpoint = f"http://127.0.0.1:{port}"
         # SupraClient lee este valor. Sin publicarlo, la UI podía arrancar el
         # servidor en un puerto real y enviar el dossier al 8000 por defecto.
         os.environ["SUPRA_ENDPOINT"] = self.endpoint
         os.environ["SUPRA_STORAGE_DIR"] = str(self.storage)
         os.environ["SUPRA_USE_MODEL"] = "false"
+
+        # Reuse a healthy backend without starting another server.
+        # Preserve ownership: repeated start() on our own instance must
+        # retain the references that stop() needs for cleanup.
+        if already_healthy:
+            return True, self.endpoint
 
         import uvicorn
         from supra_agentic.service import app

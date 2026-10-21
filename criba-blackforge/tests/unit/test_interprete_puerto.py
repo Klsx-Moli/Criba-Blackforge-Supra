@@ -47,13 +47,20 @@ class _Respuesta:
         self.status_code = status_code
         self._cuerpo = cuerpo if cuerpo is not None else {}
         self.text = texto or json.dumps(self._cuerpo)
+        # `headers` es obligatorio en la forma real: ExternalModelRateLimited
+        # construye su mensaje leyendo `response.headers.get('retry-after')`.
+        # Sin este atributo, el 429 moria con AttributeError en vez de
+        # propagarse como rate limit diagnosticable.
+        self.headers: dict[str, str] = {}
 
     def json(self) -> Any:
         return self._cuerpo
 
     def raise_for_status(self) -> None:
         if self.status_code >= 400:
-            raise httpx.HTTPStatusError("http", request=None, response=None)
+            # httpx.HTTPStatusError exige request/response no nulos: el
+            # consumidor lee `exc.response.status_code` para conservar el codigo.
+            raise httpx.HTTPStatusError("http", request=None, response=self)
 
 
 def _patch_post(monkeypatch, respuesta: _Respuesta) -> list[dict[str, Any]]:
@@ -72,7 +79,12 @@ def _patch_post(monkeypatch, respuesta: _Respuesta) -> list[dict[str, Any]]:
 
         def post(self, url: str, json: Any = None, headers: Any = None) -> _Respuesta:
             enviados.append({"url": url, "json": json, "headers": headers or {}})
-            if len(enviados) > 1:
+            # Un error HTTP se reintenta en _post_chat_completion hasta agotar el
+            # plan (4 intentos / 45s). El fake repite el mismo fallo mientras se
+            # reintenta y solo sirve la crítica cuando el primero fue un 200: si
+            # devolviera 200 tras un 429, el reintento "recuperaría" el plan y el
+            # caso de agotamiento nunca se ejercitaría.
+            if len(enviados) > 1 and respuesta.status_code < 400:
                 return _Respuesta(200, {"model": "critico-reportado", "choices": [
                     {"finish_reason": "stop", "message": {"content": __import__("json").dumps(critica())}}
                 ]})

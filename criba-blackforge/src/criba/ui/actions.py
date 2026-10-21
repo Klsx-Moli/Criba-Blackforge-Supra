@@ -370,6 +370,7 @@ def _run_inventar(
     problem: str,
     *,
     backend: str | None = None,
+    model: str | None = None,
     progress: Callable[[dict[str, Any]], None] | None = None,
     cancel_requested: Callable[[], bool] | None = None,
 ) -> dict[str, Any]:
@@ -389,7 +390,7 @@ def _run_inventar(
     from ..inventar import _default_proponer, append_ledger, invent
 
     chosen = backend or seleccion_por_defecto()
-    interpreter = construir_interprete(chosen)
+    interpreter = construir_interprete(chosen, model=model)
     interpreter_state = estado_interprete(interpreter)
     completed = 0
 
@@ -443,6 +444,13 @@ def on_inventar(win: Any) -> None:
 
     selector = getattr(getattr(win, "topcards", None), "interpreter_selector", None)
     backend = str(selector.currentData() if selector is not None else "openai_compatible")
+    # El selector guarda (backend, model) en userData cuando la entrada es un
+    # modelo libre concreto; las entradas heredadas solo llevan el backend.
+    model = None
+    if selector is not None:
+        data = selector.currentData()
+        if isinstance(data, (tuple, list)) and len(data) == 2:
+            backend, model = str(data[0]), (str(data[1]) or None)
     win.interpreter_cancel_requested = False
     topcards = getattr(win, "topcards", None)
     if topcards is not None:
@@ -460,6 +468,7 @@ def on_inventar(win: Any) -> None:
         return _run_inventar(
             win.problem,
             backend=backend,
+            model=model,
             progress=lambda payload: holder["worker"].signals.progress.emit(payload),
             cancel_requested=lambda: bool(win.interpreter_cancel_requested),
         )
@@ -507,6 +516,9 @@ def on_cancel_inventar(win: Any) -> None:
 def _on_invent_failed(win: Any, message: str) -> None:
     _finish_invent_controls(win)
     on_operation_error(win, "navInventar", None, message)
+    # on_operation_error no re-habilita navInventar cuando hay problema pero
+    # no packet (has_packet=False), dejando los botones bloqueados tras fallo.
+    _restore_buttons_after_op(win)
 
 
 def _render_interpreter_outputs(win: Any, sheet: dict[str, Any]) -> None:
@@ -1159,19 +1171,32 @@ def on_modelos(win: Any) -> None:
 
 def _refresh_interpreter_selector(win: Any) -> None:
     """Reflect the active local model in the Generación interpreter selector."""
+    from ..interprete.seleccion import BACKEND_LOCAL
     from ..model_config import active_model_label, load_model_settings
 
     selector = getattr(win, "interpreter_selector", None)
     if selector is None:
         return
+    # La entrada local se busca por su userData, no por índice fijo: entre ella
+    # y el externo hay ahora los modelos gratuitos del proxy. Un índice duro
+    # apuntaría a un modelo free y lo renombraría como "modelo local".
+    local_index = -1
+    for i in range(selector.count()):
+        if selector.itemData(i) == BACKEND_LOCAL:
+            local_index = i
+            break
     try:
         settings = load_model_settings()
         if settings.enabled and settings.active_profile() is not None:
             label = active_model_label(settings)
-            selector.setItemText(1, label)
-            selector.setCurrentIndex(1)
+            if local_index >= 0:
+                selector.setItemText(local_index, label)
+                selector.setCurrentIndex(local_index)
+            else:
+                selector.setCurrentIndex(0)
         else:
-            selector.setItemText(1, _t("shadow.interpreter.local"))
+            if local_index >= 0:
+                selector.setItemText(local_index, _t("shadow.interpreter.local"))
             selector.setCurrentIndex(0)
     except Exception:
         selector.setCurrentIndex(0)

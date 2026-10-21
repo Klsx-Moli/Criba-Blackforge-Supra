@@ -144,8 +144,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         command_parser.add_argument("--current", default="auto")
         command_parser.add_argument("--mode", default="balanced")
         command_parser.add_argument("--supporting-methods", type=int, default=8)
-        command_parser.add_argument("--llm", choices=["none", "offline", "cloud", "nebius"],
-                                   default="none", help="Modo LLM: none (determinista), offline (Ollama), cloud (API), nebius (Token Factory)")
+        command_parser.add_argument("--llm", choices=["none", "offline", "cloud"],
+                                   default="none", help="Modo LLM: none (determinista), offline (Ollama), cloud (API)")
         command_parser.add_argument("--llm-model", default=None, help="Nombre del modelo LLM")
         command_parser.add_argument("--llm-url", default=None, help="URL del servidor LLM (Ollama: http://localhost:11434)")
         command_parser.add_argument("--llm-api-key", default=None, help="API key para modo cloud")

@@ -53,7 +53,7 @@ def _invent_controlado(monkeypatch: pytest.MonkeyPatch, interprete: _InterpreteF
     """Parchea selección + invent para un run determinista de n candidatos."""
     construcciones: list[str] = []
 
-    def construir(backend: str):
+    def construir(backend: str, *, model: str | None = None):
         construcciones.append(backend)
         return interprete
 

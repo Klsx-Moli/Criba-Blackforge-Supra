@@ -497,3 +497,85 @@ def test_failure_reports_the_real_reason_not_a_generic_message(launcher, tmp_pat
     assert "no respondio /health" in reason
     assert "import fallo real" in reason, "el motivo real debe llegar al usuario"
     assert "error de conexion" not in reason.lower()
+
+
+def test_repeated_start_preserves_owned_server(launcher, tmp_path, monkeypatch):
+    """La segunda llamada a start() con backend saludable no duplica servidor
+    y conserva las referencias del propietario para que stop() las cierre.
+    """
+    for name in ("SUPRA_ENDPOINT", "SUPRA_STORAGE_DIR", "SUPRA_USE_MODEL"):
+        monkeypatch.delenv(name, raising=False)
+
+    server = launcher.SupraServer(
+        f"http://127.0.0.1:{launcher.free_port()}",
+        tmp_path / "owned-state",
+        tmp_path / "owned.log",
+    )
+    thread = None
+    endpoint = ""
+
+    try:
+        ok, endpoint = server.start(wait_s=90.0)
+        assert ok, endpoint
+
+        owned_server = server._server
+        thread = server._thread
+        assert owned_server is not None
+        assert thread is not None and thread.is_alive()
+
+        ok_again, endpoint_again = server.start(wait_s=10.0)
+
+        assert ok_again, endpoint_again
+        assert endpoint_again == endpoint
+        assert server._server is owned_server
+        assert server._thread is thread
+        assert launcher.health_ok(endpoint)
+    finally:
+        server.stop()
+
+    assert thread is not None and not thread.is_alive()
+    assert not launcher.health_ok(endpoint)
+
+
+def test_borrower_stop_does_not_stop_owner(launcher, tmp_path, monkeypatch):
+    """Una instancia que reusa un backend externo no lo apaga al hacer stop()."""
+    for name in ("SUPRA_ENDPOINT", "SUPRA_STORAGE_DIR", "SUPRA_USE_MODEL"):
+        monkeypatch.delenv(name, raising=False)
+
+    owner = launcher.SupraServer(
+        f"http://127.0.0.1:{launcher.free_port()}",
+        tmp_path / "shared-state",
+        tmp_path / "owner.log",
+    )
+    borrower = None
+    thread = None
+    endpoint = ""
+
+    try:
+        ok, endpoint = owner.start(wait_s=90.0)
+        assert ok, endpoint
+        thread = owner._thread
+
+        borrower = launcher.SupraServer(
+            endpoint,
+            tmp_path / "shared-state",
+            tmp_path / "borrower.log",
+        )
+        reused, reused_endpoint = borrower.start(wait_s=10.0)
+
+        assert reused, reused_endpoint
+        assert reused_endpoint == endpoint
+        assert borrower._server is None
+        assert borrower._thread is None
+
+        borrower.stop()
+
+        assert thread is not None and thread.is_alive()
+        assert launcher.health_ok(endpoint)
+    finally:
+        if borrower is not None:
+            borrower.stop()
+        owner.stop()
+
+    assert thread is not None and not thread.is_alive()
+    assert not launcher.health_ok(endpoint)

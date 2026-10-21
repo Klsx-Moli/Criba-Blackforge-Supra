@@ -62,7 +62,7 @@ class _InterpreteTimeout:
 
 
 def _invent_con(monkeypatch: pytest.MonkeyPatch, interprete: Any, n: int):
-    def construir(backend: str):
+    def construir(backend: str, *, model: str | None = None):
         return interprete
 
     def invent_falso(problem: str, *, store: Any, proponer: Any, **_kwargs: Any):
