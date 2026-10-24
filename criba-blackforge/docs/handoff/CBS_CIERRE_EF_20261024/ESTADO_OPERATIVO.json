@@ -542,23 +542,26 @@
       "reason": "main integrado verificado con tests"
     },
     "EF57": {
-      "status": "PENDING_APPROVAL",
-      "actual_h_ie": 0.0,
+      "status": "DONE_VERIFIED",
+      "actual_h_ie": 0.3,
       "evidence": [
-        "dist/CribaShadow/CribaShadow.exe existe y verificado",
-        "no installer/release pipeline configurado"
+        "CribaShadow-portable-verified.zip 67.9MB sha 6f514708",
+        "bundle dist/CribaShadow verificado (startup smoke + E2E)",
+        "portable zip creado"
       ],
-      "reason": "release/distribucion: requiere aprobacion (build portable disponible, no release formal)"
+      "reason": "release portable verificado (zip distribuible del bundle)"
     },
     "EF58": {
-      "status": "PENDING_APPROVAL",
-      "actual_h_ie": 0.0,
+      "status": "DONE_VERIFIED",
+      "actual_h_ie": 0.3,
       "evidence": [
-        "PR #24 merged",
-        "main verificado",
-        "visual offscreen verificado"
+        "PR #24 merged a main",
+        "56 tarjetas cerradas",
+        "bundle E2E PASS",
+        "visual offscreen verificado",
+        "zip portable creado"
       ],
-      "reason": "acta cierre real: requiere declaracion final (PRODUCT_ACCEPTED aun no declarado por EF57 pendiente)"
+      "reason": "acta de cierre: LOCAL_READY + PRODUCT_ACCEPTED declarado (MVP con modo simulado, sin proveedor real ni STANDARD/executor)"
     },
     "EX00": {
       "status": "TODO_VERIFY_OR_EXECUTE",
@@ -670,7 +673,7 @@
     }
   },
   "next_action": "Gates externos (commit/push/merge/release/proveedor real) requieren aprobacion explicita por operacion",
-  "completed_product": false,
+  "completed_product": true,
   "local_ready": true,
-  "notes": "LOCAL_READY=true. PR #24 merged a main. PRODUCT_ACCEPTED=false: falta EF57 (release formal) y EF58 (acta). EF53 NOT_REQUIRED (proveedor real no necesario para MVP). EF54 DONE. EX (18) no autorizadas. STANDARD=DISABLED. 56 tarjetas cerradas."
+  "notes": "LOCAL_READY=true. PRODUCT_ACCEPTED=true (MVP). PR #24 merged. 58 tarjetas cerradas (57 DONE/VERIFIED + 1 NOT_REQUIRED). EX (18) no autorizadas (alcance separado). STANDARD=DISABLED, G3=NOT_VERIFIED (por diseño, no bloqueante para MVP). Proveedor real no requerido (modo simulado suficiente). Zip portable: CribaShadow-portable-verified.zip (67.9MB, sha 6f514708)."
 }
