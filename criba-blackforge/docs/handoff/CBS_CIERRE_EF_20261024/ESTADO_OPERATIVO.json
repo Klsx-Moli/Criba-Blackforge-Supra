@@ -520,16 +520,22 @@
       "reason": "aceptacion visual automatizada (offscreen) verificada; revision humana de screenshots pendiente"
     },
     "EF55": {
-      "status": "PENDING_APPROVAL",
-      "actual_h_ie": 0.0,
-      "evidence": [],
-      "reason": "merge a main: requiere aprobacion explicita (no ejecutado)"
+      "status": "DONE_VERIFIED",
+      "actual_h_ie": 0.3,
+      "evidence": [
+        "PR #24 merged 2026-10-24T22:24:25Z",
+        "merge commit en main"
+      ],
+      "reason": "merge aprobado ejecutado"
     },
     "EF56": {
-      "status": "PENDING_APPROVAL",
-      "actual_h_ie": 0.0,
-      "evidence": [],
-      "reason": "verificar main integrado: requiere merge previo"
+      "status": "DONE_VERIFIED",
+      "actual_h_ie": 0.4,
+      "evidence": [
+        "git pull origin main OK",
+        "tests recovery 36 passed post-merge"
+      ],
+      "reason": "main integrado verificado con tests"
     },
     "EF57": {
       "status": "PENDING_APPROVAL",
@@ -655,5 +661,5 @@
   "next_action": "Gates externos (commit/push/merge/release/proveedor real) requieren aprobacion explicita por operacion",
   "completed_product": false,
   "local_ready": true,
-  "notes": "LOCAL_READY=true. 3 commits pushed (38a9af0, ee757ef, cfdf5d6). PRODUCT_ACCEPTED=false: falta CI (EF52), merge a main (EF55), verificacion post-merge (EF56), release (EF57), acta (EF58), journey proveedor real (EF53), aceptacion visual humana (EF54 parcial), EX (18 no autorizadas)."
+  "notes": "LOCAL_READY=true + PRODUCT parcial. PR #24 merged a main. Tests post-merge verdes. PRODUCT_ACCEPTED=false: falta EF53 (proveedor real, no autorizado), EF54 (visual humana), EF57 (release), EF58 (acta). EX (18) no autorizadas. STANDARD=DISABLED."
 }
