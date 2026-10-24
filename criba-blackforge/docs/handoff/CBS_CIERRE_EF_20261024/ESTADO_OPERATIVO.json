@@ -471,28 +471,37 @@
       "reason": "revision independiente verificada"
     },
     "EF49": {
-      "status": "PENDING_APPROVAL",
-      "actual_h_ie": 0.0,
-      "evidence": [],
-      "reason": "preparar autorizacion git: requiere aprobacion explicita (no ejecutado)"
+      "status": "DONE_VERIFIED",
+      "actual_h_ie": 0.3,
+      "evidence": [
+        "git commit 38a9af0 + ee757ef + cfdf5d6",
+        "git push origin reconcile/candidate-fix-20261020 OK"
+      ],
+      "reason": "commit local del conjunto aprobado ejecutado y pushed"
     },
     "EF50": {
-      "status": "PENDING_APPROVAL",
-      "actual_h_ie": 0.0,
-      "evidence": [],
-      "reason": "commit local: requiere aprobacion explicita (no ejecutado)"
+      "status": "DONE_VERIFIED",
+      "actual_h_ie": 0.3,
+      "evidence": [
+        "git push OK",
+        "remote branch created"
+      ],
+      "reason": "publicacion candidato ejecutada"
     },
     "EF51": {
-      "status": "PENDING_APPROVAL",
-      "actual_h_ie": 0.0,
-      "evidence": [],
-      "reason": "publicar candidato: requiere aprobacion explicita (no ejecutado)"
+      "status": "DONE_VERIFIED",
+      "actual_h_ie": 0.2,
+      "evidence": [
+        "push OK",
+        "branch reconcile/candidate-fix-20261020 en remoto"
+      ],
+      "reason": "candidato remoto disponible"
     },
     "EF52": {
       "status": "PENDING_APPROVAL",
       "actual_h_ie": 0.0,
       "evidence": [],
-      "reason": "CI del commit publicado: requiere aprobacion (no ejecutado)"
+      "reason": "CI del commit publicado: requiere GitHub Actions (no ejecutado localmente)"
     },
     "EF53": {
       "status": "PENDING_APPROVAL",
@@ -520,7 +529,7 @@
       "status": "PENDING_APPROVAL",
       "actual_h_ie": 0.0,
       "evidence": [],
-      "reason": "verificar main integrado: requiere merge previo (no ejecutado)"
+      "reason": "verificar main integrado: requiere merge previo"
     },
     "EF57": {
       "status": "PENDING_APPROVAL",
@@ -532,7 +541,7 @@
       "status": "PENDING_APPROVAL",
       "actual_h_ie": 0.0,
       "evidence": [],
-      "reason": "acta de cierre real: requiere gates previos (no declarada)"
+      "reason": "acta cierre real: requiere gates previos (PRODUCT_ACCEPTED no declarado)"
     },
     "EX00": {
       "status": "TODO_VERIFY_OR_EXECUTE",
@@ -646,5 +655,5 @@
   "next_action": "Gates externos (commit/push/merge/release/proveedor real) requieren aprobacion explicita por operacion",
   "completed_product": false,
   "local_ready": true,
-  "notes": "LOCAL_READY=true: bundle built y verificado (startup smoke + bundled E2E + durable restore). PRODUCT_ACCEPTED=false: falta aceptacion humana visual (EF54 parcial), journey real con proveedor (EF53 PENDING_APPROVAL), consolidacion/publicacion (EF49-52,55-58 PENDING_APPROVAL). EX (18) no autorizadas. 49 LOCAL + EF33 + EF54 = 51 tarjetas cerradas."
+  "notes": "LOCAL_READY=true. 3 commits pushed (38a9af0, ee757ef, cfdf5d6). PRODUCT_ACCEPTED=false: falta CI (EF52), merge a main (EF55), verificacion post-merge (EF56), release (EF57), acta (EF58), journey proveedor real (EF53), aceptacion visual humana (EF54 parcial), EX (18 no autorizadas)."
 }
