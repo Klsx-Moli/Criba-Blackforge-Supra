@@ -3,7 +3,29 @@ from __future__ import annotations
 
 from typing import Any
 
+import pytest
+
 from criba.hybrid import HybridOrchestrator, HybridResult, run_hybrid
+
+
+@pytest.fixture(autouse=True)
+def _isolated_storage(tmp_path, monkeypatch):
+    """Aislar la DB del repo por test.
+
+    ``Storage()`` usa por defecto ``DEFAULT_DB`` (artifacts/criba.sqlite3,
+    una ruta fija del repo). Sin este fixture los 20 tests de hybrid
+    comparten la misma SQLite: con reordenamiento (pytest-randomly) la
+    contaminación cruzada hace fallar de forma intermitente
+    test_chain_produces_final_decision y tests de adversarial.
+    El fix es de aislamiento de test, no de producto.
+    """
+    from criba import constants
+    from criba import storage as storage_mod
+
+    db = tmp_path / "hybrid_isolated.sqlite3"
+    monkeypatch.setattr(constants, "DEFAULT_DB", db)
+    monkeypatch.setattr(storage_mod, "DEFAULT_DB", db)
+    yield
 
 
 def _packet() -> dict[str, Any]:

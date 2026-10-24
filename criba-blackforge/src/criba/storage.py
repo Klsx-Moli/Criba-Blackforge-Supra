@@ -115,6 +115,113 @@ class Storage:
         finally:
             con.close()
 
+    def save_blackforge_session(
+        self,
+        session_id: str,
+        query: str,
+        packet: Mapping[str, Any],
+        config: Mapping[str, Any],
+    ) -> str:
+        """Persist a BLACKFORGE packet under its logical session identity."""
+        if not isinstance(session_id, str) or not session_id.strip():
+            raise ValueError("session_id de BLACKFORGE debe ser no vacío.")
+        timestamp = packet.get("timestamp")
+        if not isinstance(timestamp, str) or not timestamp.strip():
+            raise ValueError("El packet BLACKFORGE requiere timestamp.")
+        status = packet.get("status")
+        if not isinstance(status, str) or not status.strip():
+            raise ValueError("El packet BLACKFORGE requiere status.")
+        packet_session_id = packet.get("session_id")
+        if packet_session_id != session_id:
+            raise ValueError("session_id no coincide con el packet BLACKFORGE.")
+        packet_query = packet.get("query")
+        if packet_query != query:
+            raise ValueError("query no coincide con el packet BLACKFORGE.")
+
+        selection = packet.get("selection")
+        selected_ids: object = []
+        if isinstance(selection, Mapping):
+            selected_ids = selection.get("selected_ids", [])
+        current_id = ""
+        if isinstance(selected_ids, list):
+            current_id = next(
+                (
+                    item
+                    for item in selected_ids
+                    if isinstance(item, str) and item.strip()
+                ),
+                "",
+            )
+
+        digest = hashlib.sha256(query.encode("utf-8")).hexdigest()
+        con = self.connect()
+        try:
+            with con:
+                con.execute(
+                    "INSERT INTO sessions VALUES(?,?,?,?,?,?,?,?,?)",
+                    (
+                        session_id,
+                        timestamp,
+                        digest,
+                        query,
+                        current_id,
+                        status,
+                        json.dumps(dict(config), ensure_ascii=False),
+                        json.dumps(dict(packet), ensure_ascii=False),
+                        "[]",
+                    ),
+                )
+            return session_id
+        finally:
+            con.close()
+
+    def record_event(
+        self,
+        session_id: str,
+        event_type: str,
+        evidence: list[Any] | dict[str, Any],
+        note: str = "",
+    ) -> dict[str, Any]:
+        """Append a BLACKFORGE audit event without touching CRIBA decisions."""
+        valid_events = {"mitigation_proposed", "mitigation_applied"}
+        if event_type not in valid_events:
+            raise ValueError("Tipo de evento BLACKFORGE inválido.")
+        if not isinstance(evidence, (list, dict)):
+            raise ValueError("evidence debe ser una lista o un objeto.")
+
+        entry: dict[str, Any] = {
+            "id": str(uuid.uuid4()),
+            "session_id": session_id,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "status": event_type,
+            "evidence": evidence,
+            "note": note,
+        }
+        con = self.connect()
+        try:
+            con.execute("BEGIN IMMEDIATE")
+            row = con.execute(
+                "SELECT evidence_json FROM sessions WHERE id=?",
+                (session_id,),
+            ).fetchone()
+            if not row:
+                raise ValueError(f"Sesión inexistente: {session_id}")
+            existing = json.loads(row["evidence_json"])
+            if not isinstance(existing, list):
+                raise ValueError("evidence_json almacenado debe ser una lista.")
+            updated = [*existing, entry]
+            con.execute(
+                "UPDATE sessions SET evidence_json=? WHERE id=?",
+                (json.dumps(updated, ensure_ascii=False), session_id),
+            )
+            con.commit()
+            return entry
+        except Exception:
+            con.rollback()
+            raise
+        finally:
+            con.close()
+
     def get(self, ident: str) -> dict[str, Any]:
         con = self.connect()
         try:

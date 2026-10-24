@@ -106,11 +106,11 @@ def test_default_proponer_conserva_diagnostico_visible_sin_alterar_contrato():
 
 def test_run_inventar_fija_una_instancia_de_interprete_por_run(monkeypatch, tmp_path):
     interprete = _InterpreteFalso()
-    construcciones: list[str] = []
+    construcciones: list[tuple[str, str | None]] = []
     progresos: list[dict[str, Any]] = []
 
-    def construir(backend: str):
-        construcciones.append(backend)
+    def construir(backend: str, *, model: str | None = None):
+        construcciones.append((backend, model))
         return interprete
 
     def invent_falso(problem: str, *, store: Any, proponer: Any, **_kwargs: Any):
@@ -161,7 +161,7 @@ def test_run_inventar_fija_una_instancia_de_interprete_por_run(monkeypatch, tmp_
         cancel_requested=lambda: False,
     )
 
-    assert construcciones == ["openai_compatible"], "una configuración/instancia por run"
+    assert construcciones == [("openai_compatible", None)], "una configuración/instancia por run"
     assert interprete.calls == 2
     assert sheet["interpreter"]["model_requested"] == "stealth/space-bunny-alpha"
     assert [p["completed"] for p in progresos] == [1, 2]
@@ -173,12 +173,25 @@ def test_shadow_expone_selector_real_y_salidas_copiables(qapp, tmp_path):
     win = ShadowWindow(database=str(tmp_path / "shadow.sqlite3"))
     try:
         selector = win.topcards.interpreter_selector
-        assert selector.count() == 2
-        assert selector.itemData(1) == "local_llama"
-        assert selector.itemText(1) == "Cargar modelo"
+        from criba.interprete.seleccion import BACKEND_LOCAL, FREE_MODELS
+
+        # Space Bunny (externo por defecto) primero; luego los modelos gratuitos
+        # del proxy; "Cargar modelo" (local) al final.
+        assert selector.count() == 2 + len(FREE_MODELS)
         assert selector.itemData(0) == "openai_compatible"
         assert "Nous/Hermes" in selector.itemText(0)
         assert "Space Bunny" in selector.itemText(0)
+        # Cada modelo free lleva (backend, model) con su id real del catálogo.
+        for offset, (model_id, label) in enumerate(FREE_MODELS, start=1):
+            data = selector.itemData(offset)
+            assert isinstance(data, tuple) and data[0] == "openai_compatible"
+            assert data[1] == model_id
+            assert label in selector.itemText(offset)
+            assert "free" in selector.itemText(offset)
+        # La entrada local sigue siendo la última y no es remota.
+        local_index = selector.count() - 1
+        assert selector.itemData(local_index) == BACKEND_LOCAL
+        assert selector.itemText(local_index) == "Cargar modelo"
         assert "local" in win.topcards.interpreter_status.text().lower()
         for widget in (
             win.candidates.raw_output,

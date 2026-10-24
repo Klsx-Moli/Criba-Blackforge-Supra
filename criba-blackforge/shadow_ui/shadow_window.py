@@ -149,6 +149,7 @@ WARNING = "#CC9922"
 INFO = "#4488CC"
 BADGE_GREEN_BG = "#0A2820"
 BADGE_BLUE_BG = "#0A1828"
+BG_INTERPRETACION = "#0B1C25"
 
 NAV_ITEMS = [
     ("navRed", "⬡", "shadow.nav.red", "shadow.nav.red.sub"),
@@ -221,7 +222,22 @@ def build_shadow_qss() -> str:
         border-radius: 8px; padding: 7px 12px;
     }}
     QPlainTextEdit[interpretation_active="true"] {{
-        background: #0B1C25; border: 1px solid #1B5665; color: #D4EAF0;
+        background: {BG_INTERPRETACION}; border: 1px solid #1B5665; color: #D4EAF0;
+        font-size: 16px; font-family: 'Segoe UI', sans-serif;
+        padding: 16px; line-height: 1.6;
+    }}
+    QLabel[interpretation_title="true"] {{
+        color: {TEXT}; font-size: 24px; font-weight: 700; background: transparent;
+    }}
+    QLabel[interpretation_hint="true"] {{
+        color: {TEXT_SUB}; font-size: 14px; font-weight: 400;
+        background: transparent;
+    }}
+    QFrame[interpretation_card="true"] {{
+        background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+            stop:0 #0B1C25, stop:1 #0A141E);
+        border: 1px solid #1B5665;
+        border-radius: 14px;
     }}
     QComboBox {{
         background: {BG_INPUT}; border: 1px solid {BORDER}; border-radius: 6px;
@@ -827,6 +843,15 @@ class TopCardsWidget(QWidget):
         self.interpreter_selector.addItem(
             "Nous/Hermes OAuth · Space Bunny", "openai_compatible"
         )
+        # Modelos gratuitos del proxy Hermes (suscripción Nous). Se listan por
+        # ejecución real contra el proxy; el operador elige uno concreto. El
+        # userData lleva (backend, model) para que el run use ese modelo.
+        from criba.interprete.seleccion import FREE_MODELS
+
+        for model_id, label in FREE_MODELS:
+            self.interpreter_selector.addItem(
+                f"{label} · free", ("openai_compatible", model_id)
+            )
         self.interpreter_selector.addItem(
             "Cargar modelo", "local_llama"
         )
@@ -966,111 +991,42 @@ class CandidatesWidget(QWidget):
         lay.setSpacing(10)
 
         self.lay = lay
-        title = QLabel("Candidatos y evaluación")
-        title.setProperty("h2", True)
-        title.setWordWrap(True)
-        bind_text(title, "shadow.candidatos_titulo")
-        sub = QLabel("Propuestas para el problema actual")
-        sub.setProperty("caption", True)
-        sub.setWordWrap(True)
-        bind_text(sub, "shadow.candidatos_sub")
-        self.title = title
-        self.sub = sub
-        lay.addWidget(title)
-        lay.addWidget(sub)
 
-        tabs = QTabWidget()
-        tabs.setDocumentMode(True)
-        for key in ("shadow.tab.ranking", "shadow.tab.top", "shadow.tab.eval",
-                    "shadow.tab.exploracion"):
-            tabs.addTab(QWidget(), _t(key))
-        # Las pestañas no exponen setText por clave: se re-etiquetan al cambiar
-        # de idioma (QTabWidget.setTabText).
-        def _retitle_tabs() -> None:
-            for i, key in enumerate(("shadow.tab.ranking", "shadow.tab.top",
-                                     "shadow.tab.eval", "shadow.tab.exploracion")):
-                if i < tabs.count():
-                    tabs.setTabText(i, _t(key))
+        # ── ZONA CENTRAL: INTERPRETACIÓN DOMINANTE ──────────────────────
+        # La interpretación es el elemento principal de la aplicación.
+        # Se muestra en un panel grande, legible y dominante, no en una
+        # pestaña secundaria.
+        interp_frame = QFrame()
+        interp_frame.setProperty("interpretation_card", True)
+        interp_lay = QVBoxLayout(interp_frame)
+        interp_lay.setContentsMargins(20, 16, 20, 16)
+        interp_lay.setSpacing(12)
 
-        _I18N_CALLBACKS.append(_retitle_tabs)
-        tabs.currentChanged.connect(lambda i: actions.on_tab_changed(win, i))
-        self.tabs = tabs
-        lay.addWidget(tabs)
+        interp_title = QLabel("Interpretación")
+        interp_title.setProperty("interpretation_title", True)
+        bind_text(interp_title, "shadow.interpretacion.titulo")
+        interp_lay.addWidget(interp_title)
 
-        # Tabla REAL: RankingModel canónico + proxy shadow (cabeceras de la
-        # composición) + QTableView. Selección → mapToSource → candidate ID.
-        self.model = RankingModel()
-        # §13: la tabla arranca vacía; sólo datos reales tras generar/evaluar.
-        self.model.set_rows([])
-        self.proxy = ShadowRankingProxy()
-        self.proxy.setSourceModel(self.model)
-        table = QTableView()
-        table.setModel(self.proxy)
-        table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
-        table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
-        table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
-        table.setShowGrid(False)
-        table.verticalHeader().setVisible(False)
-        table.horizontalHeader().setHighlightSections(False)
-        table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
-        self.view = table
-        lay.addWidget(table)
-
-        # Detalle seleccionado
-        detail = QFrame()
-        detail.setProperty("card", True)
-        d_lay = QVBoxLayout(detail)
-        d_lay.setContentsMargins(14, 10, 14, 10)
-        d_header = QHBoxLayout()
-        icon = _icon_label("doc", 18)
-        d_header.addWidget(icon)
-        d_info = QVBoxLayout()
-        sel_label = QLabel("Idea seleccionada")
-        sel_label.setStyleSheet(
-            f"color: {SUCCESS}; font-size: 10px; font-weight: 600; "
-            "background: transparent;"
-        )
-        bind_text(sel_label, "shadow.idea_sel")
-        self.detail_caption = sel_label
-        d_info.addWidget(sel_label)
-        d_title = QLabel("")
-        d_title.setProperty("h2", True)
-        d_title.setWordWrap(True)
-        self.detail_title = d_title
-        d_info.addWidget(d_title)
-        d_header.addLayout(d_info, stretch=1)
-        self.detail_chip = _badge("● En evaluación", SUCCESS, BADGE_GREEN_BG)
-        self.detail_chip.setWordWrap(True)
-        d_header.addWidget(self.detail_chip)
-        chip_ev = _badge("⚠ Evidencia pendiente", WARNING, "#282008")
-        chip_ev.setWordWrap(True)
-        self.detail_chip_ev = chip_ev
-        d_header.addWidget(chip_ev)
-        d_lay.addLayout(d_header)
-        d_desc = QLabel("")
-        d_desc.setWordWrap(True)
-        d_desc.setProperty("sub", True)
-        self.detail_desc = d_desc
-        # Ficha técnica en monoespaciada (la referencia usa Cascadia Code).
-        # Va por QSS: el QSS global pisa cualquier setFont() del widget.
-        mono_qss = ("font-family: 'Cascadia Code', 'Consolas', 'Courier New', monospace;"
-                    " background: transparent;")
-        d_title.setStyleSheet(mono_qss)
-        d_desc.setStyleSheet(mono_qss + f" color: {TEXT_SUB};")
-        d_lay.addWidget(d_desc)
+        interp_sub = QLabel("Propuesta seleccionada")
+        interp_sub.setProperty("interpretation_hint", True)
+        bind_text(interp_sub, "shadow.interpretacion.sub")
+        interp_lay.addWidget(interp_sub)
 
         # Resultados completos y copiables. La navegación muestra UNA
         # interpretación por vez: juntar todas las propuestas en un blob JSON
         # hacía que parecieran repetidas y ocultaba la lectura importante.
+        # La pestaña "Interpretación" es la primera y la visible por defecto.
         self.output_tabs = QTabWidget()
         self.output_tabs.setDocumentMode(True)
-        self.raw_output = QPlainTextEdit()
-        self.raw_output.setReadOnly(True)
-        self.raw_output.setPlaceholderText("Sin salida bruta todavía")
         self.interpretation_output = QPlainTextEdit()
         self.interpretation_output.setReadOnly(True)
         self.interpretation_output.setProperty("interpretation_active", True)
-        self.interpretation_output.setPlaceholderText("Sin interpretación todavía")
+        self.interpretation_output.setPlaceholderText(
+            "Aún no hay interpretación. Pulsa Generar o Inventar."
+        )
+        self.raw_output = QPlainTextEdit()
+        self.raw_output.setReadOnly(True)
+        self.raw_output.setPlaceholderText("Sin salida bruta todavía")
         self.dossier_output = QPlainTextEdit()
         self.dossier_output.setReadOnly(True)
         self.dossier_output.setPlaceholderText("Sin dossier todavía")
@@ -1078,12 +1034,12 @@ class CandidatesWidget(QWidget):
         self.supra_output.setReadOnly(True)
         self.supra_output.setPlaceholderText("Sin estado SUPRA recuperado todavía")
         for label, widget in (
-            ("Salida bruta", self.raw_output),
             ("Interpretación", self.interpretation_output),
+            ("Salida bruta", self.raw_output),
             ("Dossier", self.dossier_output),
             ("SUPRA / GET", self.supra_output),
         ):
-            widget.setMinimumHeight(150)
+            widget.setMinimumHeight(300)
             self.output_tabs.addTab(widget, label)
 
         # Controles de lectura: las flechas son cuadrados translúcidos y el
@@ -1127,8 +1083,102 @@ class CandidatesWidget(QWidget):
         self.save_idea = save_idea
         save_idea.clicked.connect(lambda: actions.on_guardar(win))
         d_btn.addWidget(save_idea)
-        d_lay.addLayout(d_btn)
-        d_lay.addWidget(self.output_tabs)
+        interp_lay.addLayout(d_btn)
+        interp_lay.addWidget(self.output_tabs)
+
+        # Botón "Más/Expandir" para detalles secundarios
+        self.details_expanded = False
+        self.mas_expandir_btn = QPushButton("Más ▼")
+        self.mas_expandir_btn.setProperty("ghost", True)
+        self.mas_expandir_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.mas_expandir_btn.clicked.connect(self._toggle_details)
+        bind_text(self.mas_expandir_btn, "shadow.mas_expandir")
+        interp_lay.addWidget(self.mas_expandir_btn)
+
+        lay.addWidget(interp_frame, stretch=3)
+
+        # ── ZONA INFERIOR: TABLA DE RANKING ────────────────────────────
+        # La tabla de ranking es secundaria: va en un panel más pequeño,
+        # debajo de la interpretación, accesible pero no dominante.
+        detail = QFrame()
+        detail.setProperty("card", True)
+        d_lay = QVBoxLayout(detail)
+        d_lay.setContentsMargins(14, 10, 14, 10)
+        d_header = QHBoxLayout()
+        icon = _icon_label("doc", 18)
+        d_header.addWidget(icon)
+        d_info = QVBoxLayout()
+        sel_label = QLabel("Candidatos y evaluación")
+        sel_label.setStyleSheet(
+            f"color: {TEXT_SUB}; font-size: 10px; font-weight: 600; "
+            "background: transparent;"
+        )
+        bind_text(sel_label, "shadow.candidatos_titulo")
+        self.detail_caption = sel_label
+        d_info.addWidget(sel_label)
+        d_title = QLabel("")
+        d_title.setProperty("h2", True)
+        d_title.setWordWrap(True)
+        self.detail_title = d_title
+        d_info.addWidget(d_title)
+        d_header.addLayout(d_info, stretch=1)
+        self.detail_chip = _badge("● En evaluación", SUCCESS, BADGE_GREEN_BG)
+        self.detail_chip.setWordWrap(True)
+        d_header.addWidget(self.detail_chip)
+        chip_ev = _badge("⚠ Evidencia pendiente", WARNING, "#282008")
+        chip_ev.setWordWrap(True)
+        self.detail_chip_ev = chip_ev
+        d_header.addWidget(chip_ev)
+        d_lay.addLayout(d_header)
+        d_desc = QLabel("")
+        d_desc.setWordWrap(True)
+        d_desc.setProperty("sub", True)
+        self.detail_desc = d_desc
+        # Ficha técnica en monoespaciada (la referencia usa Cascadia Code).
+        # Va por QSS: el QSS global pisa cualquier setFont() del widget.
+        mono_qss = ("font-family: 'Cascadia Code', 'Consolas', 'Courier New', monospace;"
+                    " background: transparent;")
+        d_title.setStyleSheet(mono_qss)
+        d_desc.setStyleSheet(mono_qss + f" color: {TEXT_SUB};")
+        d_lay.addWidget(d_desc)
+
+        # Tabla REAL: RankingModel canónico + proxy shadow (cabeceras de la
+        # composición) + QTableView. Selección → mapToSource → candidate ID.
+        self.model = RankingModel()
+        # §13: la tabla arranca vacía; sólo datos reales tras generar/evaluar.
+        self.model.set_rows([])
+        self.proxy = ShadowRankingProxy()
+        self.proxy.setSourceModel(self.model)
+        table = QTableView()
+        table.setModel(self.proxy)
+        table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
+        table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        table.setShowGrid(False)
+        table.verticalHeader().setVisible(False)
+        table.horizontalHeader().setHighlightSections(False)
+        table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
+        self.view = table
+        d_lay.addWidget(table)
+
+        tabs = QTabWidget()
+        tabs.setDocumentMode(True)
+        for key in ("shadow.tab.ranking", "shadow.tab.top", "shadow.tab.eval",
+                    "shadow.tab.exploracion"):
+            tabs.addTab(QWidget(), _t(key))
+        # Las pestañas no exponen setText por clave: se re-etiquetan al cambiar
+        # de idioma (QTabWidget.setTabText).
+        def _retitle_tabs() -> None:
+            for i, key in enumerate(("shadow.tab.ranking", "shadow.tab.top",
+                                     "shadow.tab.eval", "shadow.tab.exploracion")):
+                if i < tabs.count():
+                    tabs.setTabText(i, _t(key))
+
+        _I18N_CALLBACKS.append(_retitle_tabs)
+        tabs.currentChanged.connect(lambda i: actions.on_tab_changed(win, i))
+        self.tabs = tabs
+        d_lay.addWidget(tabs)
+
         footer_actions = QHBoxLayout()
         footer_actions.addStretch()
         ver_todas = QPushButton("Ver todas las ideas  →")
@@ -1138,8 +1188,7 @@ class CandidatesWidget(QWidget):
         ver_todas.clicked.connect(lambda: actions.on_ver_todas(win))
         footer_actions.addWidget(ver_todas)
         d_lay.addLayout(footer_actions)
-        lay.addWidget(detail)
-        lay.addStretch()
+        lay.addWidget(detail, stretch=2)
 
         # §12: arranque honesto — sin candidato seleccionado.
         self.set_detail_empty(True)
@@ -1278,6 +1327,24 @@ class CandidatesWidget(QWidget):
         self.detail_caption.setVisible(False)
         self.detail_chip.setVisible(True)
 
+    def _toggle_details(self) -> None:
+        """Alterna la visibilidad de los detalles secundarios (Más/Expandir)."""
+        self.details_expanded = not self.details_expanded
+        if self.details_expanded:
+            self.mas_expandir_btn.setText("Menos ▲")
+            # Mostrar todas las pestañas
+            self.output_tabs.setTabVisible(1, True)  # Salida bruta
+            self.output_tabs.setTabVisible(2, True)  # Dossier
+            self.output_tabs.setTabVisible(3, True)  # SUPRA / GET
+        else:
+            self.mas_expandir_btn.setText("Más ▼")
+            # Ocultar pestañas secundarias, mantener solo Interpretación
+            self.output_tabs.setTabVisible(1, False)
+            self.output_tabs.setTabVisible(2, False)
+            self.output_tabs.setTabVisible(3, False)
+            # Volver a la pestaña de interpretación
+            self.output_tabs.setCurrentIndex(0)
+
 
 # ---------------------------------------------------------------------------
 # Right panel — Fuentes + SUPRA + Actividad + BLACKFORGE
@@ -1395,20 +1462,51 @@ class RightPanelWidget(QWidget):
         l2.addWidget(ver_hist)
         lay.addWidget(f2)
 
+        # Experimentos Causales (ASTRA: comparación de representaciones)
+        f3, l3 = _card("Experimentos Causales", "chart")
+        self.exp_bf_btn = _icon_label("chart", 16)
+        l3.addWidget(self.exp_bf_btn)
+        self.exp_result = QLabel("Pulsa para ejecutar")
+        self.exp_result.setProperty("caption", True)
+        self.exp_result.setWordWrap(True)
+        bind_text(self.exp_result, "shadow.exp_result")
+        l3.addWidget(self.exp_result)
+        exp_btn = QPushButton("Ejecutar experimento")
+        exp_btn.setProperty("ghost", True)
+        exp_btn.clicked.connect(lambda: self._run_experiment(win))
+        self.exp_btn = exp_btn
+        l3.addWidget(exp_btn)
         # BLACKFORGE
-        f3, l3 = _card("BLACKFORGE", "mountain")
+        f4, l4 = _card("BLACKFORGE", "mountain")
         bf_desc = QLabel("Aplicación independiente")
         bf_desc.setProperty("caption", True)
         bind_text(bf_desc, "shadow.bf_indep")
-        l3.addWidget(bf_desc)
+        l4.addWidget(bf_desc)
         ir_bf = QPushButton("Ir a Blackforge  →")
         ir_bf.setProperty("accent", True)
         bind_text(ir_bf, "shadow.ir_bf")
         self.ir_bf = ir_bf
         ir_bf.clicked.connect(lambda: actions.on_blackforge(win))
-        l3.addWidget(ir_bf)
+        l4.addWidget(ir_bf)
         lay.addWidget(f3)
+        lay.addWidget(f4)
         lay.addStretch()
+
+    def _run_experiment(self, win: Any) -> None:
+        """Ejecuta el experimento de representaciones causales (ASTRA)."""
+        try:
+            from criba.experimentos_causales import main
+            resultado = main()
+            n_repr = len(resultado["representaciones"])
+            n_unif = len(resultado["comparacion"]["unificables"])
+            n_coex = len(resultado["comparacion"]["coexistentes"])
+            n_casos = len(resultado["casos_testigo"])
+            self.exp_result.setText(
+                f"{n_repr} representaciones · {n_unif} unificables · "
+                f"{n_coex} coexistentes · {n_casos} casos testigo"
+            )
+        except Exception as exc:
+            self.exp_result.setText(f"Error: {exc}")
 
 
 # ---------------------------------------------------------------------------
@@ -1574,12 +1672,11 @@ class ShadowWindow(QMainWindow):
         right_scroll.setWidget(self.right_panel)
         self.right_panel_scroll = right_scroll
         content_splitter.addWidget(right_scroll)
-        content_splitter.setSizes([490, 315] if self._compact_layout else [880, 500])
-        # Proporción de la referencia: centro ancho, panel derecho acotado
-        # (si no, el panel derecho se queda con el espacio y el centro desborda).
+        content_splitter.setSizes([520, 280] if self._compact_layout else [920, 480])
+        # Proporción: centro ancho (interpretación dominante), panel derecho acotado.
         content_splitter.setStretchFactor(0, 1)
         content_splitter.setStretchFactor(1, 0)
-        right_scroll.setMaximumWidth(380 if self._compact_layout else 520)
+        right_scroll.setMaximumWidth(360 if self._compact_layout else 480)
         right_lay.addWidget(content_splitter, stretch=1)
 
         self.footer = FooterWidget(self)

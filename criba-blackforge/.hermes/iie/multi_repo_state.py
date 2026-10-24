@@ -47,9 +47,15 @@ except ImportError:  # pragma: no cover - CI/linux path
 
 ROOT = Path(__file__).resolve().parent
 STATE_PATH = ROOT / "STATE.json"
+# The pre-migration layout kept three independent Git repositories. The current
+# workspace is a single monorepo (no .gitmodules, no nested .git): CRIBA and SUPRA
+# are subdirectories of one Git root, and BLACKFORGE is a logical sector of CRIBA.
+# Resolve the Git root from this file's location instead of hardcoding a personal
+# path that stopped existing after the migration.
+_WORKSPACE_ROOT = ROOT.parents[2]
 PHYSICAL_REPOS: dict[str, str] = {
-    "CRIBA": "C:/Users/KLSX/Music/INNOVATIONS/ACTIVE/CRIBA",
-    "SUPRA": "C:/Users/KLSX/Music/INNOVATIONS/ACTIVE/SUPRA",
+    "CRIBA": str(_WORKSPACE_ROOT / "criba-blackforge"),
+    "SUPRA": str(_WORKSPACE_ROOT / "supra"),
 }
 BLACKFORGE_PATHS: tuple[str, ...] = ("src/criba/blackforge_",)
 LOCK_FIELDS = {"repo", "path", "holder", "acquired_at", "reason"}
@@ -202,7 +208,39 @@ def _git(repo: str, *args: str) -> str:
     return result.stdout.strip() if result.returncode == 0 else ""
 
 
+def _repo_probe(repo_path: str) -> dict[str, Any]:
+    """Return the access state of a configured path without guessing.
+
+    Distinguishes three cases that used to collapse into an empty string:
+    - ``missing``      the configured path does not exist;
+    - ``unreadable``   the path exists but is not a Git repository (or git fails);
+    - ``ok``           the path is a usable Git work tree.
+    """
+    path = Path(repo_path)
+    if not path.exists():
+        return {"state": "missing", "reason": f"path does not exist: {repo_path}"}
+    if not path.is_dir():
+        return {"state": "unreadable", "reason": f"not a directory: {repo_path}"}
+    probe = _git(str(path), "rev-parse", "--show-toplevel")
+    if not probe:
+        return {"state": "unreadable", "reason": f"not a git repository: {repo_path}"}
+    return {"state": "ok", "reason": ""}
+
+
 def _live_physical_repo(repo_path: str) -> dict[str, Any]:
+    probe = _repo_probe(repo_path)
+    if probe["state"] != "ok":
+        # Explicit unknown state: never an empty-but-plausible snapshot.
+        return {
+            "path": repo_path,
+            "branch": "",
+            "commit": "",
+            "tags_at_head": [],
+            "dirty_files": [],
+            "is_repo": False,
+            "access_state": probe["state"],
+            "access_error": probe["reason"],
+        }
     head = _git(repo_path, "rev-parse", "HEAD")
     return {
         "path": repo_path,
@@ -214,6 +252,8 @@ def _live_physical_repo(repo_path: str) -> dict[str, Any]:
         ],
         "dirty_files": _git(repo_path, "status", "--porcelain").splitlines(),
         "is_repo": bool(head),
+        "access_state": "ok",
+        "access_error": "",
     }
 
 
@@ -286,6 +326,12 @@ def validate() -> int:
         live = _live_physical_repo(path)
         recorded = repos.get(key)
         print(f"\n[{key}] {path}")
+        access = live.get("access_state", "ok")
+        if access != "ok":
+            # Never report an inaccessible path as a stale-but-valid snapshot.
+            print(f"  access={access}: {live.get('access_error', '')}")
+            problems.append(f"{key}: REPO_UNAVAILABLE ({access})")
+            continue
         print(f"  branch={live['branch']} head={live['commit'][:12]} dirty={len(live['dirty_files'])}")
         if not recorded:
             problems.append(f"{key}: no STATE record (run snapshot)")

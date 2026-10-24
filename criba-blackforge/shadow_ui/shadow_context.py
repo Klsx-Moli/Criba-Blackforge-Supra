@@ -358,9 +358,9 @@ class ShadowActionContext:
                 self.sessionDot = session_dot
             if getattr(footer, "sources_block", None) is not None:
                 self.footerSegs["fsFuentes"] = _SegAdapter(footer.sources_block)
-        # títulos reales del panel "Candidatos y evaluación"
-        self.content_label = cand.title
-        self.content_sub = cand.sub
+        # títulos reales del panel de interpretación (zona central dominante)
+        self.content_label = cand.detail_title
+        self.content_sub = cand.detail_desc
         self.errorBanner = self.win.errorBanner
         self.errorBannerText = self.win.errorBannerText
         # layout real donde actions.py inserta el label transitorio de progreso

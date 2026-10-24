@@ -521,6 +521,13 @@ def invent(
             "classes": [idea.get("class1", ""), idea.get("class2", "")],
             "methods": [idea.get("method1", ""), idea.get("method2", "")],
             "method_ids": [idea.get("method1_id", ""), idea.get("method2_id", "")],
+            # Entrega fiel al consumidor: el pool del lote expone ``family`` y
+            # ``genome`` (lo que lee el selector diversity-aware y el dossier).
+            # Antes se proyectaban fuera y el dossier los recibía vacíos.
+            "family": idea.get("family") or "",
+            "family1": idea.get("family1") or "",
+            "family2": idea.get("family2") or "",
+            "genome": dict(idea.get("genome") or {}),
             "hipotesis": proposal.get("hipotesis", ""),
             "mecanismo": candidate.mechanism,
             "estado_interpretacion": proposal.get("estado", "PENDIENTE_INTERPRETACION"),

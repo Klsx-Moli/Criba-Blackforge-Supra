@@ -15,6 +15,8 @@ from pathlib import Path
 from criba.interprete.banco import CASOS, evaluar_banco
 from criba.interprete.openai_compatible import OpenAICompatibleInterpreter
 
+import _provenance
+
 PROXY = "http://127.0.0.1:8645/v1"
 MODELO = os.getenv("CRIBA_CONTROL_MODEL", "openai/gpt-6.1-sol")
 SEED = 20261011
@@ -72,13 +74,24 @@ def una_corrida(restringido: bool) -> dict:
 
 
 def main() -> None:
+    prov = _provenance.build_provenance(
+        bank_version="BANCO-TRACE-05",
+        constrained_decoding="json_schema",
+        seed=SEED,
+        model_requested=MODELO,
+        endpoint=PROXY,
+        script_path=__file__,
+    )
     print("=== sondeo del proxy ===", flush=True)
     s = sondeo_modelo()
     print(json.dumps(s, ensure_ascii=False), flush=True)
     if not s["operativo"]:
         print("PROXY NO OPERATIVO — abortando control (c)", flush=True)
         Path("verification/banco_trace_05_control.json").write_text(
-            json.dumps({"sondeo": s, "error": "proxy no operativo"}, ensure_ascii=False, indent=1),
+            json.dumps(
+                {"sondeo": s, "error": "proxy no operativo",
+                 "provenance": _provenance.finalize_provenance(prov)},
+                ensure_ascii=False, indent=1),
             encoding="utf-8",
         )
         return
@@ -87,8 +100,14 @@ def main() -> None:
           f"srate={r['summary']['schema_response_rate']:.3f} "
           f"absten={r['summary']['correct_abstention_rate']:.3f} "
           f"t={r['elapsed_s']}s", flush=True)
+    prov["model_reported"] = r.get("model", MODELO)
     out = Path("verification/banco_trace_05_control.json")
-    out.write_text(json.dumps({"sondeo": s, "corrida": r}, ensure_ascii=False, indent=1), encoding="utf-8")
+    out.write_text(
+        json.dumps(
+            {"sondeo": s, "corrida": r,
+             "provenance": _provenance.finalize_provenance(prov)},
+            ensure_ascii=False, indent=1),
+        encoding="utf-8")
     print(f"Saved {out}")
 
 

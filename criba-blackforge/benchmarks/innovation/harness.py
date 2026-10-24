@@ -12,6 +12,7 @@ DEFERRED_SEPARATE_STUDY.
 """
 from __future__ import annotations
 
+import copy
 import hashlib
 import json
 import time
@@ -85,10 +86,23 @@ def run_condition(
     started = time.monotonic()
     if condition == "C_CRIBA":
         if criba_fn is not None:
-            candidates = criba_fn(problema["texto"], seed, n_candidatos)
+            result = criba_fn(problema["texto"], seed, n_candidatos)
+            # El informe se liga a ESTA invocación, no a un estado de módulo.
+            # `run_criba_selection` devuelve CribaResult (candidatos + informe
+            # ligados). Un callback que devuelve la lista heredada declara
+            # REPORT_UNAVAILABLE explícito: nunca hereda el de otro episodio.
+            from benchmarks.innovation.criba_adapter import CribaResult, _coerce_result
+            if isinstance(result, CribaResult):
+                candidates = result.candidates
+                selection_report = result.selection_report
+            else:
+                candidates, selection_report = _coerce_result(result)
             _normalizar_candidatos(candidates)
-            record["candidates"] = candidates
+            # Copia profunda: la exportación no debe compartir listas anidadas
+            # con el objeto en memoria.
+            record["candidates"] = copy.deepcopy(candidates)
             record["metrics"] = measure(candidates[:n_candidatos], candidates)
+            record["selection_report"] = copy.deepcopy(selection_report)
             record["status"] = "OK"
             record["nota"] = "loop CRIBA real ejecutado via criba_fn"
             record["latencia_s"] = round(time.monotonic() - started, 3)

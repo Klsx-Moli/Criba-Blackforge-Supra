@@ -370,6 +370,7 @@ def _run_inventar(
     problem: str,
     *,
     backend: str | None = None,
+    model: str | None = None,
     progress: Callable[[dict[str, Any]], None] | None = None,
     cancel_requested: Callable[[], bool] | None = None,
 ) -> dict[str, Any]:
@@ -389,7 +390,7 @@ def _run_inventar(
     from ..inventar import _default_proponer, append_ledger, invent
 
     chosen = backend or seleccion_por_defecto()
-    interpreter = construir_interprete(chosen)
+    interpreter = construir_interprete(chosen, model=model)
     interpreter_state = estado_interprete(interpreter)
     completed = 0
 
@@ -443,6 +444,13 @@ def on_inventar(win: Any) -> None:
 
     selector = getattr(getattr(win, "topcards", None), "interpreter_selector", None)
     backend = str(selector.currentData() if selector is not None else "openai_compatible")
+    # El selector guarda (backend, model) en userData cuando la entrada es un
+    # modelo libre concreto; las entradas heredadas solo llevan el backend.
+    model = None
+    if selector is not None:
+        data = selector.currentData()
+        if isinstance(data, (tuple, list)) and len(data) == 2:
+            backend, model = str(data[0]), (str(data[1]) or None)
     win.interpreter_cancel_requested = False
     topcards = getattr(win, "topcards", None)
     if topcards is not None:
@@ -460,6 +468,7 @@ def on_inventar(win: Any) -> None:
         return _run_inventar(
             win.problem,
             backend=backend,
+            model=model,
             progress=lambda payload: holder["worker"].signals.progress.emit(payload),
             cancel_requested=lambda: bool(win.interpreter_cancel_requested),
         )
@@ -507,6 +516,9 @@ def on_cancel_inventar(win: Any) -> None:
 def _on_invent_failed(win: Any, message: str) -> None:
     _finish_invent_controls(win)
     on_operation_error(win, "navInventar", None, message)
+    # on_operation_error no re-habilita navInventar cuando hay problema pero
+    # no packet (has_packet=False), dejando los botones bloqueados tras fallo.
+    _restore_buttons_after_op(win)
 
 
 def _render_interpreter_outputs(win: Any, sheet: dict[str, Any]) -> None:
@@ -633,18 +645,45 @@ def on_evaluar(win: Any) -> None:
 
 
 def _build_ranking_rows(packet: dict[str, Any]) -> list[dict[str, Any]]:
+    """Ranking rows with an explicit absent-vs-measured contract.
+
+    ``value_score`` and ``convergencia`` come from the idea's ``convergence``.
+    When the idea carries no convergence (e.g. an offline proposal that was never
+    evaluated), the field is ``None`` — **not** 0.0. A defaulted 0.0 would be
+    displayed as a measurement when nothing was measured.
+    """
+
     rows: list[dict[str, Any]] = []
+    # S06 adapter: Shadow (idea) -> T104/T111 producer -> MCDA consumer canonical.
+    # El catalog real se carga una vez por lote; el adapter resuelve el method
+    # por method_ids/family y devuelve None cuando no hay datos (ausencia, no 0.0).
+    from ..intelligence.mcda_adapter import score_idea
+    from criba.catalog import methods as _catalog_methods
+    catalog = _catalog_methods()
     for i, idea in enumerate(packet["innovation"]["ideas"], start=1):
-        conv = idea.get("convergence", {})
+        conv = idea.get("convergence") or {}
+        raw_score = conv.get("value_score")
+        value_score = float(raw_score) if isinstance(raw_score, (int, float)) else None
+        # Ausente (None): producir el score MCDA canónico sobre corpus real, no inventar.
+        mcda_dossier: dict[str, Any] | None = None
+        if value_score is None:
+            result = score_idea(idea, catalog=catalog)
+            if result is not None:
+                value_score = round(result.composite, 6)
+                mcda_dossier = result.to_dict()
+        raw_novelty = conv.get("novelty")
+        novelty = float(raw_novelty) if isinstance(raw_novelty, (int, float)) else None
         rows.append(
             {
                 "rank": i,
                 "id": idea.get("id", ""),
                 "titulo": idea.get("title") or idea.get("description", ""),
                 "descripcion": idea.get("description", ""),
-                "value_score": float(conv.get("value_score", 0.0)),
-                "convergencia": float(conv.get("novelty", 0.0)),
+                "value_score": value_score,
+                "convergencia": novelty,
+                "evaluada": value_score is not None,
                 "estado": "candidata" if i <= 3 else ("eval" if i <= 6 else "exploracion"),
+                "mcda": mcda_dossier,
             }
         )
     return rows
@@ -670,10 +709,15 @@ def _on_evaluated(win: Any, rows: list[dict[str, Any]]) -> None:
         r["ideaSummary"].setText(best["descripcion"][:240])
         set_chip(r["ideaEstadoChip"], "En evaluación", "eval")
         r["scoreGauge"].show()
-        r["scoreGauge"].set_score(best["value_score"])
+        # Absent value (None) is not a measurement: show it as such, not as 0.00.
+        if best["value_score"] is None:
+            r["scoreGauge"].set_score(None)
+            r["mBestScore"].set_value("sin evaluar")
+        else:
+            r["scoreGauge"].set_score(best["value_score"])
+            r["mBestScore"].set_value(f"{best['value_score']:.2f}")
         pct = max(1, round(100 / max(1, len(rows))))
         r["scoreGauge"].set_percentile(f"Alto impacto · Top {pct}% del set")
-        r["mBestScore"].set_value(f"{best['value_score']:.2f}")
         r["rankingTable"].selectRow(0)
     conv_global = packet["metrics"].get("divergence", 0)
     r["mConvergencia"].set_value(f"{conv_global}%")
@@ -685,9 +729,14 @@ def _on_evaluated(win: Any, rows: list[dict[str, Any]]) -> None:
     _activity(
         win,
         "blue",
-        f"Idea evaluada: {rows[0]['titulo'][:60]} (score {rows[0]['value_score']:.2f})"
-        if rows
-        else "Evaluación sin ideas",
+        f"Idea evaluada: {rows[0]['titulo'][:60]} "
+        f"(score {rows[0]['value_score']:.2f})"
+        if rows and rows[0]["value_score"] is not None
+        else (
+            f"Idea sin evaluar: {rows[0]['titulo'][:60]}"
+            if rows
+            else "Evaluación sin ideas"
+        ),
     )
     _set_buttons(
         win,
@@ -710,16 +759,20 @@ def _update_charts(win: Any, rows: list[dict[str, Any]]) -> None:
     t = win.t
     if not rows:
         return
-    scores = [row["value_score"] for row in rows]
-    lo, hi = min(scores), max(scores)
-    span = (hi - lo) or 1.0
-    nbins = 6
-    bins = []
-    for i in range(nbins):
-        edge = lo + span * (i + 0.5) / nbins
-        count = sum(1 for s in scores if lo + span * i / nbins <= s <= lo + span * (i + 1) / nbins)
-        bins.append((edge, count))
-    r["scoreHistogram"].set_bins(bins)
+    # Only evaluated ideas have a score; absent values (None) are not plotted.
+    scores = [row["value_score"] for row in rows if row["value_score"] is not None]
+    if not scores:
+        r["scoreHistogram"].set_bins([])
+    else:
+        lo, hi = min(scores), max(scores)
+        span = (hi - lo) or 1.0
+        nbins = 6
+        bins = []
+        for i in range(nbins):
+            edge = lo + span * (i + 0.5) / nbins
+            count = sum(1 for s in scores if lo + span * i / nbins <= s <= lo + span * (i + 1) / nbins)
+            bins.append((edge, count))
+        r["scoreHistogram"].set_bins(bins)
     # donut por familia de operador (datos reales del packet)
     from collections import Counter
 
@@ -1159,19 +1212,32 @@ def on_modelos(win: Any) -> None:
 
 def _refresh_interpreter_selector(win: Any) -> None:
     """Reflect the active local model in the Generación interpreter selector."""
+    from ..interprete.seleccion import BACKEND_LOCAL
     from ..model_config import active_model_label, load_model_settings
 
     selector = getattr(win, "interpreter_selector", None)
     if selector is None:
         return
+    # La entrada local se busca por su userData, no por índice fijo: entre ella
+    # y el externo hay ahora los modelos gratuitos del proxy. Un índice duro
+    # apuntaría a un modelo free y lo renombraría como "modelo local".
+    local_index = -1
+    for i in range(selector.count()):
+        if selector.itemData(i) == BACKEND_LOCAL:
+            local_index = i
+            break
     try:
         settings = load_model_settings()
         if settings.enabled and settings.active_profile() is not None:
             label = active_model_label(settings)
-            selector.setItemText(1, label)
-            selector.setCurrentIndex(1)
+            if local_index >= 0:
+                selector.setItemText(local_index, label)
+                selector.setCurrentIndex(local_index)
+            else:
+                selector.setCurrentIndex(0)
         else:
-            selector.setItemText(1, _t("shadow.interpreter.local"))
+            if local_index >= 0:
+                selector.setItemText(local_index, _t("shadow.interpreter.local"))
             selector.setCurrentIndex(0)
     except Exception:
         selector.setCurrentIndex(0)
@@ -1432,7 +1498,7 @@ def _load_latest_supra(client: Any | None = None) -> dict[str, Any]:
         exact_id = (
             isinstance(dossier_id, str) and bool(dossier_id) and dossier_id == dossier_id.strip()
         )
-        dossier = cargar_dossier(dossier_id) if exact_id else None
+        dossier = cargar_dossier(dossier_id) if exact_id and isinstance(dossier_id, str) else None
         identity_fields = {
             "candidate_id": "criba_candidate_id",
             "claim_id": "claim_id",
@@ -1615,9 +1681,10 @@ def _selected_idea(win: Any) -> dict[str, Any] | None:
     selected = getattr(win._ctx, "selected_candidate_id", None) if hasattr(win, "_ctx") else None
     if selected:
         for idea in ideas:
-            if str(idea.get("id")) == str(selected):
+            if isinstance(idea, dict) and str(idea.get("id")) == str(selected):
                 return idea
-    return ideas[0]
+    first = ideas[0]
+    return first if isinstance(first, dict) else None
 
 
 def _prepare_dossier_for_selected_idea(win: Any) -> dict[str, Any]:

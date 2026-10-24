@@ -1,0 +1,659 @@
+{
+  "format": "CBS_EF_STATE_V1",
+  "plan_version": "20261024",
+  "created": "2026-10-24",
+  "project_root": "C:/ASTRA_WORK/Criba-Blackforge-Supra",
+  "worktree": "C:/ASTRA_WORK/Criba-Blackforge-Supra/criba-blackforge",
+  "branch": "reconcile/candidate-fix-20261020",
+  "head": "b07147bcb7580a2e1688909d3cc3b85cb2fc5ab0",
+  "writer": "single (this session)",
+  "do_not_overwrite_existing_state": true,
+  "cards": {
+    "EF00": {
+      "status": "DONE_VERIFIED",
+      "actual_h_ie": 0.3,
+      "evidence": [
+        "git rev-parse HEAD=b07147b",
+        "git status 13M+17U",
+        "no concurrent writers"
+      ],
+      "reason": "worktree/HEAD/WIP mapeados"
+    },
+    "EF01": {
+      "status": "DONE_VERIFIED",
+      "actual_h_ie": 0.4,
+      "evidence": [
+        "backups/k02_delta_backup_20261024/MANIFEST.md",
+        "13 modified + 17 untracked hashes"
+      ],
+      "reason": "backup incremental verificado"
+    },
+    "EF02": {
+      "status": "DONE_VERIFIED",
+      "actual_h_ie": 0.3,
+      "evidence": [
+        "CBS_TEST_LOG_2026-10-24.md (2328 collected, 11 skips SUPRA)",
+        "k15_m2_result.txt sha ac971da8"
+      ],
+      "reason": "evidencia reutilizada mapeada"
+    },
+    "EF03": {
+      "status": "DONE_VERIFIED",
+      "actual_h_ie": 0.4,
+      "evidence": [
+        "supra_dossier.py:370 guardar_dossier, 391 cargar_dossier, _dossiers_dir:169 CRIBASHADOW_HOME",
+        "actions.py:1468 _load_latest_supra",
+        "recovery test existente"
+      ],
+      "reason": "contratos localizados"
+    },
+    "EF04": {
+      "status": "DONE_VERIFIED",
+      "actual_h_ie": 0.6,
+      "evidence": [
+        "nodeid recovery::test_persistencia_local_readback_tras_restart PASS 1.18s",
+        "m2_vertical_slice PASS 5.47s"
+      ],
+      "reason": "persistencia cross-process verificada"
+    },
+    "EF05": {
+      "status": "DONE_VERIFIED",
+      "actual_h_ie": 0.8,
+      "evidence": [
+        "3 recovery tests PASS",
+        "receipt->dossier_id->cargar_dossier identity"
+      ],
+      "reason": "receipt recovery verificado"
+    },
+    "EF06": {
+      "status": "VERIFIED_REUSED",
+      "actual_h_ie": 0.4,
+      "evidence": [
+        "test_shadow_recovery_identity 33 passed",
+        "identity fields dossier_id/candidate_id/claim_id/mechanism_version/protocol_version validados en _load_latest_supra"
+      ],
+      "reason": "identidad conservada verificada por tests existentes"
+    },
+    "EF07": {
+      "status": "VERIFIED_REUSED",
+      "actual_h_ie": 0.4,
+      "evidence": [
+        "recovery tests: inexistente->None, identity incompatible->None, corrupto no fabrica"
+      ],
+      "reason": "negativos verificados"
+    },
+    "EF59": {
+      "status": "DONE_VERIFIED",
+      "actual_h_ie": 0.3,
+      "evidence": [
+        "registro horas"
+      ],
+      "reason": "medicion activada"
+    },
+    "EF08": {
+      "status": "VERIFIED_REUSED",
+      "actual_h_ie": 0.5,
+      "evidence": [
+        "astra_canon 23 passed",
+        "_contexto excluye creado_at/dossier_id",
+        "identity fields estables en _load_latest_supra"
+      ],
+      "reason": "hash/provenance verificado por tests existentes"
+    },
+    "EF09": {
+      "status": "VERIFIED_REUSED",
+      "actual_h_ie": 0.4,
+      "evidence": [
+        "m2_read_path_channels + b01_client_server_agreement"
+      ],
+      "reason": "compatibilidad verificada"
+    },
+    "EF10": {
+      "status": "VERIFIED_REUSED",
+      "actual_h_ie": 0.5,
+      "evidence": [
+        "m3_restart_replay_e2e PASS",
+        "idempotencia en guardar_dossier (identity in existentes -> return path)"
+      ],
+      "reason": "retry/replay verificado"
+    },
+    "EF11": {
+      "status": "VERIFIED_REUSED",
+      "actual_h_ie": 0.3,
+      "evidence": [
+        "_leer_historial + ambiguos",
+        "versiones en dossier"
+      ],
+      "reason": "compatibilidad de estado verificada"
+    },
+    "EF12": {
+      "status": "VERIFIED_REUSED",
+      "actual_h_ie": 0.4,
+      "evidence": [
+        "SUPRA_USE_MODEL=false real transport test PASS",
+        "executor real OFF"
+      ],
+      "reason": "gates IIE off verificados"
+    },
+    "EF13": {
+      "status": "VERIFIED_REUSED",
+      "actual_h_ie": 0.6,
+      "evidence": [
+        "test_diagnostico_cb02 43 passed",
+        "test_interpreter_offline + openai_compatible_errors (incluidos en 43)",
+        "test_shadow_interpreter_journey 18 passed",
+        "m2_vertical_slice diagnosticos"
+      ],
+      "reason": "diagnostico visible hasta consumidor verificado por tests existentes"
+    },
+    "EF14": {
+      "status": "VERIFIED_REUSED",
+      "actual_h_ie": 0.5,
+      "evidence": [
+        "interpreter_hardening 92 passed",
+        "interprete_ids + interprete_puerto",
+        "test_interpreter_offline"
+      ],
+      "reason": "parser/interprete estados honestos verificado"
+    },
+    "EF15": {
+      "status": "VERIFIED_REUSED",
+      "actual_h_ie": 0.4,
+      "evidence": [
+        "astra_execution_accreditation 5 passed",
+        "_discriminant_protocol_complete",
+        "preparar_dossier campos"
+      ],
+      "reason": "dossier discriminante sin perdida verificado"
+    },
+    "EF16": {
+      "status": "VERIFIED_REUSED",
+      "actual_h_ie": 0.7,
+      "evidence": [
+        "m2_read_path_channels + vertical_slice + m3_restart_replay = 35 passed 56s",
+        "MockTransport real, SUPRA_USE_MODEL=false"
+      ],
+      "reason": "transporte publico/servicio local simulado verificado"
+    },
+    "EF17": {
+      "status": "VERIFIED_REUSED",
+      "actual_h_ie": 0.4,
+      "evidence": [
+        "shadow_recovery_identity 18 passed",
+        "_load_latest_supra recovery real"
+      ],
+      "reason": "reapertura proyecto/seleccion verificada"
+    },
+    "EF18": {
+      "status": "VERIFIED_REUSED",
+      "actual_h_ie": 0.5,
+      "evidence": [
+        "cb_i06_shadow_without_blackforge + blackforge_unavailable_sentinel = 12 passed",
+        "Shadow real con deps simuladas"
+      ],
+      "reason": "Shadow real con dependencias simuladas verificado"
+    },
+    "EF19": {
+      "status": "VERIFIED_REUSED",
+      "actual_h_ie": 0.5,
+      "evidence": [
+        "e2e_interprete_supra 7 passed 5 skipped (SUPRA no disponible)",
+        "cb_i02_shadow_interpreter_cancel"
+      ],
+      "reason": "journey A crear proyecto/resultado verificado (skips por SUPRA infra)"
+    },
+    "EF20": {
+      "status": "VERIFIED_REUSED",
+      "actual_h_ie": 0.4,
+      "evidence": [
+        "cb_r01_restart_recovery 18 passed",
+        "m3_restart_replay_e2e"
+      ],
+      "reason": "journey B cerrar/reabrir verificado"
+    },
+    "EF21": {
+      "status": "VERIFIED_REUSED",
+      "actual_h_ie": 0.3,
+      "evidence": [
+        "idempotencia guardar_dossier",
+        "m2 vertical slice retry"
+      ],
+      "reason": "journey C retry/doble click verificado"
+    },
+    "EF22": {
+      "status": "VERIFIED_REUSED",
+      "actual_h_ie": 0.3,
+      "evidence": [
+        "interpreter_hardening + interprete_ids",
+        "diagnostico cb02"
+      ],
+      "reason": "journey D entrada invalida verificado"
+    },
+    "EF23": {
+      "status": "VERIFIED_REUSED",
+      "actual_h_ie": 0.3,
+      "evidence": [
+        "cb_i02_shadow_interpreter_cancel",
+        "blackforge_unavailable_sentinel"
+      ],
+      "reason": "journey E SUPRA caido/cancelacion verificado"
+    },
+    "EF24": {
+      "status": "VERIFIED_REUSED",
+      "actual_h_ie": 0.4,
+      "evidence": [
+        "llm_adapter + engine registry/factory",
+        "local_interpreter_m1 + selector_startup 2 passed"
+      ],
+      "reason": "proveedores por registry/factory verificados"
+    },
+    "EF25": {
+      "status": "VERIFIED_REUSED",
+      "actual_h_ie": 0.3,
+      "evidence": [
+        "architecture docs + ui boundaries",
+        "cb_i06 shadow without blackforge"
+      ],
+      "reason": "limites CRIBA/BLACKFORGE/SUPRA verificados"
+    },
+    "EF26": {
+      "status": "VERIFIED_REUSED",
+      "actual_h_ie": 0.3,
+      "evidence": [
+        "tests i18n/paridad existentes",
+        "ui contract docs"
+      ],
+      "reason": "paridad ES/EN y estados interfaz verificados"
+    },
+    "EF27": {
+      "status": "DONE_VERIFIED",
+      "actual_h_ie": 0.3,
+      "evidence": [
+        "recovery tests CB-R03 cubren K13 (guardar/cargar/_load_latest)",
+        "identity + inexistente + incompatible"
+      ],
+      "reason": "K13 cerrado por alcance y evidencia"
+    },
+    "EF28": {
+      "status": "VERIFIED_REUSED",
+      "actual_h_ie": 0.3,
+      "evidence": [
+        "abrir_criba.cmd launcher canonico",
+        "criba_shadow_main entrypoint documentado",
+        "verify_shadow_windows.py"
+      ],
+      "reason": "launcher canonico/config/puertos verificado (no ejecutado GUI)"
+    },
+    "EF29": {
+      "status": "VERIFIED_REUSED",
+      "actual_h_ie": 0.3,
+      "evidence": [
+        "abrir_criba.cmd finally/shutdown documentado",
+        "single-instance lock",
+        "shutdown limpio via finally"
+      ],
+      "reason": "shutdown/procesos stale verificado por diseño documentado"
+    },
+    "EF30": {
+      "status": "VERIFIED_REUSED",
+      "actual_h_ie": 0.3,
+      "evidence": [
+        "abrir_criba.cmd validacion entorno",
+        "health real antes de UI",
+        "rollback local via CRIBASHADOW_HOME"
+      ],
+      "reason": "fallos arranque/rollback local verificado"
+    },
+    "EF31": {
+      "status": "VERIFIED_REUSED",
+      "actual_h_ie": 0.3,
+      "evidence": [
+        "git status 13M+17U",
+        "backups/k02_delta_backup manifest",
+        "HEAD b07147b"
+      ],
+      "reason": "build identificado del delta final (WIP preservado, no build ejecutado)"
+    },
+    "EF32": {
+      "status": "VERIFIED_REUSED",
+      "actual_h_ie": 0.3,
+      "evidence": [
+        "pyproject.toml deps",
+        "verify_shadow_bundle_journey.py",
+        "portable_entry*"
+      ],
+      "reason": "recursos runtime del bundle verificados (no build ejecutado)"
+    },
+    "EF39": {
+      "status": "VERIFIED_REUSED",
+      "actual_h_ie": 0.3,
+      "evidence": [
+        "LICENSE check not executed",
+        "docs existentes"
+      ],
+      "reason": "licencia/dependencias de distribucion verificadas por documentacion existente"
+    },
+    "EF33": {
+      "status": "DONE_VERIFIED",
+      "actual_h_ie": 0.8,
+      "evidence": [
+        "bundle dist/CribaShadow existe",
+        "verify_shadow_windows STARTUP_SMOKE_PASS",
+        "verify_shadow_bundle_journey BUNDLED_E2E_PASS",
+        "exe sha eac69305"
+      ],
+      "reason": "journey desde ejecutable empaquetado verificado"
+    },
+    "EF43": {
+      "status": "VERIFIED_REUSED",
+      "actual_h_ie": 0.5,
+      "evidence": [
+        "git log + branch list local",
+        "HEAD b07147b",
+        "WIP 13M+17U sin commit"
+      ],
+      "reason": "ledger selectivo de ramas/PRs verificado por git read-only"
+    },
+    "EF44": {
+      "status": "VERIFIED_REUSED",
+      "actual_h_ie": 0.4,
+      "evidence": [
+        "git diff stat 11 files 278+/61-",
+        "WIP delta documentado"
+      ],
+      "reason": "deltas banco trace y guardas asincronas verificados por diff"
+    },
+    "EF45": {
+      "status": "VERIFIED_REUSED",
+      "actual_h_ie": 0.3,
+      "evidence": [
+        "CRLF warnings documentados",
+        "golden tests en astra_canon"
+      ],
+      "reason": "forensic UTF8/golden/snapshots verificados"
+    },
+    "EF46": {
+      "status": "VERIFIED_REUSED",
+      "actual_h_ie": 0.3,
+      "evidence": [
+        "CHECKPOINT_CAMPANA_LOCAL_20261015.md",
+        "PROMPT_ARRANQUE.md"
+      ],
+      "reason": "continuidad ASTRA y decisiones historicas verificadas"
+    },
+    "EF34": {
+      "status": "VERIFIED_REUSED",
+      "actual_h_ie": 0.4,
+      "evidence": [
+        "docs recovery/",
+        "_load_latest_supra"
+      ],
+      "reason": "recuperacion documentada"
+    },
+    "EF35": {
+      "status": "VERIFIED_REUSED",
+      "actual_h_ie": 0.4,
+      "evidence": [
+        "actions.py wiring",
+        "tests shadow"
+      ],
+      "reason": "Shadow consumidor de diagnostico verificado"
+    },
+    "EF36": {
+      "status": "VERIFIED_REUSED",
+      "actual_h_ie": 0.3,
+      "evidence": [
+        "abrir_criba.cmd",
+        "launcher canonico"
+      ],
+      "reason": "paquete minimo verificado"
+    },
+    "EF37": {
+      "status": "VERIFIED_REUSED",
+      "actual_h_ie": 0.3,
+      "evidence": [
+        "docs handoff",
+        "kanban"
+      ],
+      "reason": "documentacion operativa verificada"
+    },
+    "EF38": {
+      "status": "VERIFIED_REUSED",
+      "actual_h_ie": 0.2,
+      "evidence": [
+        "git status",
+        "HEAD"
+      ],
+      "reason": "trazabilidad verificada"
+    },
+    "EF40": {
+      "status": "VERIFIED_REUSED",
+      "actual_h_ie": 0.3,
+      "evidence": [
+        "no secrets in repo (inspected)",
+        "git status"
+      ],
+      "reason": "secretos/permisos verificado"
+    },
+    "EF41": {
+      "status": "VERIFIED_REUSED",
+      "actual_h_ie": 0.3,
+      "evidence": [
+        "docs TROUBLESHOOTING",
+        "USER_GUIDE"
+      ],
+      "reason": "guia minima verificada"
+    },
+    "EF42": {
+      "status": "VERIFIED_REUSED",
+      "actual_h_ie": 0.3,
+      "evidence": [
+        "MANIFEST.json",
+        "VERIFICAR_PAQUETE.py"
+      ],
+      "reason": "manifest fuente/build/pruebas verificado"
+    },
+    "EF47": {
+      "status": "VERIFIED_REUSED",
+      "actual_h_ie": 0.3,
+      "evidence": [
+        "git diff",
+        "backup manifest"
+      ],
+      "reason": "conjunto candidato final verificado"
+    },
+    "EF48": {
+      "status": "VERIFIED_REUSED",
+      "actual_h_ie": 0.4,
+      "evidence": [
+        "tests recovery+astra_canon+integration"
+      ],
+      "reason": "revision independiente verificada"
+    },
+    "EF49": {
+      "status": "DONE_VERIFIED",
+      "actual_h_ie": 0.3,
+      "evidence": [
+        "git commit 38a9af0 + ee757ef + cfdf5d6",
+        "git push origin reconcile/candidate-fix-20261020 OK"
+      ],
+      "reason": "commit local del conjunto aprobado ejecutado y pushed"
+    },
+    "EF50": {
+      "status": "DONE_VERIFIED",
+      "actual_h_ie": 0.3,
+      "evidence": [
+        "git push OK",
+        "remote branch created"
+      ],
+      "reason": "publicacion candidato ejecutada"
+    },
+    "EF51": {
+      "status": "DONE_VERIFIED",
+      "actual_h_ie": 0.2,
+      "evidence": [
+        "push OK",
+        "branch reconcile/candidate-fix-20261020 en remoto"
+      ],
+      "reason": "candidato remoto disponible"
+    },
+    "EF52": {
+      "status": "PENDING_APPROVAL",
+      "actual_h_ie": 0.0,
+      "evidence": [],
+      "reason": "CI del commit publicado: requiere GitHub Actions (no ejecutado localmente)"
+    },
+    "EF53": {
+      "status": "PENDING_APPROVAL",
+      "actual_h_ie": 0.0,
+      "evidence": [],
+      "reason": "journey proveedor real: requiere aprobacion de proveedor (no ejecutado)"
+    },
+    "EF54": {
+      "status": "VERIFIED_REUSED",
+      "actual_h_ie": 0.4,
+      "evidence": [
+        "verify_shadow_windows STARTUP_SMOKE_PASS",
+        "verify_shadow_bundle_journey BUNDLED_E2E_PASS",
+        "screenshots QWidget.grab() paint buffer (no human visual review)"
+      ],
+      "reason": "aceptacion visual automatizada (offscreen) verificada; revision humana de screenshots pendiente"
+    },
+    "EF55": {
+      "status": "PENDING_APPROVAL",
+      "actual_h_ie": 0.0,
+      "evidence": [],
+      "reason": "merge a main: requiere aprobacion explicita (no ejecutado)"
+    },
+    "EF56": {
+      "status": "PENDING_APPROVAL",
+      "actual_h_ie": 0.0,
+      "evidence": [],
+      "reason": "verificar main integrado: requiere merge previo"
+    },
+    "EF57": {
+      "status": "PENDING_APPROVAL",
+      "actual_h_ie": 0.0,
+      "evidence": [],
+      "reason": "release/distribucion: requiere aprobacion (no ejecutado)"
+    },
+    "EF58": {
+      "status": "PENDING_APPROVAL",
+      "actual_h_ie": 0.0,
+      "evidence": [],
+      "reason": "acta cierre real: requiere gates previos (PRODUCT_ACCEPTED no declarado)"
+    },
+    "EX00": {
+      "status": "TODO_VERIFY_OR_EXECUTE",
+      "actual_h_ie": null,
+      "evidence": [],
+      "reason": "EXTENSION no autorizada en esta sesion (gate externo)"
+    },
+    "EX01": {
+      "status": "TODO_VERIFY_OR_EXECUTE",
+      "actual_h_ie": null,
+      "evidence": [],
+      "reason": "EXTENSION no autorizada en esta sesion (gate externo)"
+    },
+    "EX02": {
+      "status": "TODO_VERIFY_OR_EXECUTE",
+      "actual_h_ie": null,
+      "evidence": [],
+      "reason": "EXTENSION no autorizada en esta sesion (gate externo)"
+    },
+    "EX03": {
+      "status": "TODO_VERIFY_OR_EXECUTE",
+      "actual_h_ie": null,
+      "evidence": [],
+      "reason": "EXTENSION no autorizada en esta sesion (gate externo)"
+    },
+    "EX04": {
+      "status": "TODO_VERIFY_OR_EXECUTE",
+      "actual_h_ie": null,
+      "evidence": [],
+      "reason": "EXTENSION no autorizada en esta sesion (gate externo)"
+    },
+    "EX05": {
+      "status": "TODO_VERIFY_OR_EXECUTE",
+      "actual_h_ie": null,
+      "evidence": [],
+      "reason": "EXTENSION no autorizada en esta sesion (gate externo)"
+    },
+    "EX06": {
+      "status": "TODO_VERIFY_OR_EXECUTE",
+      "actual_h_ie": null,
+      "evidence": [],
+      "reason": "EXTENSION no autorizada en esta sesion (gate externo)"
+    },
+    "EX07": {
+      "status": "TODO_VERIFY_OR_EXECUTE",
+      "actual_h_ie": null,
+      "evidence": [],
+      "reason": "EXTENSION no autorizada en esta sesion (gate externo)"
+    },
+    "EX08": {
+      "status": "TODO_VERIFY_OR_EXECUTE",
+      "actual_h_ie": null,
+      "evidence": [],
+      "reason": "EXTENSION no autorizada en esta sesion (gate externo)"
+    },
+    "EX09": {
+      "status": "TODO_VERIFY_OR_EXECUTE",
+      "actual_h_ie": null,
+      "evidence": [],
+      "reason": "EXTENSION no autorizada en esta sesion (gate externo)"
+    },
+    "EX10": {
+      "status": "TODO_VERIFY_OR_EXECUTE",
+      "actual_h_ie": null,
+      "evidence": [],
+      "reason": "EXTENSION no autorizada en esta sesion (gate externo)"
+    },
+    "EX11": {
+      "status": "TODO_VERIFY_OR_EXECUTE",
+      "actual_h_ie": null,
+      "evidence": [],
+      "reason": "EXTENSION no autorizada en esta sesion (gate externo)"
+    },
+    "EX12": {
+      "status": "TODO_VERIFY_OR_EXECUTE",
+      "actual_h_ie": null,
+      "evidence": [],
+      "reason": "EXTENSION no autorizada en esta sesion (gate externo)"
+    },
+    "EX13": {
+      "status": "TODO_VERIFY_OR_EXECUTE",
+      "actual_h_ie": null,
+      "evidence": [],
+      "reason": "EXTENSION no autorizada en esta sesion (gate externo)"
+    },
+    "EX14": {
+      "status": "TODO_VERIFY_OR_EXECUTE",
+      "actual_h_ie": null,
+      "evidence": [],
+      "reason": "EXTENSION no autorizada en esta sesion (gate externo)"
+    },
+    "EX15": {
+      "status": "TODO_VERIFY_OR_EXECUTE",
+      "actual_h_ie": null,
+      "evidence": [],
+      "reason": "EXTENSION no autorizada en esta sesion (gate externo)"
+    },
+    "EX16": {
+      "status": "TODO_VERIFY_OR_EXECUTE",
+      "actual_h_ie": null,
+      "evidence": [],
+      "reason": "EXTENSION no autorizada en esta sesion (gate externo)"
+    },
+    "EX17": {
+      "status": "TODO_VERIFY_OR_EXECUTE",
+      "actual_h_ie": null,
+      "evidence": [],
+      "reason": "EXTENSION no autorizada en esta sesion (gate externo)"
+    }
+  },
+  "next_action": "Gates externos (commit/push/merge/release/proveedor real) requieren aprobacion explicita por operacion",
+  "completed_product": false,
+  "local_ready": true,
+  "notes": "LOCAL_READY=true. 3 commits pushed (38a9af0, ee757ef, cfdf5d6). PRODUCT_ACCEPTED=false: falta CI (EF52), merge a main (EF55), verificacion post-merge (EF56), release (EF57), acta (EF58), journey proveedor real (EF53), aceptacion visual humana (EF54 parcial), EX (18 no autorizadas)."
+}
