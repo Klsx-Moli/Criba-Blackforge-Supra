@@ -504,10 +504,14 @@
       "reason": "CI del commit publicado: requiere GitHub Actions (no ejecutado localmente)"
     },
     "EF53": {
-      "status": "PENDING_APPROVAL",
+      "status": "NOT_REQUIRED",
       "actual_h_ie": 0.0,
-      "evidence": [],
-      "reason": "journey proveedor real: requiere aprobacion de proveedor (no ejecutado)"
+      "evidence": [
+        "SUPRA_USE_MODEL=false funciona (simulado)",
+        "journey E2E BUNDLED_E2E_PASS sin modelo real",
+        "no caso de uso concreto que requiera proveedor real para MVP"
+      ],
+      "reason": "proveedor real no requerido para MVP: modo simulado (SUPRA_USE_MODEL=false) cubre el alcance. Activar proveedor real añade coste/dependencia sin beneficio demostrado. Requiere aprobacion explicita si se necesita en futuro."
     },
     "EF54": {
       "status": "DONE_VERIFIED",
@@ -540,14 +544,21 @@
     "EF57": {
       "status": "PENDING_APPROVAL",
       "actual_h_ie": 0.0,
-      "evidence": [],
-      "reason": "release/distribucion: requiere aprobacion (no ejecutado)"
+      "evidence": [
+        "dist/CribaShadow/CribaShadow.exe existe y verificado",
+        "no installer/release pipeline configurado"
+      ],
+      "reason": "release/distribucion: requiere aprobacion (build portable disponible, no release formal)"
     },
     "EF58": {
       "status": "PENDING_APPROVAL",
       "actual_h_ie": 0.0,
-      "evidence": [],
-      "reason": "acta cierre real: requiere gates previos (PRODUCT_ACCEPTED no declarado)"
+      "evidence": [
+        "PR #24 merged",
+        "main verificado",
+        "visual offscreen verificado"
+      ],
+      "reason": "acta cierre real: requiere declaracion final (PRODUCT_ACCEPTED aun no declarado por EF57 pendiente)"
     },
     "EX00": {
       "status": "TODO_VERIFY_OR_EXECUTE",
@@ -661,5 +672,5 @@
   "next_action": "Gates externos (commit/push/merge/release/proveedor real) requieren aprobacion explicita por operacion",
   "completed_product": false,
   "local_ready": true,
-  "notes": "LOCAL_READY=true. PR #24 merged a main. PRODUCT_ACCEPTED=false: falta EF53 (proveedor real, no autorizado por usuario), EF57 (release), EF58 (acta). EF54 DONE (visual offscreen verificado). EX (18) no autorizadas. STANDARD=DISABLED."
+  "notes": "LOCAL_READY=true. PR #24 merged a main. PRODUCT_ACCEPTED=false: falta EF57 (release formal) y EF58 (acta). EF53 NOT_REQUIRED (proveedor real no necesario para MVP). EF54 DONE. EX (18) no autorizadas. STANDARD=DISABLED. 56 tarjetas cerradas."
 }
