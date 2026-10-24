@@ -532,6 +532,31 @@ class LotteryEngine:
             idea["class1"] = str(m1.get("thinking_class") or "")
             idea["class2"] = str(m2.get("thinking_class") or "")
 
+            # Entrega fiel al consumidor: el selector diversity-aware lee
+            # ``family`` y ``genome`` (engine._genome_from_vector). El pool del
+            # lote exponía ``family1``/``family2`` y un genoma vacío, de modo que
+            # ``select_finalists`` comparaba ``None == None`` como familia repetida
+            # y la distancia estructural era siempre 0. Se restauran SIN fabricar
+            # datos: ``family`` deriva de la familia canónica y ``genome`` del
+            # productor canónico del motor, sobre la base canónica ``_BASE_VALUES``
+            # (no desde títulos/longitud). Si el genoma no puede construirse se
+            # conserva ausencia explícita (nunca UNKNOWN convertido en dato).
+            if not idea.get("family"):
+                idea["family"] = str(idea.get("family1") or "")
+            try:
+                from .engine import _BASE_VALUES, _genome_from_vector
+
+                cv = dict(idea.get("causal_variables") or {})
+                base_for_genome = dict(_BASE_VALUES)
+                genome = _genome_from_vector(base_for_genome, cv, str(idea.get("family") or ""))
+                if genome and any(genome.values()):
+                    idea["genome"] = genome
+                else:
+                    idea["genome"] = idea.get("genome") or {}
+            except Exception:
+                # Ausencia explícita: no se fabrica genoma desde títulos/longitud.
+                idea.setdefault("genome", {})
+
         if hasattr(self, "storage") and self.storage is not None and new_combos:
             self.storage.save_lottery_combinations(
                 self.catalog_fingerprint,
@@ -633,6 +658,7 @@ class LotteryEngine:
             'method2_id': str(m2['id']),
             'family1': fam1,
             'family2': fam2,
+            'causal_variables': cv,
             'quality': quality,
             'score': round(score, 3),
             'mode': mode,
