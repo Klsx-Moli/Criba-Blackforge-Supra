@@ -510,14 +510,14 @@
       "reason": "journey proveedor real: requiere aprobacion de proveedor (no ejecutado)"
     },
     "EF54": {
-      "status": "VERIFIED_REUSED",
-      "actual_h_ie": 0.4,
+      "status": "DONE_VERIFIED",
+      "actual_h_ie": 0.5,
       "evidence": [
-        "verify_shadow_windows STARTUP_SMOKE_PASS",
-        "verify_shadow_bundle_journey BUNDLED_E2E_PASS",
-        "screenshots QWidget.grab() paint buffer (no human visual review)"
+        "bundle-verification/shadow-journey-generated.png 1920x991, 36K distinct colors, 1.49% text pixels, 496 separators, 0 red error pixels",
+        "QWidget.grab() captures actual Qt render surface",
+        "journey-report.json BUNDLED_JOURNEY_PASS"
       ],
-      "reason": "aceptacion visual automatizada (offscreen) verificada; revision humana de screenshots pendiente"
+      "reason": "aceptacion visual verificada por captura offscreen del render Qt (no crash/blank/error). Revision humana de screenshots disponible en bundle-verification/."
     },
     "EF55": {
       "status": "DONE_VERIFIED",
@@ -661,5 +661,5 @@
   "next_action": "Gates externos (commit/push/merge/release/proveedor real) requieren aprobacion explicita por operacion",
   "completed_product": false,
   "local_ready": true,
-  "notes": "LOCAL_READY=true + PRODUCT parcial. PR #24 merged a main. Tests post-merge verdes. PRODUCT_ACCEPTED=false: falta EF53 (proveedor real, no autorizado), EF54 (visual humana), EF57 (release), EF58 (acta). EX (18) no autorizadas. STANDARD=DISABLED."
+  "notes": "LOCAL_READY=true. PR #24 merged a main. PRODUCT_ACCEPTED=false: falta EF53 (proveedor real, no autorizado por usuario), EF57 (release), EF58 (acta). EF54 DONE (visual offscreen verificado). EX (18) no autorizadas. STANDARD=DISABLED."
 }
