@@ -1,0 +1,324 @@
+{
+  "format": "CBS_EX01_BACKLOG_V1",
+  "base": "EX00",
+  "total_planned": 101,
+  "lots": [
+    {
+      "lot_id": "L0_SPECIAL_PROMOTION",
+      "family": "INVENTION",
+      "owner": "CRIBA",
+      "count": 2,
+      "ids": [
+        "T054",
+        "T061"
+      ],
+      "risk": "HIGH (gate owner/attestation)",
+      "est_hours": 3.0,
+      "has_module": true,
+      "needs_owner_gate": true
+    },
+    {
+      "lot_id": "L0_SPECIAL_SHADOW_BYPASS",
+      "family": "SIGNALS_EVIDENCE_OPPORTUNITY",
+      "owner": "CRIBA",
+      "count": 2,
+      "ids": [
+        "T104",
+        "T111"
+      ],
+      "risk": "HIGH (gate owner/attestation)",
+      "est_hours": 3.0,
+      "has_module": true,
+      "needs_owner_gate": true
+    },
+    {
+      "lot_id": "L_MOD_ADVERSARIAL_FUTURES",
+      "family": "ADVERSARIAL_FUTURES",
+      "owner": "CRIBA",
+      "count": 6,
+      "ids": [
+        "T117",
+        "T119",
+        "T123",
+        "T124",
+        "T125",
+        "T130"
+      ],
+      "risk": "MEDIUM (test+consumer missing)",
+      "est_hours": 3.0,
+      "has_module": true,
+      "needs_owner_gate": false
+    },
+    {
+      "lot_id": "L_MOD_EXTERNAL_SOURCES",
+      "family": "EXTERNAL_SOURCES",
+      "owner": "CRIBA_IIE",
+      "count": 4,
+      "ids": [
+        "T011",
+        "T015",
+        "T018",
+        "T020"
+      ],
+      "risk": "MEDIUM (test+consumer missing)",
+      "est_hours": 2.0,
+      "has_module": true,
+      "needs_owner_gate": false
+    },
+    {
+      "lot_id": "L_MOD_INVENTION",
+      "family": "INVENTION",
+      "owner": "CRIBA",
+      "count": 7,
+      "ids": [
+        "T058",
+        "T066",
+        "T072",
+        "T073",
+        "T074",
+        "T075",
+        "T078"
+      ],
+      "risk": "MEDIUM (test+consumer missing)",
+      "est_hours": 3.5,
+      "has_module": true,
+      "needs_owner_gate": false
+    },
+    {
+      "lot_id": "L_MOD_NOVELTY_KNOWLEDGE_GRAPH",
+      "family": "NOVELTY_KNOWLEDGE_GRAPH",
+      "owner": "CRIBA_IIE",
+      "count": 7,
+      "ids": [
+        "T080",
+        "T081",
+        "T087",
+        "T088",
+        "T089",
+        "T090",
+        "T092"
+      ],
+      "risk": "MEDIUM (test+consumer missing)",
+      "est_hours": 3.5,
+      "has_module": true,
+      "needs_owner_gate": false
+    },
+    {
+      "lot_id": "L_MOD_PATENT_INTELLIGENCE",
+      "family": "PATENT_INTELLIGENCE",
+      "owner": "CRIBA_IIE",
+      "count": 5,
+      "ids": [
+        "T001",
+        "T005",
+        "T006",
+        "T007",
+        "T008"
+      ],
+      "risk": "MEDIUM (test+consumer missing)",
+      "est_hours": 2.5,
+      "has_module": true,
+      "needs_owner_gate": false
+    },
+    {
+      "lot_id": "L_MOD_RETRIEVAL_GRAPH",
+      "family": "RETRIEVAL_GRAPH",
+      "owner": "CRIBA_IIE",
+      "count": 10,
+      "ids": [
+        "T032",
+        "T033",
+        "T034",
+        "T037",
+        "T040",
+        "T041",
+        "T042",
+        "T043",
+        "T044",
+        "T045"
+      ],
+      "risk": "MEDIUM (test+consumer missing)",
+      "est_hours": 5.0,
+      "has_module": true,
+      "needs_owner_gate": false
+    },
+    {
+      "lot_id": "L_MOD_SIGNALS_EVIDENCE_OPPORTUNITY",
+      "family": "SIGNALS_EVIDENCE_OPPORTUNITY",
+      "owner": "CRIBA_IIE",
+      "count": 2,
+      "ids": [
+        "T100",
+        "T103"
+      ],
+      "risk": "MEDIUM (test+consumer missing)",
+      "est_hours": 1.0,
+      "has_module": true,
+      "needs_owner_gate": false
+    },
+    {
+      "lot_id": "L_MOD_TOPIC_DYNAMICS",
+      "family": "TOPIC_DYNAMICS",
+      "owner": "CRIBA_IIE",
+      "count": 1,
+      "ids": [
+        "T047"
+      ],
+      "risk": "MEDIUM (test+consumer missing)",
+      "est_hours": 0.5,
+      "has_module": true,
+      "needs_owner_gate": false
+    },
+    {
+      "lot_id": "L_NOMOD_ADVERSARIAL_FUTURES",
+      "family": "ADVERSARIAL_FUTURES",
+      "owner": "CRIBA_IIE",
+      "count": 6,
+      "ids": [
+        "T118",
+        "T120",
+        "T121",
+        "T122",
+        "T126",
+        "T127"
+      ],
+      "risk": "LOW-MEDIUM (new construction)",
+      "est_hours": 6.0,
+      "has_module": false,
+      "needs_owner_gate": false
+    },
+    {
+      "lot_id": "L_NOMOD_EXTERNAL_SOURCES",
+      "family": "EXTERNAL_SOURCES",
+      "owner": "CRIBA_IIE",
+      "count": 16,
+      "ids": [
+        "T010",
+        "T012",
+        "T013",
+        "T014",
+        "T016",
+        "T017",
+        "T021",
+        "T022",
+        "T023",
+        "T024",
+        "T025",
+        "T026",
+        "T027",
+        "T028",
+        "T029",
+        "T030"
+      ],
+      "risk": "LOW-MEDIUM (new construction)",
+      "est_hours": 16.0,
+      "has_module": false,
+      "needs_owner_gate": false
+    },
+    {
+      "lot_id": "L_NOMOD_INVENTION",
+      "family": "INVENTION",
+      "owner": "CRIBA",
+      "count": 4,
+      "ids": [
+        "T056",
+        "T076",
+        "T077",
+        "T079"
+      ],
+      "risk": "LOW-MEDIUM (new construction)",
+      "est_hours": 4.0,
+      "has_module": false,
+      "needs_owner_gate": false
+    },
+    {
+      "lot_id": "L_NOMOD_NOVELTY_KNOWLEDGE_GRAPH",
+      "family": "NOVELTY_KNOWLEDGE_GRAPH",
+      "owner": "CRIBA_IIE",
+      "count": 5,
+      "ids": [
+        "T082",
+        "T083",
+        "T084",
+        "T085",
+        "T093"
+      ],
+      "risk": "LOW-MEDIUM (new construction)",
+      "est_hours": 5.0,
+      "has_module": false,
+      "needs_owner_gate": false
+    },
+    {
+      "lot_id": "L_NOMOD_PATENT_INTELLIGENCE",
+      "family": "PATENT_INTELLIGENCE",
+      "owner": "CRIBA_IIE",
+      "count": 4,
+      "ids": [
+        "T002",
+        "T003",
+        "T004",
+        "T009"
+      ],
+      "risk": "LOW-MEDIUM (new construction)",
+      "est_hours": 4.0,
+      "has_module": false,
+      "needs_owner_gate": false
+    },
+    {
+      "lot_id": "L_NOMOD_RETRIEVAL_GRAPH",
+      "family": "RETRIEVAL_GRAPH",
+      "owner": "CRIBA_IIE",
+      "count": 5,
+      "ids": [
+        "T031",
+        "T035",
+        "T036",
+        "T038",
+        "T039"
+      ],
+      "risk": "LOW-MEDIUM (new construction)",
+      "est_hours": 5.0,
+      "has_module": false,
+      "needs_owner_gate": false
+    },
+    {
+      "lot_id": "L_NOMOD_SIGNALS_EVIDENCE_OPPORTUNITY",
+      "family": "SIGNALS_EVIDENCE_OPPORTUNITY",
+      "owner": "CRIBA",
+      "count": 11,
+      "ids": [
+        "T102",
+        "T105",
+        "T106",
+        "T107",
+        "T108",
+        "T109",
+        "T110",
+        "T112",
+        "T113",
+        "T114",
+        "T115"
+      ],
+      "risk": "LOW-MEDIUM (new construction)",
+      "est_hours": 11.0,
+      "has_module": false,
+      "needs_owner_gate": false
+    },
+    {
+      "lot_id": "L_NOMOD_TOPIC_DYNAMICS",
+      "family": "TOPIC_DYNAMICS",
+      "owner": "CRIBA_IIE",
+      "count": 4,
+      "ids": [
+        "T046",
+        "T050",
+        "T051",
+        "T052"
+      ],
+      "risk": "LOW-MEDIUM (new construction)",
+      "est_hours": 4.0,
+      "has_module": false,
+      "needs_owner_gate": false
+    }
+  ]
+}
