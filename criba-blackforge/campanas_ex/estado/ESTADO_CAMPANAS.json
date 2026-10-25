@@ -13,18 +13,21 @@
       "status": "DONE_VERIFIED",
       "descripcion": "Descomponer brechas reales del canon en lotes",
       "started_at": "2026-10-25T02:59:41.862200",
-      "completed_at": "2026-10-25T02:08:07.724158",
+      "completed_at": "2026-10-25T02:30:27.743535",
       "writer": "hermes",
       "evidence": [
         "guard trazabilidad 38 passed",
-        "101 planned descompuestos en 18 lotes",
-        "backlog_lotes.json/.csv, orden_ejecucion.json, fichas_hijas.md",
-        "horas estimadas ~80h IE (planificacion)"
+        "validacion_descomposicion.py: 18 lotes, 101 tecnicas, 0 duplicados/omisiones/solapamientos",
+        "backlog_lotes.json/.csv, backlog_lotes_enriched.json, orden_ejecucion.json, fichas_hijas.md",
+        "horas estimadas 82h IE (planificacion por lote)",
+        "21 planned mencionadas en tests (referencias parciales, no tests dedicados)",
+        "hallazgo: nombres de tests declarados en canon no coinciden exactamente con funciones test_* reales (deuda preexistente)"
       ],
       "resultados": {
         "lotes": 18,
         "total_planned": 101,
-        "est_hours": 80.0
+        "est_hours": 82.0,
+        "validation_errors": 0
       }
     },
     "EX02": {
