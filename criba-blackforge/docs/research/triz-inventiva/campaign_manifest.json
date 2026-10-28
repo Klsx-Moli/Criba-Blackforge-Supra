@@ -1,0 +1,248 @@
+{
+  "campaign_id": "ACADEMICO-TRIZ-INVENTIVA",
+  "bundle_id": "FUSION-TRIZ-KOESTLER-CBS-SHADOW-20261028-02",
+  "schema_version": "criba.hermes.academic.bundle/3.0.0",
+  "created_on": "2026-10-28",
+  "writer": "hermes (nous/ornith-1.5-122b:free session)",
+  "candidate_repo": "C:/ASTRA_WORK/cbs-candidate/criba-blackforge",
+  "branch": "hermes/cbs-t00-candidate-20261025",
+  "head": "5e89959a0dfc3337663970a4aff74364f2702482",
+  "authorization": "LOCAL_PREPARATION_ONLY",
+  "imp10_status": "NOT_AUTHORIZED_DIFF_ONLY",
+  "counts_verified": {
+    "campaign_tasks": 12,
+    "original_finding_cards": 25,
+    "additional_prior_dossier_findings": 8,
+    "workflow_cards": 2,
+    "total_cards": 70,
+    "source_records": 35,
+    "main_book_works": 6,
+    "additional_book_leads": 2,
+    "preserved_original_cards": 47,
+    "added_koestler_findings": 11,
+    "added_implementation_tasks": 12,
+    "added_source_records": 12,
+    "original_seed_operators": 8
+  },
+  "counts_check": {
+    "cards_total": 70,
+    "sources_total": 35,
+    "operators_total": 8,
+    "kind_breakdown": {
+      "IMPLEMENTATION_TASK": 24,
+      "WORKFLOW": 2,
+      "ACADEMIC_FINDING": 44
+    },
+    "original_cards_sum": 47
+  },
+  "card_to_mapping": {
+    "AC-00": "REUSE",
+    "AC-01": "NEW",
+    "AC-02": "NEW",
+    "AC-03": "NEW",
+    "AC-04": "NEW",
+    "AC-05": "NEW",
+    "AC-06": "EXTEND",
+    "AC-07": "NEW",
+    "AC-08": "EXTEND",
+    "AC-09": "EXTEND",
+    "AC-10": "NEW",
+    "AC-11": "NEW",
+    "LIT-000": "NEW",
+    "LIT-001": "NEW",
+    "LIT-002": "NEW",
+    "LIT-003": "NEW",
+    "LIT-004": "NEW",
+    "LIT-005": "NEW",
+    "LIT-006": "NEW",
+    "LIT-007": "NEW",
+    "LIT-008": "NEW",
+    "LIT-009": "NEW",
+    "LIT-010": "NEW",
+    "LIT-011": "NEW",
+    "LIT-012": "NEW",
+    "LIT-013": "NEW",
+    "LIT-014": "NEW",
+    "LIT-015": "NEW",
+    "LIT-016": "NEW",
+    "LIT-017": "NEW",
+    "LIT-018": "NEW",
+    "LIT-019": "NEW",
+    "LIT-020": "NEW",
+    "LIT-021": "NEW",
+    "LIT-022": "NEW",
+    "LIT-023": "NEW",
+    "LIT-024": "NEW",
+    "LIT-025": "NEW",
+    "LIT-026": "NEW",
+    "LIT-027": "NEW",
+    "LIT-028": "NEW",
+    "LIT-029": "NEW",
+    "LIT-030": "NEW",
+    "LIT-031": "NEW",
+    "LIT-032": "NEW",
+    "LIT-033": "NEW",
+    "LIT-034": "NEW",
+    "K-001": "NEW",
+    "K-002": "NEW",
+    "K-003": "NEW",
+    "K-004": "NEW",
+    "K-005": "NEW",
+    "K-006": "NEW",
+    "K-007": "NEW",
+    "K-008": "NEW",
+    "K-009": "NEW",
+    "K-010": "NEW",
+    "K-011": "NEW",
+    "IMP-00": "REUSE",
+    "IMP-01": "NEW",
+    "IMP-02": "NEW",
+    "IMP-03": "NEW",
+    "IMP-04": "NEW",
+    "IMP-05": "NEW",
+    "IMP-06": "NEW",
+    "IMP-07": "NEW",
+    "IMP-08": "NEW",
+    "IMP-09": "NEW",
+    "IMP-10": "NEW",
+    "IMP-11": "NEW"
+  },
+  "mapping_legend": {
+    "REUSE": "contrato/artefacto real reutilizado sin cambios",
+    "EXTEND": "se mapea sobre contrato real (sidecar/versionado si no admite campo); sin migración productiva",
+    "NEW": "cola documental / artefacto aislado nuevo dentro de la campaña",
+    "DUPLICATE": "no aplica (se evita duplicar campañas EX/D3/D4/D6/G3/STANDARD)"
+  },
+  "reused_contracts": {
+    "catalog_lenses": "src/criba/methods.py (AXES: perspective/generation/ruptura/escape/methodology) + src/criba/catalog/methods",
+    "cross_engine": "src/criba/lottery.py (LotteryEngine)",
+    "interpreter": "src/criba/interprete/contrato.py (SCHEMA_VERSION=propuesta-2, prompt_propuesta)",
+    "dossier": "src/criba/supra_dossier.py (preparar_dossier/guardar/cargar/registrar_resultado)",
+    "supra_bridge": "src/criba/integrations/supra_client.py",
+    "shadow_dossier_ui": "src/criba/ui/actions.py + ui/dossier_workflow_view.py + dossier_workflow.py (SCHEMA=criba-dossier-workflow/1)"
+  },
+  "not_created": [
+    "2nd interpreter",
+    "2nd engine",
+    "alternate executor",
+    "new UI",
+    "reopened EX/D3/D4/D6/G3/STANDARD milestones"
+  ],
+  "invariants": [
+    "GENERATED != OBSERVED",
+    "PERSISTED != EXECUTED",
+    "HASH != TRUTH",
+    "UNKNOWN != 0",
+    "UNKNOWN != PASS",
+    "SCHEMA_VALID != SCIENTIFICALLY_VALID",
+    "AUTOMATED_CRITIQUE != INDEPENDENT_VALIDATION",
+    "TEXT_DISTANCE != FUNCTIONAL_DIVERSITY_PROVEN"
+  ],
+  "evidence_vocabulary": [
+    "FACT_FROM_SOURCE",
+    "INFERENCE",
+    "DESIGN_PROPOSAL",
+    "UNKNOWN",
+    "NOT_ACCESSIBLE",
+    "NOT_EXECUTED",
+    "NOT_VALIDATED",
+    "STATICALLY_INSPECTED",
+    "VERIFIED_BY_EXECUTION"
+  ],
+  "campaign_progress": {
+    "updated_on": "2026-10-28",
+    "writer": "hermes (nous/ornith-1.5-122b:free session)",
+    "authorization": "LOCAL_PREPARATION_ONLY",
+    "imp10_status": "NOT_AUTHORIZED_DIFF_ONLY",
+    "milestones": {
+      "IMP-00": {
+        "status": "COMPLETED",
+        "evidence": "STATICALLY_INSPECTED",
+        "note": "informe read-only + mapping REUSE/EXTEND/NEW/DUPLICATE"
+      },
+      "IMP-01": {
+        "status": "COMPLETED",
+        "evidence": "VERIFIED_BY_EXECUTION",
+        "note": "35 fuentes -> sources.jsonl con provenance"
+      },
+      "IMP-02": {
+        "status": "COMPLETED",
+        "evidence": "VERIFIED_BY_EXECUTION",
+        "note": "mapping a contrato real + validador aislado"
+      },
+      "IMP-03": {
+        "status": "COMPLETED",
+        "evidence": "VERIFIED_BY_EXECUTION",
+        "note": "8 operadores -> operators.jsonl; fixtures; plantilla"
+      },
+      "IMP-04": {
+        "status": "COMPLETED",
+        "evidence": "VERIFIED_BY_EXECUTION",
+        "note": "laboratorio aislado (validador+fixtures+mapeo); NO E2E productivo"
+      },
+      "IMP-05": {
+        "status": "COMPLETED",
+        "evidence": "VERIFIED_BY_EXECUTION",
+        "note": "SPEC + 8 pruebas round-trip/conflictos; STORAGE TEMPORAL + httpx mock; NO SUPRA real"
+      },
+      "IMP-06": {
+        "status": "COMPLETED",
+        "evidence": "STATICALLY_INSPECTED",
+        "note": "SPEC view-model + plan pruebas UI; NO runtime"
+      },
+      "IMP-07": {
+        "status": "COMPLETED",
+        "evidence": "STATICALLY_INSPECTED",
+        "note": "BLACKFORGE_HANDOFF_SPEC + casos seguridad; NO ejecutado"
+      },
+      "IMP-08": {
+        "status": "COMPLETED",
+        "evidence": "VERIFIED_BY_EXECUTION",
+        "note": "pruebas negativas del validador (25 passed); ampliar en IMP-05/06/07b"
+      },
+      "IMP-09": {
+        "status": "COMPLETED",
+        "evidence": "VERIFIED_BY_EXECUTION",
+        "note": "Piloto del operador A4-OP-FIX-01 (control de fijación) sobre el PUERTO REAL determinista (engine.activate + preparar_dossier + validador). 10 passed, REAL_EXIT=0. Sin LLM/servicio."
+      },
+      "IMP-10": {
+        "status": "NOT_AUTHORIZED",
+        "evidence": "NOT_EXECUTED",
+        "note": "integración mínima productiva; solo diff propuesto"
+      },
+      "IMP-11": {
+        "status": "PENDING",
+        "evidence": "NOT_EXECUTED",
+        "note": "cierre de fase"
+      }
+    },
+    "scientific_status": "SCIENTIFIC_BENEFIT_NOT_ESTABLISHED",
+    "not_verified": [
+      "round-trip real de SUPRA (una prueba de disco NO acredita SUPRA real ni reinicio del producto)",
+      "Shadow UI operativa no modificada; solo mapping de diseño",
+      "BLACKFORGE handoff real no ejecutado; ningún grant registrado ni dispatch",
+      "Puerto/adaptador real del intérprete con LLM (no determinista, requiere servicio): REPORTED, no verificado por ejecución esta sesión",
+      "Beneficio inventivo: NO establecido; el piloto IMP-09 ejercita el operador pero no prueba utilidad"
+    ],
+    "lab_evidence": {
+      "IMP-05": {
+        "path": "docs/research/triz-inventiva/imp05_supra_preservation/tests/test_supra_roundtrip_lab.py",
+        "command": ".venv/Scripts/python.exe -m pytest <ruta> -p no:randomly",
+        "result": "8 passed",
+        "real_exit": 0
+      }
+    },
+    "pilot_imp09": {
+      "operator": "A4-OP-FIX-01 (control de fijación, A4 complemento)",
+      "port": "engine.activate (determinista) + supra_dossier.preparar_dossier_desde_idea + validator.validador",
+      "channel_used": "diverge_fn (único canal que cambia la salida; manual_methods/context NO la cambian en este núcleo)",
+      "metric": "family_diversity (control vs ejemplo sembrado) + reaparición de flaw; NO solapamiento léxico (counterexample de A4)",
+      "verdict": "FIXATION_OBSERVED=False en budgets 8/12/20 (gap=-1; el ejemplo no reduce la diversidad)",
+      "honest_limit": "El núcleo determinista produce 94 ideas/query fijas; inyectar 1 mecanismo no puede reducir la diversidad. Prueba de SOFTWARE del operador + encaje con puerto, NO de utilidad ni psicología del diseño.",
+      "scientific_status": "SCIENTIFIC_BENEFIT_NOT_ESTABLISHED",
+      "command": ".venv/Scripts/python.exe -m pytest docs/research/triz-inventiva/imp09_pilot_protocol/tests/test_pilot_fixation_control.py -p no:randomly",
+      "result": "10 passed",
+      "real_exit": 0
+    }
+  }
+}
