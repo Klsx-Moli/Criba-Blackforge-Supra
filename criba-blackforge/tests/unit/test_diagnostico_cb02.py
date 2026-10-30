@@ -22,6 +22,7 @@ from criba.interprete.diagnostico import (
     CANCELLED,
     CORRECT_ABSTENTION,
     CRITIQUE_INVALID,
+    CRITIQUE_REJECTED,
     CRITIQUE_UNAVAILABLE,
     DOMAIN_CONTRACT_FAILED,
     DOMAIN_REJECTION,
@@ -186,6 +187,26 @@ def critica_transporte() -> _Result:
 
 
 @pytest.fixture
+def critica_rechazada() -> _Result:
+    return _Result(
+        estado="PENDIENTE_INTERPRETACION",
+        error="critica_rechazada:critica.fiel_evidencia; critica.objeciones",
+        error_kind="critique_rejected",
+        provenance=_Prov(),
+    )
+
+
+@pytest.fixture
+def critica_invalida() -> _Result:
+    return _Result(
+        estado="PENDIENTE_INTERPRETACION",
+        error="critica_invalida:critica.preguntas_sin_responder",
+        error_kind="critique_invalid",
+        provenance=_Prov(),
+    )
+
+
+@pytest.fixture
 def abstencion_correcta() -> _Result:
     """Abstención por regla de dominio: no es error."""
     return _Result(
@@ -199,6 +220,24 @@ def abstencion_correcta() -> _Result:
 def propuesta_valida() -> _Result:
     """Sin error y con estado: abstención/propuesta correcta."""
     return _Result(estado="PROPUESTA", provenance=_Prov())
+
+
+@pytest.fixture
+def propuesta_sin_mecanismo() -> _Result:
+    return _Result(
+        estado="PENDIENTE_INTERPRETACION",
+        error="PROPUESTA sin mecanismo",
+        provenance=_Prov(),
+    )
+
+
+@pytest.fixture
+def propuesta_sin_critica() -> _Result:
+    return _Result(
+        estado="PENDIENTE_INTERPRETACION",
+        error="PROPUESTA sin cr\u00edtica completa y aprobatoria",
+        provenance=_Prov(),
+    )
 
 
 @pytest.fixture
@@ -328,6 +367,57 @@ def test_critica_transporte(critica_transporte: _Result) -> None:
     assert d.retryable is True
 
 
+def test_critica_rechazada_no_es_fallo_de_contrato(
+    critica_rechazada: _Result,
+) -> None:
+    d = classify(critica_rechazada)
+    assert d.error_code == CRITIQUE_REJECTED
+    assert d.phase == "critica"
+    assert d.retryable is False
+    assert "objeciones" in d.reason
+    assert d.next_action
+
+
+def test_critica_malformada_es_critica_invalida(critica_invalida: _Result) -> None:
+    d = classify(critica_invalida)
+    assert d.error_code == CRITIQUE_INVALID
+    assert d.phase == "critica"
+    assert d.retryable is False
+
+
+def test_diagnostico_legacy_de_rechazo_no_es_fallo_de_dominio() -> None:
+    result = _Result(
+        estado="PENDIENTE_INTERPRETACION",
+        error="validacion:critica.objeciones; critica.fiel_evidencia",
+        error_kind="domain",
+        critica={
+            "respuesta": {
+                "objeciones": ["La evidencia no sostiene la causalidad."],
+                "fiel_evidencia": False,
+            }
+        },
+        provenance=_Prov(),
+    )
+    d = classify(result)
+    assert d.error_code == CRITIQUE_REJECTED
+    assert d.phase == "critica"
+    assert d.retryable is False
+
+
+def test_diagnostico_legacy_de_critica_malformada_es_invalida() -> None:
+    result = _Result(
+        estado="PENDIENTE_INTERPRETACION",
+        error="validacion:critica.preguntas_sin_responder",
+        error_kind="domain",
+        critica={"respuesta": {}},
+        provenance=_Prov(),
+    )
+    d = classify(result)
+    assert d.error_code == CRITIQUE_INVALID
+    assert d.phase == "critica"
+    assert d.retryable is False
+
+
 def test_abstencion_correcta_no_es_error(abstencion_correcta: _Result) -> None:
     """ABSTENER correcto: DOMAIN_REJECTION, retryable=False, no es avería."""
     d = classify(abstencion_correcta)
@@ -339,6 +429,24 @@ def test_abstencion_correcta_no_es_error(abstencion_correcta: _Result) -> None:
 def test_propuesta_valida(propuesta_valida: _Result) -> None:
     d = classify(propuesta_valida)
     assert d.error_code == CORRECT_ABSTENTION
+    assert d.retryable is False
+
+
+def test_propuesta_sin_mecanismo_no_es_fallo_de_transporte(
+    propuesta_sin_mecanismo: _Result,
+) -> None:
+    d = classify(propuesta_sin_mecanismo)
+    assert d.error_code == SCHEMA_VALIDATION_FAILED
+    assert d.phase == "validacion"
+    assert d.retryable is False
+
+
+def test_propuesta_sin_critica_es_critica_invalida(
+    propuesta_sin_critica: _Result,
+) -> None:
+    d = classify(propuesta_sin_critica)
+    assert d.error_code == CRITIQUE_INVALID
+    assert d.phase == "critica"
     assert d.retryable is False
 
 

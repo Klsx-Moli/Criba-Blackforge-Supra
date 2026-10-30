@@ -16,7 +16,6 @@ import json
 import logging
 import math
 import os
-import random
 import time
 from collections.abc import Callable
 from dataclasses import replace
@@ -37,13 +36,12 @@ from .contrato import (
     CRITICA_INSTRUCCIONES,
     KIND_DOMAIN,
     KIND_SCHEMA,
-    PREGUNTAS_TEXTO,
     SYSTEM,
     prompt_propuesta,
     schema_critica,
     schema_propuesta,
+    separar_errores_critica,
     validar_critica,
-    validar_propuesta,
     validar_propuesta_estructurada,
 )
 from .puerto import (
@@ -164,6 +162,13 @@ def _is_transient_http_error(exc: BaseException) -> bool:
     return False
 
 
+def _should_retry_http_error(exc: BaseException) -> bool:
+    """Budgeted acceptance counts physical attempts and disables hidden retries."""
+    if os.environ.get("CRIBA_ACCEPTANCE_NO_RETRIES") == "1":
+        return False
+    return _is_transient_http_error(exc)
+
+
 def _extract_content(response_json: dict[str, Any]) -> str:
     """Extrae y valida el contenido del mensaje de la respuesta del modelo.
 
@@ -252,7 +257,7 @@ class wait_retry_after(wait_base):
 
 
 @retry(
-    retry=retry_if_exception(_is_transient_http_error),
+    retry=retry_if_exception(_should_retry_http_error),
     stop=(stop_after_attempt(4) | stop_after_delay(45)),
     wait=wait_retry_after(
         fallback=wait_exponential_jitter(initial=1, max=15, jitter=2)
@@ -297,10 +302,10 @@ def _request_structured_json(
 
     try:
         return _parse_model_json(raw)
-    except ExternalModelInvalidJSON:
+    except ExternalModelInvalidJSON as exc:
         raise ExternalModelEmptyResponse(
             "external_model_invalid_json:possible_truncation"
-        )
+        ) from exc
 
 
 def _extraer_json(contenido: str) -> dict[str, Any]:
@@ -610,12 +615,21 @@ class OpenAICompatibleInterpreter:
                 if not 1 <= max_tokens <= 32768:
                     raise ValueError("max_tokens debe ser positivo")
             except ValueError:
-                return replace(_fallo("configuracion_invalida:max_tokens", error_kind="config"), model_requests=0)
+                return replace(
+                    _fallo("configuracion_invalida:max_tokens", error_kind="config"),
+                    model_requests=0,
+                )
             payload["max_tokens"] = max_tokens
             if not math.isfinite(self.timeout_s) or not 0 < self.timeout_s <= 1800:
-                return replace(_fallo("configuracion_invalida:timeout", error_kind="config"), model_requests=0)
+                return replace(
+                    _fallo("configuracion_invalida:timeout", error_kind="config"),
+                    model_requests=0,
+                )
             if not math.isfinite(self.temperature) or not 0 <= self.temperature <= 2:
-                return replace(_fallo("configuracion_invalida:temperature", error_kind="config"), model_requests=0)
+                return replace(
+                    _fallo("configuracion_invalida:temperature", error_kind="config"),
+                    model_requests=0,
+                )
             if self.reasoning_effort:
                 if self.reasoning_effort not in {
                     "none",
@@ -627,7 +641,11 @@ class OpenAICompatibleInterpreter:
                     "max",
                 }:
                     return replace(
-                        _fallo("configuracion_invalida:reasoning_effort", error_kind="config"), model_requests=0
+                        _fallo(
+                            "configuracion_invalida:reasoning_effort",
+                            error_kind="config",
+                        ),
+                        model_requests=0,
                     )
                 from urllib.parse import urlsplit
 
@@ -649,14 +667,20 @@ class OpenAICompatibleInterpreter:
             except ValueError as exc:
                 return _fallo(f"respuesta_json_invalida:{type(exc).__name__}", error_kind="schema")
             if not isinstance(cuerpo, dict):
-                return _fallo(f"respuesta_tipo_inesperado:{type(cuerpo).__name__}", error_kind="schema")
+                return _fallo(
+                    f"respuesta_tipo_inesperado:{type(cuerpo).__name__}",
+                    error_kind="schema",
+                )
             model_reported = str(cuerpo.get("model") or "")
             choices = cuerpo.get("choices")
             if not isinstance(choices, list) or not choices:
                 return _fallo("respuesta_sin_choices", error_kind="schema")
             eleccion = choices[0]
             if not isinstance(eleccion, dict):
-                return _fallo(f"choice_tipo_inesperado:{type(eleccion).__name__}", error_kind="schema")
+                return _fallo(
+                    f"choice_tipo_inesperado:{type(eleccion).__name__}",
+                    error_kind="schema",
+                )
 
             finish_reason = str(eleccion.get("finish_reason") or "")
             uso = cuerpo.get("usage")
@@ -667,7 +691,10 @@ class OpenAICompatibleInterpreter:
                     reasoning_tokens = _numero_opcional(detalles.get("reasoning_tokens"))
             message = eleccion.get("message")
             if not isinstance(message, dict):
-                return _fallo(f"message_tipo_inesperado:{type(message).__name__}", error_kind="schema")
+                return _fallo(
+                    f"message_tipo_inesperado:{type(message).__name__}",
+                    error_kind="schema",
+                )
 
             # Usa _extract_content para validar content (None, tipo, vacío)
             try:
@@ -802,8 +829,7 @@ class OpenAICompatibleInterpreter:
         critica_prompt = (
             CRITICA_INSTRUCCIONES
             + "\n"
-            + PREGUNTAS_TEXTO
-            + "\nENTRADA:\n"
+            + "ENTRADA:\n"
             + prompt
             + "\nPROPUESTA A CRITICAR:\n"
             + json.dumps(parsed, ensure_ascii=False)
@@ -832,12 +858,23 @@ class OpenAICompatibleInterpreter:
         contenido_critica = _extraer_json(critica.raw_output)
         diagnostico["respuesta"] = contenido_critica
         errores = validar_critica(contenido_critica)
+        estructurales, rechazos = separar_errores_critica(contenido_critica, errores)
+        if errores and not estructurales and not rechazos:
+            estructurales = list(errores)
         diagnostico["evaluation_status"] = "CRITIQUED" if not errores else "REJECTED"
         if errores:
+            if estructurales:
+                error = "critica_invalida:" + "; ".join(estructurales)
+                error_kind = "critique_invalid"
+            else:
+                error = "critica_rechazada:" + "; ".join(rechazos)
+                error_kind = "critique_rejected"
+                diagnostico["rejection_reasons"] = list(rechazos)
             return replace(
                 transporte,
                 estado=ESTADO_PENDIENTE,
-                error="validacion:" + "; ".join(errores),
+                error=error,
+                error_kind=error_kind,
                 critica=diagnostico,
                 model_requests=transporte.model_requests + critica.model_requests,
             )

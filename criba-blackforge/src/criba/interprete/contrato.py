@@ -20,6 +20,19 @@ SYSTEM = (
     "resultados experimentales, scores, permisos ni novedad verificada."
 )
 INSTRUCCIONES = """Aplica el cruce a ESTE problema, o abstente explícitamente.
+IDEACIÓN EXPLORATORIA: formula una hipótesis condicional, no una solución validada.
+La ausencia de evidencia local no es, por sí sola, motivo de abstención.
+Usa conocimiento_previo y supuestos explícitos; sin documentos, evidencia_citada=[].
+Las etiquetas heurísticas del cruce no son veredictos científicos.
+Intenta trasladar las operaciones al dominio del problema aunque el cruce sea extraño.
+Antes de ABSTENER, busca una analogía operativa concreta entre las operaciones y el problema.
+Abstente solo si, tras ese intento, no puedes construir un mecanismo específico pertinente.
+Si RESTRICCIONES OBLIGATORIAS está vacío, no hay restricciones formales adicionales:
+no te abstengas por ese motivo; respeta las restricciones explícitas del PROBLEMA
+y declara supuestos.
+El DOMINIO es un acoplamiento opcional; si no aporta al mecanismo, ignóralo.
+STORE_UNAVAILABLE o cobertura UNKNOWN describen la búsqueda, no la validez de la idea.
+No presentes el mecanismo propuesto como causalidad demostrada; su prueba sigue pendiente.
 BREVEDAD: cada campo de texto debe ser conciso. motivo_abstencion, hipotesis,
 incertidumbre, novedad, prueba_concreta y los 7 campos de prueba: máximo 600
 caracteres. mecanismo: máximo 1200. elementos de lista: máximo 300. Si tu
@@ -62,11 +75,23 @@ documentos o actualización exitosa no demuestra ausencia de antecedentes ni nov
 Si una fuente contradice el mecanismo, explica el límite o abstente; no fuerces su apoyo.
 Si intercambiar A y B deja igual el mecanismo, explica operaciones específicas o abstente.
 No eludas restricciones obligatorias; si no puedes justificar su respeto, abstente.
+En mecanismo explica el proceso causal, sin los nombres literales de las técnicas;
+describe sus operaciones únicamente en aportacion_por_tecnica.
+En comprobacion_restricciones copia RESTRICCIONES OBLIGATORIAS con el mismo texto,
+orden y cantidad; si la lista está vacía, responde []. Solo marca CUMPLE si la
+justificación demuestra cada una; si alguna se viola o no puedes justificarla,
+ABSTENER. No marques CUMPLE por defecto.
+Antes de PERTINENTE comprueba los siete campos de prueba, incluida alternativa_explicativa,
+y que las predicciones favorables a H1 y H2 sean distintas.
 ABSTENER solo requiere pertinencia y motivo_abstencion; no rellenes el resto.
 Interroga la propuesta con las preguntas epistemológicas adjuntas, también sobre
 alternativas explicativas, riesgos sistémicos y falsación. Contención ausente = desconocida.
 """
 CRITICA_INSTRUCCIONES = """Ataca la propuesta sin darte ni darle una nota numérica.
+Una hipótesis condicional no exige un experimento ya realizado.
+Comprueba la coherencia del mecanismo, los supuestos declarados y la prueba discriminante.
+Sin documentos, fiel_evidencia exige no inventar citas ni presentar supuestos como observaciones;
+no exige evidencia_citada no vacía. Conserva las objeciones reales; no fuerces un dictamen positivo.
 Responde JSON con:
 {
  "pertinente": true, "mecanismo_especifico": true, "falsable": true,
@@ -102,23 +127,45 @@ def restricciones_de(idea: dict[str, Any]) -> list[str]:
     return raw
 
 
+_CRUCE_PROMPT_KEYS = (
+    "title",
+    "method1",
+    "method1_desc",
+    "method2",
+    "method2_desc",
+    "cross_operational_records",
+    "evidence_context",
+)
+
+
+def cruce_para_prompt(idea: dict[str, Any]) -> dict[str, Any]:
+    """Contenido operativo del cruce, sin etiquetas heurísticas internas.
+
+    ``quality``, ``score``, ``convergence`` y ``genome`` son señales del motor
+    local, no veredictos científicos. Enviarlas al modelo sesga la abstención
+    (p. ej. ``quality='BASURA'``) y contradice el contrato de ideación.
+    """
+    return {key: idea[key] for key in _CRUCE_PROMPT_KEYS if key in idea}
+
+
 def prompt_propuesta(
     query: str,
     idea: dict[str, Any],
     domain: dict[str, Any] | None,
     evidence: list[dict[str, Any]] | None,
 ) -> str:
+    restricciones = restricciones_de(idea)
     datos = {
         "PROBLEMA": query,
         "DOMINIO": domain or {},
-        "CRUCE": idea,
+        "CRUCE": cruce_para_prompt(idea),
         "BLOQUEO IDENTIFICADO": idea.get("bloqueo") or {},
+        "RESTRICCIONES OBLIGATORIAS": restricciones,
         "EVIDENCIA LOCAL PERTINENTE": [
             {**ev, "indice": i} for i, ev in enumerate(evidencia_entregada(evidence), 1)
         ],
         "CONTENCION_DECLARADA": idea.get("containment_class", "DESCONOCIDA"),
     }
-    restricciones_de(idea)
     return (
         INSTRUCCIONES
         + "\n"
@@ -211,7 +258,9 @@ def validar_propuesta_estructurada(
             errores.append((KIND_DOMAIN, "prueba.predicciones_no_discriminantes"))
     citas = parsed.get("evidencia_citada")
     cantidad = len(evidencia_entregada(evidence))
-    if not isinstance(citas, list) or any(type(i) is not int or not 1 <= i <= cantidad for i in citas):
+    if not isinstance(citas, list) or any(
+        type(i) is not int or not 1 <= i <= cantidad for i in citas
+    ):
         errores.append(
             (KIND_SCHEMA, "evidencia_citada contiene índices inexistentes o tipos inválidos")
         )
@@ -416,3 +465,51 @@ def validar_critica(parsed: dict[str, Any]) -> list[str]:
     if not texto(parsed.get("incertidumbre")):
         errores.append("critica.sin_incertidumbre")
     return errores
+
+
+_CAMPOS_RECHAZO_CRITICA = (
+    "pertinente",
+    "mecanismo_especifico",
+    "falsable",
+    "fiel_evidencia",
+    "restricciones_respetadas",
+    "discrimina_alternativas",
+)
+
+
+def separar_errores_critica(
+    parsed: dict[str, Any], errores: list[str]
+) -> tuple[list[str], list[str]]:
+    """Separa una crítica malformada de un rechazo sustantivo.
+
+    Un ``False`` explícito, ``intercambio_tecnicas_generico=True`` o una lista
+    real de objeciones es una crítica que rechaza la propuesta; la propuesta
+    sigue sin admitirse. Un campo ausente o de tipo incorrecto es un fallo de
+    contrato de la crítica y no debe presentarse como rechazo científico.
+    """
+    estructurales: list[str] = []
+    rechazos: list[str] = []
+    for error in errores:
+        if error == "critica.objeciones":
+            destino = (
+                rechazos
+                if isinstance(parsed.get("objeciones"), list)
+                and bool(parsed.get("objeciones"))
+                else estructurales
+            )
+        elif error == "critica.mecanismo_genérico":
+            destino = (
+                rechazos
+                if parsed.get("intercambio_tecnicas_generico") is True
+                else estructurales
+            )
+        elif (
+            error.startswith("critica.")
+            and error[len("critica.") :] in _CAMPOS_RECHAZO_CRITICA
+        ):
+            campo = error[len("critica.") :]
+            destino = rechazos if parsed.get(campo) is False else estructurales
+        else:
+            destino = estructurales
+        destino.append(error)
+    return estructurales, rechazos

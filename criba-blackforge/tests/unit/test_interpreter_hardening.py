@@ -120,6 +120,15 @@ def test_propuesta_y_critica_son_llamadas_distintas_con_procedencia(monkeypatch)
     assert "score" not in result.to_campos()
 
 
+def test_critica_no_duplica_las_preguntas_epistemologicas(monkeypatch):
+    enviados = transporte(monkeypatch, [respuesta(propuesta()), respuesta(critica())])
+    result = oc.OpenAICompatibleInterpreter().proponer("colas", IDEA)
+
+    assert result.es_propuesta, result.error
+    critique_prompt = enviados[1][1]["messages"][1]["content"]
+    assert all(critique_prompt.count(f"[Q{index}]") == 1 for index in range(1, 12))
+
+
 @pytest.mark.parametrize(
     "key,value",
     [
@@ -141,6 +150,33 @@ def test_critica_no_aprobatoria_degrada_a_pendiente(monkeypatch, key, value):
     assert result.raw_output and result.critica["raw_output"]
 
 
+def test_critica_con_objeciones_es_rechazo_no_fallo_de_contrato(monkeypatch):
+    data = critica()
+    data["objeciones"] = ["La evidencia no sostiene la causalidad."]
+    transporte(monkeypatch, [respuesta(propuesta()), respuesta(data)])
+
+    result = oc.OpenAICompatibleInterpreter().proponer("colas", IDEA)
+
+    assert not result.es_propuesta
+    assert result.error.startswith("critica_rechazada:")
+    assert result.error_kind == "critique_rejected"
+    assert result.critica["evaluation_status"] == "REJECTED"
+    assert result.critica["rejection_reasons"] == ["critica.objeciones"]
+
+
+def test_critica_malformada_es_critica_invalida(monkeypatch):
+    data = critica()
+    data["respuestas_epistemologicas"] = {"Q1": "factor"}
+    transporte(monkeypatch, [respuesta(propuesta()), respuesta(data)])
+
+    result = oc.OpenAICompatibleInterpreter().proponer("colas", IDEA)
+
+    assert not result.es_propuesta
+    assert result.error.startswith("critica_invalida:")
+    assert result.error_kind == "critique_invalid"
+    assert result.critica["evaluation_status"] == "REJECTED"
+
+
 def test_critica_sin_red_no_aprueba(monkeypatch):
     transporte(monkeypatch, [respuesta(propuesta()), httpx.ReadTimeout("token=secret")])
     result = oc.OpenAICompatibleInterpreter().proponer("colas", IDEA)
@@ -148,6 +184,17 @@ def test_critica_sin_red_no_aprueba(monkeypatch):
     assert result.model_requests == 2
     assert "secret" not in result.error
     assert result.critica["evaluation_status"] == "NOT_EVALUATED"
+
+
+def test_acceptance_budget_mode_does_not_retry_physical_model_requests(monkeypatch):
+    monkeypatch.setenv("CRIBA_ACCEPTANCE_NO_RETRIES", "1")
+    enviados = transporte(monkeypatch, [httpx.ReadTimeout("synthetic timeout")])
+
+    result = oc.OpenAICompatibleInterpreter().proponer("colas", IDEA)
+
+    assert result.error == "timeout"
+    assert result.model_requests == 1
+    assert len(enviados) == 1
 
 
 def test_abstencion_es_explicita_y_no_necesita_relleno(monkeypatch):

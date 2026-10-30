@@ -41,6 +41,8 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass, field
 from typing import Any
 
+from .contrato import separar_errores_critica
+
 # Códigos canónicos del megaprompt CB-02.
 TRANSPORT_UNAVAILABLE = "TRANSPORT_UNAVAILABLE"
 HTTP_ERROR = "HTTP_ERROR"
@@ -54,6 +56,7 @@ DOMAIN_CONTRACT_FAILED = "DOMAIN_CONTRACT_FAILED"
 TRUNCATED_RESPONSE = "TRUNCATED_RESPONSE"
 CRITIQUE_UNAVAILABLE = "CRITIQUE_UNAVAILABLE"
 CRITIQUE_INVALID = "CRITIQUE_INVALID"
+CRITIQUE_REJECTED = "CRITIQUE_REJECTED"
 CORRECT_ABSTENTION = "CORRECT_ABSTENTION"
 DOMAIN_REJECTION = "DOMAIN_REJECTION"
 CANCELLED = "CANCELLED"
@@ -127,6 +130,10 @@ _NEXT_ACTION = {
         "El intérprete local no ha superado el banco; ejecuta el banco antes de usarlo."
     ),
     BANK_CANCELLED: "El banco fue cancelado; el intérprete local no está admitido.",
+    CRITIQUE_REJECTED: (
+        "La crítica rechazó la propuesta; revisa las objeciones y genera otra. "
+        "No es un fallo del proveedor."
+    ),
     BANK_MODE_MISMATCH: "El banco se evaluó en otro modo de decodificación; reevalúalo.",
 }
 
@@ -144,6 +151,7 @@ _RETRYABLE = {
     TRUNCATED_RESPONSE: True,
     CRITIQUE_UNAVAILABLE: True,
     CRITIQUE_INVALID: False,
+    CRITIQUE_REJECTED: False,
     CORRECT_ABSTENTION: False,
     DOMAIN_REJECTION: False,
     CANCELLED: False,
@@ -166,6 +174,7 @@ _PHASE = {
     TRUNCATED_RESPONSE: "transporte",
     CRITIQUE_UNAVAILABLE: "critica",
     CRITIQUE_INVALID: "critica",
+    CRITIQUE_REJECTED: "critica",
     CORRECT_ABSTENTION: "dominio",
     DOMAIN_REJECTION: "dominio",
     CANCELLED: "cancelacion",
@@ -237,6 +246,63 @@ def classify(result: Any) -> Diagnostic:
             provenance=prov_d,
         )
 
+    # Rechazo sustantivo de la crítica: no es un fallo de forma ni del proveedor.
+    if error.startswith("critica_rechazada:"):
+        return Diagnostic(
+            error_code=CRITIQUE_REJECTED,
+            phase="critica",
+            reason=error.split("critica_rechazada:", 1)[-1],
+            retryable=False,
+            model_requested=prov_d.get("model_requested", ""),
+            model_reported=prov_d.get("model_reported", ""),
+            request_id=prov_d.get("request_id", ""),
+            next_action=_NEXT_ACTION[CRITIQUE_REJECTED],
+            raw_output_sha256=prov_d.get("raw_output_sha256", ""),
+            provenance=prov_d,
+        )
+
+    # Crítica malformada: no se interpreta como rechazo científico.
+    if error.startswith("critica_invalida:"):
+        return Diagnostic(
+            error_code=CRITIQUE_INVALID,
+            phase="critica",
+            reason=error.split("critica_invalida:", 1)[-1],
+            retryable=_RETRYABLE[CRITIQUE_INVALID],
+            model_requested=prov_d.get("model_requested", ""),
+            model_reported=prov_d.get("model_reported", ""),
+            request_id=prov_d.get("request_id", ""),
+            next_action=_NEXT_ACTION[CRITIQUE_INVALID],
+            raw_output_sha256=prov_d.get("raw_output_sha256", ""),
+            provenance=prov_d,
+        )
+
+    # Compatibilidad con diagnósticos persistidos antes de separar rechazo y forma.
+    if error.startswith("validacion:critica."):
+        critica = getattr(result, "critica", None)
+        respuesta = critica.get("respuesta") if isinstance(critica, dict) else None
+        campos = [
+            campo.strip()
+            for campo in error[len("validacion:") :].split(";")
+            if campo.strip()
+        ]
+        estructurales, rechazos = separar_errores_critica(
+            respuesta if isinstance(respuesta, dict) else {}, campos
+        )
+        code = CRITIQUE_INVALID if estructurales else CRITIQUE_REJECTED
+        if estructurales or rechazos:
+            return Diagnostic(
+                error_code=code,
+                phase="critica",
+                reason=error.split("validacion:", 1)[-1],
+                retryable=_RETRYABLE[code],
+                model_requested=prov_d.get("model_requested", ""),
+                model_reported=prov_d.get("model_reported", ""),
+                request_id=prov_d.get("request_id", ""),
+                next_action=_NEXT_ACTION[code],
+                raw_output_sha256=prov_d.get("raw_output_sha256", ""),
+                provenance=prov_d,
+            )
+
     # Fallo de contrato del modelo (schema/dominio): no es fallo del proveedor.
     if error.startswith("validacion:"):
         code = (
@@ -248,6 +314,25 @@ def classify(result: Any) -> Diagnostic:
             error_code=code,
             phase="validacion",
             reason=error.split("validacion:", 1)[-1],
+            retryable=_RETRYABLE[code],
+            model_requested=prov_d.get("model_requested", ""),
+            model_reported=prov_d.get("model_reported", ""),
+            request_id=prov_d.get("request_id", ""),
+            next_action=_NEXT_ACTION[code],
+            raw_output_sha256=prov_d.get("raw_output_sha256", ""),
+            provenance=prov_d,
+        )
+
+    if error.startswith("PROPUESTA sin"):
+        code = (
+            SCHEMA_VALIDATION_FAILED
+            if "mecanismo" in error
+            else CRITIQUE_INVALID
+        )
+        return Diagnostic(
+            error_code=code,
+            phase=_PHASE.get(code, "validacion"),
+            reason=error,
             retryable=_RETRYABLE[code],
             model_requested=prov_d.get("model_requested", ""),
             model_reported=prov_d.get("model_reported", ""),
