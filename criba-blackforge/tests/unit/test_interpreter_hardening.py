@@ -197,6 +197,43 @@ def test_parametros_de_critica_se_heredan_y_sobrescriben(monkeypatch):
     assert result.critica["provenance"]["generation_parameters"]["reasoning_effort"] == "low"
 
 
+def test_parametros_de_critica_heredan_y_sobrescriben_todas_las_fases(monkeypatch):
+    monkeypatch.delenv("CRIBA_EXTERNAL_CRITIQUE_MAX_TOKENS", raising=False)
+    monkeypatch.delenv("CRIBA_EXTERNAL_CRITIQUE_TEMPERATURE", raising=False)
+    monkeypatch.delenv("CRIBA_EXTERNAL_CRITIQUE_TIMEOUT_S", raising=False)
+    monkeypatch.delenv("CRIBA_EXTERNAL_CRITIQUE_REASONING_EFFORT", raising=False)
+
+    inherited = oc.OpenAICompatibleInterpreter(
+        model="p",
+        critic_model="c",
+        max_tokens=8192,
+        temperature=0.4,
+        timeout_s=120,
+        reasoning_effort="high",
+    )
+    assert inherited.critique_max_tokens == 8192
+    assert inherited.critique_temperature == 0.4
+    assert inherited.critique_timeout_s == 120
+    assert inherited.critique_reasoning_effort == "high"
+
+    overridden = oc.OpenAICompatibleInterpreter(
+        model="p",
+        critic_model="c",
+        max_tokens=8192,
+        temperature=0.4,
+        timeout_s=120,
+        reasoning_effort="high",
+        critique_max_tokens=2048,
+        critique_temperature=0.1,
+        critique_timeout_s=30,
+        critique_reasoning_effort="low",
+    )
+    assert overridden.critique_max_tokens == 2048
+    assert overridden.critique_temperature == 0.1
+    assert overridden.critique_timeout_s == 30
+    assert overridden.critique_reasoning_effort == "low"
+
+
 def test_critica_malformada_es_critica_invalida(monkeypatch):
     data = critica()
     data["respuestas_epistemologicas"] = {"Q1": "factor"}

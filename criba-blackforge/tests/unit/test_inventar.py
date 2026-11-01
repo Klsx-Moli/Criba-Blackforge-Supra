@@ -563,6 +563,61 @@ def test_scout_con_fuentes_vacias_no_crash() -> None:
         assert e["prior_art"]["verdict"] == "UNRESOLVED"
 
 
+def test_propuesta_con_objeciones_conserva_estado_y_observaciones(tmp_path) -> None:
+    from criba.storage import Storage
+    from verification.interpreter_cases import critica as critica_fixture
+
+    critica = critica_fixture()
+    critica["objeciones"] = ["Falta medir el coste de la compuerta."]
+    diagnostico = {
+        "evaluation_status": "CRITIQUED",
+        "admitida_con_objeciones": True,
+        "objection_count": 1,
+        "respuesta": critica,
+        "independent_validation": False,
+    }
+
+    def _proponer(query, idea, domain, evidence=None):
+        return {
+            "estado": "PROPUESTA",
+            "hipotesis": "Una compuerta regula el paso.",
+            "mecanismo": "La compuerta limita el flujo y evita la saturación.",
+            "aportacion_por_tecnica": ["Regular el paso.", "Medir el coste."],
+            "supuestos": ["El flujo es medible."],
+            "prueba_concreta": "Comparar caudal y coste con y sin compuerta.",
+            "critica": diagnostico,
+            "error": "",
+        }
+
+    sheet = invent(
+        "regular el caudal con una compuerta",
+        seed=5,
+        rounds=1,
+        batch_size=4,
+        top=1,
+        offline=True,
+        history_storage=False,
+        methods=_methods(),
+        sources=[],
+        proponer=_proponer,
+    )
+    entry = sheet["entries"][0]
+    assert entry["estado_interpretacion"] == "PROPUESTA"
+    assert entry["critica"]["admitida_con_objeciones"] is True
+    assert entry["critica"]["respuesta"]["objeciones"] == [
+        "Falta medir el coste de la compuerta."
+    ]
+
+    db = tmp_path / "critique.sqlite3"
+    ident = Storage(db).save_invention(sheet)
+    restored = Storage(db).get(ident)["packet"]["sheet"]["entries"][0]
+    assert restored["estado_interpretacion"] == "PROPUESTA"
+    assert restored["critica"]["admitida_con_objeciones"] is True
+    assert restored["critica"]["respuesta"]["objeciones"] == [
+        "Falta medir el coste de la compuerta."
+    ]
+
+
 def test_un_solo_interprete_por_ejecucion(monkeypatch) -> None:
     """La admisión local no debe repetirse por cada candidato del mismo run."""
     from criba.interprete import seleccion
