@@ -14,12 +14,49 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import threading
 import time
+from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
 
 
 SCHEMA_VERSION = "retry_ledger.v1"
+_APPEND_LOCK = threading.Lock()
+
+
+@contextmanager
+def _process_lock(lock_path: Path) -> Iterator[None]:
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
+    fd = os.open(lock_path, os.O_CREAT | os.O_RDWR, 0o600)
+    try:
+        if os.name == "nt":
+            import msvcrt
+
+            if os.fstat(fd).st_size == 0:
+                os.write(fd, b"\0")
+            os.lseek(fd, 0, os.SEEK_SET)
+            msvcrt.locking(fd, msvcrt.LK_LOCK, 1)
+        else:
+            import fcntl
+
+            fcntl.flock(fd, fcntl.LOCK_EX)
+        yield
+    finally:
+        try:
+            if os.name == "nt":
+                import msvcrt
+
+                os.lseek(fd, 0, os.SEEK_SET)
+                msvcrt.locking(fd, msvcrt.LK_UNLCK, 1)
+            else:
+                import fcntl
+
+                fcntl.flock(fd, fcntl.LOCK_UN)
+        finally:
+            os.close(fd)
+
 
 _EVENT_FIELDS = {
     "external_model_request": [
@@ -52,10 +89,17 @@ class RetryLedger:
         )
 
     def _append(self, event: dict[str, Any]) -> None:
+        for field in ("content_present", "contract_ok"):
+            if field in event and type(event[field]) is not bool:
+                raise ValueError(f"{field} must be boolean")
+        line = json.dumps(event, ensure_ascii=False, sort_keys=True, allow_nan=False)
+        data = (line + "\n").encode("utf-8")
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        line = json.dumps(event, ensure_ascii=False, sort_keys=True)
-        with open(self.path, "a", encoding="utf-8") as f:
-            f.write(line + "\n")
+        lock_path = self.path.with_name(self.path.name + ".lock")
+        with _APPEND_LOCK, _process_lock(lock_path):
+            with open(self.path, "ab") as f:
+                f.write(data)
+                f.flush()
 
     @staticmethod
     def _hash(value: str) -> str:
@@ -162,7 +206,25 @@ class RetryLedger:
             "contract_ok": contract_ok,
         }
         if error is not None:
-            event["error"] = error
+            if not isinstance(error, str):
+                raise ValueError("error must be a string")
+            code = error.partition(":")[0]
+            known_codes = {
+                "CASE_ID_MISMATCH", "INVALID_DECISION", "UNKNOWN_EVIDENCE",
+                "DUPLICATE_EVIDENCE", "MISSING_RATIONALE", "PROPOSE_WITHOUT_HYPOTHESIS",
+                "PROPOSE_WITHOUT_EVIDENCE", "ABSTENTION_WITHOUT_REQUEST",
+                "INVALID_PROPOSED_CHECKS", "CAUSAL_OVERCLAIM", "FORBIDDEN_FIELD_USED",
+                "UNKNOWN_PROMOTED", "RESPONSE_NOT_OBJECT", "INVALID_EVIDENCE_IDS",
+                "INVALID_EVIDENCE_ID_TYPE", "INVALID_REQUESTED_EVIDENCE",
+                "PROPOSE_WITHOUT_CHECKS", "MISSING_HYPOTHESIS", "ABSTENTION_WITH_HYPOTHESIS",
+                "INVALID_CASE", "INVALID_CASE_ID", "INVALID_OBSERVATIONS",
+                "INVALID_OBSERVATION", "INVALID_OBSERVATION_ID", "DUPLICATE_OBSERVATION_ID",
+                "INVALID_ORACLE", "INVALID_ORACLE_ANTI_GOODHART", "INVALID_ORACLE_CAUSAL_FLAG",
+                "INVALID_ORACLE_FORBIDDEN_FIELDS", "ORACLE_CASE_ID_MISMATCH",
+            }
+            event["error"] = code if code in known_codes else "REDACTED_ERROR"
+            if event["error"] != error:
+                event["error_sha256"] = self._hash(error)
         if decision is not None:
             event["decision"] = decision
         if evidence_ids is not None:
@@ -170,14 +232,37 @@ class RetryLedger:
         self._append(event)
 
 
+def _reject_constant(value: str) -> Any:
+    raise ValueError("nonfinite JSON constant")
+
+
+def _unique_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    result: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError("duplicate JSON key")
+        result[key] = value
+    return result
+
+
 def read_ledger(path: str | Path) -> list[dict[str, Any]]:
-    """Read all entries from a JSONL ledger file."""
+    """Read JSON objects strictly; missing is empty, corrupt is never empty."""
     path = Path(path)
-    if not path.is_file():
+    try:
+        content = path.read_text(encoding="utf-8")
+    except FileNotFoundError:
         return []
+    except UnicodeError:
+        raise ValueError("ledger is not valid UTF-8") from None
     entries: list[dict[str, Any]] = []
-    for line in path.read_text(encoding="utf-8").splitlines():
-        line = line.strip()
-        if line:
-            entries.append(json.loads(line))
+    for number, line in enumerate(content.splitlines(), start=1):
+        if not line.strip():
+            continue
+        try:
+            value = json.loads(line, object_pairs_hook=_unique_object, parse_constant=_reject_constant)
+            if not isinstance(value, dict):
+                raise ValueError("record is not an object")
+        except ValueError:
+            raise ValueError(f"invalid ledger record at line {number}") from None
+        entries.append(value)
     return entries
