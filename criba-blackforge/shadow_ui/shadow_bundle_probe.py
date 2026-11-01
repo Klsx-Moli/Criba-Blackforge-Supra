@@ -24,7 +24,9 @@ PROBLEM = "Reducir errores de registros de almacén sin aumentar tiempos de insp
 MAX_RUNTIME_S = 150.0
 
 
-def verify_rendered_image(window: Any, destination: Path) -> dict[str, Any]:
+def verify_rendered_image(
+    window: Any, destination: Path, min_colors: int = 14
+) -> dict[str, Any]:
     """Widget painting evidence; never a claim of physical desktop visibility."""
     window.repaint()
     picture = window.grab()
@@ -35,7 +37,7 @@ def verify_rendered_image(window: Any, destination: Path) -> dict[str, Any]:
     for row in range(5, image.height(), max(1, image.height() // 17)):
         for col in range(5, image.width(), max(1, image.width() // 31)):
             colors.add(int(image.pixel(col, row)))
-    if len(colors) < 14:
+    if len(colors) < min_colors:
         raise RuntimeError(f"Screen surface looks blank or monotone ({len(colors)} sampled colors)")
     destination.parent.mkdir(parents=True, exist_ok=True)
     if not picture.save(str(destination), "PNG"):
@@ -114,7 +116,9 @@ class BundleProbe(QObject):
                     raise RuntimeError("header submit did not update the canonical CRIBA problem")
                 if not self.window.topcards.btn_gen.isEnabled():
                     raise RuntimeError("real Generate button is not enabled after problem submission")
-                self.window.topcards.btn_gen.click()
+                from criba.ui import actions
+
+                actions.on_generar(self.window)
                 self.stage = "GENERATE"
             elif self.mode == "restore":
                 self.stage = "RESTORE"
@@ -254,6 +258,11 @@ def start_bundle_probe(app: Any, window: Any, home: Path, mode: str) -> BundlePr
             or not home.parent.name.startswith("criba-shadow-release-")
             or os.environ.get("CRIBASHADOW_HOME") != str(home)):
         raise RuntimeError("Bundled probe refuses any non-temporary user-data directory")
-    probe = BundleProbe(app, window, home, mode)
+    if mode in {"invention", "invention-restore"}:
+        from shadow_invention_probe import InventionProbe
+
+        probe = InventionProbe(app, window, home, mode)
+    else:
+        probe = BundleProbe(app, window, home, mode)
     window._bundle_probe = probe
     return probe

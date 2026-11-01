@@ -32,6 +32,7 @@ def _dossier(candidate: str) -> dict:
 
 def _client(receipt: dict | None):
     lookup = SimpleNamespace(
+        project_id="remote-case",
         status="blocked",
         status_scope="WORKFLOW_EXECUTION_ONLY",
         completion_status="BLOCKED",
@@ -58,7 +59,13 @@ def _client(receipt: dict | None):
 
 
 def _receipt(dossier: dict) -> dict:
+    from criba.integrations.supra_client import _dossier_payload_fingerprint
     return {
+        "receipt_scope": "PLANNED_DISCRIMINANT_PROTOCOL_ONLY",
+        "execution_status": "NOT_EXECUTED",
+        "scientific_status": "NOT_VALIDATED",
+        "integration_version": "criba-supra/1",
+        "payload_fingerprint": _dossier_payload_fingerprint(dossier),
         "criba_dossier_id": dossier["dossier_id"],
         "criba_candidate_id": dossier["candidate_id"],
         **{k: dossier[k] for k in ("claim_id", "mechanism_version", "protocol_version")},

@@ -58,8 +58,9 @@ def _make_entry(title: str = "Test hypothesis", state: str = "PROPUESTA") -> dic
     return {
         "title": title,
         "estado_interpretacion": state,
-        "hipotesis": ["test hypothesis"],
-        "mecanismo": ["test mechanism"],
+        # Match the real interpreter contract: strings, not Python lists.
+        "hipotesis": title,
+        "mecanismo": "test mechanism",
         "interpretacion_raw_output": "raw output here",
         "interpretacion_error": "",
         "interpretacion_provenance": {
@@ -90,7 +91,7 @@ def test_01_generar_produces_visible_interpretation(shadow_window):
     # El texto debe contener la interpretación
     text = interp.toPlainText()
     assert "Idea generada 1" in text
-    assert "PROPUESTA" in text
+    assert "QUÉ SE PROPONE" in text
     # El panel de interpretación debe ser accesible
     assert interp.minimumHeight() >= 300
 
@@ -107,7 +108,7 @@ def test_02_inventar_produces_visible_interpretation(shadow_window):
     interp = win.candidates.interpretation_output
     text = interp.toPlainText()
     assert "Propuesta inventada" in text
-    assert "PROPUESTA" in text
+    assert "QUÉ SE PROPONE" in text
 
 
 # ---------------------------------------------------------------------------
@@ -317,8 +318,8 @@ class TestWidgetConVentana:
             entries = [{
                 "title": "Interpretación larga",
                 "estado_interpretacion": "PROPUESTA",
-                "hipotesis": [long_text],
-                "mecanismo": ["test"],
+                "hipotesis": long_text,
+                "mecanismo": "test",
                 "interpretacion_raw_output": long_text,
                 "interpretacion_error": "",
                 "interpretacion_provenance": {},
@@ -328,9 +329,14 @@ class TestWidgetConVentana:
 
             interp = win.candidates.interpretation_output
             # El texto debe estar presente
-            assert "Interpretación larga" in interp.toPlainText()
-            # Debe ser seleccionable (QPlainTextEdit es seleccionable por defecto)
-            assert interp.textInteractionFlags() is not None
+            assert long_text in interp.toPlainText()
+            # Exercise the actual claims, not the existence of a flags object.
+            from PySide6.QtCore import Qt
+
+            assert interp.textInteractionFlags() & Qt.TextInteractionFlag.TextSelectableByMouse
+            assert interp.verticalScrollBar().maximum() > 0
+            interp.selectAll()
+            assert "Línea de prueba" in interp.textCursor().selectedText()
         finally:
             win.close()
 

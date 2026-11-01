@@ -1,7 +1,31 @@
 """Contract: a Qt startup, stale artifact or synthetic proposal cannot pass M2/M3."""
 from copy import deepcopy
+from types import SimpleNamespace
 
 import pytest
+
+
+def test_deterministic_bundle_probe_does_not_call_the_cloud_generate_button(monkeypatch):
+    import sys
+    from pathlib import Path
+
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "shadow_ui"))
+    from shadow_bundle_probe import BundleProbe
+
+    calls = []
+    window = SimpleNamespace(problem="")
+    window.header = SimpleNamespace(problem_input=SimpleNamespace(
+        setText=lambda value: setattr(window, "problem", value),
+        returnPressed=SimpleNamespace(emit=lambda: None)))
+    window.topcards = SimpleNamespace(btn_gen=SimpleNamespace(
+        isEnabled=lambda: True, click=lambda: pytest.fail("cloud button is not a deterministic probe")))
+    monkeypatch.setattr("criba.ui.actions.on_generar", lambda win: calls.append(win))
+    probe = SimpleNamespace(window=window, mode="journey", screenshot=lambda _kind: None,
+                            timer=SimpleNamespace(start=lambda: None),
+                            fail=lambda error: pytest.fail(str(error)))
+    BundleProbe.begin(probe)
+    assert calls == [window]
+
 
 from scripts.verify_shadow_bundle_journey import summarize
 

@@ -29,6 +29,7 @@ from PySide6.QtGui import (
     QPixmap,
 )
 from PySide6.QtWidgets import (
+    QComboBox,
     QDialog,
     QFrame,
     QGridLayout,
@@ -50,7 +51,7 @@ from PySide6.QtWidgets import (
 
 from ..blackforge_catalog import records as bf_records
 from ..constants import DATA_ROOT
-from ..model_config import load_model_settings
+from ..lottery import VALID_LOTTERY_MODES
 from ..model_runtime import enhance_ideas_with_model
 from .interpreter import format_idea
 from .tokens import Tokens, load_tokens
@@ -619,13 +620,18 @@ class BlackforgeWindow(QMainWindow):
     def __init__(self, database: Any = None, query: str = "") -> None:
         super().__init__()
         self.database = database
+        self.invent_sheet: dict[str, Any] | None = None
+        self._proposal_dialog: Any = None
+        self._store: Any = None
         self.tokens: Tokens = load_tokens(DATA_ROOT / "theme_blackforge.json")
+        self.t = self.tokens
         self.snapshot = _catalog_snapshot()
         self.mode = "optimized"
         self.initial_query = query.strip()
         self._lottery_engine: Any = None
         self.pool = QThreadPool.globalInstance()
         self._busy = False
+        self._cancel_requested = False
         self._spin_index = 0
         self._spin_timer = QTimer(self)
         self._spin_timer.setInterval(120)
@@ -905,12 +911,47 @@ class BlackforgeWindow(QMainWindow):
             row.addWidget(mode_card, 1)
         layout.addLayout(row, 1)
 
+        controls = QHBoxLayout()
+        controls.setSpacing(6)
+        mode_label = QLabel("Sorteo:")
+        mode_label.setObjectName("bfQueryLabel")
+        controls.addWidget(mode_label)
+        self.mode_selector = QComboBox()
+        for key, label in (
+            ("optimized", "Optimizado"),
+            ("associative", "Asociativo"),
+            ("pure", "Puro"),
+            ("alternating", "Alternando"),
+            ("stratified", "Estratificado"),
+        ):
+            self.mode_selector.addItem(label, key)
+        self.mode_selector.setCurrentIndex(self.mode_selector.findData("optimized"))
+        self.mode_selector.currentIndexChanged.connect(
+            lambda _index: self._select_mode(str(self.mode_selector.currentData()))
+        )
+        controls.addWidget(self.mode_selector, 1)
+        seed_label = QLabel("Semilla:")
+        seed_label.setObjectName("bfQueryLabel")
+        controls.addWidget(seed_label)
+        self.seed_input = QLineEdit()
+        self.seed_input.setPlaceholderText("auto")
+        self.seed_input.setMaximumWidth(110)
+        self.seed_input.setToolTip(
+            "Vacío = semilla nueva; entero = ejecución reproducible."
+        )
+        controls.addWidget(self.seed_input)
+        layout.addLayout(controls)
+
         self.execute_button = QPushButton("▶    EJECUTAR GENERACIÓN")
         self.execute_button.setObjectName("bfExecuteButton")
         self.execute_button.setCursor(Qt.CursorShape.PointingHandCursor)
         self.execute_button.setFixedHeight(42)
         self.execute_button.clicked.connect(self._execute)
         layout.addWidget(self.execute_button)
+        self.cancel_button = QPushButton("Cancelar interpretación")
+        self.cancel_button.clicked.connect(self._cancel_generation)
+        self.cancel_button.hide()
+        layout.addWidget(self.cancel_button)
         self.mode_cards["optimized"].setChecked(True)
         return panel
 
@@ -930,6 +971,15 @@ class BlackforgeWindow(QMainWindow):
         self.model_status_label.setWordWrap(True)
         layout.addWidget(self.model_name_label)
         layout.addWidget(self.model_status_label)
+        from ..interprete.seleccion import BACKEND_EXTERNO, BACKEND_LOCAL, FREE_MODELS
+
+        self.interpreter_selector = QComboBox()
+        self.interpreter_selector.addItem("Configuración de CRIBA", (BACKEND_EXTERNO, ""))
+        for model_id, label in FREE_MODELS:
+            self.interpreter_selector.addItem(label + " · free", (BACKEND_EXTERNO, model_id))
+        self.interpreter_selector.addItem("Runtime local configurado", (BACKEND_LOCAL, ""))
+        self.interpreter_selector.currentIndexChanged.connect(self._refresh_model_panel)
+        layout.addWidget(self.interpreter_selector)
         configure = QPushButton("◇  CONFIGURAR / AÑADIR GGUF")
         configure.setObjectName("bfModelConfigButton")
         configure.clicked.connect(self._open_models)
@@ -1013,15 +1063,24 @@ class BlackforgeWindow(QMainWindow):
         elif key == "models":
             self._open_models()
         elif key == "history":
-            QMessageBox.information(
-                self,
-                "BLACKFORGE · Historial",
-                "El historial de sesiones permanece en CRIBA y se abre desde "
-                "su catálogo persistente.",
-            )
+            from .dialogs import show_history
+
+            loaded = show_history(self)
+            if loaded:
+                packet = loaded["packet"]
+                if packet.get("kind") == "invention_sheet":
+                    self.query_input.setText(packet["sheet"]["query"])
+                    self._apply_generation_result({"invention_sheet": packet["sheet"],
+                                                   "selected_index": packet["selected_index"]})
+                else:
+                    QMessageBox.information(
+                        self,
+                        "Historial",
+                        "Abre esta sesión determinista en Shadow.",
+                    )
 
     def _select_mode(self, key: str) -> None:
-        if key not in self.mode_cards:
+        if key not in VALID_LOTTERY_MODES:
             return
         self.mode = key
         for name, card in self.mode_cards.items():
@@ -1030,18 +1089,61 @@ class BlackforgeWindow(QMainWindow):
             "optimized": "MODO OPTIMIZADO",
             "associative": "LOTERÍA ASOCIATIVA",
             "pure": "LOTERÍA PURA",
+            "alternating": "ASOCIATIVA + PURA (ALTERNANDO)",
+            "stratified": "SORTEO ESTRATIFICADO",
         }
         self.mode_heading.setText(labels[key])
+        selector = getattr(self, "mode_selector", None)
+        if selector is not None:
+            index = selector.findData(key)
+            if index >= 0 and selector.currentIndex() != index:
+                selector.blockSignals(True)
+                selector.setCurrentIndex(index)
+                selector.blockSignals(False)
+
+    def _read_seed(self) -> int | None:
+        raw = self.seed_input.text().strip()
+        if not raw:
+            return None
+        try:
+            seed = int(raw, 10)
+        except ValueError as exc:
+            raise ValueError("La semilla debe ser un entero decimal.") from exc
+        if not 0 <= seed < 2**64:
+            raise ValueError("La semilla debe estar entre 0 y 2^64-1.")
+        return seed
 
     def _execute(self) -> None:
         if self._busy:
             return
+        query = self.query_input.text().strip()
+        if not query:
+            self.status_subtitle.setText("Define primero el problema o intención.")
+            return
+        from ..catalog import methods as catalog_methods
+        from ..invention_service import run_invention
+
+        records = [dict(record) for record in bf_records()]
+        records.extend(record for record in catalog_methods() if "operator_record" in record)
+        backend, model = self.interpreter_selector.currentData()
+        mode = self.mode
+        try:
+            seed = self._read_seed()
+        except ValueError as exc:
+            self.status_subtitle.setText(str(exc))
+            return
+        self._cancel_requested = False
         self._set_busy(True)
         from .actions import Worker, _start_worker
 
-        query = self.query_input.text().strip()
-        worker = Worker(lambda: self._build_generation_result(query))
-        worker.signals.done.connect(self._apply_generation_result)
+        worker = Worker(lambda: run_invention(
+            query, backend=backend, model=model or None, methods=records, mode=mode,
+            seed=seed, history_storage=self.store,
+            cancel_requested=lambda: self._cancel_requested,
+        ))
+        worker.signals.done.connect(
+            lambda sheet: self._apply_generation_result({"invention_sheet": sheet})
+        )
         worker.signals.fail.connect(self._on_generation_error)
         _start_worker(self, worker)
 
@@ -1059,10 +1161,14 @@ class BlackforgeWindow(QMainWindow):
         from ..lottery import LotteryEngine
 
         records = list(bf_records())
+        explicit_seed = self._read_seed()
         if self._lottery_engine is None:
             methods = [dict(row) for row in records]
             self._lottery_engine = LotteryEngine.from_methods(
-                methods, seed=random.SystemRandom().randint(0, 2**31 - 1)
+                methods,
+                seed=explicit_seed
+                if explicit_seed is not None
+                else random.SystemRandom().randint(0, 2**31 - 1),
             )
         self._lottery_engine.run_round(self.mode, batch_size=12)
         deterministic = self._lottery_engine.last_round_ideas
@@ -1082,6 +1188,30 @@ class BlackforgeWindow(QMainWindow):
         try:
             if not isinstance(result, dict):
                 raise ValueError("Resultado de generación no válido.")
+            if "invention_sheet" in result:
+                from .proposal_view import ProposalResultsDialog
+
+                self.invent_sheet = result["invention_sheet"]
+                entries = self.invent_sheet["entries"]
+                if self._proposal_dialog is not None:
+                    self._proposal_dialog.close()
+                self._proposal_dialog = ProposalResultsDialog(
+                    self.invent_sheet, self.store, self,
+                    selected_index=result.get("selected_index", 0),
+                )
+                self._proposal_dialog.show()
+                self.ideas_model.set_rows([
+                    (str(index), str(entry.get("hipotesis") or entry["title"]),
+                     " + ".join(entry.get("methods", [])), "Sin evaluar",
+                     "No comprobada", str(entry["estado_interpretacion"]))
+                    for index, entry in enumerate(entries, 1)
+                ])
+                valid = sum(entry.get("estado_interpretacion") == "PROPUESTA" for entry in entries)
+                self.status_subtitle.setText(
+                    f"{valid}/{len(entries)} propuestas · mecanismo no validado"
+                )
+                self.idea_detail_label.setText("Propuestas completas en la ventana de lectura.")
+                return
             ideas = result.get("ideas", [])
             rows: list[tuple[str, ...]] = []
             for index, idea in enumerate(ideas[:5], start=1):
@@ -1138,6 +1268,14 @@ class BlackforgeWindow(QMainWindow):
         finally:
             self._set_busy(False)
 
+    @property
+    def store(self) -> Any:
+        if self._store is None:
+            from ..storage import Storage
+
+            self._store = Storage(self.database) if self.database is not None else Storage()
+        return self._store
+
     def _on_generation_error(self, message: str) -> None:
         self._set_busy(False)
         first_line = message.splitlines()[0]
@@ -1157,24 +1295,27 @@ class BlackforgeWindow(QMainWindow):
         self.nav_buttons["home"].setChecked(True)
 
     def _refresh_model_panel(self) -> None:
-        settings = load_model_settings()
-        profile = settings.active_profile()
-        self.model_name_label.setText(
-            profile.name
-            if settings.enabled and profile is not None
-            else "Motor determinista"
+        from ..interprete.seleccion import construir_interprete
+
+        backend, model = self.interpreter_selector.currentData()
+        interpreter = construir_interprete(backend, model=model or None)
+        self.model_name_label.setText(str(getattr(interpreter, "model", "") or backend))
+        self.model_status_label.setText(
+            f"Seleccionado · {interpreter.provider} · disponibilidad al generar"
         )
-        if settings.enabled and profile is not None:
-            backend = "llama.cpp / GGUF" if profile.backend == "llama_cpp" else "Ollama"
-            self.model_status_label.setText(
-                f"● Activo · {backend} · reasoning {profile.reasoning}"
-            )
-        else:
-            self.model_status_label.setText("○ Modelo de lenguaje desactivado")
+
+    def _cancel_generation(self) -> None:
+        self._cancel_requested = True
+        self.cancel_button.setEnabled(False)
+        self.status_subtitle.setText("Cancelación solicitada tras la petición en curso.")
 
     def _set_busy(self, busy: bool) -> None:
         self._busy = busy
         self.execute_button.setEnabled(not busy)
+        self.interpreter_selector.setEnabled(not busy)
+        self.query_input.setEnabled(not busy)
+        self.cancel_button.setVisible(busy)
+        self.cancel_button.setEnabled(busy)
         if busy:
             self._spin_index = 0
             self.status_subtitle.setText("Combinando familias y mecanismos…")

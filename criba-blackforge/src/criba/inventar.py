@@ -29,6 +29,7 @@ import hashlib
 import json
 import os
 from collections.abc import Callable
+from copy import deepcopy
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -56,6 +57,7 @@ _PENDING: dict[str, Any] = {
     "supuestos": [],
     "prueba_concreta": "",
     "error": "",
+    "interpretacion_diagnostico": {},
 }
 
 
@@ -131,6 +133,11 @@ def _default_proponer(
     # siendo recuperable desde el ledger, pero no se pierde al construirla.
     if resultado.provenance is not None:
         campos["interpretacion_provenance"] = resultado.provenance.sin_secretos()
+    campos["interpretacion_error_kind"] = resultado.error_kind
+    if str(campos.get("error") or "").strip():
+        from .interprete.diagnostico import classify
+
+        campos["interpretacion_diagnostico"] = classify(resultado).as_dict()
     campos["interpretacion_raw_output"] = resultado.raw_output
     campos["interpretacion_finish_reason"] = resultado.finish_reason
     campos["interpretacion_usage"] = {
@@ -307,6 +314,7 @@ def invent(
     rounds: int = 2,
     batch_size: int = 8,
     top: int = 3,
+    mode: str = "stratified",
     offline: bool | None = None,
     methods: list[dict[str, Any]] | None = None,
     sources: list[IntelligenceSource] | None = None,
@@ -372,6 +380,10 @@ def invent(
         seed_source = "explicit"
     run_id = uuid.uuid4().hex  # identidad de ejecución independiente de la seed
 
+    records_for_run = [
+        LotteryEngine._normalize_method(method)
+        for method in (methods or catalog_methods())
+    ]
     history = None
     first_seen: dict[tuple[str, str], str] | None = None
     if history_storage is True:
@@ -387,7 +399,7 @@ def invent(
         try:
             import hashlib as _hashlib
 
-            ids = sorted(str(m["id"]) for m in (methods or catalog_methods()))
+            ids = sorted(str(m["id"]) for m in records_for_run)
             fingerprint = _hashlib.sha256(",".join(ids).encode("utf-8")).hexdigest()
             first_seen = history.load_combination_first_seen(fingerprint)
         except Exception:  # noqa: BLE001 — degradación elegante (DV9)
@@ -395,15 +407,18 @@ def invent(
 
     active_outcome_store = outcome_store if adaptive else None
     engine = LotteryEngine.from_methods(
-        methods or catalog_methods(),
+        records_for_run,
         seed=seed,
         outcome_store=active_outcome_store,
         outcome_profile="CRIBA",
         outcome_canon_version=canon_version,
     )
     for _ in range(rounds):
-        engine.run_round(mode="stratified", batch_size=batch_size, query=query)
+        # The selector/RNG remain unchanged; complete selected records travel
+        # only when the already-chosen cross reaches the interpreter.
+        engine.run_round(mode=mode, batch_size=batch_size, query=query)
     domain = engine.draw_domain()
+    operational_by_id = {str(method["id"]): method for method in records_for_run}
     # Selección finalista diversity-aware (megaprompt §24-§28): pool de alta
     # calidad → selector MMR → finalistas. get_top_ideas sigue existiendo
     # para sus otros consumidores; el flujo de invención ya no depende solo
@@ -435,7 +450,7 @@ def invent(
                 engine.catalog_fingerprint,
                 sorted(engine.used_combos),
                 run_id=run_id,
-                mode="stratified",
+                mode=mode,
                 seed=seed,
             )
         except Exception:  # noqa: BLE001 — DV9: persistencia opcional
@@ -476,7 +491,15 @@ def invent(
 
     def _desarrollar(idea: dict[str, Any], index: int) -> dict[str, Any]:
         """Propuesta → crítica → antecedentes para un candidato del pool."""
-        idea_enviada = {**idea, "evidence_context": acquisition_context}
+        records = [
+            deepcopy(operational_by_id[str(idea[slot + "_id"])])
+            for slot in ("method1", "method2")
+        ]
+        idea_enviada = {
+            **idea,
+            "evidence_context": acquisition_context,
+            "cross_operational_records": deepcopy(records),
+        }
         if ficha_bloqueo:
             idea_enviada = {**idea_enviada, "bloqueo": {
                 **ficha_bloqueo, "lecciones_previas": lecciones}}
@@ -500,7 +523,16 @@ def invent(
                 or not isinstance(proposal.get("mecanismo"), str)
                 or not proposal["mecanismo"].strip()):
             if proposal.get("estado") == "PROPUESTA":
-                proposal = _pending_proposal("PROPUESTA sin mecanismo")
+                preserved = {
+                    "interpretacion_error_kind": proposal.get("interpretacion_error_kind", ""),
+                    "interpretacion_raw_output": proposal.get("interpretacion_raw_output", ""),
+                    "interpretacion_finish_reason": proposal.get("interpretacion_finish_reason", ""),
+                    "interpretacion_usage": dict(proposal.get("interpretacion_usage") or {}),
+                    "interpretacion_provenance": dict(proposal.get("interpretacion_provenance") or {}),
+                    "interpretacion_model_requests": proposal.get("interpretacion_model_requests"),
+                    "interpretacion_diagnostico": dict(proposal.get("interpretacion_diagnostico") or {}),
+                }
+                proposal = {**_pending_proposal("PROPUESTA sin mecanismo"), **preserved}
         candidate = InventionCandidate(
             candidate_id=f"{candidate_prefix}-{index + 1:02d}",
             title=str(idea.get("title", ""))[:120],
@@ -521,6 +553,7 @@ def invent(
             "classes": [idea.get("class1", ""), idea.get("class2", "")],
             "methods": [idea.get("method1", ""), idea.get("method2", "")],
             "method_ids": [idea.get("method1_id", ""), idea.get("method2_id", "")],
+            "cross_operational_records": records,
             # Entrega fiel al consumidor: el pool del lote expone ``family`` y
             # ``genome`` (lo que lee el selector diversity-aware y el dossier).
             # Antes se proyectaban fuera y el dossier los recibía vacíos.
@@ -541,6 +574,8 @@ def invent(
                 "interpretacion_model_requests",
             )},
             "interpretacion_error": proposal.get("error", ""),
+            "interpretacion_error_kind": proposal.get("interpretacion_error_kind", ""),
+            "interpretacion_diagnostico": dict(proposal.get("interpretacion_diagnostico") or {}),
             "interpretacion_raw_output": proposal.get("interpretacion_raw_output", ""),
             "interpretacion_finish_reason": proposal.get("interpretacion_finish_reason", ""),
             "interpretacion_usage": dict(proposal.get("interpretacion_usage") or {}),
@@ -701,7 +736,7 @@ def invent(
         "seed": seed,
         "seed_source": seed_source,
         "run_id": run_id,
-        "mode": "stratified",
+        "mode": mode,
         "rounds": rounds,
         "reproducibility_dependencies": reproducibility_dependencies,
         "adaptation": {
@@ -934,6 +969,13 @@ def append_ledger(sheet: dict[str, Any], ledger_dir: Path | None = None) -> Path
                 "prueba_concreta": e["prueba_concreta"],
                 "ruta_desbloqueo": e["ruta_desbloqueo"],
                 "supuestos": e["supuestos"],
+                "interpretacion_error": e.get("interpretacion_error", ""),
+                "interpretacion_error_kind": e.get("interpretacion_error_kind", ""),
+                "interpretacion_diagnostico": dict(e.get("interpretacion_diagnostico") or {}),
+                "interpretacion_finish_reason": e.get("interpretacion_finish_reason", ""),
+                "interpretacion_usage": dict(e.get("interpretacion_usage") or {}),
+                "interpretacion_provenance": dict(e.get("interpretacion_provenance") or {}),
+                "interpretacion_model_requests": e.get("interpretacion_model_requests"),
                 "estado_antecedentes": e["estado_antecedentes"],
                 "evidence_retrieved": list(
                     e.get("evidence_retrieved", e.get("evidencia_local_usada", []))

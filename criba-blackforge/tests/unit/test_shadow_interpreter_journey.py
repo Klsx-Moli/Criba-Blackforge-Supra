@@ -12,6 +12,7 @@ import sys
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
+
 from verification.interpreter_cases import resultado
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
@@ -104,6 +105,49 @@ def test_default_proponer_conserva_diagnostico_visible_sin_alterar_contrato():
     assert campos["interpretacion_provenance"]["request_id"] == "req-visible-1"
 
 
+def test_default_proponer_conserva_diagnostico_de_fallo_del_proveedor():
+    class _InterpreteFallido:
+        backend = "openai_compatible"
+        provider = "fixture"
+        model = "fixture-model"
+
+        def proponer(self, *_args: Any, **_kwargs: Any) -> InterpretationResult:
+            return InterpretationResult(
+                estado="PENDIENTE_INTERPRETACION",
+                error="validacion:falta_mecanismo",
+                error_kind="schema",
+                provenance=_provenance(),
+                raw_output='{"mecanismo": ""}',
+                finish_reason="stop",
+                completion_tokens=12,
+                reasoning_tokens=0,
+                model_requests=2,
+            )
+
+    campos = _default_proponer(
+        "problema",
+        {"title": "A+B", "method1": "A", "method2": "B"},
+        {"title": "dominio"},
+        interprete=_InterpreteFallido(),
+    )
+    assert campos["estado"] == "PENDIENTE_INTERPRETACION"
+    assert campos["error"] == "validacion:falta_mecanismo"
+    assert campos["interpretacion_error_kind"] == "schema"
+    assert campos["interpretacion_raw_output"] == '{"mecanismo": ""}'
+    assert campos["interpretacion_finish_reason"] == "stop"
+    assert campos["interpretacion_usage"] == {
+        "completion_tokens": 12,
+        "reasoning_tokens": 0,
+    }
+    assert campos["interpretacion_provenance"]["request_id"] == "req-visible-1"
+    assert campos["interpretacion_model_requests"] == 2
+    diagnostico = campos["interpretacion_diagnostico"]
+    assert diagnostico["error_code"] == "SCHEMA_VALIDATION_FAILED"
+    assert diagnostico["phase"] == "validacion"
+    assert diagnostico["retryable"] is False
+    assert diagnostico["next_action"]
+
+
 def test_run_inventar_fija_una_instancia_de_interprete_por_run(monkeypatch, tmp_path):
     interprete = _InterpreteFalso()
     construcciones: list[tuple[str, str | None]] = []
@@ -167,20 +211,23 @@ def test_run_inventar_fija_una_instancia_de_interprete_por_run(monkeypatch, tmp_
     assert [p["completed"] for p in progresos] == [1, 2]
 
 
-def test_shadow_expone_selector_real_y_salidas_copiables(qapp, tmp_path):
+def test_shadow_expone_selector_real_y_salidas_copiables(qapp, tmp_path, monkeypatch):
     from shadow_window import ShadowWindow
 
+    monkeypatch.setenv("CRIBA_MODEL_CONFIG", str(tmp_path / "no-local-model.json"))
     win = ShadowWindow(database=str(tmp_path / "shadow.sqlite3"))
     try:
         selector = win.topcards.interpreter_selector
         from criba.interprete.seleccion import BACKEND_LOCAL, FREE_MODELS
 
-        # Space Bunny (externo por defecto) primero; luego los modelos gratuitos
+        # El modelo externo configurado primero; luego los modelos gratuitos
         # del proxy; "Cargar modelo" (local) al final.
         assert selector.count() == 2 + len(FREE_MODELS)
         assert selector.itemData(0) == "openai_compatible"
         assert "Nous/Hermes" in selector.itemText(0)
-        assert "Space Bunny" in selector.itemText(0)
+        from criba.interprete.openai_compatible import OpenAICompatibleInterpreter
+
+        assert OpenAICompatibleInterpreter().model in selector.itemText(0)
         # Cada modelo free lleva (backend, model) con su id real del catálogo.
         for offset, (model_id, label) in enumerate(FREE_MODELS, start=1):
             data = selector.itemData(offset)
@@ -192,7 +239,12 @@ def test_shadow_expone_selector_real_y_salidas_copiables(qapp, tmp_path):
         local_index = selector.count() - 1
         assert selector.itemData(local_index) == BACKEND_LOCAL
         assert selector.itemText(local_index) == "Cargar modelo"
-        assert "local" in win.topcards.interpreter_status.text().lower()
+        from PySide6.QtCore import Qt
+
+        assert selector.itemData(local_index, Qt.ItemDataRole.ToolTipRole) == actions._t(
+            "shadow.interpreter.local"
+        )
+        assert "al generar" in win.topcards.interpreter_status.text().lower()
         for widget in (
             win.candidates.raw_output,
             win.candidates.interpretation_output,
@@ -250,6 +302,12 @@ def test_todas_pendientes_muestra_operacion_terminada_sin_fingir_exito(qapp, tmp
                 "prueba_concreta": "",
                 "ruta_desbloqueo": "",
                 "interpretacion_error": "timeout",
+                "interpretacion_diagnostico": {
+                    "error_code": "TIMEOUT",
+                    "phase": "transporte",
+                    "retryable": True,
+                    "next_action": "El proveedor no respondió a tiempo.",
+                },
                 "interpretacion_raw_output": "",
                 "interpretacion_finish_reason": "",
                 "interpretacion_usage": {},
@@ -279,11 +337,89 @@ def test_todas_pendientes_muestra_operacion_terminada_sin_fingir_exito(qapp, tmp
         assert "0 propuestas válidas" in win.refs["ideaEstadoChip"].text()
         assert "interpretación pendiente: 1" in win.refs["ideaSummary"].text()
         assert "timeout" in win.candidates.raw_output.toPlainText()
-        assert "MOTIVO\ntimeout" in win.candidates.interpretation_output.toPlainText()
+        pending_text = win.candidates.interpretation_output.toPlainText()
+        assert "MOTIVO\ntimeout" in pending_text
+        assert "TIMEOUT" in pending_text
+        assert "transporte" in pending_text
+        assert "Reintentable" in pending_text
         assert win.candidates.output_tabs.currentWidget() is win.candidates.interpretation_output
         assert not win.right_panel.supra.isEnabled(), (
             "sin propuesta válida no se puede iniciar SUPRA"
         )
+    finally:
+        win.close()
+        qapp.processEvents()
+
+
+def test_rechazo_de_critica_se_muestra_como_rechazo_no_como_pendiente(qapp, tmp_path):
+    from shadow_window import ShadowWindow
+
+    win = ShadowWindow(database=str(tmp_path / "critique-rejected.sqlite3"))
+    sheet = {
+        "query": "problema rechazado",
+        "seed": 9,
+        "mode": "stratified",
+        "entries": [
+            {
+                "title": "candidato rechazado",
+                "estado_interpretacion": "PENDIENTE_INTERPRETACION",
+                "hipotesis": "hipotesis no admitida",
+                "mecanismo": "",
+                "aportacion_por_tecnica": [],
+                "supuestos": [],
+                "prueba_concreta": "",
+                "ruta_desbloqueo": "",
+                "interpretacion_error": (
+                    "critica_rechazada:critica.fiel_evidencia; critica.objeciones"
+                ),
+                "interpretacion_error_kind": "critique_rejected",
+                "interpretacion_diagnostico": {
+                    "error_code": "CRITIQUE_REJECTED",
+                    "phase": "critica",
+                    "retryable": False,
+                    "next_action": (
+                        "La crítica rechazó la propuesta; revisa las objeciones "
+                        "y genera otra. No es un fallo del proveedor."
+                    ),
+                },
+                "critica": {
+                    "evaluation_status": "REJECTED",
+                    "respuesta": {
+                        "objeciones": [
+                            "La evidencia no sostiene la causalidad.",
+                            "No se declaran restricciones de contención.",
+                        ]
+                    },
+                },
+                "interpretacion_raw_output": "",
+                "interpretacion_finish_reason": "",
+                "interpretacion_usage": {},
+                "interpretacion_provenance": _provenance().sin_secretos(),
+                "prior_art": {"verdict": "UNRESOLVED"},
+            }
+        ],
+        "totals": {
+            "ideas": 1,
+            "pending_interpretation": 1,
+            "unresolved": 1,
+            "partial_prior_art": 0,
+            "survived_search": 0,
+        },
+        "interpreter": {
+            "provider": "nous_oauth_subscription_proxy",
+            "model_requested": "poolside/laguna-s-2.1:free",
+            "conectado": True,
+            "motivo": "endpoint y modelo disponibles",
+        },
+    }
+    try:
+        actions._on_invented(win, sheet)
+        text = win.candidates.interpretation_output.toPlainText()
+        assert "PROPUESTA RECHAZADA" in text
+        assert "PENDIENTE DE INTERPRETACIÓN" not in text
+        assert "CRITIQUE_REJECTED" in text
+        assert "OBJECIONES" in text
+        assert "La evidencia no sostiene la causalidad." in text
     finally:
         win.close()
         qapp.processEvents()
@@ -360,6 +496,9 @@ def test_on_invented_renderiza_bruto_interpretacion_y_provenance(qapp, tmp_path)
         assert raw in win.candidates.raw_output.toPlainText()
         interpretada = win.candidates.interpretation_output.toPlainText()
         assert "h completa" in interpretada and "m completo" in interpretada
+        assert "stealth/space-bunny-alpha" not in interpretada
+        win.candidates.mas_expandir_btn.click()
+        interpretada = win.candidates.interpretation_output.toPlainText()
         assert "stealth/space-bunny-alpha" in interpretada
         assert "Finalización: stop" in interpretada
         assert "req-visible-1" in interpretada
@@ -455,7 +594,18 @@ def test_interpretacion_muestra_un_candidato_por_vez_y_navega(qapp, tmp_path):
 
 
 def _lookup_falso(project_id: str = "proj-real-1") -> SimpleNamespace:
-    receipt = SimpleNamespace(model_dump=lambda: {"criba_dossier_id": "dossier-real-1"})
+    receipt = SimpleNamespace(model_dump=lambda: {
+        "receipt_scope": "PLANNED_DISCRIMINANT_PROTOCOL_ONLY",
+        "execution_status": "NOT_EXECUTED",
+        "scientific_status": "NOT_VALIDATED",
+        "integration_version": "criba-supra/1",
+        "payload_fingerprint": "sha256:" + "0" * 64,
+        "criba_dossier_id": "dossier-real-1",
+        "criba_candidate_id": "c",
+        "claim_id": "cl",
+        "mechanism_version": "mv",
+        "protocol_version": "pv",
+    })
     posture = SimpleNamespace(criba_dossier_receipt=receipt)
     return SimpleNamespace(
         status="blocked",
@@ -476,11 +626,12 @@ def _lookup_falso(project_id: str = "proj-real-1") -> SimpleNamespace:
     )
 
 
-def test_dossier_interpretado_hace_post_y_get_en_la_misma_ruta():
+def test_dossier_interpretado_hace_post_y_get_en_la_misma_ruta(monkeypatch, tmp_path):
+    monkeypatch.setenv("CRIBASHADOW_HOME", str(tmp_path))
     llamadas: list[tuple[str, str]] = []
-    lookup = _lookup_falso()
+    lookup = _lookup_falso("astram2-291ab34bfb5e990a92372c3d6fa1f6f5")
     posted = SimpleNamespace(
-        project_id="proj-real-1",
+        project_id="astram2-291ab34bfb5e990a92372c3d6fa1f6f5",
         status="blocked",
         completion_status="BLOCKED",
         workflow_status="BLOCKED",
@@ -505,9 +656,29 @@ def test_dossier_interpretado_hace_post_y_get_en_la_misma_ruta():
             llamadas.append(("GET", project_id))
             return lookup
 
-    dossier = {"dossier_id": "dossier-real-1"}
+    dossier = {"dossier_id": "dossier-real-1", "candidate_id": "c", "claim_id": "cl",
+              "mechanism_version": "mv", "protocol_version": "pv",
+              "estado": "SUPRA_EJECUCION_PENDIENTE",
+              "hipotesis": "h", "mecanismo": "m", "problema": "p",
+              "prueba_discriminante": {"observable": "o", "intervencion_prueba": "i",
+                                      "regla_decision": "r", "condicion_fracaso": "c"}}
+    from criba.integrations.supra_client import _dossier_payload_fingerprint
+    lookup.posture.criba_dossier_receipt = SimpleNamespace(model_dump=lambda: {
+        "receipt_scope": "PLANNED_DISCRIMINANT_PROTOCOL_ONLY",
+        "execution_status": "NOT_EXECUTED",
+        "scientific_status": "NOT_VALIDATED",
+        "integration_version": "criba-supra/1",
+        "payload_fingerprint": _dossier_payload_fingerprint(dossier),
+        "criba_dossier_id": dossier["dossier_id"],
+        "criba_candidate_id": dossier["candidate_id"],
+        "claim_id": dossier["claim_id"],
+        "mechanism_version": dossier["mechanism_version"],
+        "protocol_version": dossier["protocol_version"],
+    })
     report = actions._execute_supra_dossiers([dossier], client=_Cliente())
-    assert llamadas == [("POST", "auto"), ("GET", "proj-real-1")]
+    assert llamadas == [("POST", "astram2-291ab34bfb5e990a92372c3d6fa1f6f5"),
+                        ("GET", "astram2-291ab34bfb5e990a92372c3d6fa1f6f5"),
+                        ("GET", "astram2-291ab34bfb5e990a92372c3d6fa1f6f5")]
     assert report["dossiers"] == [dossier]
     assert report["runs"][0]["read"]["status_source"] == "PERSISTED_STATE"
     assert report["runs"][0]["read"]["persisted_artifact_status"] == (
@@ -557,6 +728,7 @@ def test_reapertura_recupera_ultimo_get_y_dossier_local(monkeypatch, tmp_path):
 
     monkeypatch.setenv("CRIBASHADOW_HOME", str(tmp_path))
     dossier = {
+        "estado": "SUPRA_EJECUCION_PENDIENTE",
         "dossier_id": "dossier-real-1", "candidate_id": "candidate-reopen",
         "claim_id": "claim-reopen", "mechanism_version": "sha256:" + "a" * 64,
         "protocol_version": "sha256:" + "b" * 64, "mecanismo": "m recuperado",
@@ -564,7 +736,13 @@ def test_reapertura_recupera_ultimo_get_y_dossier_local(monkeypatch, tmp_path):
     guardar_dossier(dossier)
     guardar_dossier({**dossier, "dossier_id": "newer-unsent-draft"})
     lookup = _lookup_falso("proj-reopen-1")
+    from criba.integrations.supra_client import _dossier_payload_fingerprint
     lookup.posture.criba_dossier_receipt = SimpleNamespace(model_dump=lambda: {
+        "receipt_scope": "PLANNED_DISCRIMINANT_PROTOCOL_ONLY",
+        "execution_status": "NOT_EXECUTED",
+        "scientific_status": "NOT_VALIDATED",
+        "integration_version": "criba-supra/1",
+        "payload_fingerprint": _dossier_payload_fingerprint(dossier),
         "criba_dossier_id": dossier["dossier_id"],
         "criba_candidate_id": dossier["candidate_id"],
         **{key: dossier[key] for key in ("claim_id", "mechanism_version", "protocol_version")},
@@ -577,7 +755,7 @@ def test_reapertura_recupera_ultimo_get_y_dossier_local(monkeypatch, tmp_path):
             return SimpleNamespace(model_dump=lambda: {"status": "healthy"})
 
         def list_projects(self, *, limit: int):
-            assert limit == 1
+            assert limit == 20
             return SimpleNamespace(projects=[{"project_id": "proj-reopen-1"}])
 
         def get_project(self, project_id: str):

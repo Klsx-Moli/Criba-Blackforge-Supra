@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Any
 
 import criba.ui.actions as actions
+from criba.interprete.diagnostico import CRITIQUE_REJECTED
 from criba.ui.i18n import on_change as _i18n_on_change
 from criba.ui.i18n import t as _t
 from criba.ui.i18n import toggle as _i18n_toggle
@@ -604,7 +605,10 @@ class SidebarWidget(QWidget):
         bottom_lay.setContentsMargins(0, 0, 0, 0)
         bottom_lay.setSpacing(0)
         landscape = QLabel()
-        landscape.setPixmap(_landscape_pixmap(194, 215) if getattr(self.win, "_compact_layout", False) else _landscape_pixmap(264, 381))
+        compact = getattr(self.win, "_compact_layout", False)
+        landscape.setPixmap(
+            _landscape_pixmap(194, 215) if compact else _landscape_pixmap(264, 381)
+        )
         landscape.setScaledContents(True)
         bottom_lay.addWidget(landscape, 0, 0)
 
@@ -644,6 +648,19 @@ class SidebarWidget(QWidget):
 # ---------------------------------------------------------------------------
 # Header — input problema + modelo + ES + notificaciones
 # ---------------------------------------------------------------------------
+
+def _selected_interpreter_label(win: Any) -> str:
+    """Configuration is not availability; never contact a model for a label."""
+    from criba.interprete.openai_compatible import OpenAICompatibleInterpreter
+    from criba.model_config import active_model_label
+
+    selector = getattr(getattr(win, "topcards", None), "interpreter_selector", None)
+    data = selector.currentData() if selector is not None else "openai_compatible"
+    backend, model = data if isinstance(data, (tuple, list)) else (data, None)
+    if backend == "local_llama":
+        return active_model_label()
+    return OpenAICompatibleInterpreter(model=model or None).model
+
 
 class HeaderWidget(QWidget):
     def __init__(self, win: ShadowWindow) -> None:
@@ -727,28 +744,14 @@ class HeaderWidget(QWidget):
 
     # ------------------------------------------------- modelo local (real)
     def refresh_model_label(self) -> None:
-        """Etiqueta REAL del modelo activo, no el texto fijo de la maqueta.
-
-        La composición mostraba "Modelo local · Desactivado" hardcodeado aunque
-        hubiera perfil activo. Aquí se lee la misma fuente que el footer clásico
-        (model_config.active_model_label) y el botón queda clicable hacia el
-        gestor compartido de modelos (actions.on_modelos).
-        """
-        label = _t("shadow.desactivado")
+        """Reflect the selected interpreter without pretending it is connected."""
+        label = "Configuración no disponible"
         try:
-            from criba.model_config import active_model_label, load_model_settings
-
-            settings = load_model_settings()
-            if settings.enabled and settings.active_profile() is not None:
-                label = active_model_label(settings)
+            label = _selected_interpreter_label(self.win)
         except Exception:
-            label = _t("shadow.desactivado")
+            pass
         self.model_btn.setText(f"  {_t('shadow.modelo')} · {label}")
-        if label == _t("shadow.desactivado"):
-            self.model_btn.setToolTip(_t("shadow.modelo.tip_off"))
-        else:
-            self.model_btn.setToolTip(
-                f"Modelo activo: {label} — clic para gestionar perfiles (Modelos IA)")
+        self.model_btn.setToolTip(f"Modelo seleccionado: {label}; disponibilidad al generar")
 
     def _open_modelos(self) -> None:
         """Clic en la cabecera → gestor de modelos compartido y refresco real."""
@@ -860,6 +863,34 @@ class TopCardsWidget(QWidget):
         )
         selector_row.addWidget(self.interpreter_selector, stretch=1)
         l2.addLayout(selector_row)
+
+        controls_row = QHBoxLayout()
+        controls_row.setSpacing(6)
+        mode_label = QLabel("Sorteo:")
+        mode_label.setProperty("caption", True)
+        controls_row.addWidget(mode_label)
+        self.mode_selector = QComboBox()
+        for key, label in (
+            ("optimized", "Optimizado"),
+            ("associative", "Asociativo"),
+            ("pure", "Puro"),
+            ("alternating", "Alternando"),
+            ("stratified", "Estratificado"),
+        ):
+            self.mode_selector.addItem(label, key)
+        self.mode_selector.setCurrentIndex(self.mode_selector.findData("stratified"))
+        self.mode_selector.setToolTip("Modo del sorteo de métodos para esta ejecución.")
+        controls_row.addWidget(self.mode_selector, stretch=1)
+        seed_label = QLabel("Semilla:")
+        seed_label.setProperty("caption", True)
+        controls_row.addWidget(seed_label)
+        self.seed_input = QLineEdit()
+        self.seed_input.setPlaceholderText("auto")
+        self.seed_input.setMaximumWidth(110)
+        self.seed_input.setToolTip("Vacío = semilla nueva; entero = ejecución reproducible.")
+        controls_row.addWidget(self.seed_input)
+        l2.addLayout(controls_row)
+
         self.interpreter_status = QLabel(
             _t("shadow.interpreter.status")
         )
@@ -894,7 +925,7 @@ class TopCardsWidget(QWidget):
             QPushButton:disabled {{ background: #0A1A18; border-color: #1E3A30; color: #3A6A58; }}
         """)
         self.btn_gen = btn_gen
-        btn_gen.clicked.connect(lambda: actions.on_generar(win))
+        btn_gen.clicked.connect(lambda: actions.on_inventar(win))
         _glow(btn_gen, SUCCESS, 26)
         btn_row.addWidget(btn_gen, stretch=1)
         btn_inv = QPushButton("⚗ Inventar")
@@ -913,8 +944,9 @@ class TopCardsWidget(QWidget):
         bind_text(score_label, "shadow.mejor_score")
         score_row.addWidget(score_label)
         score_val = QLabel("")
+        score_size = 19 if getattr(win, "_compact_layout", False) else 28
         score_val.setStyleSheet(
-            f"font-size: {19 if getattr(win, '_compact_layout', False) else 28}px; font-weight: 800; color: {ACCENT}; "
+            f"font-size: {score_size}px; font-weight: 800; color: {ACCENT}; "
             "background: transparent;"
         )
         self.score_val = score_val
@@ -1088,6 +1120,8 @@ class CandidatesWidget(QWidget):
 
         # Botón "Más/Expandir" para detalles secundarios
         self.details_expanded = False
+        for tab_index in (1, 2, 3):
+            self.output_tabs.setTabVisible(tab_index, False)
         self.mas_expandir_btn = QPushButton("Más ▼")
         self.mas_expandir_btn.setProperty("ghost", True)
         self.mas_expandir_btn.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -1237,6 +1271,10 @@ class CandidatesWidget(QWidget):
         return text or "No declarado"
 
     def _format_interpretation(self, entry: dict[str, Any], index: int) -> str:
+        if not self.details_expanded:
+            from criba.ui.proposal_view import format_proposal
+
+            return format_proposal(entry, index, len(self.interpretation_entries))
         title = str(entry.get("title") or f"candidato {index}").strip()
         state = str(entry.get("estado_interpretacion") or "PENDIENTE_INTERPRETACION")
         error = str(entry.get("interpretacion_error") or "").strip()
@@ -1261,10 +1299,35 @@ class CandidatesWidget(QWidget):
                 + json.dumps(entry.get("prueba") or {}, ensure_ascii=False, indent=2),
             ))
         else:
+            diagnostic = entry.get("interpretacion_diagnostico")
+            rejected = (
+                isinstance(diagnostic, dict)
+                and diagnostic.get("error_code") == CRITIQUE_REJECTED
+            )
+            if rejected:
+                sections.append("RESULTADO\nPropuesta rechazada por la crítica")
             sections.append(f"MOTIVO\n{error or 'sin motivo declarado'}")
             route = str(entry.get("ruta_desbloqueo") or "").strip()
             if route:
                 sections.append(f"RUTA DE DESBLOQUEO\n{route}")
+            if isinstance(diagnostic, dict) and diagnostic:
+                code = str(diagnostic.get("error_code") or "").strip()
+                phase = str(diagnostic.get("phase") or "").strip()
+                http_status = diagnostic.get("http_status")
+                retryable = diagnostic.get("retryable")
+                next_action = str(diagnostic.get("next_action") or "").strip()
+                detail = [
+                    f"Código: {code}" if code else "",
+                    f"Fase: {phase}" if phase else "",
+                    f"HTTP: {http_status}" if http_status is not None else "",
+                    (
+                        "Reintentable: sí" if retryable else "Reintentable: no"
+                    ) if retryable is not None else "",
+                    f"Siguiente acción: {next_action}" if next_action else "",
+                ]
+                detail = [part for part in detail if part]
+                if detail:
+                    sections.append("DIAGNÓSTICO\n" + "\n".join(detail))
         critica = entry.get("critica")
         if isinstance(critica, dict) and critica:
             sections.append(_t("shadow.interpreter.critica") + "\n"
@@ -1309,6 +1372,10 @@ class CandidatesWidget(QWidget):
             f"SALIDA BRUTA · Propuesta {position} de {total}\n{title}\n\n{raw_body}"
         )
         self.interpretation_output.setPlainText(self._format_interpretation(entry, position))
+        self.save_idea.setEnabled(
+            entry.get("estado_interpretacion") == "PROPUESTA"
+            and bool(str(entry.get("mecanismo") or "").strip())
+        )
         self.interpreter_position.setText(f"Interpretación {position} de {total}")
         self.interpreter_previous.setEnabled(position > 1)
         self.interpreter_next.setEnabled(position < total)
@@ -1344,6 +1411,9 @@ class CandidatesWidget(QWidget):
             self.output_tabs.setTabVisible(3, False)
             # Volver a la pestaña de interpretación
             self.output_tabs.setCurrentIndex(0)
+
+        if self.interpretation_entries:
+            self.show_interpreter_entry(self.interpretation_index)
 
 
 # ---------------------------------------------------------------------------
@@ -1565,15 +1635,10 @@ class FooterWidget(QWidget):
                           else _t("shadow.footer.sin_sesion"))
 
     def refresh_model_state(self) -> None:
-        """Pie real: refleja el perfil activo (la maqueta decía 'desactivado' fijo)."""
-        label, sub = _t("shadow.footer.modelo_off"), _t("shadow.footer.modelo_off.sub")
+        """Same selection as the run, not the unrelated legacy enhancer profile."""
+        label, sub = "Configuración no disponible", "Disponibilidad al generar"
         try:
-            from criba.model_config import active_model_label, load_model_settings
-
-            settings = load_model_settings()
-            if settings.enabled and settings.active_profile() is not None:
-                label = active_model_label(settings)
-                sub = _t("shadow.footer.gen_local")
+            label = _selected_interpreter_label(self.win)
         except Exception:
             pass
         title = getattr(self.model_block, "_title_label", None)
@@ -1714,6 +1779,11 @@ class ShadowWindow(QMainWindow):
     # ------------------------------------------------------------------
     # Estado real del modelo (cabecera + pie)
     # ------------------------------------------------------------------
+    @property
+    def interpreter_selector(self) -> QComboBox:
+        """Expose the real selector to the shared action contract."""
+        return self.topcards.interpreter_selector
+
     def refresh_model_state(self) -> None:
         """Refresca cabecera y pie con el perfil real (una sola fuente)."""
         self.header.refresh_model_label()
