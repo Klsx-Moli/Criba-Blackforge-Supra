@@ -24,6 +24,7 @@ def offline_inference_boundary(monkeypatch, tmp_path, request):
 
         if os.environ.get("CRIBA_EXTERNAL_BASE_URL") != "http://127.0.0.1:8645/v1":
             pytest.fail("Live acceptance requires the approved guarded proxy endpoint")
-        BudgetLedger(Path(ledger_path), "poolside/laguna-s-2.1:free", "http://127.0.0.1:8645/v1")
+        model = os.environ.get("CRIBA_EXTERNAL_MODEL", "poolside/laguna-s-2.1:free")
+        BudgetLedger(Path(ledger_path), model, "http://127.0.0.1:8645/v1")
     monkeypatch.setenv("CRIBA_MODEL_CONFIG", str(tmp_path / "isolated-model-settings.json"))
     install_offline_guard(monkeypatch, live_proxy=bool(ledger_path))
