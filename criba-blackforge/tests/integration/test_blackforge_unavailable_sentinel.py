@@ -4,6 +4,7 @@ P0 Sentinel: BLACKFORGE unavailable must not block CRIBA+SUPRA.
 Each test runs in a subprocess with BLACKFORGE modules blocked in sys.modules
 to prove real independence, not just absence of import errors.
 """
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -22,11 +23,20 @@ def _criba_python():
 
 def _supra_python():
     """Resolve SUPRA interpreter: env var or venv path."""
-    import os
     env_py = os.environ.get("SUPRA_PYTHON")
     if env_py:
         return Path(env_py)
     return SUPRA_DIR / ".venv" / "Scripts" / "python.exe"
+
+
+def _criba_env():
+    env = os.environ.copy()
+    source_root = str(CRIBA_BLACKFORGE_DIR / "src")
+    existing_path = env.get("PYTHONPATH")
+    env["PYTHONPATH"] = (
+        source_root + os.pathsep + existing_path if existing_path else source_root
+    )
+    return env
 
 
 def _block_blackforge_and_run(code: str, extra_path: str = ""):
@@ -61,7 +71,7 @@ def test_criba_imports_without_blackforge():
     result = subprocess.run(
         [sys.executable, "-c", code],
         capture_output=True, text=True, timeout=30,
-        cwd=str(CRIBA_BLACKFORGE_DIR)
+        cwd=str(CRIBA_BLACKFORGE_DIR), env=_criba_env()
     )
     assert result.returncode == 0, f"CRIBA import failed: {result.stderr}"
 
@@ -107,7 +117,7 @@ def test_criba_activate_runs_without_blackforge():
     result = subprocess.run(
         [sys.executable, "-c", code],
         capture_output=True, text=True, timeout=60,
-        cwd=str(CRIBA_BLACKFORGE_DIR)
+        cwd=str(CRIBA_BLACKFORGE_DIR), env=_criba_env()
     )
     assert result.returncode == 0, f"CRIBA activate failed: {result.stderr}"
 

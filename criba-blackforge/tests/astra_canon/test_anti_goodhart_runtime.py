@@ -9,6 +9,7 @@ from __future__ import annotations
 import copy
 import json
 import math
+import os
 import subprocess
 import sys
 import time
@@ -449,6 +450,12 @@ while not start.exists():
     time.sleep(0.005)
 print(int(ObserverStore(root).append_diagnostic(diagnostic)), flush=True)
 """
+    child_env = os.environ.copy()
+    source_root = str(ROOT / "src")
+    existing_path = child_env.get("PYTHONPATH")
+    child_env["PYTHONPATH"] = (
+        source_root + os.pathsep + existing_path if existing_path else source_root
+    )
     processes = []
     ready_paths = []
     for index in range(process_count):
@@ -461,6 +468,7 @@ print(int(ObserverStore(root).append_diagnostic(diagnostic)), flush=True)
                 text=True,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
+                env=child_env,
             )
         )
 
