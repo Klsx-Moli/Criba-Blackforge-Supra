@@ -36,7 +36,7 @@ import subprocess
 import sys
 import time
 from contextlib import contextmanager
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 from typing import Any, Iterator
 
 try:  # Windows byte-range lock; POSIX falls back to flock.
@@ -115,8 +115,35 @@ def _state_mutex() -> Iterator[None]:
         os.close(fd)
 
 
+def _checked_state(state: Any) -> dict[str, Any]:
+    """Reject malformed coordination data before granting or persisting locks.
+
+    Legacy entries without tokens remain valid; malformed tokens are not coerced.
+    """
+    if not isinstance(state, dict):
+        raise ValueError("STATE must be an object")
+    if not isinstance(state.get("repos", {}), dict):
+        raise ValueError("STATE repos must be an object")
+    locks = state.get("locks", [])
+    if not isinstance(locks, list):
+        raise ValueError("STATE locks must be a list")
+    sequence = state.get("lock_seq", 0)
+    if type(sequence) is not int or sequence < 0:
+        raise ValueError("STATE lock_seq must be a nonnegative integer")
+    for lock in locks:
+        if not isinstance(lock, dict) or not LOCK_FIELDS.issubset(lock):
+            raise ValueError("STATE lock is malformed")
+        _lock_scope(lock["repo"], lock["path"])
+        for field in ("holder", "acquired_at", "reason"):
+            if not isinstance(lock[field], str) or not lock[field].strip():
+                raise ValueError(f"STATE lock {field} must be nonblank text")
+        if "token" in lock and (type(lock["token"]) is not int or lock["token"] < 1):
+            raise ValueError("STATE lock token must be a positive integer")
+    return state
+
+
 def _read_state() -> dict[str, Any]:
-    return json.loads(STATE_PATH.read_text(encoding="utf-8"))
+    return _checked_state(json.loads(STATE_PATH.read_text(encoding="utf-8")))
 
 
 def _read_state_or_repair() -> dict[str, Any]:
@@ -133,7 +160,7 @@ def _read_state_or_repair() -> dict[str, Any]:
             raise RuntimeError(
                 f"{STATE_PATH.name} is corrupt and no {backup.name} exists"
             ) from exc
-        state = json.loads(backup.read_text(encoding="utf-8"))
+        state = _checked_state(json.loads(backup.read_text(encoding="utf-8")))
         state["last_recovery"] = {"at": _now(), "action": "restore_from_bak"}
         STATE_PATH.unlink(missing_ok=True)  # keep the good .bak from being overwritten
         _write_state(state)
@@ -141,8 +168,9 @@ def _read_state_or_repair() -> dict[str, Any]:
 
 
 def _write_state(state: dict[str, Any]) -> None:
+    _checked_state(state)
     state["last_updated"] = _now()
-    payload = json.dumps(state, indent=2, ensure_ascii=False) + "\n"
+    payload = json.dumps(state, indent=2, ensure_ascii=False, allow_nan=False) + "\n"
     STATE_PATH.parent.mkdir(parents=True, exist_ok=True)
     if STATE_PATH.exists():
         # Last complete copy for _read_state_or_repair; taken before the
@@ -162,11 +190,17 @@ def _lock_scope(repo: str, path: str) -> tuple[str, str]:
     """
     if not isinstance(repo, str) or not repo:
         raise ValueError("repo must be a nonempty string")
+    if repo not in {"CRIBA", "SUPRA", "BLACKFORGE"}:
+        raise ValueError("unknown coordination repo")
     if not isinstance(path, str) or not path:
         raise ValueError("path must be a nonempty string")
+    if path.startswith(("/", "\\")) or PureWindowsPath(path).drive:
+        raise ValueError("lock paths must be relative to the named repo")
     parts = path.replace("\\", "/").split("/")
     if any(part == ".." for part in parts):
         raise ValueError("parent traversal is forbidden in lock paths")
+    if any(":" in part or (part not in ("", ".") and part.endswith((" ", "."))) for part in parts):
+        raise ValueError("ambiguous Windows lock path")
     normalized = "/".join(part for part in parts if part not in ("", ".")).casefold()
     if not normalized:
         raise ValueError("path must name a file or directory")
@@ -183,7 +217,9 @@ def _overlaps(left: tuple[str, str], right: tuple[str, str]) -> bool:
 
 def _entry_scope(lock: dict[str, Any]) -> tuple[str, str] | None:
     try:
-        return _lock_scope(str(lock.get("repo")), str(lock.get("path")))
+        if not isinstance(lock, dict):
+            return None
+        return _lock_scope(lock.get("repo"), lock.get("path"))
     except ValueError:
         return None  # malformed entries are reported by validate, never crash it
 
@@ -261,6 +297,9 @@ def _changed_paths_since(repo_path: str, recorded_commit: str) -> list[str]:
     """Return paths changed after a recorded snapshot, if Git can resolve it."""
     if not recorded_commit:
         return []
+    resolved = _git(repo_path, "rev-parse", "--verify", f"{recorded_commit}^{{commit}}")
+    if not resolved or _git(repo_path, "merge-base", resolved, "HEAD") != resolved:
+        return []
     return [
         path for path in _git(repo_path, "diff", "--name-only", f"{recorded_commit}..HEAD").splitlines()
         if path
@@ -269,7 +308,8 @@ def _changed_paths_since(repo_path: str, recorded_commit: str) -> list[str]:
 
 def _is_metadata_only_advance(paths: list[str]) -> bool:
     """A checkpoint commit is allowed to advance HEAD without self-reference."""
-    return bool(paths) and all(path.startswith(".hermes/iie/") for path in paths)
+    prefixes = (".hermes/iie/", "criba-blackforge/.hermes/iie/")
+    return bool(paths) and all(path.startswith(prefixes) for path in paths)
 
 
 def _blackforge_state(criba: dict[str, Any], previous: dict[str, Any]) -> dict[str, Any]:
@@ -286,7 +326,7 @@ def _blackforge_state(criba: dict[str, Any], previous: dict[str, Any]) -> dict[s
         ],
         "is_repo": False,
         "baseline_commit": previous.get("baseline_commit") or criba["baseline_commit"],
-        "last_good_commit": previous.get("last_good_commit") or criba["last_good_commit"],
+        "last_good_commit": previous.get("last_good_commit") or "",
         "last_good_tests": previous.get("last_good_tests", []),
     }
 
@@ -300,7 +340,7 @@ def snapshot() -> dict[str, Any]:
         for key, live_repo in live.items():
             previous = repos.get(key, {})
             live_repo["baseline_commit"] = previous.get("baseline_commit") or live_repo["commit"]
-            live_repo["last_good_commit"] = previous.get("last_good_commit") or live_repo["commit"]
+            live_repo["last_good_commit"] = previous.get("last_good_commit") or ""
             live_repo["last_good_tests"] = previous.get("last_good_tests", [])
             repos[key] = live_repo
         repos["BLACKFORGE"] = _blackforge_state(repos["CRIBA"], repos.get("BLACKFORGE", {}))
