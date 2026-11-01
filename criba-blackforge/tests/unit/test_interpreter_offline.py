@@ -499,7 +499,7 @@ def test_valid_proposal_with_failed_critique_is_explicit(
     # (simulando el try/except interno de _pedir que atrapa httpx.ReadTimeout)
     call_count = {"n": 0}
 
-    def mock_pedir(prompt: str, model: str, schema=None):
+    def mock_pedir(prompt: str, model: str, schema=None, **kwargs):
         call_count["n"] += 1
         if call_count["n"] == 1:
             return _interpretation_result_propuesta(proposal_output)

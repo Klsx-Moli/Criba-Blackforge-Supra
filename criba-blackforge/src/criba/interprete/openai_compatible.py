@@ -33,10 +33,10 @@ from tenacity import (
 from tenacity.wait import wait_base
 
 from .contrato import (
-    CRITICA_INSTRUCCIONES,
     KIND_DOMAIN,
     KIND_SCHEMA,
     SYSTEM,
+    prompt_critica,
     prompt_propuesta,
     schema_critica,
     schema_propuesta,
@@ -71,6 +71,27 @@ TEMPERATURA = 0.2
 # Un id de modelo inventado devuelve 404 desde el catalogo. Se comprueba al
 # arrancar y se dice cual se pidio y cual respondio.
 _SYSTEM = SYSTEM
+
+
+def _config_float(value: float | None, env_name: str, default: float) -> float:
+    raw = value if value is not None else os.getenv(env_name, "")
+    if raw is None or raw == "":
+        return default
+    try:
+        return float(raw)
+    except (TypeError, ValueError, OverflowError):
+        return float("nan")
+
+
+def _config_int(value: int | None, env_name: str, default: int) -> int:
+    raw = value if value is not None else os.getenv(env_name, "")
+    if raw is None or raw == "":
+        return default
+    try:
+        return int(raw)
+    except (TypeError, ValueError, OverflowError):
+        return 0
+
 
 _INCIDENT_SYSTEM_PROMPT = """Eres un intérprete de incidentes en un entorno E2E aislado.
 
@@ -415,6 +436,10 @@ class OpenAICompatibleInterpreter:
         max_tokens: int | None = None,
         temperature: float | None = None,
         reasoning_effort: str | None = None,
+        critique_max_tokens: int | None = None,
+        critique_temperature: float | None = None,
+        critique_timeout_s: float | None = None,
+        critique_reasoning_effort: str | None = None,
         enable_thinking: bool | None = None,
         seed: int | None = None,
     ) -> None:
@@ -445,6 +470,26 @@ class OpenAICompatibleInterpreter:
             if reasoning_effort is not None
             else os.getenv("CRIBA_EXTERNAL_REASONING_EFFORT", "").strip()
         )
+        self.critique_max_tokens = _config_int(
+            critique_max_tokens,
+            "CRIBA_EXTERNAL_CRITIQUE_MAX_TOKENS",
+            self.max_tokens,
+        )
+        self.critique_temperature = _config_float(
+            critique_temperature,
+            "CRIBA_EXTERNAL_CRITIQUE_TEMPERATURE",
+            self.temperature,
+        )
+        self.critique_timeout_s = _config_float(
+            critique_timeout_s,
+            "CRIBA_EXTERNAL_CRITIQUE_TIMEOUT_S",
+            self.timeout_s,
+        )
+        self.critique_reasoning_effort = (
+            critique_reasoning_effort
+            if critique_reasoning_effort is not None
+            else os.getenv("CRIBA_EXTERNAL_CRITIQUE_REASONING_EFFORT", "").strip()
+        ) or self.reasoning_effort
         self.enable_thinking = enable_thinking
         semilla = seed if seed is not None else os.getenv("CRIBA_EXTERNAL_SEED", "").strip()
         try:
@@ -469,6 +514,18 @@ class OpenAICompatibleInterpreter:
             "temperature": self.temperature,
             "timeout_s": self.timeout_s,
             "reasoning_effort": self.reasoning_effort,
+            "enable_thinking": self.enable_thinking,
+            "seed": self.seed,
+        }
+
+    @property
+    def critique_generation_parameters(self) -> dict[str, Any]:
+        """Parámetros efectivos de la crítica, separados de la propuesta."""
+        return {
+            "max_tokens": self.critique_max_tokens,
+            "temperature": self.critique_temperature,
+            "timeout_s": self.critique_timeout_s,
+            "reasoning_effort": self.critique_reasoning_effort,
             "enable_thinking": self.enable_thinking,
             "seed": self.seed,
         }
@@ -516,8 +573,9 @@ class OpenAICompatibleInterpreter:
         prompt: str = "",
         model_requested: str = "",
         constrained_decoding: str = "",
+        parameters: dict[str, Any] | None = None,
     ) -> Provenance:
-        parametros = dict(self.generation_parameters)
+        parametros = dict(self.generation_parameters if parameters is None else parameters)
         if constrained_decoding:
             parametros["constrained_decoding"] = constrained_decoding
         return Provenance(
@@ -538,27 +596,51 @@ class OpenAICompatibleInterpreter:
         )
 
     def _pedir(
-        self, prompt: str, model: str, schema: dict[str, Any] | None = None
+        self,
+        prompt: str,
+        model: str,
+        schema: dict[str, Any] | None = None,
+        *,
+        max_tokens: int | None = None,
+        temperature: float | None = None,
+        timeout_s: float | None = None,
+        reasoning_effort: str | None = None,
+        schema_name: str = "propuesta",
     ) -> InterpretationResult:
         """Una petición, con diagnóstico y procedencia propios incluso si falla.
 
         ``schema`` activa decodificación restringida (json_schema -> grammar en
         llama-server). Fija la forma del JSON, nunca el veredicto. La procedencia
-        registra que se usó para no comparar peras con manzanas.
+        registra los parámetros efectivos de cada fase para no comparar peras con
+        manzanas.
         """
         request_id = nuevo_request_id()
         inicio = time.monotonic()
+        max_tokens_efectivo = self.max_tokens if max_tokens is None else max_tokens
+        temperatura_efectiva = self.temperature if temperature is None else temperature
+        timeout_efectivo = self.timeout_s if timeout_s is None else timeout_s
+        reasoning_efectivo = (
+            self.reasoning_effort if reasoning_effort is None else reasoning_effort
+        )
+        parametros_efectivos = {
+            "max_tokens": max_tokens_efectivo,
+            "temperature": temperatura_efectiva,
+            "timeout_s": timeout_efectivo,
+            "reasoning_effort": reasoning_efectivo,
+            "enable_thinking": self.enable_thinking,
+            "seed": self.seed,
+        }
         payload = {
             "model": model,
             "messages": [
                 {"role": "system", "content": _SYSTEM},
                 {"role": "user", "content": prompt},
             ],
-            "temperature": self.temperature,
+            "temperature": temperatura_efectiva,
             "response_format": (
                 {
                     "type": "json_schema",
-                    "json_schema": {"name": "propuesta", "schema": schema},
+                    "json_schema": {"name": schema_name, "schema": schema},
                 }
                 if schema
                 else {"type": "json_object"}
@@ -594,6 +676,7 @@ class OpenAICompatibleInterpreter:
                     prompt=prompt,
                     model_requested=model,
                     constrained_decoding="json_schema" if schema is not None else "",
+                    parameters=parametros_efectivos,
                 ),
                 raw_output=raw_output,
                 finish_reason=finish_reason,
@@ -610,28 +693,24 @@ class OpenAICompatibleInterpreter:
             )
 
         try:
-            try:
-                max_tokens = self.max_tokens
-                if not 1 <= max_tokens <= 32768:
-                    raise ValueError("max_tokens debe ser positivo")
-            except ValueError:
+            if not 1 <= max_tokens_efectivo <= 32768:
                 return replace(
                     _fallo("configuracion_invalida:max_tokens", error_kind="config"),
                     model_requests=0,
                 )
-            payload["max_tokens"] = max_tokens
-            if not math.isfinite(self.timeout_s) or not 0 < self.timeout_s <= 1800:
+            payload["max_tokens"] = max_tokens_efectivo
+            if not math.isfinite(timeout_efectivo) or not 0 < timeout_efectivo <= 1800:
                 return replace(
                     _fallo("configuracion_invalida:timeout", error_kind="config"),
                     model_requests=0,
                 )
-            if not math.isfinite(self.temperature) or not 0 <= self.temperature <= 2:
+            if not math.isfinite(temperatura_efectiva) or not 0 <= temperatura_efectiva <= 2:
                 return replace(
                     _fallo("configuracion_invalida:temperature", error_kind="config"),
                     model_requests=0,
                 )
-            if self.reasoning_effort:
-                if self.reasoning_effort not in {
+            if reasoning_efectivo:
+                if reasoning_efectivo not in {
                     "none",
                     "minimal",
                     "low",
@@ -650,12 +729,12 @@ class OpenAICompatibleInterpreter:
                 from urllib.parse import urlsplit
 
                 if urlsplit(self.base).hostname == "openrouter.ai":
-                    payload["reasoning"] = {"effort": self.reasoning_effort}
+                    payload["reasoning"] = {"effort": reasoning_efectivo}
                 else:
-                    payload["reasoning_effort"] = self.reasoning_effort
+                    payload["reasoning_effort"] = reasoning_efectivo
             if self.enable_thinking is not None:
                 payload["chat_template_kwargs"] = {"enable_thinking": self.enable_thinking}
-            with httpx.Client(timeout=self.timeout_s) as client:
+            with httpx.Client(timeout=timeout_efectivo) as client:
                 resp = _post_chat_completion(
                     client,
                     f"{self.base}/chat/completions",
@@ -774,6 +853,7 @@ class OpenAICompatibleInterpreter:
                 prompt=prompt,
                 model_requested=model,
                 constrained_decoding="json_schema" if schema is not None else "",
+                parameters=parametros_efectivos,
             ),
             raw_output=raw_output,
             finish_reason=finish_reason,
@@ -826,16 +906,16 @@ class OpenAICompatibleInterpreter:
                 error="validacion:" + "; ".join(m for _, m in errores_estructurados),
                 error_kind=error_kind,
             )
-        critica_prompt = (
-            CRITICA_INSTRUCCIONES
-            + "\n"
-            + "ENTRADA:\n"
-            + prompt
-            + "\nPROPUESTA A CRITICAR:\n"
-            + json.dumps(parsed, ensure_ascii=False)
-        )
+        critica_prompt = prompt_critica(query, idea, domain, evidence, parsed)
         critica = self._pedir(
-            critica_prompt, self.critic_model, schema=schema_critica() if restringido else None
+            critica_prompt,
+            self.critic_model,
+            schema=schema_critica() if restringido else None,
+            max_tokens=self.critique_max_tokens,
+            temperature=self.critique_temperature,
+            timeout_s=self.critique_timeout_s,
+            reasoning_effort=self.critique_reasoning_effort,
+            schema_name="critica",
         )
         diagnostico: dict[str, Any] = {
             "evaluation_status": "NOT_EVALUATED",
@@ -857,6 +937,13 @@ class OpenAICompatibleInterpreter:
             )
         contenido_critica = _extraer_json(critica.raw_output)
         diagnostico["respuesta"] = contenido_critica
+        objeciones = contenido_critica.get("objeciones")
+        diagnostico["objection_count"] = (
+            len(objeciones) if isinstance(objeciones, list) else 0
+        )
+        diagnostico["admitida_con_objeciones"] = bool(objeciones) if isinstance(
+            objeciones, list
+        ) else False
         errores = validar_critica(contenido_critica)
         estructurales, rechazos = separar_errores_critica(contenido_critica, errores)
         if errores and not estructurales and not rechazos:

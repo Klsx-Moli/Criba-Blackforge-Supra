@@ -71,6 +71,15 @@ def format_proposal(entry: dict[str, Any], position: int = 1, total: int = 1) ->
             "Propuesta creativa; novedad, viabilidad y eficacia no comprobadas.",
         )
     )
+    critica = entry.get("critica")
+    respuesta = critica.get("respuesta") if isinstance(critica, dict) else None
+    objeciones = respuesta.get("objeciones") if isinstance(respuesta, dict) else None
+    if isinstance(objeciones, list):
+        items = [str(item).strip() for item in objeciones if str(item).strip()]
+        if items:
+            sections.append(
+                "OBSERVACIONES DE LA CRÍTICA\n" + "\n".join(f"- {item}" for item in items)
+            )
     uncertainty = str(entry.get("incertidumbre") or "").strip()
     if uncertainty:
         sections.append("QUÉ FALTA COMPROBAR\n" + uncertainty)

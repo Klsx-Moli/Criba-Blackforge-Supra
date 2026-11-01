@@ -135,7 +135,7 @@ def test_critica_no_duplica_las_preguntas_epistemologicas(monkeypatch):
         ("fiel_evidencia", False),
         ("falsable", "true"),
         ("intercambio_tecnicas_generico", True),
-        ("objeciones", ["cita inventada"]),
+        ("objeciones", "cita inventada"),
         ("respuestas_epistemologicas", {"Q1": "factor"}),
         ("score", 0.99),
     ],
@@ -150,18 +150,51 @@ def test_critica_no_aprobatoria_degrada_a_pendiente(monkeypatch, key, value):
     assert result.raw_output and result.critica["raw_output"]
 
 
-def test_critica_con_objeciones_es_rechazo_no_fallo_de_contrato(monkeypatch):
+def test_critica_con_objeciones_admite_propuesta_con_observaciones(monkeypatch):
     data = critica()
     data["objeciones"] = ["La evidencia no sostiene la causalidad."]
     transporte(monkeypatch, [respuesta(propuesta()), respuesta(data)])
 
     result = oc.OpenAICompatibleInterpreter().proponer("colas", IDEA)
 
+    assert result.es_propuesta, result.error
+    assert result.critica["evaluation_status"] == "CRITIQUED"
+    assert result.critica["objection_count"] == 1
+    assert result.critica["admitida_con_objeciones"] is True
+    assert result.to_campos()["estado"] == "PROPUESTA"
+
+
+def test_critica_con_objeciones_malformadas_es_invalida(monkeypatch):
+    data = critica()
+    data["objeciones"] = "La evidencia no sostiene la causalidad."
+    transporte(monkeypatch, [respuesta(propuesta()), respuesta(data)])
+
+    result = oc.OpenAICompatibleInterpreter().proponer("colas", IDEA)
+
     assert not result.es_propuesta
-    assert result.error.startswith("critica_rechazada:")
-    assert result.error_kind == "critique_rejected"
+    assert result.error.startswith("critica_invalida:")
     assert result.critica["evaluation_status"] == "REJECTED"
-    assert result.critica["rejection_reasons"] == ["critica.objeciones"]
+
+
+def test_parametros_de_critica_se_heredan_y_sobrescriben(monkeypatch):
+    monkeypatch.setenv("CRIBA_EXTERNAL_MAX_TOKENS", "8192")
+    monkeypatch.setenv("CRIBA_EXTERNAL_CRITIQUE_MAX_TOKENS", "4096")
+    enviados = transporte(monkeypatch, [respuesta(propuesta()), respuesta(critica())])
+    port = oc.OpenAICompatibleInterpreter(
+        model="p",
+        critic_model="c",
+        reasoning_effort="high",
+        critique_reasoning_effort="low",
+    )
+
+    result = port.proponer("colas", IDEA)
+
+    assert result.es_propuesta, result.error
+    assert enviados[0][1]["max_tokens"] == 8192
+    assert enviados[1][1]["max_tokens"] == 4096
+    assert enviados[1][1]["reasoning_effort"] == "low"
+    assert result.critica["provenance"]["generation_parameters"]["max_tokens"] == 4096
+    assert result.critica["provenance"]["generation_parameters"]["reasoning_effort"] == "low"
 
 
 def test_critica_malformada_es_critica_invalida(monkeypatch):

@@ -34,6 +34,23 @@ def test_propuesta_rechazada_muestra_objeciones_y_no_pendiente() -> None:
     assert "La evidencia no sostiene la causalidad." in text
 
 
+def test_propuesta_admitida_muestra_observaciones_de_critica() -> None:
+    entry = {
+        "estado_interpretacion": "PROPUESTA",
+        "hipotesis": "El flujo se desacopla.",
+        "mecanismo": "Una compuerta regula el paso.",
+        "critica": {
+            "evaluation_status": "CRITIQUED",
+            "respuesta": {"objeciones": ["Falta medir el coste de la compuerta."]},
+        },
+    }
+
+    text = format_proposal(entry)
+
+    assert "OBSERVACIONES DE LA CRÍTICA" in text
+    assert "Falta medir el coste de la compuerta." in text
+
+
 def test_pendiente_sin_rechazo_conserva_etiqueta_y_diagnostico() -> None:
     entry = {
         "estado_interpretacion": "PENDIENTE_INTERPRETACION",

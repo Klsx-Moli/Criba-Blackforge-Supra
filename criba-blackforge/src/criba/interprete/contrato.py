@@ -21,8 +21,11 @@ SYSTEM = (
 )
 INSTRUCCIONES = """Aplica el cruce a ESTE problema, o abstente explícitamente.
 IDEACIÓN EXPLORATORIA: formula una hipótesis condicional, no una solución validada.
+Un objetivo de diseño o mejora es un problema legítimo: no exijas una anomalía observada.
 La ausencia de evidencia local no es, por sí sola, motivo de abstención.
 Usa conocimiento_previo y supuestos explícitos; sin documentos, evidencia_citada=[].
+El CRUCE no es decorativo: usa al menos una operación concreta de cada técnica y explica
+cómo cambia el mecanismo del dominio.
 Las etiquetas heurísticas del cruce no son veredictos científicos.
 Intenta trasladar las operaciones al dominio del problema aunque el cruce sea extraño.
 Antes de ABSTENER, busca una analogía operativa concreta entre las operaciones y el problema.
@@ -92,6 +95,9 @@ Una hipótesis condicional no exige un experimento ya realizado.
 Comprueba la coherencia del mecanismo, los supuestos declarados y la prueba discriminante.
 Sin documentos, fiel_evidencia exige no inventar citas ni presentar supuestos como observaciones;
 no exige evidencia_citada no vacía. Conserva las objeciones reales; no fuerces un dictamen positivo.
+Un objetivo de diseño o mejora es legítimo; no exijas una anomalía observada.
+Una objeción que no invalide el mecanismo ni la prueba es una limitación, no un rechazo.
+Usa false solo si el requisito no se cumple; no conviertas mejoras opcionales en rechazo.
 Responde JSON con:
 {
  "pertinente": true, "mecanismo_especifico": true, "falsable": true,
@@ -148,26 +154,53 @@ def cruce_para_prompt(idea: dict[str, Any]) -> dict[str, Any]:
     return {key: idea[key] for key in _CRUCE_PROMPT_KEYS if key in idea}
 
 
+def _datos_prompt(
+    query: str,
+    idea: dict[str, Any],
+    domain: dict[str, Any] | None,
+    evidence: list[dict[str, Any]] | None,
+) -> dict[str, Any]:
+    return {
+        "PROBLEMA": query,
+        "DOMINIO": domain or {},
+        "CRUCE": cruce_para_prompt(idea),
+        "BLOQUEO IDENTIFICADO": idea.get("bloqueo") or {},
+        "RESTRICCIONES OBLIGATORIAS": restricciones_de(idea),
+        "EVIDENCIA LOCAL PERTINENTE": [
+            {**ev, "indice": i} for i, ev in enumerate(evidencia_entregada(evidence), 1)
+        ],
+        "CONTENCION_DECLARADA": idea.get("containment_class", "DESCONOCIDA"),
+    }
+
+
 def prompt_propuesta(
     query: str,
     idea: dict[str, Any],
     domain: dict[str, Any] | None,
     evidence: list[dict[str, Any]] | None,
 ) -> str:
-    restricciones = restricciones_de(idea)
-    datos = {
-        "PROBLEMA": query,
-        "DOMINIO": domain or {},
-        "CRUCE": cruce_para_prompt(idea),
-        "BLOQUEO IDENTIFICADO": idea.get("bloqueo") or {},
-        "RESTRICCIONES OBLIGATORIAS": restricciones,
-        "EVIDENCIA LOCAL PERTINENTE": [
-            {**ev, "indice": i} for i, ev in enumerate(evidencia_entregada(evidence), 1)
-        ],
-        "CONTENCION_DECLARADA": idea.get("containment_class", "DESCONOCIDA"),
-    }
+    datos = _datos_prompt(query, idea, domain, evidence)
     return (
         INSTRUCCIONES
+        + "\n"
+        + PREGUNTAS_TEXTO
+        + "\nDATOS:\n"
+        + json.dumps(datos, ensure_ascii=False, sort_keys=True)
+    )
+
+
+def prompt_critica(
+    query: str,
+    idea: dict[str, Any],
+    domain: dict[str, Any] | None,
+    evidence: list[dict[str, Any]] | None,
+    propuesta: dict[str, Any],
+) -> str:
+    """Crítica compacta: datos del caso y propuesta, sin repetir el contrato de ideación."""
+    datos = _datos_prompt(query, idea, domain, evidence)
+    datos["PROPUESTA A CRITICAR"] = propuesta
+    return (
+        CRITICA_INSTRUCCIONES
         + "\n"
         + PREGUNTAS_TEXTO
         + "\nDATOS:\n"
@@ -457,8 +490,9 @@ def validar_critica(parsed: dict[str, Any]) -> list[str]:
             errores.append(f"critica.{campo}")
     if parsed.get("intercambio_tecnicas_generico") is not False:
         errores.append("critica.mecanismo_genérico")
-    if parsed.get("objeciones") != []:
-        errores.append("critica.objeciones")
+    objeciones = parsed.get("objeciones")
+    if not isinstance(objeciones, list) or any(not texto(obj) for obj in objeciones):
+        errores.append("critica.objeciones_malformadas")
     respuestas = parsed.get("respuestas_epistemologicas")
     if not isinstance(respuestas, dict) or any(not texto(respuestas.get(p.id)) for p in PREGUNTAS):
         errores.append("critica.preguntas_sin_responder")
@@ -482,21 +516,18 @@ def separar_errores_critica(
 ) -> tuple[list[str], list[str]]:
     """Separa una crítica malformada de un rechazo sustantivo.
 
-    Un ``False`` explícito, ``intercambio_tecnicas_generico=True`` o una lista
-    real de objeciones es una crítica que rechaza la propuesta; la propuesta
-    sigue sin admitirse. Un campo ausente o de tipo incorrecto es un fallo de
-    contrato de la crítica y no debe presentarse como rechazo científico.
+    Un ``False`` explícito o ``intercambio_tecnicas_generico=True`` rechaza la
+    propuesta. Una lista real de objeciones es una limitación declarada y no
+    invalida por sí sola el mecanismo ni la prueba. Un campo ausente o de tipo
+    incorrecto es un fallo de contrato y no debe presentarse como rechazo.
     """
     estructurales: list[str] = []
     rechazos: list[str] = []
     for error in errores:
         if error == "critica.objeciones":
-            destino = (
-                rechazos
-                if isinstance(parsed.get("objeciones"), list)
-                and bool(parsed.get("objeciones"))
-                else estructurales
-            )
+            continue
+        if error == "critica.objeciones_malformadas":
+            destino = estructurales
         elif error == "critica.mecanismo_genérico":
             destino = (
                 rechazos

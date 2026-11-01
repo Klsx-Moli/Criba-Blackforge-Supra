@@ -179,7 +179,7 @@ class InterpretationResult:
         ):
             return "PROPUESTA sin mecanismo"
         if self.estado == ESTADO_PROPUESTA and not self.es_propuesta:
-            return "PROPUESTA sin crítica completa y aprobatoria"
+            return "PROPUESTA sin crítica válida"
         return self.error or ""
 
     def to_campos(self) -> dict[str, Any]:
