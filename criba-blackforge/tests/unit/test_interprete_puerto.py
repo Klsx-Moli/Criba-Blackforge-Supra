@@ -79,12 +79,15 @@ def _patch_post(monkeypatch, respuesta: _Respuesta) -> list[dict[str, Any]]:
 
         def post(self, url: str, json: Any = None, headers: Any = None) -> _Respuesta:
             enviados.append({"url": url, "json": json, "headers": headers or {}})
-            # Un error HTTP se reintenta en _post_chat_completion hasta agotar el
-            # plan (4 intentos / 45s). El fake repite el mismo fallo mientras se
-            # reintenta y solo sirve la crítica cuando el primero fue un 200: si
-            # devolviera 200 tras un 429, el reintento "recuperaría" el plan y el
-            # caso de agotamiento nunca se ejercitaría.
-            if len(enviados) > 1 and respuesta.status_code < 400:
+            # La crítica se distingue por su prompt, no por el número de orden:
+            # una propuesta truncada puede reintentarse y entonces el segundo
+            # POST sigue siendo de propuesta, no de crítica.
+            prompt = ""
+            if isinstance(json, dict):
+                mensajes = json.get("messages") or []
+                if mensajes and isinstance(mensajes[-1], dict):
+                    prompt = str(mensajes[-1].get("content") or "")
+            if "PROPUESTA A CRITICAR" in prompt:
                 return _Respuesta(200, {"model": "critico-reportado", "choices": [
                     {"finish_reason": "stop", "message": {"content": __import__("json").dumps(critica())}}
                 ]})
