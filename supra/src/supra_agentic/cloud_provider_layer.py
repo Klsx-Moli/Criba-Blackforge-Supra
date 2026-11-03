@@ -29,6 +29,7 @@ esta capa.
 from __future__ import annotations
 
 import hashlib
+import math
 import os
 import time
 import uuid
@@ -218,7 +219,7 @@ class CloudProviderLayer:
 
     @property
     def enabled(self) -> bool:
-        return self.config.enabled
+        return self.config.enabled is True
 
     def _resolve_provider(self) -> AgentProvider:
         if self.provider_factory is not None:
@@ -233,7 +234,7 @@ class CloudProviderLayer:
     def capabilities(self) -> dict[str, Any]:
         """Metadatos seguros del perfil. Sin red, sin credenciales."""
         return {
-            "enabled": self.config.enabled,
+            "enabled": self.enabled,
             "provider": self.config.provider,
             "model_id": self.config.model_id or "auto",
             "timeout": self.config.timeout,
@@ -250,7 +251,7 @@ class CloudProviderLayer:
         No contacta al proveedor (eso es ``check_provider``/``operativo`` del
         backend): reportar "healthy" sin red sería optimismo.
         """
-        if not self.config.enabled:
+        if not self.enabled:
             return {
                 "status": "disabled",
                 "reason": "flag_off",
@@ -272,15 +273,15 @@ class CloudProviderLayer:
         declara así (no se inventa un precio: no hay catálogo de precios en
         la capa).
         """
-        if not self.config.enabled:
+        if not self.enabled:
             return {"status": "disabled", "cost_limit": None, "within_limit": None}
         estimated_tokens = max(1, len(prompt) // 4)
         return {
             "status": "estimated",
             "estimated_prompt_tokens": estimated_tokens,
             "cost_limit": self.config.cost_limit,
-            "within_limit": None if self.config.cost_limit is None else True,
-            "note": "sin catálogo de precios local: el límite se contrasta con cost_reported tras la ejecución",
+            "within_limit": None,
+            "note": "sin catálogo de precios local: presupuesto no verificado ni aplicado por esta capa",
         }
 
     def usage(self) -> list[dict[str, Any]]:
@@ -310,19 +311,24 @@ class CloudProviderLayer:
 
         Retorna (texto, traza). El texto es "" en cualquier fallo.
         """
-        if not self.config.enabled:
+        if not self.enabled:
             raise ProviderDisabled(
                 "capa de proveedores desactivada (enabled=False); "
                 "actívala explícitamente con SUPRA_CLOUD_ENABLED=1 o config.enabled=True"
             )
-        if not prompt or not prompt.strip():
+        if not isinstance(prompt, str) or not prompt.strip():
             raise InvalidRequest("prompt vacío")
-        if not system or not system.strip():
+        if not isinstance(system, str) or not system.strip():
             raise InvalidRequest("system vacío")
-        chosen_model = (model_id or self.config.model_id).strip()
-        tokens = max_tokens or self.config.max_tokens
-        if tokens < 1:
-            raise InvalidRequest("max_tokens debe ser >= 1")
+        selected_model = self.config.model_id if model_id is None else model_id
+        if not isinstance(selected_model, str):
+            raise InvalidRequest("model_id debe ser texto")
+        chosen_model = selected_model.strip()
+        tokens = self.config.max_tokens if max_tokens is None else max_tokens
+        if type(tokens) is not int or tokens < 1:
+            raise InvalidRequest("max_tokens debe ser un entero >= 1")
+        if type(self.config.retries) is not int or self.config.retries < 0:
+            raise InvalidRequest("retries debe ser un entero >= 0")
 
         request_id = uuid.uuid4().hex[:16]
         inicio = time.monotonic()
@@ -380,13 +386,18 @@ class CloudProviderLayer:
         if isinstance(raw_usage, Mapping):
             pin = raw_usage.get("prompt_tokens")
             pout = raw_usage.get("completion_tokens")
-            tokens_in = pin if type(pin) is int else None
-            tokens_out = pout if type(pout) is int else None
+            tokens_in = pin if type(pin) is int and pin >= 0 else None
+            tokens_out = pout if type(pout) is int and pout >= 0 else None
         cost_reported = None
         if isinstance(raw_usage, Mapping):
             cost = raw_usage.get("cost")
             if isinstance(cost, (int, float)) and not isinstance(cost, bool):
-                cost_reported = float(cost)
+                try:
+                    numeric_cost = float(cost)
+                except OverflowError:
+                    numeric_cost = math.inf
+                if math.isfinite(numeric_cost) and numeric_cost >= 0:
+                    cost_reported = numeric_cost
 
         trace = ExecutionTrace(
             provider=self.config.provider,

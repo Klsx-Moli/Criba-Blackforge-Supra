@@ -229,6 +229,7 @@ class ShadowActionContext:
         self.saved_ids: set[str] = set()
         self.sources_updated_at: datetime | None = None
         self.invent_sheet: dict[str, Any] | None = None
+        self.evidence_mode: str = "creative"
         self.sources_report: dict[str, Any] | None = None
         self._live_workers: list[Any] = []
         self._progress_label: Any = None

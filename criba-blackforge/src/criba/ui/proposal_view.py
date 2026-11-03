@@ -14,6 +14,7 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
 )
 
+from criba.evidence_modes import evidence_banner
 from criba.interprete.diagnostico import CRITIQUE_REJECTED
 
 
@@ -68,9 +69,28 @@ def format_proposal(entry: dict[str, Any], position: int = 1, total: int = 1) ->
         (
             "QUÉ SE PROPONE\n" + str(entry.get("hipotesis") or "No declarado"),
             "CÓMO FUNCIONARÍA\n" + str(entry.get("mecanismo") or "No declarado"),
-            "Propuesta creativa; novedad, viabilidad y eficacia no comprobadas.",
+            evidence_banner(entry),
         )
     )
+    protocol = entry.get("prueba_discriminante") or entry.get("prueba")
+    if isinstance(protocol, dict):
+        labels = (
+            ("afirmacion_decisiva", "Afirmación decisiva"),
+            ("observable", "Observable"),
+            ("comparacion", "Comparación"),
+            ("metrica", "Métrica"),
+            ("regla_decision", "Regla de decisión"),
+            ("condicion_fracaso", "Condición de fracaso"),
+            ("alternativa_explicativa", "Alternativa explicativa"),
+            ("estado_prueba", "Estado de la prueba"),
+        )
+        lines = []
+        for key, label in labels:
+            value = str(protocol.get(key) or "").strip()
+            if value:
+                lines.append(f"{label}: {value}")
+        if lines:
+            sections.append("PROTOCOLO DE PRUEBA\n" + "\n".join(lines))
     critica = entry.get("critica")
     respuesta = critica.get("respuesta") if isinstance(critica, dict) else None
     objeciones = respuesta.get("objeciones") if isinstance(respuesta, dict) else None
@@ -80,10 +100,102 @@ def format_proposal(entry: dict[str, Any], position: int = 1, total: int = 1) ->
             sections.append(
                 "OBSERVACIONES DE LA CRÍTICA\n" + "\n".join(f"- {item}" for item in items)
             )
+    answers = (
+        respuesta.get("respuestas_epistemologicas")
+        if isinstance(respuesta, dict)
+        else None
+    )
+    if isinstance(answers, dict):
+        labels = (
+            ("Q3", "Conexión causal"),
+            ("Q8", "Prueba mínima"),
+            ("Q9", "Alternativa a discriminar"),
+            ("Q10", "Rol de aplicación"),
+            ("Q11", "Escalado"),
+        )
+        lines = []
+        for key, label in labels:
+            value = str(answers.get(key) or "").strip()
+            if value:
+                lines.append(f"{label}: {value}")
+        if lines:
+            sections.append("CRITERIOS OPERATIVOS\n" + "\n".join(lines))
     uncertainty = str(entry.get("incertidumbre") or "").strip()
     if uncertainty:
         sections.append("QUÉ FALTA COMPROBAR\n" + uncertainty)
+    protocolo = entry.get("protocolo_operativo")
+    if isinstance(protocolo, dict) and protocolo:
+        sections.append(_format_protocolo(protocolo, entry))
     return "\n\n".join(sections)
+
+
+def _format_protocolo(protocolo: dict[str, Any], entry: dict[str, Any]) -> str:
+    """Render del protocolo operativo. Es una propuesta, no un resultado."""
+    lineas: list[str] = []
+    resumen = str(protocolo.get("resumen") or "").strip()
+    if resumen:
+        lineas.append(f"Resumen: {resumen}")
+
+    definiciones = protocolo.get("definiciones_operativas")
+    if isinstance(definiciones, list) and definiciones:
+        lineas.append("Definiciones operativas:")
+        lineas.extend(f"- {item}" for item in definiciones if str(item).strip())
+
+    campos = (
+        ("criterio_dominancia", "Criterio de dominancia"),
+        ("asignacion_presupuesto", "Asignación de presupuesto"),
+        ("metrica_principal", "Métrica principal"),
+        ("metrica_secundaria", "Métrica secundaria"),
+        ("regla_exito", "Regla de éxito"),
+        ("banda_intermedia", "Banda intermedia"),
+        ("condicion_fracaso", "Condición de fracaso"),
+        ("guardarrail_tiempo", "Guardarraíl de tiempo"),
+        ("tamano_muestra", "Tamaño de muestra"),
+    )
+    for clave, etiqueta in campos:
+        valor = str(protocolo.get(clave) or "").strip()
+        if valor:
+            lineas.append(f"{etiqueta}: {valor}")
+
+    brazos = protocolo.get("prueba_brazos")
+    if isinstance(brazos, list) and brazos:
+        lineas.append("Prueba de brazos:")
+        for brazo in brazos:
+            if not isinstance(brazo, dict):
+                continue
+            nombre = str(brazo.get("brazo") or "").strip()
+            descripcion = str(brazo.get("descripcion") or "").strip()
+            metrica = str(brazo.get("metrica") or "").strip()
+            umbral = str(brazo.get("umbral") or "").strip()
+            detalle = "; ".join(
+                parte
+                for parte in (
+                    f"métrica: {metrica}" if metrica else "",
+                    f"umbral: {umbral}" if umbral else "",
+                )
+                if parte
+            )
+            lineas.append(
+                f"- {nombre}: {descripcion}" + (f" ({detalle})" if detalle else "")
+            )
+
+    for clave, etiqueta in (
+        ("riesgos", "Riesgos"),
+        ("condiciones_parada", "Condiciones de parada"),
+        ("parametros_a_calibrar", "Parámetros a calibrar"),
+    ):
+        valores = protocolo.get(clave)
+        if isinstance(valores, list) and valores:
+            lineas.append(f"{etiqueta}:")
+            lineas.extend(f"- {item}" for item in valores if str(item).strip())
+
+    limitaciones = str(protocolo.get("limitaciones") or "").strip()
+    if limitaciones:
+        lineas.append(f"Limitaciones: {limitaciones}")
+
+    estado = str(entry.get("protocolo_estado") or "PROPUESTO").strip()
+    cabecera = f"PROTOCOLO OPERATIVO · {estado} (NO VALIDADO)"
+    return cabecera + "\n" + "\n".join(lineas)
 
 
 class ProposalResultsDialog(QDialog):

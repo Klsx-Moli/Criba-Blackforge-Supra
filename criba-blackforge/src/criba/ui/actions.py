@@ -438,6 +438,17 @@ def on_inventar(win: Any) -> None:
             backend, model = str(data[0]), (str(data[1]) or None)
     win.interpreter_cancel_requested = False
     topcards = getattr(win, "topcards", None)
+    evidence_selector = (
+        getattr(topcards, "evidence_mode_selector", None)
+        if topcards is not None
+        else None
+    )
+    evidence_mode = (
+        str(evidence_selector.currentData() or "creative")
+        if evidence_selector is not None
+        else "creative"
+    )
+    win.evidence_mode = evidence_mode
     if topcards is not None:
         topcards.interpreter_selector.setEnabled(False)
         topcards.cancel_interpretation.setEnabled(True)
@@ -450,7 +461,7 @@ def on_inventar(win: Any) -> None:
     holder: dict[str, Worker] = {}
 
     def _task() -> dict[str, Any]:
-        return _run_inventar(
+        sheet = _run_inventar(
             win.problem,
             backend=backend,
             model=model,
@@ -460,6 +471,9 @@ def on_inventar(win: Any) -> None:
             progress=lambda payload: holder["worker"].signals.progress.emit(payload),
             cancel_requested=lambda: bool(win.interpreter_cancel_requested),
         )
+        from ..evidence_modes import apply_evidence_mode
+
+        return apply_evidence_mode(sheet, evidence_mode)
 
     worker = Worker(_task)
     holder["worker"] = worker
@@ -551,10 +565,14 @@ def _on_invented(win: Any, sheet: dict[str, Any]) -> None:
     right_panel = getattr(win, "right_panel", None)
     if right_panel is not None:
         right_panel.supra.setEnabled(valid > 0)
+        right_panel.protocolo.setEnabled(valid > 0)
 
+    evidence_label = str(sheet.get("evidence_mode_label") or "Creativo")
+    evidence_state = str(sheet.get("evidence_status") or "NO VALIDADO")
     r["ideaTitle"].setText(f"Inventar · {sheet['query'][:100]}")
     r["ideaSummary"].setText(
-        f"Operación terminada · {n_entries} candidatos · {valid} propuestas válidas · "
+        f"Modo {evidence_label} · {evidence_state} · Operación terminada · "
+        f"{n_entries} candidatos · {valid} propuestas válidas · "
         f"interpretación pendiente: {pending} · SUPRA no ejecutado · "
         f"UNRESOLVED: {totals['unresolved']} · "
         f"PARTIAL: {totals['partial_prior_art']} · SURVIVED: {totals['survived_search']}"
@@ -562,7 +580,7 @@ def _on_invented(win: Any, sheet: dict[str, Any]) -> None:
     if valid == 0:
         set_chip(
             r["ideaEstadoChip"],
-            f"0 propuestas válidas · {pending} pendientes",
+            f"0 propuestas válidas · {pending} pendientes · {evidence_state}",
             "exploracion",
         )
         candidates = getattr(win, "candidates", None)
@@ -571,7 +589,7 @@ def _on_invented(win: Any, sheet: dict[str, Any]) -> None:
     else:
         set_chip(
             r["ideaEstadoChip"],
-            f"{valid} propuestas válidas · {pending} pendientes",
+            f"{valid} propuestas válidas · {pending} pendientes · {evidence_state}",
             "ideacion",
         )
     _activity(
@@ -1454,6 +1472,119 @@ def _on_supra_dossiers_failed(win: Any, message: str) -> None:
     set_chip(r["ideaEstadoChip"], "SUPRA pendiente", "exploracion")
     _activity(win, "amber", "SUPRA remoto no confirmado; dossier local preservado.")
     show_error(win, "SUPRA", message)
+
+
+def _entry_para_desarrollo(win: Any, sheet: dict[str, Any]) -> tuple[int, dict[str, Any]] | None:
+    """Propuesta válida visible o, si no, la primera válida del lote."""
+    entries = list(sheet.get("entries") or [])
+    if not entries:
+        return None
+    candidates = getattr(win, "candidates", None)
+    index = int(getattr(candidates, "interpretation_index", 0) or 0)
+    if 0 <= index < len(entries):
+        visible = entries[index]
+        if visible.get("estado_interpretacion") == "PROPUESTA":
+            return index, visible
+    for pos, entry in enumerate(entries):
+        if entry.get("estado_interpretacion") == "PROPUESTA":
+            return pos, entry
+    return None
+
+
+def on_protocolo_operativo(win: Any) -> None:
+    """Refina la propuesta visible en un protocolo operativo medible.
+
+    Es una segunda pasada del intérprete sobre la propuesta y su crítica. No
+    valida nada: el resultado queda como protocolo propuesto, no como evidencia.
+    """
+    sheet = getattr(win, "invent_sheet", None)
+    if not sheet or not sheet.get("entries"):
+        show_error(win, "Protocolo operativo", "Genera propuestas con Inventar primero.")
+        return
+    elegido = _entry_para_desarrollo(win, sheet)
+    if elegido is None:
+        show_error(
+            win,
+            "Protocolo operativo",
+            "No hay propuesta interpretada: los candidatos están PENDIENTES "
+            "y no hay mecanismo que operacionalizar.",
+        )
+        return
+    index, entry = elegido
+    interpreter_state = sheet.get("interpreter") or {}
+    backend = str(interpreter_state.get("backend") or "openai_compatible")
+    model = str(interpreter_state.get("model_requested") or "") or None
+    query = str(sheet.get("query") or "")
+    right_panel = getattr(win, "right_panel", None)
+    boton = getattr(right_panel, "protocolo", None)
+    if boton is not None:
+        boton.setEnabled(False)
+    _activity(
+        win,
+        "cyan",
+        "Protocolo operativo: refinando la propuesta con el intérprete configurado…",
+    )
+
+    def _task() -> dict[str, Any]:
+        from ..interprete.refinamiento import refinar_propuesta
+        from ..interprete.seleccion import construir_interprete
+
+        interprete = construir_interprete(backend, model=model)
+        return refinar_propuesta(interprete, query, entry)
+
+    worker = Worker(_task)
+    worker.signals.done.connect(lambda informe: _on_protocolo_done(win, sheet, index, informe))
+    worker.signals.fail.connect(lambda msg: _on_protocolo_failed(win, msg))
+    _start_worker(win, worker)
+
+
+def _on_protocolo_done(
+    win: Any, sheet: dict[str, Any], index: int, informe: dict[str, Any]
+) -> None:
+    right_panel = getattr(win, "right_panel", None)
+    boton = getattr(right_panel, "protocolo", None)
+    if boton is not None:
+        boton.setEnabled(True)
+    estado = str(informe.get("estado") or "PENDIENTE")
+    if estado != "PROTOCOLO":
+        detalle = str(informe.get("error") or "sin motivo declarado")
+        show_error(win, "Protocolo operativo", f"No se generó el protocolo: {detalle}")
+        _activity(win, "amber", f"Protocolo operativo pendiente: {detalle[:160]}")
+        return
+    from ..interprete.refinamiento import aplicar_protocolo
+
+    entries = list(sheet.get("entries") or [])
+    if not 0 <= index < len(entries):
+        show_error(win, "Protocolo operativo", "La propuesta ya no está en el lote.")
+        return
+    actualizado = aplicar_protocolo(entries[index], informe)
+    entries[index] = actualizado
+    sheet["entries"] = entries
+    win.invent_sheet = sheet
+    candidates = getattr(win, "candidates", None)
+    if candidates is not None and getattr(candidates, "interpretation_entries", None):
+        if 0 <= index < len(candidates.interpretation_entries):
+            candidates.interpretation_entries[index] = actualizado
+        candidates.show_interpreter_entry(index)
+    win.refs["ideaSummary"].setText(
+        "Protocolo operativo propuesto · NO VALIDADO · "
+        "incluye regla de decisión, guardarraíl y prueba de brazos"
+    )
+    set_chip(win.refs["ideaEstadoChip"], "Protocolo propuesto · NO VALIDADO", "ideacion")
+    _activity(
+        win,
+        "success",
+        "Protocolo operativo generado y adjunto a la propuesta. No equivale a validación.",
+    )
+
+
+def _on_protocolo_failed(win: Any, message: str) -> None:
+    right_panel = getattr(win, "right_panel", None)
+    boton = getattr(right_panel, "protocolo", None)
+    if boton is not None:
+        boton.setEnabled(True)
+    show_error(win, "Protocolo operativo", message)
+    _activity(win, "amber", f"Protocolo operativo falló: {message[:160]}")
 
 
 def on_desarrollar_supra(win: Any) -> None:

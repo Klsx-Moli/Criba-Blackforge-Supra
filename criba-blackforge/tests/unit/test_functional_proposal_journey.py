@@ -193,6 +193,23 @@ def test_shadow_mode_and_seed_controls_are_read(qapp, tmp_path):
         qapp.processEvents()
 
 
+def test_shadow_evidence_modes_are_explicit_and_not_promoted(qapp, tmp_path):
+    win = ShadowWindow(database=str(tmp_path / "evidence-modes.sqlite3"))
+    try:
+        selector = win.topcards.evidence_mode_selector
+        keys = [selector.itemData(i) for i in range(selector.count())]
+        assert keys == ["creative", "exploratory", "validated"]
+        assert selector.currentData() == "creative"
+        assert "NO VALIDADO" in selector.currentText()
+
+        selector.setCurrentIndex(selector.findData("validated"))
+        assert selector.currentData() == "validated"
+        assert "VALIDACIÓN PENDIENTE" in selector.currentText()
+    finally:
+        win.close()
+        qapp.processEvents()
+
+
 def test_shadow_run_inventar_forwards_mode_and_seed(monkeypatch, sheet):
     captured = {}
 

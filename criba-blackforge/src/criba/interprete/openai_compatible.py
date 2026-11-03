@@ -862,6 +862,32 @@ class OpenAICompatibleInterpreter:
             model_requests=1,
         )
 
+    def completar_json(
+        self,
+        prompt: str,
+        *,
+        schema: dict[str, Any] | None = None,
+        schema_name: str = "respuesta",
+        max_tokens: int | None = None,
+        temperature: float | None = None,
+        timeout_s: float | None = None,
+    ) -> InterpretationResult:
+        """Una petición JSON con el mismo transporte, diagnóstico y procedencia.
+
+        No interpreta ni valida el contenido: devuelve el sobre con
+        ``raw_output`` para que el llamador aplique su propio contrato. Un
+        fallo de red o de formato queda como PENDIENTE con su causa real.
+        """
+        return self._pedir(
+            prompt,
+            self.model,
+            schema=schema,
+            max_tokens=max_tokens,
+            temperature=temperature,
+            timeout_s=timeout_s,
+            schema_name=schema_name,
+        )
+
     def proponer(
         self,
         query: str,

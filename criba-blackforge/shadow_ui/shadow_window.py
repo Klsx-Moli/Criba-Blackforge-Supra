@@ -891,6 +891,26 @@ class TopCardsWidget(QWidget):
         controls_row.addWidget(self.seed_input)
         l2.addLayout(controls_row)
 
+        evidence_row = QHBoxLayout()
+        evidence_row.setSpacing(6)
+        evidence_label = QLabel("Evidencia:")
+        evidence_label.setProperty("caption", True)
+        evidence_row.addWidget(evidence_label)
+        self.evidence_mode_selector = QComboBox()
+        from criba.evidence_modes import EVIDENCE_MODES
+
+        for key, spec in EVIDENCE_MODES.items():
+            self.evidence_mode_selector.addItem(f"{spec.label} · {spec.status}", key)
+        self.evidence_mode_selector.setCurrentIndex(
+            self.evidence_mode_selector.findData("creative")
+        )
+        self.evidence_mode_selector.setToolTip(
+            "Creativo/Exploratorio: propuesta NO validada. "
+            "Validado: exige verification PASS de SUPRA; sin PASS queda pendiente."
+        )
+        evidence_row.addWidget(self.evidence_mode_selector, stretch=1)
+        l2.addLayout(evidence_row)
+
         self.interpreter_status = QLabel(
             _t("shadow.interpreter.status")
         )
@@ -1484,6 +1504,23 @@ class RightPanelWidget(QWidget):
         note.setAlignment(Qt.AlignmentFlag.AlignCenter)
         bind_text(note, "shadow.supra_nota")
         l1.addWidget(note)
+        # Refinamiento operativo: segunda pasada del intérprete sobre la
+        # propuesta y su crítica. No valida: produce un plan medible.
+        protocolo = QPushButton("🧪 Protocolo operativo")
+        protocolo.setFixedHeight(34)
+        protocolo.setToolTip(
+            "Convierte la propuesta en un protocolo medible y falsable. "
+            "No equivale a validación."
+        )
+        self.protocolo = protocolo
+        protocolo.setEnabled(False)
+        protocolo.clicked.connect(lambda: actions.on_protocolo_operativo(win))
+        l1.addWidget(protocolo)
+        nota_protocolo = QLabel("Propuesta → protocolo operativo · NO VALIDADO")
+        nota_protocolo.setWordWrap(True)
+        nota_protocolo.setProperty("caption", True)
+        nota_protocolo.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        l1.addWidget(nota_protocolo)
         # M2 · slice vertical REAL: núcleo determinista -> dossier -> SUPRA real
         # -> persistencia -> GET -> esta ventana. Botón propio para que la
         # ruta real no compita con la preparación de dossiers de sesión.
@@ -1826,8 +1863,8 @@ class ShadowWindow(QMainWindow):
     # ------------------------------------------------------------------
     _SHADOW_STATE = frozenset({
         "store", "packet", "problem", "saved_ids", "sources_updated_at",
-        "invent_sheet", "sources_report", "_live_workers", "_progress_label",
-        "interpreter_cancel_requested",
+        "invent_sheet", "evidence_mode", "sources_report", "_live_workers",
+        "_progress_label", "interpreter_cancel_requested",
     })
 
     def __setattr__(self, name: str, value: Any) -> None:

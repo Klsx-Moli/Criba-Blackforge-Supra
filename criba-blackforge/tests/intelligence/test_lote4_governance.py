@@ -38,7 +38,14 @@ def gate_environment(tmp_path, state=None, python="real", output="", code=0):
     binary = tmp_path / "bin"
     binary.mkdir()
     for name in ("dirname", "grep"):
-        shutil.copy2(shutil.which(name), binary / name)
+        source = Path(shutil.which(name))
+        shutil.copy2(source, binary / name)
+        # MSYS coreutils need their runtime DLLs beside them when PATH is
+        # restricted to this directory; dirname also loads the gettext DLL.
+        # Without them the process exits 127, the gate falls back to the cwd
+        # and the test produces a false red on Windows.
+        for runtime in source.parent.glob("msys-*.dll"):
+            shutil.copy2(runtime, binary / runtime.name)
     if python != "absent":
         executable = binary / "python3"
         if python == "real":

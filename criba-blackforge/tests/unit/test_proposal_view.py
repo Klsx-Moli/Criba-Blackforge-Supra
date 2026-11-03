@@ -51,6 +51,47 @@ def test_propuesta_admitida_muestra_observaciones_de_critica() -> None:
     assert "Falta medir el coste de la compuerta." in text
 
 
+def test_propuesta_muestra_protocolo_y_criterios_operativos() -> None:
+    entry = {
+        "estado_interpretacion": "PROPUESTA",
+        "hipotesis": "El flujo se desacopla.",
+        "mecanismo": "Una compuerta regula el paso.",
+        "prueba_discriminante": {
+            "afirmacion_decisiva": "La compuerta reduce el error.",
+            "observable": "Errores por cada 100 operaciones.",
+            "comparacion": "Piloto contra baseline.",
+            "metrica": "errores/100 ops",
+            "regla_decision": "Reducción >= 15%.",
+            "condicion_fracaso": "Reducción < 5%.",
+            "alternativa_explicativa": "Efecto atención.",
+            "estado_prueba": "NO_EJECUTADA",
+        },
+        "critica": {
+            "evaluation_status": "CRITIQUED",
+            "respuesta": {
+                "objeciones": [],
+                "respuestas_epistemologicas": {
+                    "Q3": "La compuerta evita la transcripción manual.",
+                    "Q8": "Piloto de un mes con umbral previo.",
+                    "Q9": "Brazo sin compuerta para aislar atención.",
+                    "Q10": "Operarios de almacén.",
+                    "Q11": "Escalable a inventario digital.",
+                },
+            },
+        },
+    }
+
+    text = format_proposal(entry)
+
+    assert "PROTOCOLO DE PRUEBA" in text
+    assert "Métrica: errores/100 ops" in text
+    assert "Condición de fracaso: Reducción < 5%." in text
+    assert "CRITERIOS OPERATIVOS" in text
+    assert "Conexión causal: La compuerta evita la transcripción manual." in text
+    assert "Alternativa a discriminar: Brazo sin compuerta" in text
+    assert "Rol de aplicación: Operarios de almacén." in text
+
+
 def test_pendiente_sin_rechazo_conserva_etiqueta_y_diagnostico() -> None:
     entry = {
         "estado_interpretacion": "PENDIENTE_INTERPRETACION",
