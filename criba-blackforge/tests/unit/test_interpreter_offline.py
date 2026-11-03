@@ -664,3 +664,28 @@ def test_error_kind_regression_empty_content(
     assert result.estado == "PENDIENTE_INTERPRETACION"
     assert result.error_kind == "schema"
     assert "sin_contenido" in result.error
+
+
+def test_truncated_proposal_retries_with_double_budget(monkeypatch) -> None:
+    """Un finish_reason=length no invalida la idea: se reintenta con más salida."""
+    problem, idea, context, evidence = _inputs()
+    interpreter, _ = _make_interpreter(monkeypatch, [FakeHTTPResponse(payload={})])
+    llamadas: list[int | None] = []
+
+    def mock_pedir(prompt: str, model: str, schema=None, **kwargs):
+        llamadas.append(kwargs.get("max_tokens"))
+        return InterpretationResult(
+            estado=ESTADO_PENDIENTE,
+            error="sin_contenido:finish_reason=length tokens=8192 razonamiento=0",
+            finish_reason="length",
+            model_requests=1,
+        )
+
+    with patch.object(interpreter, "_pedir", side_effect=mock_pedir):
+        resultado = interpreter.proponer(problem, idea, context, evidence)
+
+    assert len(llamadas) == 2
+    assert llamadas[0] is None
+    assert llamadas[1] == min(interpreter.max_tokens * 2, 32768)
+    assert resultado.estado == ESTADO_PENDIENTE
+    assert resultado.model_requests == 2

@@ -249,6 +249,18 @@ def _is_truncated_response(exc: BaseException) -> bool:
     )
 
 
+def _respuesta_truncada(resultado: InterpretationResult) -> bool:
+    """True si el modelo agotó ``max_tokens`` sin salida utilizable.
+
+    En ese caso la propuesta no es inválida por contenido: el presupuesto de
+    salida se quedó corto. Se reintenta una vez con el doble, dentro del límite
+    duro del transporte. No se rellena ningún campo ni se relaja el contrato.
+    """
+    return resultado.finish_reason == "length" or "finish_reason=length" in (
+        resultado.error or ""
+    )
+
+
 class wait_retry_after(wait_base):
     """Estrategia de espera que respeta Retry-After (segundos o fecha HTTP)."""
 
@@ -918,6 +930,20 @@ class OpenAICompatibleInterpreter:
             self.model,
             schema=schema_propuesta(idea, evidence) if restringido else None,
         )
+        if transporte.estado == ESTADO_PENDIENTE and _respuesta_truncada(transporte):
+            ampliado = min(max(self.max_tokens, 1) * 2, 32768)
+            if ampliado > self.max_tokens:
+                reintento = self._pedir(
+                    prompt,
+                    self.model,
+                    schema=schema_propuesta(idea, evidence) if restringido else None,
+                    max_tokens=ampliado,
+                )
+                reintento = replace(
+                    reintento,
+                    model_requests=transporte.model_requests + reintento.model_requests,
+                )
+                transporte = reintento
         if transporte.estado == ESTADO_PENDIENTE:
             return transporte
         parsed = _extraer_json(transporte.raw_output)
