@@ -19,6 +19,9 @@ from criba.ui.proposal_view import format_proposal
 def _protocolo() -> dict:
     return {
         "resumen": "Retener inconsistencias menores y priorizar por estados.",
+        "fuente_error": "La transcripcion manual y la correccion posterior introducen y ocultan errores.",
+        "punto_intervencion": "En el marcado del registro durante la operacion de almacen.",
+        "por_que_reduce": "Reduce la fuente porque evita que la contradiccion se pierda antes de revisarla.",
         "definiciones_operativas": [
             "Contradiccion menor: diferencia <2% entre registrado y contado.",
             "Contradiccion mayor: diferencia >=2% o dato critico ausente.",
@@ -274,3 +277,33 @@ def test_on_protocolo_done_pendiente_no_muta_la_propuesta(monkeypatch) -> None:
 
     assert "protocolo_operativo" not in sheet["entries"][0]
     assert errores and "timeout" in errores[0]
+
+
+def test_parse_exige_diagnostico_causal() -> None:
+    data = _protocolo()
+    del data["fuente_error"]
+    protocolo, errores = parse_refinement(json.dumps(data))
+    assert protocolo is None
+    assert "falta:fuente_error" in errores
+
+
+def test_parse_rechaza_diagnostico_causal_generico() -> None:
+    data = _protocolo()
+    data["fuente_error"] = "errores"
+    _, errores = parse_refinement(json.dumps(data))
+    assert "fuente_error:pocas_palabras" in errores
+
+    data = _protocolo()
+    data["por_que_reduce"] = data["punto_intervencion"]
+    _, errores = parse_refinement(json.dumps(data))
+    assert "diagnostico_causal_repetido" in errores
+
+
+def test_format_proposal_muestra_fuente_y_punto_de_intervencion() -> None:
+    entry = dict(_entry())
+    entry["protocolo_operativo"] = _protocolo()
+    entry["protocolo_estado"] = "PROTOCOLO"
+    text = format_proposal(entry)
+    assert "Fuente del error: La transcripcion manual" in text
+    assert "Punto de intervención:" in text
+    assert "Por qué reduce:" in text

@@ -142,6 +142,9 @@ def _format_protocolo(protocolo: dict[str, Any], entry: dict[str, Any]) -> str:
         lineas.extend(f"- {item}" for item in definiciones if str(item).strip())
 
     campos = (
+        ("fuente_error", "Fuente del error"),
+        ("punto_intervencion", "Punto de intervención"),
+        ("por_que_reduce", "Por qué reduce"),
         ("criterio_dominancia", "Criterio de dominancia"),
         ("asignacion_presupuesto", "Asignación de presupuesto"),
         ("metrica_principal", "Métrica principal"),

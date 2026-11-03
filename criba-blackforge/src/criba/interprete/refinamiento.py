@@ -33,6 +33,9 @@ _SYSTEM_REFINAMIENTO = (
 
 _CAMPOS_TEXTO = (
     "resumen",
+    "fuente_error",
+    "punto_intervencion",
+    "por_que_reduce",
     "criterio_dominancia",
     "asignacion_presupuesto",
     "metrica_principal",
@@ -58,6 +61,9 @@ REFINEMENT_SCHEMA: dict[str, Any] = {
     "additionalProperties": False,
     "required": [
         "resumen",
+        "fuente_error",
+        "punto_intervencion",
+        "por_que_reduce",
         "definiciones_operativas",
         "criterio_dominancia",
         "asignacion_presupuesto",
@@ -76,6 +82,9 @@ REFINEMENT_SCHEMA: dict[str, Any] = {
     ],
     "properties": {
         "resumen": {"type": "string", "minLength": 1, "maxLength": 800},
+        "fuente_error": {"type": "string", "minLength": 1, "maxLength": 800},
+        "punto_intervencion": {"type": "string", "minLength": 1, "maxLength": 600},
+        "por_que_reduce": {"type": "string", "minLength": 1, "maxLength": 800},
         "definiciones_operativas": {
             "type": "array",
             "minItems": 3,
@@ -182,6 +191,12 @@ def build_refinement_prompt(query: str, entry: dict[str, Any]) -> str:
         f"Criterios operativos: {criterios_txt}\n\n"
         "TAREA\n"
         "Convierte la propuesta en un protocolo operativo ejecutable. Exige:\n"
+        "0. Diagnostico causal explicito: fuente_error (que produce hoy el error "
+        "en el proceso real, no una reformulacion del problema), "
+        "punto_intervencion (donde y cuando actua el mecanismo propuesto) y "
+        "por_que_reduce (por que reduce esa fuente, no solo la detecta despues). "
+        "Si el mecanismo solo prioriza o verifica despues, dilo y declara que no "
+        "elimina la fuente.\n"
         "1. Definiciones operativas con tolerancias numericas: que cuenta como "
         "contradiccion menor y mayor, y que se retiene, descarta o pone en cuarentena.\n"
         "2. Dominancia por estados: criterio calculado con frecuencias observadas "
@@ -200,6 +215,9 @@ def build_refinement_prompt(query: str, entry: dict[str, Any]) -> str:
         "Devuelve solo el JSON del esquema.\n\n"
         "ESQUEMA EXACTO (claves planas, sin anidar; no añadas ni renombres claves)\n"
         '{"resumen": "texto", '
+        '"fuente_error": "texto", '
+        '"punto_intervencion": "texto", '
+        '"por_que_reduce": "texto", '
         '"definiciones_operativas": ["texto", "texto", "texto"], '
         '"criterio_dominancia": "texto", '
         '"asignacion_presupuesto": "texto", '
@@ -299,6 +317,21 @@ def validar_protocolo(data: Any) -> tuple[dict[str, Any] | None, list[str]]:
 
     if errores:
         return None, errores
+
+    minimos = {"fuente_error": 8, "punto_intervencion": 5, "por_que_reduce": 8}
+    for campo, minimo in minimos.items():
+        valor = protocolo.get(campo) or ""
+        if valor and len(valor.split()) < minimo:
+            errores.append(f"{campo}:pocas_palabras")
+    diagnostico = [
+        (protocolo.get(campo) or "").casefold()
+        for campo in ("fuente_error", "punto_intervencion", "por_que_reduce")
+    ]
+    if all(diagnostico) and len(set(diagnostico)) < 3:
+        errores.append("diagnostico_causal_repetido")
+    if errores:
+        return None, errores
+
     protocolo["prompt_version"] = PROMPT_VERSION_REFINAMIENTO
     return protocolo, []
 
