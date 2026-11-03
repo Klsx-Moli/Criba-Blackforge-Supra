@@ -371,7 +371,7 @@ def guardar_dossier(dossier: dict[str, Any], directory: Path | None = None) -> P
     directory = _dossiers_dir(directory)
     path = directory / "dossiers.jsonl"
     identity = dossier.get("dossier_id")
-    if not isinstance(identity, str) or not identity.strip():
+    if not _exact_identity_text(identity):
         raise ValueError("dossier_id es obligatorio")
     if dossier.get("tipo") == "resultado_observado":
         raise ValueError("usar registrar_resultado para observaciones")
@@ -393,9 +393,9 @@ def cargar_dossier(
     directory: Path | None = None,
 ) -> dict[str, Any] | None:
     """Load one unambiguous local dossier by identity."""
-    identity = dossier_id.strip()
-    if not identity:
-        raise ValueError("dossier_id es obligatorio")
+    if not _exact_identity_text(dossier_id):
+        raise ValueError("dossier_id debe ser texto exacto no vacío")
+    identity = dossier_id
     path = _dossiers_dir(directory) / "dossiers.jsonl"
     dossiers, ambiguos, _ = _leer_historial(path)
     if identity in ambiguos:

@@ -40,21 +40,18 @@ entorno Qt/REST real.
 """
 from __future__ import annotations
 
-import json
-import os
 from pathlib import Path
 
 import httpx
-import pytest
-
 from criba.integrations.supra_client import SupraClient, SupraClientConfig
 from criba.supra_dossier import (
     _discriminant_protocol_complete,
     cargar_dossier,
-    preparar_dossier,
     guardar_dossier,
+    preparar_dossier,
 )
 from criba.ui import actions
+
 from verification.interpreter_cases import critica, propuesta
 
 
@@ -80,6 +77,7 @@ def _dossier_real(tmp_path: Path) -> dict[str, dict]:
 
 def _receipt_for(dossier: dict) -> dict:
     """Receipt que enlaza al dossier por su identidad canonical."""
+    from criba.integrations.supra_client import _dossier_payload_fingerprint
     return {
         "receipt_scope": "PLANNED_DISCRIMINANT_PROTOCOL_ONLY",
         "execution_status": "NOT_EXECUTED",
@@ -90,7 +88,7 @@ def _receipt_for(dossier: dict) -> dict:
         "mechanism_version": dossier["mechanism_version"],
         "protocol_version": dossier["protocol_version"],
         "integration_version": "criba-supra/1",
-        "payload_fingerprint": "sha256:" + "f" * 64,
+        "payload_fingerprint": _dossier_payload_fingerprint(dossier),
     }
 
 

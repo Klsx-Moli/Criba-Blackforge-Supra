@@ -42,6 +42,9 @@ a = Analysis(
         (str(ROOT / "schemas"), "schemas"),
     ] + copy_metadata("criba"),
     hiddenimports=[
+        "criba.dossier_workflow",
+        "criba.dossier_workflow_cli",
+        "criba.ui.dossier_workflow_view",
         # Shadow UI: modulos sueltos, no visibles para el analisis estatico
         "shadow_window",
         "shadow_context",

@@ -12,6 +12,7 @@ import sys
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
+
 from verification.interpreter_cases import resultado
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
@@ -455,7 +456,18 @@ def test_interpretacion_muestra_un_candidato_por_vez_y_navega(qapp, tmp_path):
 
 
 def _lookup_falso(project_id: str = "proj-real-1") -> SimpleNamespace:
-    receipt = SimpleNamespace(model_dump=lambda: {"criba_dossier_id": "dossier-real-1"})
+    receipt = SimpleNamespace(model_dump=lambda: {
+        "receipt_scope": "PLANNED_DISCRIMINANT_PROTOCOL_ONLY",
+        "execution_status": "NOT_EXECUTED",
+        "scientific_status": "NOT_VALIDATED",
+        "integration_version": "criba-supra/1",
+        "payload_fingerprint": "sha256:" + "0" * 64,
+        "criba_dossier_id": "dossier-real-1",
+        "criba_candidate_id": "c",
+        "claim_id": "cl",
+        "mechanism_version": "mv",
+        "protocol_version": "pv",
+    })
     posture = SimpleNamespace(criba_dossier_receipt=receipt)
     return SimpleNamespace(
         status="blocked",
@@ -476,11 +488,12 @@ def _lookup_falso(project_id: str = "proj-real-1") -> SimpleNamespace:
     )
 
 
-def test_dossier_interpretado_hace_post_y_get_en_la_misma_ruta():
+def test_dossier_interpretado_hace_post_y_get_en_la_misma_ruta(monkeypatch, tmp_path):
+    monkeypatch.setenv("CRIBASHADOW_HOME", str(tmp_path))
     llamadas: list[tuple[str, str]] = []
-    lookup = _lookup_falso()
+    lookup = _lookup_falso("astram2-291ab34bfb5e990a92372c3d6fa1f6f5")
     posted = SimpleNamespace(
-        project_id="proj-real-1",
+        project_id="astram2-291ab34bfb5e990a92372c3d6fa1f6f5",
         status="blocked",
         completion_status="BLOCKED",
         workflow_status="BLOCKED",
@@ -505,9 +518,29 @@ def test_dossier_interpretado_hace_post_y_get_en_la_misma_ruta():
             llamadas.append(("GET", project_id))
             return lookup
 
-    dossier = {"dossier_id": "dossier-real-1"}
+    dossier = {"dossier_id": "dossier-real-1", "candidate_id": "c", "claim_id": "cl",
+              "mechanism_version": "mv", "protocol_version": "pv",
+              "estado": "SUPRA_EJECUCION_PENDIENTE",
+              "hipotesis": "h", "mecanismo": "m", "problema": "p",
+              "prueba_discriminante": {"observable": "o", "intervencion_prueba": "i",
+                                      "regla_decision": "r", "condicion_fracaso": "c"}}
+    from criba.integrations.supra_client import _dossier_payload_fingerprint
+    lookup.posture.criba_dossier_receipt = SimpleNamespace(model_dump=lambda: {
+        "receipt_scope": "PLANNED_DISCRIMINANT_PROTOCOL_ONLY",
+        "execution_status": "NOT_EXECUTED",
+        "scientific_status": "NOT_VALIDATED",
+        "integration_version": "criba-supra/1",
+        "payload_fingerprint": _dossier_payload_fingerprint(dossier),
+        "criba_dossier_id": dossier["dossier_id"],
+        "criba_candidate_id": dossier["candidate_id"],
+        "claim_id": dossier["claim_id"],
+        "mechanism_version": dossier["mechanism_version"],
+        "protocol_version": dossier["protocol_version"],
+    })
     report = actions._execute_supra_dossiers([dossier], client=_Cliente())
-    assert llamadas == [("POST", "auto"), ("GET", "proj-real-1")]
+    assert llamadas == [("POST", "astram2-291ab34bfb5e990a92372c3d6fa1f6f5"),
+                        ("GET", "astram2-291ab34bfb5e990a92372c3d6fa1f6f5"),
+                        ("GET", "astram2-291ab34bfb5e990a92372c3d6fa1f6f5")]
     assert report["dossiers"] == [dossier]
     assert report["runs"][0]["read"]["status_source"] == "PERSISTED_STATE"
     assert report["runs"][0]["read"]["persisted_artifact_status"] == (
@@ -557,6 +590,7 @@ def test_reapertura_recupera_ultimo_get_y_dossier_local(monkeypatch, tmp_path):
 
     monkeypatch.setenv("CRIBASHADOW_HOME", str(tmp_path))
     dossier = {
+        "estado": "SUPRA_EJECUCION_PENDIENTE",
         "dossier_id": "dossier-real-1", "candidate_id": "candidate-reopen",
         "claim_id": "claim-reopen", "mechanism_version": "sha256:" + "a" * 64,
         "protocol_version": "sha256:" + "b" * 64, "mecanismo": "m recuperado",
@@ -564,7 +598,13 @@ def test_reapertura_recupera_ultimo_get_y_dossier_local(monkeypatch, tmp_path):
     guardar_dossier(dossier)
     guardar_dossier({**dossier, "dossier_id": "newer-unsent-draft"})
     lookup = _lookup_falso("proj-reopen-1")
+    from criba.integrations.supra_client import _dossier_payload_fingerprint
     lookup.posture.criba_dossier_receipt = SimpleNamespace(model_dump=lambda: {
+        "receipt_scope": "PLANNED_DISCRIMINANT_PROTOCOL_ONLY",
+        "execution_status": "NOT_EXECUTED",
+        "scientific_status": "NOT_VALIDATED",
+        "integration_version": "criba-supra/1",
+        "payload_fingerprint": _dossier_payload_fingerprint(dossier),
         "criba_dossier_id": dossier["dossier_id"],
         "criba_candidate_id": dossier["candidate_id"],
         **{key: dossier[key] for key in ("claim_id", "mechanism_version", "protocol_version")},
@@ -577,7 +617,7 @@ def test_reapertura_recupera_ultimo_get_y_dossier_local(monkeypatch, tmp_path):
             return SimpleNamespace(model_dump=lambda: {"status": "healthy"})
 
         def list_projects(self, *, limit: int):
-            assert limit == 1
+            assert limit == 20
             return SimpleNamespace(projects=[{"project_id": "proj-reopen-1"}])
 
         def get_project(self, project_id: str):

@@ -191,6 +191,19 @@ _STRINGS: dict[str, dict[str, str]] = {
         "shadow.title": "CRIBA — Shadow UI (UIEDITION)",
         "shadow.ver_historial": "Ver historial completo",
         "shadow.ver_todas": "Ver todas las ideas  →",
+        'dossier.local.label': 'Dossier local',
+        'dossier.local.LOCAL_DOSSIER_RECOVERED': 'Vinculado al receipt y recuperado.',
+        'dossier.local.NO_PROJECTS': 'Sin proyectos para recuperar.',
+        'dossier.local.RECEIPT_NOT_PRESENT': 'Sin receipt CRIBA preservado.',
+        'dossier.local.RECEIPT_SCOPE_MISMATCH': 'Receipt fuera de planificación.',
+        'dossier.local.RECEIPT_IDENTITY_INVALID': 'Identidad no exacta en receipt.',
+        'dossier.local.LOCAL_HISTORY_ERROR': 'Historial local no legible o ambiguo.',
+        'dossier.local.LOCAL_DOSSIER_MISSING': 'El dossier no existe localmente.',
+        'dossier.local.IDENTITY_MISMATCH': 'Identidad local distinta del receipt.',
+        'dossier.local.LOCAL_STATE_MISMATCH': 'Estado local incompatible.',
+        'dossier.local.LOCAL_PAYLOAD_INVALID': 'Contenido local fuera de contrato.',
+        'dossier.local.PAYLOAD_MISMATCH': 'Contenido distinto del receipt.',
+        'dossier.local.UNKNOWN': 'Estado local no declarado.',
     },
     "en": {
         "sources.loading": "Updating sources…",
@@ -374,6 +387,19 @@ _STRINGS: dict[str, dict[str, str]] = {
         "shadow.title": "CRIBA — Shadow UI (UIEDITION)",
         "shadow.ver_historial": "See full history",
         "shadow.ver_todas": "See all ideas  →",
+        'dossier.local.label': 'Local dossier',
+        'dossier.local.LOCAL_DOSSIER_RECOVERED': 'Bound to the receipt and recovered.',
+        'dossier.local.NO_PROJECTS': 'No projects to recover.',
+        'dossier.local.RECEIPT_NOT_PRESENT': 'No preserved CRIBA receipt.',
+        'dossier.local.RECEIPT_SCOPE_MISMATCH': 'Receipt outside planning scope.',
+        'dossier.local.RECEIPT_IDENTITY_INVALID': 'Receipt identity is not exact.',
+        'dossier.local.LOCAL_HISTORY_ERROR': 'Local history is unreadable or ambiguous.',
+        'dossier.local.LOCAL_DOSSIER_MISSING': 'Dossier not available locally.',
+        'dossier.local.IDENTITY_MISMATCH': 'Local identity differs from receipt.',
+        'dossier.local.LOCAL_STATE_MISMATCH': 'Incompatible local state.',
+        'dossier.local.LOCAL_PAYLOAD_INVALID': 'Local content violates the contract.',
+        'dossier.local.PAYLOAD_MISMATCH': 'Content differs from receipt.',
+        'dossier.local.UNKNOWN': 'Local state not declared.',
     },
 }
 
@@ -393,7 +419,7 @@ def lang() -> str:
 def set_lang(code: str) -> None:
     global _current
     _current = code if code in _STRINGS else "es"
-    for cb in _listeners:
+    for cb in tuple(_listeners):
         try:
             cb()
         except Exception:
@@ -407,3 +433,11 @@ def toggle() -> None:
 def on_change(cb: Callable[[], None]) -> None:
     """Registra callback invocado en cada cambio de idioma."""
     _listeners.append(cb)
+
+
+def off_change(cb: Callable[[], None]) -> None:
+    """Remove one subscription; safe after destroyed/GC cleanup."""
+    try:
+        _listeners.remove(cb)
+    except ValueError:
+        pass
