@@ -132,3 +132,66 @@ Disposición: **DEFERRED** (no RESEARCH_ONLY ni BLOCKED) — causa: implementarl
 - Propuesta de integración a main: preparar (qué contenido, de dónde, qué sustituye, qué conserva, evidencia) — NO ejecutar.
 - Instrumento funcional (§13): BLOCKED por falta de artefacto evaluable.
 - Aprobación esquema ledger: PENDING.
+
+---
+
+## 8. Reconciliación 2026-11-03 — candidata `be37c47c` vs `main` `5e89959a`
+
+Base actual: `main=5e89959a0dfc3337663970a4aff74364f2702482` (ancestro de la candidata).
+Candidata: `fix/acceptance-critique-lotes3-4-20261101=be37c47c6a4804b7a5b2ddbfcbb54f7cab49d6f4`.
+Delta: 10 commits, 74 archivos (+13297/-452). WIP local sin commitear: feature `dossier-workflow` (16 archivos).
+**Solape WIP local ↔ candidata: SOLO `ui/actions.py`.**
+
+| Capacidad | Archivos | Disposición | Nota |
+|---|---|---|---|
+| Servicio de invención compartido | `src/criba/invention_service.py` (A) | PORT_CANDIDATE | No en main; núcleo P2. |
+| Vista de propuesta | `src/criba/ui/proposal_view.py` (A) | PORT_CANDIDATE | No en main; P2. |
+| Sonda de invención Shadow | `shadow_ui/shadow_invention_probe.py` (A) | REUSE (evidencia) | herramienta de sonda. |
+| Wiring UI | `ui/actions.py`, `shadow_ui/shadow_window.py`, `ui/blackforge_window.py` (M) | PORT_CANDIDATE | `actions.py` conflictúa con WIP local. |
+| Endurecimiento intérprete | `interprete/{contrato,openai_compatible,diagnostico}.py` (M) | EXTEND | ya en main. |
+| Invención/scoring | `inventar.py` (M) | EXTEND | |
+| Integridad/evidencia | `verification/{retry_ledger,retrybox_contract}.py`, `tests/offline_inference_guard.py` (M/A) | EXTEND | append serializado, guard offline. |
+| Timeout proveedor SUPRA | `supra/.../providers/openai_compatible.py` (M) | EXTEND | rechaza timeout no finito/≤0. |
+| Herramientas de presupuesto | `scripts/{acceptance_http_budget,verify_native_acceptance_budget,run_guarded_nous_proxy}.py` (A) | REUSE | insumo P4. |
+| Campaña TRIZ/Koestler | `docs/research/triz-inventiva/**`, `CHECKPOINT_TRIZ_INVENTIVA_20261028.md` (A) | UNIQUE_PRESERVE | insumo P3; PREPARED_NOT_INTEGRATED. |
+| Multi-repo state / CI | `.hermes/iie/multi_repo_state.py`, `scripts/check_eeimc_state.sh` (M) | EXTEND | |
+| Tests (nuevos+mod) | `tests/**` | EXTEND | cubren lo anterior. |
+
+**Decisión de integración:** `be37c47c` desciende de `main`, así que la reconciliación por capacidad es una rama local `int/reconcile-20261103` = `be37c47c` + reaplicar el WIP `dossier-workflow` (conflicto único: `ui/actions.py`). NO merge a `main`; sin push; reversible.
+
+**Bloqueos heredados (candidata):** aceptación real con proveedor BLOQUEADA (12/12 agotado, causa UNKNOWN); GUI visible `NOT_VERIFIED`; `SCIENTIFIC_BENEFIT_NOT_ESTABLISHED`.
+
+## 9. P1/P2 ejecutados 2026-11-03 — corrección y resultado
+
+Correcciones al §8 tras inspección: el solape WIP local ↔ candidata era **3 archivos** (`ui/actions.py`, `tests/unit/test_shadow_interpreter_journey.py`, `tests/unit/test_shadow_recovery_identity.py`), no solo uno. Además se localizó un **segundo WIP sin commitear en el worktree `shadow-canonical`** (38 M + 21 ??) que resultó ser el superconjunto: aporta `storage.save_invention`, `ui/i18n`, `integrations/supra_client`, `lottery`, `interprete/diagnostico` y el fix de encoding de `cbs_e01v2`.
+
+- `be37c47c` estaba **roto por sí solo**: su `ui/actions.py` ya usaba `DossierWorkflow` pero el módulo no existía en su árbol.
+- Integración: rama local `int/reconcile-20261103` = `be37c47c` + WIP-B (63 archivos) + resto del WIP-A. Commit local `0a08c52`. **`main` intacto; sin push.**
+- Preservación: `PRESERVE_20261103/P0` (worktree principal) y `PRESERVE_20261103/P0b_shadow-canonical` (candidata), hashes verificados.
+- Evidencia: route set 108 passed; integration+recovery+lotes 438 passed/27 skipped; SUPRA 346 passed; **0 failed**.
+- Suite completa `criba-blackforge/tests` sobre `a43aefb`: **passed 2648, skipped 34, failures 0, errors 0**, exit code **0**, 849.018 s.
+  - Comando: `python -m pytest tests -q --tb=line -rf --junitxml=PRESERVE_20261103/P1_junit_full_0a08c52.xml` (cwd `criba-blackforge/`, `PYTHONPATH=src;.`, `QT_QPA_PLATFORM=offscreen`).
+  - Artefacto: `PRESERVE_20261103/P1_junit_full_0a08c52.xml` (timestamp 2026-11-03T03:13:14+01:00).
+  - El log de stdout quedó vacío (0 bytes) por buffering del redirect: el resumen procede del XML JUnit y del exit code, **no** de `nodeids` ni de `lastfailed`.
+- Diferencia EOL documentada (no normalizada): `blackforge_broker.py`, `blackforge_case.py`, `verification/blackforge_catalog_report.json`, `verification/blackforge_safety_report.json`. `git status` los marca ` M` pero `git hash-object --path=<f>` coincide con el blob del índice (`2c1e047c…` en ambos lados de `porcelain=v2`) y `git diff --numstat` = 0 entradas. Causa: `.gitattributes` fija `text=set` + `eol=lf` mientras el working tree está en CRLF (835/1025/91/539 líneas). Sin cambio de contenido; no se normaliza ni se descarta.
+- Límite honesto: los recorridos Shadow y BLACKFORGE se verifican a nivel de suite con hoja de invención sintética y almacenamiento real; **no** hay aceptación con proveedor real (lote 12/12 agotado, causa UNKNOWN) ni GUI visible.
+
+## 10. P3 — catálogo inventivo ya presente en el WIP
+
+El WIP-B incluye `data/methods/sources/inventive_operators.json` (sin trackear), `scripts/build_inventive_catalog.py` y `tests/unit/test_inventive_catalog.py`. Verificado en la integración: `tests/unit/test_inventive_catalog.py` pasa dentro del conjunto de 438.
+
+Verificación dirigida sobre `0a08c52` (`tests/unit/test_inventive_catalog.py`, 29 passed):
+- Catálogo real: 7228 registros, de los cuales **27 operadores** llevan `operator_record` (`OP-TRIZ-01/02/03`, `OP-BIS-01/02/03`, `OP-EXP-01`, `OP-CRIT-01`, A3-OP-* 9, A4-OP-* 10).
+- Los 27 sobreviven sin pérdida semántica desde el material preparado (`docs/research/triz-inventiva/operators/operators.jsonl` + `supplements/a3|a4/payload_*.json`) hasta el catálogo empaquetado.
+- Cadena por operador: seleccionado → **incluido en `prompt_propuesta`** → devuelto por el consumidor → perseguido en SQLite y recuperado → preservado en el sobre de procedencia del dossier.
+- Escalones NO cubiertos: **aplicado a un mecanismo con modelo real** y **mostrado en GUI visible** (ambos dependen del lote de proveedor bloqueado / gate humano).
+
+## 11. P4 — andamiaje comparativo verificado offline; comparación real BLOQUEADA
+
+Re-ejecutado sobre la integración `0a08c52`, sin red ni modelo:
+`benchmarks/innovation/run_dual_domains_smoke.py --out benchmarks/innovation/smoke_dual_domains_0a08c52.json`
+→ exit 0, `runs=40`, `status_counts={OK:40, UNAVAILABLE:0}`, 10 por condición (`A_DIRECT`, `B_STRONG_PROMPT`, `C_CRIBA`, `D_BLACKFORGE`). Semilla explícita. La reconciliación no rompió el andamiaje.
+
+El original de 2026-11-02 se conserva sin sobrescribir. `C_CRIBA` y `D_BLACKFORGE` son selección real sobre el catálogo; `A`/`B` son stubs deterministas que **no** modelan calidad.
+
+**BLOQUEO REAL (externo):** la comparación «mejor que un modelo» exige ledger de proveedor nuevo y autorizado (el físico está 12/12 agotado, causa UNKNOWN), mismo modelo/presupuesto para A/B, dataset preregistrado y revisiones ciegas. Requiere decisión del propietario. `scientific_advantage = NOT_ESTABLISHED`; D3/D4/D6/G3/STANDARD **no** se promueven.
