@@ -930,7 +930,7 @@ class OpenAICompatibleInterpreter:
             self.model,
             schema=schema_propuesta(idea, evidence) if restringido else None,
         )
-        if transporte.estado == ESTADO_PENDIENTE and _respuesta_truncada(transporte):
+        if _respuesta_truncada(transporte):
             ampliado = min(max(self.max_tokens, 1) * 2, 32768)
             if ampliado > self.max_tokens:
                 reintento = self._pedir(
@@ -969,6 +969,27 @@ class OpenAICompatibleInterpreter:
             reasoning_effort=self.critique_reasoning_effort,
             schema_name="critica",
         )
+        if _respuesta_truncada(critica):
+            presupuesto_critica = min(
+                max(self.critique_max_tokens or self.max_tokens, 1) * 2, 32768
+            )
+            if presupuesto_critica > (self.critique_max_tokens or 0):
+                reintento_critica = self._pedir(
+                    critica_prompt,
+                    self.critic_model,
+                    schema=schema_critica() if restringido else None,
+                    max_tokens=presupuesto_critica,
+                    temperature=self.critique_temperature,
+                    timeout_s=self.critique_timeout_s,
+                    reasoning_effort=self.critique_reasoning_effort,
+                    schema_name="critica",
+                )
+                reintento_critica = replace(
+                    reintento_critica,
+                    model_requests=critica.model_requests
+                    + reintento_critica.model_requests,
+                )
+                critica = reintento_critica
         diagnostico: dict[str, Any] = {
             "evaluation_status": "NOT_EVALUATED",
             "independent_validation": False,

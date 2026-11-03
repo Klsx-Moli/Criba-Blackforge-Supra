@@ -689,3 +689,70 @@ def test_truncated_proposal_retries_with_double_budget(monkeypatch) -> None:
     assert llamadas[1] == min(interpreter.max_tokens * 2, 32768)
     assert resultado.estado == ESTADO_PENDIENTE
     assert resultado.model_requests == 2
+
+
+def test_propuesta_valida_pero_truncada_tambien_se_reintenta(monkeypatch) -> None:
+    """Un JSON que parsea con finish_reason=length está incompleto: se reintenta."""
+    from dataclasses import replace as dc_replace
+    from verification.interpreter_cases import critica
+
+    problem, idea, context, evidence = _inputs()
+    salida = _proposal_json()
+    interprete, _ = _make_interpreter(monkeypatch, [FakeHTTPResponse(payload={})])
+    llamadas: list[int | None] = []
+
+    def mock_pedir(prompt: str, model: str, schema=None, **kwargs):
+        llamadas.append(kwargs.get("max_tokens"))
+        if len(llamadas) == 1:
+            return dc_replace(_interpretation_result_propuesta(salida), finish_reason="length")
+        if len(llamadas) == 2:
+            return _interpretation_result_propuesta(salida)
+        return InterpretationResult(
+            estado=ESTADO_PROPUESTA,
+            raw_output=json.dumps(critica()),
+            finish_reason="stop",
+            model_requests=1,
+        )
+
+    with patch.object(interprete, "_pedir", side_effect=mock_pedir):
+        resultado = interprete.proponer(problem, idea, context, evidence)
+
+    assert len(llamadas) == 3
+    assert llamadas[1] == min(interprete.max_tokens * 2, 32768)
+    assert resultado.estado == ESTADO_PROPUESTA
+
+
+def test_critica_truncada_se_reintenta_con_mas_presupuesto(monkeypatch) -> None:
+    """La crítica también puede agotar tokens; no debe tumbar una propuesta válida."""
+    from verification.interpreter_cases import critica
+
+    problem, idea, context, evidence = _inputs()
+    salida = _proposal_json()
+    interprete, _ = _make_interpreter(monkeypatch, [FakeHTTPResponse(payload={})])
+    llamadas: list[int | None] = []
+
+    def mock_pedir(prompt: str, model: str, schema=None, **kwargs):
+        llamadas.append(kwargs.get("max_tokens"))
+        if len(llamadas) == 1:
+            return _interpretation_result_propuesta(salida)
+        if len(llamadas) == 2:
+            return InterpretationResult(
+                estado=ESTADO_PENDIENTE,
+                error="sin_contenido:finish_reason=length tokens=2048",
+                finish_reason="length",
+                model_requests=1,
+            )
+        return InterpretationResult(
+            estado=ESTADO_PROPUESTA,
+            raw_output=json.dumps(critica()),
+            finish_reason="stop",
+            model_requests=1,
+        )
+
+    with patch.object(interprete, "_pedir", side_effect=mock_pedir):
+        resultado = interprete.proponer(problem, idea, context, evidence)
+
+    assert len(llamadas) == 3
+    presupuesto = min((interprete.critique_max_tokens or interprete.max_tokens) * 2, 32768)
+    assert llamadas[2] == presupuesto
+    assert resultado.estado == ESTADO_PROPUESTA
