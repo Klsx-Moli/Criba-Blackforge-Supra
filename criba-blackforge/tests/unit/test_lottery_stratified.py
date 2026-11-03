@@ -61,6 +61,35 @@ def test_stratified_batch_different_seeds_differ() -> None:
     assert ids_a != ids_b
 
 
+def test_stratified_mixed_catalog_includes_unclassified_residual() -> None:
+    """BLACKFORGE no tiene thinking_class: debe ser un estrato residual honesto.
+
+    Sin esta regla, un catálogo mixto con suficientes métodos clasificados
+    llenaba el lote sólo con CRIBA y excluía todo el catálogo BLACKFORGE.
+    """
+    mixed = _synthetic_catalog(per_class=20, domain=0) + [
+        {
+            "id": f"bf-{i:03d}",
+            "name": f"bf-{i:03d}",
+            "title": f"BF {i:03d}",
+            "family": "blackforge",
+            "thinking_class": "",
+        }
+        for i in range(80)
+    ]
+    engine = LotteryEngine.from_methods(mixed, seed=9)
+    batch = engine.select_stratified_batch(20)
+    assert len(batch) == 20
+    counts = {class_name: 0 for class_name in (*DRAW_CLASSES, "")}
+    for method in batch:
+        counts[str(method["thinking_class"] or "")] += 1
+    assert all(counts[class_name] > 0 for class_name in DRAW_CLASSES)
+    assert counts[""] > 0
+    assert all(
+        method["id"].startswith("bf-") for method in batch if not method["thinking_class"]
+    )
+
+
 def test_draw_domain_returns_domain_entry() -> None:
     engine = LotteryEngine.from_methods(_synthetic_catalog(), seed=3)
     drawn = engine.draw_domain()

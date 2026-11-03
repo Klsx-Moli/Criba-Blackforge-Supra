@@ -1,0 +1,2379 @@
+[
+  {
+    "id": "OP-TRIZ-01",
+    "name": "OP-TRIZ-01",
+    "title": "Formular contradicción observable",
+    "description": "Expresar qué magnitud mejora y cuál empeora bajo la misma intervención; separar supuesto de dato.",
+    "family": "inventiva_triz_koestler",
+    "thinking_class": "ruptura",
+    "granularity": "method",
+    "origin": "original_adaptation",
+    "source": "triz_koestler",
+    "operator_record": {
+      "operator_id": "OP-TRIZ-01",
+      "title": "Formular contradicción observable",
+      "origin": "ORIGINAL_ADAPTATION_IN_THIS_PACKAGE_NOT_AUTHOR_QUOTATION",
+      "source_ids": [
+        "SRC03",
+        "SRC09"
+      ],
+      "required_inputs": [
+        "problema",
+        "restricciones",
+        "funcion_objetivo"
+      ],
+      "transformation": "Expresar qué magnitud mejora y cuál empeora bajo la misma intervención; separar supuesto de dato.",
+      "output_requirements": "variables_en_conflicto, intervención, evidencia o UNKNOWN",
+      "abstention_or_limit": "No inventar magnitudes ni forzar contradicción si no existe.",
+      "own_example_not_observed": "Más revisión aumenta cobertura candidata y consume tiempo: ambas magnitudes requieren medición.",
+      "counterexample": "Paráfrasis más larga sin variables ni intervención.",
+      "discriminating_test_proposal": "Comparar coste total y errores detectados bajo igual presupuesto.",
+      "execution_status": "NOT_EXECUTED",
+      "validation_status": "NOT_VALIDATED",
+      "production_binding": "NOT_WIRED",
+      "rights": "Redacción original; no reproducción de tablas o capítulos."
+    },
+    "source_records": [
+      {
+        "source_id": "SRC03",
+        "title": "TRIZ for Engineers: Enabling Inventive Problem Solving",
+        "authors": [
+          "Karen Gadd"
+        ],
+        "year": 2011,
+        "document_type": "PUBLISHER_BOOK_PAGE",
+        "reading_level": "PUBLISHER_DESCRIPTION_AND_CONTENTS",
+        "locator": "About this book; Table of Contents",
+        "identifier": "10.1002/9780470684320",
+        "license": "NOT_VERIFIED: enlazar y parafrasear; no redistribuir el original",
+        "url": "https://onlinelibrary.wiley.com/doi/book/10.1002/9780470684320",
+        "provenance_status": "REPORTED_IN_PREVIOUS_TURN_NOT_RECHECKED_THIS_TURN",
+        "notes": [
+          "Wiley: primera publicación 9 marzo 2011; distinguir fechas de distribución de otras plataformas."
+        ]
+      },
+      {
+        "source_id": "SRC09",
+        "title": "Integration of TRIZ and Roadmapping for Innovation, Strategy, and Problem Solving: Phase 1",
+        "authors": [
+          "Imoh Ilevbare",
+          "Rob Phaal",
+          "David Probert",
+          "Alejandro Torres Padilla"
+        ],
+        "year": 2011,
+        "document_type": "INSTITUTIONAL_RESEARCH_REPORT",
+        "reading_level": "PARTIAL_EXTRACTED_TEXT",
+        "locator": "Executive Summary p.2; §§1.2–1.6; §3.2 solo extracto indexado",
+        "identifier": null,
+        "license": "NOT_VERIFIED: enlazar y parafrasear; no redistribuir el original",
+        "url": "https://www.ifm.eng.cam.ac.uk/uploads/Research/CTM/Roadmapping/triz_dux_trt_phase1_report.pdf",
+        "provenance_status": "REPORTED_IN_PREVIOUS_TURN_NOT_RECHECKED_THIS_TURN",
+        "notes": [
+          "Julio 2011; texto extraído truncado. Integraciones previstas para probar después, no resultados validados."
+        ]
+      }
+    ]
+  },
+  {
+    "id": "OP-TRIZ-02",
+    "name": "OP-TRIZ-02",
+    "title": "Separar exigencias por condición",
+    "description": "Identificar si exigencias opuestas pueden satisfacerse en tiempos, partes o condiciones distintos sin violar restricciones.",
+    "family": "inventiva_triz_koestler",
+    "thinking_class": "ruptura",
+    "granularity": "method",
+    "origin": "original_adaptation",
+    "source": "triz_koestler",
+    "operator_record": {
+      "operator_id": "OP-TRIZ-02",
+      "title": "Separar exigencias por condición",
+      "origin": "ORIGINAL_ADAPTATION_IN_THIS_PACKAGE_NOT_AUTHOR_QUOTATION",
+      "source_ids": [
+        "SRC03"
+      ],
+      "required_inputs": [
+        "contradiccion",
+        "restricciones"
+      ],
+      "transformation": "Identificar si exigencias opuestas pueden satisfacerse en tiempos, partes o condiciones distintos sin violar restricciones.",
+      "output_requirements": "condiciones, regla de separación y mecanismo",
+      "abstention_or_limit": "Abstenerse si la separación cambia el requisito obligatorio o no hay condición comprobable.",
+      "own_example_not_observed": "Revisión barata siempre y revisión profunda solo ante disparador justificable.",
+      "counterexample": "Omitir revisión obligatoria para aparentar menor coste.",
+      "discriminating_test_proposal": "Contrastar omisiones y coste frente a política de referencia.",
+      "execution_status": "NOT_EXECUTED",
+      "validation_status": "NOT_VALIDATED",
+      "production_binding": "NOT_WIRED",
+      "rights": "Redacción original; no reproducción de tablas o capítulos."
+    },
+    "source_records": [
+      {
+        "source_id": "SRC03",
+        "title": "TRIZ for Engineers: Enabling Inventive Problem Solving",
+        "authors": [
+          "Karen Gadd"
+        ],
+        "year": 2011,
+        "document_type": "PUBLISHER_BOOK_PAGE",
+        "reading_level": "PUBLISHER_DESCRIPTION_AND_CONTENTS",
+        "locator": "About this book; Table of Contents",
+        "identifier": "10.1002/9780470684320",
+        "license": "NOT_VERIFIED: enlazar y parafrasear; no redistribuir el original",
+        "url": "https://onlinelibrary.wiley.com/doi/book/10.1002/9780470684320",
+        "provenance_status": "REPORTED_IN_PREVIOUS_TURN_NOT_RECHECKED_THIS_TURN",
+        "notes": [
+          "Wiley: primera publicación 9 marzo 2011; distinguir fechas de distribución de otras plataformas."
+        ]
+      }
+    ]
+  },
+  {
+    "id": "OP-TRIZ-03",
+    "name": "OP-TRIZ-03",
+    "title": "Reasignar función y aprovechar recursos",
+    "description": "Preguntar qué función puede ejecutar un recurso disponible si se elimina o simplifica un componente.",
+    "family": "inventiva_triz_koestler",
+    "thinking_class": "generacion",
+    "granularity": "method",
+    "origin": "original_adaptation",
+    "source": "triz_koestler",
+    "operator_record": {
+      "operator_id": "OP-TRIZ-03",
+      "title": "Reasignar función y aprovechar recursos",
+      "origin": "ORIGINAL_ADAPTATION_IN_THIS_PACKAGE_NOT_AUTHOR_QUOTATION",
+      "source_ids": [
+        "SRC03",
+        "SRC09"
+      ],
+      "required_inputs": [
+        "funciones",
+        "recursos",
+        "restricciones"
+      ],
+      "transformation": "Preguntar qué función puede ejecutar un recurso disponible si se elimina o simplifica un componente.",
+      "output_requirements": "función reasignada, recurso, obligaciones nuevas y fallos",
+      "abstention_or_limit": "Disponibilidad del recurso UNKNOWN impide afirmar factibilidad; no quitar controles de seguridad.",
+      "own_example_not_observed": "Usar metadatos ya persistidos para visualización sin otro almacén paralelo, si el contrato los conserva.",
+      "counterexample": "Eliminar autorización porque otro componente registra logs.",
+      "discriminating_test_proposal": "Probar equivalencia funcional, degradación y coste sin modificar producción.",
+      "execution_status": "NOT_EXECUTED",
+      "validation_status": "NOT_VALIDATED",
+      "production_binding": "NOT_WIRED",
+      "rights": "Redacción original; no reproducción de tablas o capítulos."
+    },
+    "source_records": [
+      {
+        "source_id": "SRC03",
+        "title": "TRIZ for Engineers: Enabling Inventive Problem Solving",
+        "authors": [
+          "Karen Gadd"
+        ],
+        "year": 2011,
+        "document_type": "PUBLISHER_BOOK_PAGE",
+        "reading_level": "PUBLISHER_DESCRIPTION_AND_CONTENTS",
+        "locator": "About this book; Table of Contents",
+        "identifier": "10.1002/9780470684320",
+        "license": "NOT_VERIFIED: enlazar y parafrasear; no redistribuir el original",
+        "url": "https://onlinelibrary.wiley.com/doi/book/10.1002/9780470684320",
+        "provenance_status": "REPORTED_IN_PREVIOUS_TURN_NOT_RECHECKED_THIS_TURN",
+        "notes": [
+          "Wiley: primera publicación 9 marzo 2011; distinguir fechas de distribución de otras plataformas."
+        ]
+      },
+      {
+        "source_id": "SRC09",
+        "title": "Integration of TRIZ and Roadmapping for Innovation, Strategy, and Problem Solving: Phase 1",
+        "authors": [
+          "Imoh Ilevbare",
+          "Rob Phaal",
+          "David Probert",
+          "Alejandro Torres Padilla"
+        ],
+        "year": 2011,
+        "document_type": "INSTITUTIONAL_RESEARCH_REPORT",
+        "reading_level": "PARTIAL_EXTRACTED_TEXT",
+        "locator": "Executive Summary p.2; §§1.2–1.6; §3.2 solo extracto indexado",
+        "identifier": null,
+        "license": "NOT_VERIFIED: enlazar y parafrasear; no redistribuir el original",
+        "url": "https://www.ifm.eng.cam.ac.uk/uploads/Research/CTM/Roadmapping/triz_dux_trt_phase1_report.pdf",
+        "provenance_status": "REPORTED_IN_PREVIOUS_TURN_NOT_RECHECKED_THIS_TURN",
+        "notes": [
+          "Julio 2011; texto extraído truncado. Integraciones previstas para probar después, no resultados validados."
+        ]
+      }
+    ]
+  },
+  {
+    "id": "OP-BIS-01",
+    "name": "OP-BIS-01",
+    "title": "Transferir relación entre dominios",
+    "description": "Mapear entidades por rol y relaciones por dirección/condición; proponer transferencia concreta y su límite.",
+    "family": "inventiva_triz_koestler",
+    "thinking_class": "perspectiva",
+    "granularity": "method",
+    "origin": "original_adaptation",
+    "source": "triz_koestler",
+    "operator_record": {
+      "operator_id": "OP-BIS-01",
+      "title": "Transferir relación entre dominios",
+      "origin": "ORIGINAL_ADAPTATION_IN_THIS_PACKAGE_NOT_AUTHOR_QUOTATION",
+      "source_ids": [
+        "KSR04",
+        "KSR05",
+        "KSR08"
+      ],
+      "required_inputs": [
+        "problema_destino",
+        "dominio_origen",
+        "dominio_destino",
+        "evidencia_por_dominio"
+      ],
+      "transformation": "Mapear entidades por rol y relaciones por dirección/condición; proponer transferencia concreta y su límite.",
+      "output_requirements": "correspondencias, relacion_transferida, mecanismo, ruptura y prueba",
+      "abstention_or_limit": "Sin correspondencia justificada devolver abstención; semejanza verbal no basta.",
+      "own_example_not_observed": "Analogía propia: control de presión→control de cola; la correspondencia debe especificar señal, umbral, capacidad y restricciones.",
+      "counterexample": "Ambos sistemas fluyen, por tanto comparten todos los mecanismos.",
+      "discriminating_test_proposal": "Diseñar caso en el que dos mecanismos predigan resultados distintos.",
+      "execution_status": "NOT_EXECUTED",
+      "validation_status": "NOT_VALIDATED",
+      "production_binding": "NOT_WIRED",
+      "rights": "Redacción original; no reproducción de tablas o capítulos."
+    },
+    "source_records": [
+      {
+        "source_id": "KSR04",
+        "title": "Towards Bisociative Knowledge Discovery",
+        "authors": [
+          "Michael R. Berthold"
+        ],
+        "year": 2012,
+        "document_type": "CONCEPTUAL_CHAPTER",
+        "reading_level": "Resumen, metadatos y derechos reportados en investigación anterior",
+        "locator": "Resumen, metadatos y derechos reportados en investigación anterior",
+        "identifier": "10.1007/978-3-642-31830-6_1",
+        "license": "CC BY-NC 2.5 reportada anteriormente para este capítulo; verificar alcance, terceros y uso antes de copiar; no extrapolar al volumen.",
+        "url": "https://link.springer.com/chapter/10.1007/978-3-642-31830-6_1",
+        "provenance_status": "REPORTED_IN_PREVIOUS_TURN_NOT_RECHECKED_THIS_TURN",
+        "notes": [
+          "No se afirma lectura íntegra ni validación independiente.",
+          "Usar URL/DOI e ID local, no marcadores web de chats como claves globales."
+        ]
+      },
+      {
+        "source_id": "KSR05",
+        "title": "Towards Creative Information Exploration Based on Koestler’s Concept of Bisociation",
+        "authors": [
+          "Werner Dubitzky",
+          "Tobias Kötter",
+          "Oliver Schmidt",
+          "Michael R. Berthold"
+        ],
+        "year": 2012,
+        "document_type": "ACADEMIC_CHAPTER",
+        "reading_level": "Capítulo pp.11–32; fragmentos recuperados previamente, no ejecución",
+        "locator": "Capítulo pp.11–32; fragmentos recuperados previamente, no ejecución",
+        "identifier": "UNKNOWN",
+        "license": "UNKNOWN: enlazar y usar síntesis original; comprobar antes de redistribuir",
+        "url": "https://pure.ulster.ac.uk/ws/portalfiles/portal/11215574/BisociationKoestler.pdf",
+        "provenance_status": "REPORTED_IN_PREVIOUS_TURN_NOT_RECHECKED_THIS_TURN",
+        "notes": [
+          "No se afirma lectura íntegra ni validación independiente.",
+          "Usar URL/DOI e ID local, no marcadores web de chats como claves globales."
+        ]
+      },
+      {
+        "source_id": "KSR08",
+        "title": "Bisociative Literature-Based Discovery: Lessons Learned and New Word Embedding Approach",
+        "authors": [
+          "Nada Lavrač",
+          "Matej Martinc",
+          "Senja Pollak",
+          "Maruša Pompe Novak",
+          "Bojan Cestnik"
+        ],
+        "year": 2020,
+        "document_type": "JOURNAL_ARTICLE_WITH_PROOF_OF_CONCEPT",
+        "reading_level": "Texto recuperado parcialmente en investigación anterior; no reproducción",
+        "locator": "Texto recuperado parcialmente en investigación anterior; no reproducción",
+        "identifier": "10.1007/s00354-020-00108-w",
+        "license": "UNKNOWN: enlazar y usar síntesis original; comprobar antes de redistribuir",
+        "url": "https://link.springer.com/article/10.1007/s00354-020-00108-w",
+        "provenance_status": "REPORTED_IN_PREVIOUS_TURN_NOT_RECHECKED_THIS_TURN",
+        "notes": [
+          "No se afirma lectura íntegra ni validación independiente.",
+          "Usar URL/DOI e ID local, no marcadores web de chats como claves globales."
+        ]
+      }
+    ]
+  },
+  {
+    "id": "OP-BIS-02",
+    "name": "OP-BIS-02",
+    "title": "Buscar término puente con soporte",
+    "description": "Proponer concepto B y adjuntar pasajes de A-B y B-C; tipar asociación, relación o inferencia en cada arista.",
+    "family": "inventiva_triz_koestler",
+    "thinking_class": "generacion",
+    "granularity": "method",
+    "origin": "original_adaptation",
+    "source": "triz_koestler",
+    "operator_record": {
+      "operator_id": "OP-BIS-02",
+      "title": "Buscar término puente con soporte",
+      "origin": "ORIGINAL_ADAPTATION_IN_THIS_PACKAGE_NOT_AUTHOR_QUOTATION",
+      "source_ids": [
+        "KSR06",
+        "KSR08"
+      ],
+      "required_inputs": [
+        "corpus_A",
+        "corpus_C",
+        "restricciones"
+      ],
+      "transformation": "Proponer concepto B y adjuntar pasajes de A-B y B-C; tipar asociación, relación o inferencia en cada arista.",
+      "output_requirements": "puente, enlaces soportados, contexto y candidato A-C no validado",
+      "abstention_or_limit": "Si falta un pasaje, guardar como lead no soportado; no concluir causalidad por transitividad.",
+      "own_example_not_observed": "Dos documentos de un fixture comparten un mecanismo funcional que el revisor inspecciona.",
+      "counterexample": "A y C aparecen cerca de B, por tanto A causa C.",
+      "discriminating_test_proposal": "Refutar puente al cambiar sentido de la relación o retirar soporte.",
+      "execution_status": "NOT_EXECUTED",
+      "validation_status": "NOT_VALIDATED",
+      "production_binding": "NOT_WIRED",
+      "rights": "Redacción original; no reproducción de tablas o capítulos."
+    },
+    "source_records": [
+      {
+        "source_id": "KSR06",
+        "title": "Bisociative Knowledge Discovery via B-term Identification",
+        "authors": [
+          "Matjaž Juršič",
+          "Igor Mozetič",
+          "Miha Grčar",
+          "Nada Lavrač"
+        ],
+        "year": 2010,
+        "document_type": "TECHNICAL_REPORT",
+        "reading_level": "IJS-DP-10463, mayo 2010; metodología de cuatro etapas reportada previamente",
+        "locator": "IJS-DP-10463, mayo 2010; metodología de cuatro etapas reportada previamente",
+        "identifier": "IJS-DP-10463",
+        "license": "UNKNOWN: enlazar y usar síntesis original; comprobar antes de redistribuir",
+        "url": "https://kt.ijs.si/personal-pages/igor_mozetic/papers/Jursetal-Bterms-ijs10463-10.pdf",
+        "provenance_status": "REPORTED_IN_PREVIOUS_TURN_NOT_RECHECKED_THIS_TURN",
+        "notes": [
+          "No se afirma lectura íntegra ni validación independiente.",
+          "Usar URL/DOI e ID local, no marcadores web de chats como claves globales."
+        ]
+      },
+      {
+        "source_id": "KSR08",
+        "title": "Bisociative Literature-Based Discovery: Lessons Learned and New Word Embedding Approach",
+        "authors": [
+          "Nada Lavrač",
+          "Matej Martinc",
+          "Senja Pollak",
+          "Maruša Pompe Novak",
+          "Bojan Cestnik"
+        ],
+        "year": 2020,
+        "document_type": "JOURNAL_ARTICLE_WITH_PROOF_OF_CONCEPT",
+        "reading_level": "Texto recuperado parcialmente en investigación anterior; no reproducción",
+        "locator": "Texto recuperado parcialmente en investigación anterior; no reproducción",
+        "identifier": "10.1007/s00354-020-00108-w",
+        "license": "UNKNOWN: enlazar y usar síntesis original; comprobar antes de redistribuir",
+        "url": "https://link.springer.com/article/10.1007/s00354-020-00108-w",
+        "provenance_status": "REPORTED_IN_PREVIOUS_TURN_NOT_RECHECKED_THIS_TURN",
+        "notes": [
+          "No se afirma lectura íntegra ni validación independiente.",
+          "Usar URL/DOI e ID local, no marcadores web de chats como claves globales."
+        ]
+      }
+    ]
+  },
+  {
+    "id": "OP-BIS-03",
+    "name": "OP-BIS-03",
+    "title": "Explorar rareza y atipicidad",
+    "description": "Definir universo y métrica antes de priorizar términos o documentos infrecuentes; revisar ruido y relevancia.",
+    "family": "inventiva_triz_koestler",
+    "thinking_class": "escape",
+    "granularity": "method",
+    "origin": "original_adaptation",
+    "source": "triz_koestler",
+    "operator_record": {
+      "operator_id": "OP-BIS-03",
+      "title": "Explorar rareza y atipicidad",
+      "origin": "ORIGINAL_ADAPTATION_IN_THIS_PACKAGE_NOT_AUTHOR_QUOTATION",
+      "source_ids": [
+        "KSR07",
+        "KSR08"
+      ],
+      "required_inputs": [
+        "corpus_identificado",
+        "version",
+        "criterio_rareza"
+      ],
+      "transformation": "Definir universo y métrica antes de priorizar términos o documentos infrecuentes; revisar ruido y relevancia.",
+      "output_requirements": "candidatos, criterio, ranking diagnóstico y revisión",
+      "abstention_or_limit": "Corpus pequeño/sesgado o métrica desconocida: no atribuir rareza general; no cambiar ranking productivo.",
+      "own_example_not_observed": "Lista de términos infrecuentes dentro de un corpus de prueba declarado, no en toda la ciencia.",
+      "counterexample": "Término extraño del modelo presentado como hallazgo documental.",
+      "discriminating_test_proposal": "Comparar pertinencia frente a selección de igual tamaño según protocolo.",
+      "execution_status": "NOT_EXECUTED",
+      "validation_status": "NOT_VALIDATED",
+      "production_binding": "NOT_WIRED",
+      "rights": "Redacción original; no reproducción de tablas o capítulos."
+    },
+    "source_records": [
+      {
+        "source_id": "KSR07",
+        "title": "Literature mining method RaJoLink for uncovering relations between biomedical concepts",
+        "authors": [
+          "Ingrid Petrič",
+          "Tanja Urbančič",
+          "Bojan Cestnik",
+          "Marta Macedoni-Lukšič"
+        ],
+        "year": 2009,
+        "document_type": "JOURNAL_ARTICLE",
+        "reading_level": "Resumen PubMed consultado en lote previo; rareza, no aleatoriedad",
+        "locator": "Resumen PubMed consultado en lote previo; rareza, no aleatoriedad",
+        "identifier": "PMID:18771753",
+        "license": "UNKNOWN: enlazar y usar síntesis original; comprobar antes de redistribuir",
+        "url": "https://pubmed.ncbi.nlm.nih.gov/18771753/",
+        "provenance_status": "REPORTED_IN_PREVIOUS_TURN_NOT_RECHECKED_THIS_TURN",
+        "notes": [
+          "No se afirma lectura íntegra ni validación independiente.",
+          "Usar URL/DOI e ID local, no marcadores web de chats como claves globales."
+        ]
+      },
+      {
+        "source_id": "KSR08",
+        "title": "Bisociative Literature-Based Discovery: Lessons Learned and New Word Embedding Approach",
+        "authors": [
+          "Nada Lavrač",
+          "Matej Martinc",
+          "Senja Pollak",
+          "Maruša Pompe Novak",
+          "Bojan Cestnik"
+        ],
+        "year": 2020,
+        "document_type": "JOURNAL_ARTICLE_WITH_PROOF_OF_CONCEPT",
+        "reading_level": "Texto recuperado parcialmente en investigación anterior; no reproducción",
+        "locator": "Texto recuperado parcialmente en investigación anterior; no reproducción",
+        "identifier": "10.1007/s00354-020-00108-w",
+        "license": "UNKNOWN: enlazar y usar síntesis original; comprobar antes de redistribuir",
+        "url": "https://link.springer.com/article/10.1007/s00354-020-00108-w",
+        "provenance_status": "REPORTED_IN_PREVIOUS_TURN_NOT_RECHECKED_THIS_TURN",
+        "notes": [
+          "No se afirma lectura íntegra ni validación independiente.",
+          "Usar URL/DOI e ID local, no marcadores web de chats como claves globales."
+        ]
+      }
+    ]
+  },
+  {
+    "id": "OP-EXP-01",
+    "name": "OP-EXP-01",
+    "title": "Proponer cruce aleatorio trazable",
+    "description": "Especificar muestreo de candidatos en laboratorio y conservar orden/semilla cuando exista; usar sampler existente solo tras permiso.",
+    "family": "inventiva_triz_koestler",
+    "thinking_class": "escape",
+    "granularity": "method",
+    "origin": "original_adaptation",
+    "source": "triz_koestler",
+    "operator_record": {
+      "operator_id": "OP-EXP-01",
+      "title": "Proponer cruce aleatorio trazable",
+      "origin": "ORIGINAL_ADAPTATION_IN_THIS_PACKAGE_NOT_AUTHOR_QUOTATION",
+      "source_ids": [
+        "SRC07",
+        "SRC21",
+        "KSR07"
+      ],
+      "required_inputs": [
+        "conjunto_elegible",
+        "restricciones",
+        "configuracion"
+      ],
+      "transformation": "Especificar muestreo de candidatos en laboratorio y conservar orden/semilla cuando exista; usar sampler existente solo tras permiso.",
+      "output_requirements": "regla de elegibilidad, procedimiento, selección y lineage",
+      "abstention_or_limit": "No consumir ni cambiar RNG productivo; semilla ausente no es cero; no prometer reproducir respuesta de API.",
+      "own_example_not_observed": "Plan de muestreo sobre catálogo pequeño de ejemplo, sin ejecutar modelos ni selector real.",
+      "counterexample": "RaJoLink llamado aleatorio por el prefijo Ra.",
+      "discriminating_test_proposal": "Repetición de selección local según contrato y comparación con rareza/relación.",
+      "execution_status": "NOT_EXECUTED",
+      "validation_status": "NOT_VALIDATED",
+      "production_binding": "NOT_WIRED",
+      "rights": "Redacción original; no reproducción de tablas o capítulos."
+    },
+    "source_records": [
+      {
+        "source_id": "SRC07",
+        "title": "Creativity in Science: Chance, Logic, Genius, and Zeitgeist",
+        "authors": [
+          "Dean Keith Simonton"
+        ],
+        "year": 2004,
+        "document_type": "PUBLISHER_BOOK_PAGE",
+        "reading_level": "PUBLISHER_DESCRIPTION_AND_REVIEW_EXCERPTS",
+        "locator": "Book description; Reviews; Contents",
+        "identifier": "10.1017/CBO9781139165358",
+        "license": "NOT_VERIFIED: enlazar y parafrasear; no redistribuir el original",
+        "url": "https://www.cambridge.org/core/books/creativity-in-science/3DB6C36927BDAC5FFE93A59957559378",
+        "provenance_status": "REPORTED_IN_PREVIOUS_TURN_NOT_RECHECKED_THIS_TURN",
+        "notes": [
+          "Primera edición 2004; fecha de formato digital 2012; no datar obra en 2026 por buscador."
+        ]
+      },
+      {
+        "source_id": "SRC21",
+        "title": "Blind variation and selective retention in creative thought as in other knowledge processes",
+        "authors": [
+          "Donald T. Campbell"
+        ],
+        "year": 1960,
+        "document_type": "THEORETICAL_ARTICLE",
+        "reading_level": "METADATA_AND_SUMMARY",
+        "locator": "Ficha DOI",
+        "identifier": "10.1037/h0040373",
+        "license": "NOT_VERIFIED: enlazar y parafrasear; no redistribuir el original",
+        "url": "https://doi.apa.org/doi/10.1037/h0040373",
+        "provenance_status": "REPORTED_IN_PREVIOUS_TURN_NOT_RECHECKED_THIS_TURN",
+        "notes": [
+          "Cita de sesión anterior; identificador web puede coincidir con otro resultado en sesiones distintas. Usar URL/DOI canónicos para el archivo. BVSR no consenso ni prueba universal."
+        ]
+      },
+      {
+        "source_id": "KSR07",
+        "title": "Literature mining method RaJoLink for uncovering relations between biomedical concepts",
+        "authors": [
+          "Ingrid Petrič",
+          "Tanja Urbančič",
+          "Bojan Cestnik",
+          "Marta Macedoni-Lukšič"
+        ],
+        "year": 2009,
+        "document_type": "JOURNAL_ARTICLE",
+        "reading_level": "Resumen PubMed consultado en lote previo; rareza, no aleatoriedad",
+        "locator": "Resumen PubMed consultado en lote previo; rareza, no aleatoriedad",
+        "identifier": "PMID:18771753",
+        "license": "UNKNOWN: enlazar y usar síntesis original; comprobar antes de redistribuir",
+        "url": "https://pubmed.ncbi.nlm.nih.gov/18771753/",
+        "provenance_status": "REPORTED_IN_PREVIOUS_TURN_NOT_RECHECKED_THIS_TURN",
+        "notes": [
+          "No se afirma lectura íntegra ni validación independiente.",
+          "Usar URL/DOI e ID local, no marcadores web de chats como claves globales."
+        ]
+      }
+    ]
+  },
+  {
+    "id": "OP-CRIT-01",
+    "name": "OP-CRIT-01",
+    "title": "Romper analogía y contrastar rival",
+    "description": "Construir explicación alternativa, condición de ruptura y prueba que produzca predicciones diferentes.",
+    "family": "inventiva_triz_koestler",
+    "thinking_class": "ruptura",
+    "granularity": "method",
+    "origin": "original_adaptation",
+    "source": "triz_koestler",
+    "operator_record": {
+      "operator_id": "OP-CRIT-01",
+      "title": "Romper analogía y contrastar rival",
+      "origin": "ORIGINAL_ADAPTATION_IN_THIS_PACKAGE_NOT_AUTHOR_QUOTATION",
+      "source_ids": [
+        "SRC23",
+        "KSR08",
+        "KSR12"
+      ],
+      "required_inputs": [
+        "candidato",
+        "mecanismo",
+        "restricciones",
+        "evidencia"
+      ],
+      "transformation": "Construir explicación alternativa, condición de ruptura y prueba que produzca predicciones diferentes.",
+      "output_requirements": "rival, predicciones_mecanismo, predicciones_rival, observable, regla, fallo",
+      "abstention_or_limit": "Si las predicciones son idénticas marcar prueba no discriminante y pedir revisión, no validación.",
+      "own_example_not_observed": "La propuesta mejora por información extra o por operación transferida: controlar acceso documental.",
+      "counterexample": "Juez automático elogia la propuesta y la declara verificada.",
+      "discriminating_test_proposal": "Retirar mecanismo o invertir vínculo: el test de contrato debe detectarlo.",
+      "execution_status": "NOT_EXECUTED",
+      "validation_status": "NOT_VALIDATED",
+      "production_binding": "NOT_WIRED",
+      "rights": "Redacción original; no reproducción de tablas o capítulos."
+    },
+    "source_records": [
+      {
+        "source_id": "SRC23",
+        "title": "Contrato del intérprete CRIBA",
+        "authors": [
+          "Klsx-Moli/Criba-Blackforge-Supra"
+        ],
+        "year": 2026,
+        "document_type": "PROJECT_CONTRACT",
+        "reading_level": "FILE_READ_IN_PRIOR_TURN",
+        "locator": "Ruta de interpretación; persistencia; relación causal",
+        "identifier": null,
+        "license": "NOT_VERIFIED: enlazar y parafrasear; no redistribuir el original",
+        "url": "https://github.com/Klsx-Moli/Criba-Blackforge-Supra/blob/5e89959a0dfc3337663970a4aff74364f2702482/docs/INTERPRETER_CONTRACT.md",
+        "provenance_status": "REPORTED_IN_PREVIOUS_TURN_NOT_RECHECKED_THIS_TURN",
+        "notes": [
+          "No ejecutar ni asumir proveedores por documentación. Existen referencias de proveedor divergentes entre documentos; resolver código/config actual."
+        ]
+      },
+      {
+        "source_id": "KSR08",
+        "title": "Bisociative Literature-Based Discovery: Lessons Learned and New Word Embedding Approach",
+        "authors": [
+          "Nada Lavrač",
+          "Matej Martinc",
+          "Senja Pollak",
+          "Maruša Pompe Novak",
+          "Bojan Cestnik"
+        ],
+        "year": 2020,
+        "document_type": "JOURNAL_ARTICLE_WITH_PROOF_OF_CONCEPT",
+        "reading_level": "Texto recuperado parcialmente en investigación anterior; no reproducción",
+        "locator": "Texto recuperado parcialmente en investigación anterior; no reproducción",
+        "identifier": "10.1007/s00354-020-00108-w",
+        "license": "UNKNOWN: enlazar y usar síntesis original; comprobar antes de redistribuir",
+        "url": "https://link.springer.com/article/10.1007/s00354-020-00108-w",
+        "provenance_status": "REPORTED_IN_PREVIOUS_TURN_NOT_RECHECKED_THIS_TURN",
+        "notes": [
+          "No se afirma lectura íntegra ni validación independiente.",
+          "Usar URL/DOI e ID local, no marcadores web de chats como claves globales."
+        ]
+      },
+      {
+        "source_id": "KSR12",
+        "title": "Creative Activity—A Formula",
+        "authors": [
+          "Autor de reseña no confirmado"
+        ],
+        "year": 1949,
+        "document_type": "CRITICAL_CONTEMPORARY_REVIEW",
+        "reading_level": "Reseña de Insight and Outlook, 1 julio 1949; no revisión empírica moderna",
+        "locator": "Reseña de Insight and Outlook, 1 julio 1949; no revisión empírica moderna",
+        "identifier": "UNKNOWN",
+        "license": "UNKNOWN: enlazar y usar síntesis original; comprobar antes de redistribuir",
+        "url": "https://archive.spectator.co.uk/article/1st-july-1949/26/creative-activitya-formula",
+        "provenance_status": "REPORTED_IN_PREVIOUS_TURN_NOT_RECHECKED_THIS_TURN",
+        "notes": [
+          "No se afirma lectura íntegra ni validación independiente.",
+          "Usar URL/DOI e ID local, no marcadores web de chats como claves globales."
+        ]
+      }
+    ]
+  },
+  {
+    "id": "A3-OP-GEN-01",
+    "name": "A3-OP-GEN-01",
+    "title": "Alineación relacional antes del cruce",
+    "description": "Describir cada relación como predicado con argumentos ordenados.\nProponer correspondencias locales por papel funcional, no por nombre o apariencia.\nConservar solo un mapeo global consistente; si hay varias alternativas, separarlas sin mezclarlas.\nComprobar que relaciones alineadas llevan argumentos alineados en el mismo orden.\nEnumerar inferencias nuevas como candidatas y señalar qué evidencia faltaría en el destino.",
+    "family": "inventiva_a3",
+    "thinking_class": "perspectiva",
+    "granularity": "method",
+    "origin": "original_adaptation",
+    "source": "a3",
+    "operator_record": {
+      "operator_id": "A3-OP-GEN-01",
+      "title": "Alineación relacional antes del cruce",
+      "source_ids": [
+        "A3-S01",
+        "A3-S02"
+      ],
+      "epistemic_class": "DESIGN_PROPOSAL",
+      "attribution": "Adaptación original para CRIBA; no transcripción ni algoritmo validado del autor.",
+      "appropriate_when": "Hay dos dominios y una analogía candidata, pero falta justificar el puente.",
+      "required_inputs": [
+        "Problema destino",
+        "Entidades y relaciones tipadas por dominio",
+        "Restricciones obligatorias"
+      ],
+      "transformation_steps": [
+        "Describir cada relación como predicado con argumentos ordenados.",
+        "Proponer correspondencias locales por papel funcional, no por nombre o apariencia.",
+        "Conservar solo un mapeo global consistente; si hay varias alternativas, separarlas sin mezclarlas.",
+        "Comprobar que relaciones alineadas llevan argumentos alineados en el mismo orden.",
+        "Enumerar inferencias nuevas como candidatas y señalar qué evidencia faltaría en el destino."
+      ],
+      "required_outputs": [
+        "mapping",
+        "matched_relations",
+        "candidate_inferences",
+        "analogy_breakpoint"
+      ],
+      "preconditions": [
+        "Representaciones suficientemente explícitas y con entidades identificables.",
+        "Predicados comparables por definición funcional; igualdad de etiquetas no prueba significado."
+      ],
+      "hard_invariants": [
+        "No relajar seguridad, autorización, privacidad ni requisitos obligatorios.",
+        "No cambiar RNG, scoring, memoria adaptativa, gates ni runtime.",
+        "Ninguna inferencia transferida se registra como observación."
+      ],
+      "abstention_or_failure": [
+        "No hay relación pertinente compartida.",
+        "El mapeo necesita asignar una entidad a varios destinos dentro de una misma interpretación.",
+        "El destino carece del observable requerido."
+      ],
+      "original_example": "Control de admisión: una compuerta asociada a un permiso se alinea con un control previo a una acción; la autorización sigue siendo requisito explícito.",
+      "counterexample": "Cruzar por color: un candado y una interfaz negra no comparten por ello un mecanismo de control.",
+      "rival_explanation": "La mejora procede de describir mejor el problema, no del mapeo.",
+      "discriminating_test": "Comparar con idénticos hechos y presupuesto, usando mapeo explícito frente a descripción sin mapeo; evaluar restricciones y predicciones específicas en casos nuevos.",
+      "creativity_mode": "COMBINATIONAL",
+      "extension_of": "Refina OP-BIS y campos cross_domain; no segundo motor.",
+      "execution_status": "NOT_EXECUTED",
+      "scientific_status": "NOT_VALIDATED_FOR_CRIBA"
+    },
+    "source_records": [
+      {
+        "source_id": "A3-S01",
+        "title": "Structure-Mapping: A Theoretical Framework for Analogy",
+        "authors": [
+          "Dedre Gentner"
+        ],
+        "year": 1983,
+        "url": "https://onlinelibrary.wiley.com/doi/10.1207/s15516709cog0702_3",
+        "identifier": "10.1207/s15516709cog0702_3",
+        "reading_level": "EDITORIAL_ABSTRACT",
+        "locator": "Abstract; Cognitive Science 7, 155–170",
+        "supported_claim": "Mapear relaciones y sistemas de relaciones, no solo atributos de objetos.",
+        "limitations": "Marco teórico; resumen editorial, no lectura completa del artículo.",
+        "license_status": "NOT_VERIFIED",
+        "reuse_policy": "Enlazar y parafrasear; no redistribuir el original. Acceso público no equivale a licencia.",
+        "consulted_on": "2026-10-28",
+        "chat_citation": "[web:431]"
+      },
+      {
+        "source_id": "A3-S02",
+        "title": "Structure Mapping in Analogy and Similarity",
+        "authors": [
+          "Dedre Gentner",
+          "Arthur B. Markman"
+        ],
+        "year": 1997,
+        "url": "https://courses.csail.mit.edu/6.803/pdf/gentner.pdf",
+        "identifier": "American Psychologist 52(1), 45–56",
+        "reading_level": "PRIMARY_TEXT_PARTIAL",
+        "locator": "pp. 46–49: Structural Alignment View; candidate inferences; SME",
+        "supported_claim": "Consistencia estructural, conectividad paralela, correspondencia uno-a-uno y sistematicidad; las inferencias candidatas requieren comprobación factual independiente.",
+        "limitations": "Texto recuperado extensamente pero truncado; no implementar SME ni generalizar su evidencia a CRIBA.",
+        "license_status": "NOT_VERIFIED",
+        "reuse_policy": "Enlazar y parafrasear; no redistribuir el original. Acceso público no equivale a licencia.",
+        "consulted_on": "2026-10-28",
+        "chat_citation": "[web:550]"
+      }
+    ]
+  },
+  {
+    "id": "A3-OP-GEN-02",
+    "name": "A3-OP-GEN-02",
+    "title": "Contraste con un casi-análogo",
+    "description": "Conservar la relación central y modificar una sola condición de aplicabilidad en el caso de contraste.\nPredecir cuándo el mecanismo original deja de ser útil.\nNo inventar un casi-análogo observado: marcar si es fixture original.\nComparar candidato y contraejemplo usando la misma regla de evaluación.",
+    "family": "inventiva_a3",
+    "thinking_class": "ruptura",
+    "granularity": "method",
+    "origin": "original_adaptation",
+    "source": "a3",
+    "operator_record": {
+      "operator_id": "A3-OP-GEN-02",
+      "title": "Contraste con un casi-análogo",
+      "source_ids": [
+        "A3-S02"
+      ],
+      "epistemic_class": "DESIGN_PROPOSAL",
+      "attribution": "Adaptación original para CRIBA; no transcripción ni algoritmo validado del autor.",
+      "appropriate_when": "Una analogía parece convincente y se necesita delimitar dónde falla.",
+      "required_inputs": [
+        "Analogía candidata",
+        "Relación que se pretende transferir",
+        "Caso próximo que cambia una precondición"
+      ],
+      "transformation_steps": [
+        "Conservar la relación central y modificar una sola condición de aplicabilidad en el caso de contraste.",
+        "Predecir cuándo el mecanismo original deja de ser útil.",
+        "No inventar un casi-análogo observado: marcar si es fixture original.",
+        "Comparar candidato y contraejemplo usando la misma regla de evaluación."
+      ],
+      "required_outputs": [
+        "near_miss",
+        "changed_precondition",
+        "failure_prediction",
+        "preserved_constraints"
+      ],
+      "preconditions": [
+        "La condición modificada es explícita y material para el mecanismo."
+      ],
+      "hard_invariants": [
+        "No relajar seguridad, autorización, privacidad ni requisitos obligatorios.",
+        "No cambiar RNG, scoring, memoria adaptativa, gates ni runtime.",
+        "Ninguna inferencia transferida se registra como observación."
+      ],
+      "abstention_or_failure": [
+        "El contraste altera varias variables y no permite interpretar el fallo.",
+        "Se usa una diferencia superficial como si refutara una relación causal."
+      ],
+      "original_example": "Una cola de permisos conserva autorizaciones; una caché que devuelve permisos caducados es un casi-análogo que rompe vigencia.",
+      "counterexample": "Rechazar una analogía porque cambian los nombres de los objetos.",
+      "rival_explanation": "La prueba solo detecta una inconsistencia textual, no un límite del mecanismo.",
+      "discriminating_test": "Usar casos donde el vocabulario permanece igual y cambia la condición relevante; comprobar si se anticipa el fallo operativo sin activar acciones reales.",
+      "creativity_mode": "COMBINATIONAL",
+      "extension_of": "Añade breakpoint/contraejemplo al cruce existente.",
+      "execution_status": "NOT_EXECUTED",
+      "scientific_status": "NOT_VALIDATED_FOR_CRIBA"
+    },
+    "source_records": [
+      {
+        "source_id": "A3-S02",
+        "title": "Structure Mapping in Analogy and Similarity",
+        "authors": [
+          "Dedre Gentner",
+          "Arthur B. Markman"
+        ],
+        "year": 1997,
+        "url": "https://courses.csail.mit.edu/6.803/pdf/gentner.pdf",
+        "identifier": "American Psychologist 52(1), 45–56",
+        "reading_level": "PRIMARY_TEXT_PARTIAL",
+        "locator": "pp. 46–49: Structural Alignment View; candidate inferences; SME",
+        "supported_claim": "Consistencia estructural, conectividad paralela, correspondencia uno-a-uno y sistematicidad; las inferencias candidatas requieren comprobación factual independiente.",
+        "limitations": "Texto recuperado extensamente pero truncado; no implementar SME ni generalizar su evidencia a CRIBA.",
+        "license_status": "NOT_VERIFIED",
+        "reuse_policy": "Enlazar y parafrasear; no redistribuir el original. Acceso público no equivale a licencia.",
+        "consulted_on": "2026-10-28",
+        "chat_citation": "[web:550]"
+      }
+    ]
+  },
+  {
+    "id": "A3-OP-GEN-03",
+    "name": "A3-OP-GEN-03",
+    "title": "Extraer esquema común de dos casos",
+    "description": "Separar hechos de cada caso de interpretaciones del agente.\nAlinear relaciones y extraer regla común con precondiciones.\nRegistrar diferencias que la regla no explica.\nAplicar la regla solo como hipótesis al tercer problema, sin adaptar el esquema a su solución esperada.",
+    "family": "inventiva_a3",
+    "thinking_class": "perspectiva",
+    "granularity": "method",
+    "origin": "original_adaptation",
+    "source": "a3",
+    "operator_record": {
+      "operator_id": "A3-OP-GEN-03",
+      "title": "Extraer esquema común de dos casos",
+      "source_ids": [
+        "A3-S02",
+        "A3-S03"
+      ],
+      "epistemic_class": "DESIGN_PROPOSAL",
+      "attribution": "Adaptación original para CRIBA; no transcripción ni algoritmo validado del autor.",
+      "appropriate_when": "Hay dos antecedentes con solución comparable y se busca una regla transferible.",
+      "required_inputs": [
+        "Dos casos identificados",
+        "Pasajes o fixtures con procedencia",
+        "Tercer problema separado para comprobación"
+      ],
+      "transformation_steps": [
+        "Separar hechos de cada caso de interpretaciones del agente.",
+        "Alinear relaciones y extraer regla común con precondiciones.",
+        "Registrar diferencias que la regla no explica.",
+        "Aplicar la regla solo como hipótesis al tercer problema, sin adaptar el esquema a su solución esperada."
+      ],
+      "required_outputs": [
+        "case_pair",
+        "abstracted_schema",
+        "boundary_conditions",
+        "third_case_prediction"
+      ],
+      "preconditions": [
+        "Los casos contienen relaciones comparables, no solo dos historias del mismo tema.",
+        "El tercer caso no se utiliza para elegir la regla durante evaluación."
+      ],
+      "hard_invariants": [
+        "No relajar seguridad, autorización, privacidad ni requisitos obligatorios.",
+        "No cambiar RNG, scoring, memoria adaptativa, gates ni runtime.",
+        "Ninguna inferencia transferida se registra como observación."
+      ],
+      "abstention_or_failure": [
+        "Solo se dispone de un caso.",
+        "Se filtra la solución del tercer caso al construir la regla."
+      ],
+      "original_example": "Caso A: separar lectura y escritura por permisos; caso B: separar propuesta y ejecución por autorización; esquema candidato: operaciones con riesgos distintos requieren controles por operación, no aprobación global.",
+      "counterexample": "Dos casos que mencionan seguridad pero tienen mecanismos incompatibles.",
+      "rival_explanation": "El beneficio procede de recibir más ejemplos o más tokens.",
+      "discriminating_test": "Mismos dos casos y presupuesto: comparar explícitamente vs estudiar por separado; evaluar transferencia a casos reservados. Evidencia humana no demuestra efecto en LLM.",
+      "creativity_mode": "COMBINATIONAL",
+      "extension_of": "Amplía ficha de antecedentes; sin escribir memoria adaptativa.",
+      "execution_status": "NOT_EXECUTED",
+      "scientific_status": "NOT_VALIDATED_FOR_CRIBA"
+    },
+    "source_records": [
+      {
+        "source_id": "A3-S02",
+        "title": "Structure Mapping in Analogy and Similarity",
+        "authors": [
+          "Dedre Gentner",
+          "Arthur B. Markman"
+        ],
+        "year": 1997,
+        "url": "https://courses.csail.mit.edu/6.803/pdf/gentner.pdf",
+        "identifier": "American Psychologist 52(1), 45–56",
+        "reading_level": "PRIMARY_TEXT_PARTIAL",
+        "locator": "pp. 46–49: Structural Alignment View; candidate inferences; SME",
+        "supported_claim": "Consistencia estructural, conectividad paralela, correspondencia uno-a-uno y sistematicidad; las inferencias candidatas requieren comprobación factual independiente.",
+        "limitations": "Texto recuperado extensamente pero truncado; no implementar SME ni generalizar su evidencia a CRIBA.",
+        "license_status": "NOT_VERIFIED",
+        "reuse_policy": "Enlazar y parafrasear; no redistribuir el original. Acceso público no equivale a licencia.",
+        "consulted_on": "2026-10-28",
+        "chat_citation": "[web:550]"
+      },
+      {
+        "source_id": "A3-S03",
+        "title": "Learning and Transfer: A General Role for Analogical Encoding",
+        "authors": [
+          "Dedre Gentner",
+          "Jeffrey Loewenstein",
+          "Leigh Thompson"
+        ],
+        "year": 2003,
+        "url": "https://groups.psych.northwestern.edu/gentner/papers/GentnerLoewensteinThompson03.pdf",
+        "identifier": "10.1037/0022-0663.95.2.393",
+        "reading_level": "PRIMARY_TEXT_PARTIAL",
+        "locator": "Abstract pp.393; Experiment 1 Method/Discussion pp.396–398; comienzo Experiment 2",
+        "supported_claim": "Tres estudios de aprendizaje de negociación examinan comparación de casos y transferencia; el primer experimento combina comparación, definición y diagramas, y el segundo contrasta estudio separado frente a comparación.",
+        "limitations": "Resultados humanos en negociación. Extracción truncada al comienzo del Experimento 2; no atribuir efecto cuantitativo a CRIBA.",
+        "license_status": "NOT_VERIFIED",
+        "reuse_policy": "Enlazar y parafrasear; no redistribuir el original. Acceso público no equivale a licencia.",
+        "consulted_on": "2026-10-28",
+        "chat_citation": "[web:565]"
+      }
+    ]
+  },
+  {
+    "id": "A3-OP-BOD-01",
+    "name": "A3-OP-BOD-01",
+    "title": "Composición con interfaz explícita",
+    "description": "Elegir dos componentes pertinentes.\nDescribir qué salida del primero alimenta qué entrada del segundo.\nDeclarar adaptación o coste de interfaz y detectar incompatibilidades.\nEscribir modificación concreta y efecto contrastable; si no hay interacción, no afirmar mecanismo compuesto.",
+    "family": "inventiva_a3",
+    "thinking_class": "generacion",
+    "granularity": "method",
+    "origin": "original_adaptation",
+    "source": "a3",
+    "operator_record": {
+      "operator_id": "A3-OP-BOD-01",
+      "title": "Composición con interfaz explícita",
+      "source_ids": [
+        "A3-S04"
+      ],
+      "epistemic_class": "DESIGN_PROPOSAL",
+      "attribution": "Adaptación original para CRIBA; no transcripción ni algoritmo validado del autor.",
+      "appropriate_when": "Se combinan recursos conocidos pero el resultado todavía es una lista de nombres.",
+      "required_inputs": [
+        "Componentes",
+        "Entradas/salidas de cada uno",
+        "Problema y restricciones"
+      ],
+      "transformation_steps": [
+        "Elegir dos componentes pertinentes.",
+        "Describir qué salida del primero alimenta qué entrada del segundo.",
+        "Declarar adaptación o coste de interfaz y detectar incompatibilidades.",
+        "Escribir modificación concreta y efecto contrastable; si no hay interacción, no afirmar mecanismo compuesto."
+      ],
+      "required_outputs": [
+        "composition",
+        "interface_contract",
+        "expected_effect",
+        "failure_condition"
+      ],
+      "preconditions": [
+        "Recursos disponibles o marcados UNKNOWN; no inventar adaptadores existentes."
+      ],
+      "hard_invariants": [
+        "No relajar seguridad, autorización, privacidad ni requisitos obligatorios.",
+        "No cambiar RNG, scoring, memoria adaptativa, gates ni runtime.",
+        "Ninguna inferencia transferida se registra como observación."
+      ],
+      "abstention_or_failure": [
+        "Las interfaces no son compatibles y no se ha propuesto adaptación viable.",
+        "La combinación viola una restricción obligatoria."
+      ],
+      "original_example": "Unir un registro de procedencia con recuperación de fichas: el identificador recuperado permite presentar el pasaje que respalda una afirmación.",
+      "counterexample": "Añadir las palabras TRIZ, blockchain y cuántico a una propuesta sin flujo de información.",
+      "rival_explanation": "La documentación extra, no la composición, explica cualquier mejora.",
+      "discriminating_test": "Comparar composición contra componentes separados con los mismos datos y presupuesto; contar errores de atribución y coste total.",
+      "creativity_mode": "COMBINATIONAL",
+      "extension_of": "Refina bisociación, no añade predictor de novedad.",
+      "execution_status": "NOT_EXECUTED",
+      "scientific_status": "NOT_VALIDATED_FOR_CRIBA"
+    },
+    "source_records": [
+      {
+        "source_id": "A3-S04",
+        "title": "Creativity and artificial intelligence",
+        "authors": [
+          "Margaret A. Boden"
+        ],
+        "year": 1998,
+        "url": "https://www.sciencedirect.com/science/article/pii/S0004370298000551",
+        "identifier": "10.1016/S0004-3702(98)00055-1",
+        "reading_level": "PRIMARY_TEXT_READ",
+        "locator": "§1 pp.347–348; §2 pp.348–349; §3; §4 pp.354–355; §5",
+        "supported_claim": "Distingue creatividad combinatoria, exploratoria y transformacional, P/H-creativity y dificultad de evaluar valor; una asociación aleatoria no basta para pertinencia.",
+        "limitations": "Análisis de 1998: sus afirmaciones sobre el estado de IA describen esa época, no modelos actuales. No es ensayo causal de prompts.",
+        "license_status": "NOT_VERIFIED",
+        "reuse_policy": "Enlazar y parafrasear; no redistribuir el original. Acceso público no equivale a licencia.",
+        "consulted_on": "2026-10-28",
+        "chat_citation": "[web:579]"
+      }
+    ]
+  },
+  {
+    "id": "A3-OP-BOD-02",
+    "name": "A3-OP-BOD-02",
+    "title": "Explorar un espacio declarado sin cambiar sus reglas",
+    "description": "Hacer explícitas dimensiones y valores conocidos.\nProponer variantes que cumplan las mismas reglas y registrar cuáles cambian.\nSi se usa selección aleatoria en un experimento autorizado, registrar conjunto elegible, distribución, orden y semilla cuando corresponda.\nNo modificar el RNG productivo; este lote solo suministra reglas y fixtures.",
+    "family": "inventiva_a3",
+    "thinking_class": "generacion",
+    "granularity": "method",
+    "origin": "original_adaptation",
+    "source": "a3",
+    "operator_record": {
+      "operator_id": "A3-OP-BOD-02",
+      "title": "Explorar un espacio declarado sin cambiar sus reglas",
+      "source_ids": [
+        "A3-S04"
+      ],
+      "epistemic_class": "DESIGN_PROPOSAL",
+      "attribution": "Adaptación original para CRIBA; no transcripción ni algoritmo validado del autor.",
+      "appropriate_when": "Existe un conjunto definido de opciones, pero se explora siempre la misma configuración.",
+      "required_inputs": [
+        "Dimensiones de diseño",
+        "Valores elegibles",
+        "Reglas vigentes",
+        "Restricciones inmutables"
+      ],
+      "transformation_steps": [
+        "Hacer explícitas dimensiones y valores conocidos.",
+        "Proponer variantes que cumplan las mismas reglas y registrar cuáles cambian.",
+        "Si se usa selección aleatoria en un experimento autorizado, registrar conjunto elegible, distribución, orden y semilla cuando corresponda.",
+        "No modificar el RNG productivo; este lote solo suministra reglas y fixtures."
+      ],
+      "required_outputs": [
+        "space_before",
+        "variant",
+        "changed_dimensions",
+        "unchanged_rules",
+        "selection_record"
+      ],
+      "preconditions": [
+        "Valores elegibles justificados; UNKNOWN no se trata como opción factible."
+      ],
+      "hard_invariants": [
+        "No relajar seguridad, autorización, privacidad ni requisitos obligatorios.",
+        "No cambiar RNG, scoring, memoria adaptativa, gates ni runtime.",
+        "Ninguna inferencia transferida se registra como observación."
+      ],
+      "abstention_or_failure": [
+        "Se presenta como exploración una variante que modifica la gramática sin declararlo.",
+        "Se confunde muestreo con evidencia de utilidad."
+      ],
+      "original_example": "Dentro de una representación de revisión, variar el orden de dos comprobaciones independientes sin eliminar ninguna.",
+      "counterexample": "Reducir controles obligatorios y llamarlo una exploración del mismo espacio.",
+      "rival_explanation": "El resultado procede de intentar más configuraciones.",
+      "discriminating_test": "Comparar número y presupuesto de intentos equivalentes; separar cobertura de factibilidad y diversidad funcional.",
+      "creativity_mode": "EXPLORATORY",
+      "extension_of": "Complementa OP-EXP; no altera lottery ni selector.",
+      "execution_status": "NOT_EXECUTED",
+      "scientific_status": "NOT_VALIDATED_FOR_CRIBA"
+    },
+    "source_records": [
+      {
+        "source_id": "A3-S04",
+        "title": "Creativity and artificial intelligence",
+        "authors": [
+          "Margaret A. Boden"
+        ],
+        "year": 1998,
+        "url": "https://www.sciencedirect.com/science/article/pii/S0004370298000551",
+        "identifier": "10.1016/S0004-3702(98)00055-1",
+        "reading_level": "PRIMARY_TEXT_READ",
+        "locator": "§1 pp.347–348; §2 pp.348–349; §3; §4 pp.354–355; §5",
+        "supported_claim": "Distingue creatividad combinatoria, exploratoria y transformacional, P/H-creativity y dificultad de evaluar valor; una asociación aleatoria no basta para pertinencia.",
+        "limitations": "Análisis de 1998: sus afirmaciones sobre el estado de IA describen esa época, no modelos actuales. No es ensayo causal de prompts.",
+        "license_status": "NOT_VERIFIED",
+        "reuse_policy": "Enlazar y parafrasear; no redistribuir el original. Acceso público no equivale a licencia.",
+        "consulted_on": "2026-10-28",
+        "chat_citation": "[web:579]"
+      }
+    ]
+  },
+  {
+    "id": "A3-OP-BOD-03",
+    "name": "A3-OP-BOD-03",
+    "title": "Transformar una suposición representacional, no una obligación",
+    "description": "Distinguir obligación externa de elección de representación.\nDeclarar la regla revisable y su origen.\nProponer una regla nueva y describir qué estructura antes inexpresable permite.\nConservar una proyección al problema original y todos sus requisitos.\nProponer evaluación independiente; transformación no equivale a mejora.",
+    "family": "inventiva_a3",
+    "thinking_class": "escape",
+    "granularity": "method",
+    "origin": "original_adaptation",
+    "source": "a3",
+    "operator_record": {
+      "operator_id": "A3-OP-BOD-03",
+      "title": "Transformar una suposición representacional, no una obligación",
+      "source_ids": [
+        "A3-S04"
+      ],
+      "epistemic_class": "DESIGN_PROPOSAL",
+      "attribution": "Adaptación original para CRIBA; no transcripción ni algoritmo validado del autor.",
+      "appropriate_when": "Una regla de representación impide expresar una alternativa potencialmente útil.",
+      "required_inputs": [
+        "Representación inicial",
+        "Regla o supuesto revisable",
+        "Restricciones obligatorias separadas"
+      ],
+      "transformation_steps": [
+        "Distinguir obligación externa de elección de representación.",
+        "Declarar la regla revisable y su origen.",
+        "Proponer una regla nueva y describir qué estructura antes inexpresable permite.",
+        "Conservar una proyección al problema original y todos sus requisitos.",
+        "Proponer evaluación independiente; transformación no equivale a mejora."
+      ],
+      "required_outputs": [
+        "rule_before",
+        "rule_after",
+        "newly_expressible_structure",
+        "constraint_preservation",
+        "revalidation_plan"
+      ],
+      "preconditions": [
+        "Hay una diferencia identificable entre los espacios, no solo cambio de nombre.",
+        "Es una propuesta documental; migración o ejecución requieren autorización aparte."
+      ],
+      "hard_invariants": [
+        "No relajar seguridad, autorización, privacidad ni requisitos obligatorios.",
+        "No cambiar RNG, scoring, memoria adaptativa, gates ni runtime.",
+        "Ninguna inferencia transferida se registra como observación."
+      ],
+      "abstention_or_failure": [
+        "La regla es seguridad, autorización, ley física o requisito obligatorio.",
+        "La solución solo funciona cambiando la pregunta original."
+      ],
+      "original_example": "Pasar de una ficha que permite un único recurso a una propuesta de representación con un grafo de recursos e interfaces; no modificar el esquema productivo.",
+      "counterexample": "Eliminar autorización humana para que el generador pueda ejecutar más acciones.",
+      "rival_explanation": "El nuevo formato solo añade verbosidad, no capacidad expresiva útil.",
+      "discriminating_test": "Ejemplo mínimo representable solo en la propuesta y casos de regresión; después, experimento de utilidad separado con mismo presupuesto.",
+      "creativity_mode": "TRANSFORMATIONAL",
+      "extension_of": "Documenta residuo de representación; no activa H2 ni metaevolución.",
+      "execution_status": "NOT_EXECUTED",
+      "scientific_status": "NOT_VALIDATED_FOR_CRIBA"
+    },
+    "source_records": [
+      {
+        "source_id": "A3-S04",
+        "title": "Creativity and artificial intelligence",
+        "authors": [
+          "Margaret A. Boden"
+        ],
+        "year": 1998,
+        "url": "https://www.sciencedirect.com/science/article/pii/S0004370298000551",
+        "identifier": "10.1016/S0004-3702(98)00055-1",
+        "reading_level": "PRIMARY_TEXT_READ",
+        "locator": "§1 pp.347–348; §2 pp.348–349; §3; §4 pp.354–355; §5",
+        "supported_claim": "Distingue creatividad combinatoria, exploratoria y transformacional, P/H-creativity y dificultad de evaluar valor; una asociación aleatoria no basta para pertinencia.",
+        "limitations": "Análisis de 1998: sus afirmaciones sobre el estado de IA describen esa época, no modelos actuales. No es ensayo causal de prompts.",
+        "license_status": "NOT_VERIFIED",
+        "reuse_policy": "Enlazar y parafrasear; no redistribuir el original. Acceso público no equivale a licencia.",
+        "consulted_on": "2026-10-28",
+        "chat_citation": "[web:579]"
+      }
+    ]
+  },
+  {
+    "id": "A3-OP-GPL-01",
+    "name": "A3-OP-GPL-01",
+    "title": "Separar preestructura de interpretación útil",
+    "description": "Construir una preestructura abstracta original sin adjudicarle utilidad.\nGuardar por separado la estructura y su posterior interpretación funcional.\nExplorar una aplicación concreta al problema y comprobar restricciones.\nSi no hay utilidad o factibilidad, conservar resultado negativo sin llamarlo invención.",
+    "family": "inventiva_a3",
+    "thinking_class": "generacion",
+    "granularity": "method",
+    "origin": "original_adaptation",
+    "source": "a3",
+    "operator_record": {
+      "operator_id": "A3-OP-GPL-01",
+      "title": "Separar preestructura de interpretación útil",
+      "source_ids": [
+        "A3-S06",
+        "A3-S07"
+      ],
+      "epistemic_class": "DESIGN_PROPOSAL",
+      "attribution": "Adaptación original para CRIBA; no transcripción ni algoritmo validado del autor.",
+      "appropriate_when": "El generador converge demasiado pronto a una solución narrativamente cerrada.",
+      "required_inputs": [
+        "Componentes o relaciones elegibles",
+        "Restricciones de seguridad y alcance",
+        "Problema objetivo"
+      ],
+      "transformation_steps": [
+        "Construir una preestructura abstracta original sin adjudicarle utilidad.",
+        "Guardar por separado la estructura y su posterior interpretación funcional.",
+        "Explorar una aplicación concreta al problema y comprobar restricciones.",
+        "Si no hay utilidad o factibilidad, conservar resultado negativo sin llamarlo invención."
+      ],
+      "required_outputs": [
+        "preinventive_structure",
+        "interpretation",
+        "constraint_check",
+        "status"
+      ],
+      "preconditions": [
+        "La preestructura es un artefacto de ideación, nunca una medición ni evidencia bibliográfica."
+      ],
+      "hard_invariants": [
+        "No relajar seguridad, autorización, privacidad ni requisitos obligatorios.",
+        "No cambiar RNG, scoring, memoria adaptativa, gates ni runtime.",
+        "Ninguna inferencia transferida se registra como observación."
+      ],
+      "abstention_or_failure": [
+        "Se relajan obligaciones durante la generación.",
+        "Se valida la estructura solo porque la historia posterior resulta convincente."
+      ],
+      "original_example": "Preestructura: dos rutas paralelas y un registro común. Interpretación candidata: revisión independiente con conciliación explícita de discrepancias.",
+      "counterexample": "Afirmar que dos agentes son independientes porque se dibujan como ramas separadas.",
+      "rival_explanation": "La mejora es efecto del segundo pase de generación.",
+      "discriminating_test": "Comparar dos pases con y sin separación de estructura/interpretación manteniendo presupuesto; evaluar defectos y familias funcionales con criterio externo.",
+      "creativity_mode": "COMBINATIONAL",
+      "extension_of": "Secuencia de ideación que reutiliza generación e interpretación existentes.",
+      "execution_status": "NOT_EXECUTED",
+      "scientific_status": "NOT_VALIDATED_FOR_CRIBA"
+    },
+    "source_records": [
+      {
+        "source_id": "A3-S06",
+        "title": "Creative Cognition: Theory, Research, and Applications",
+        "authors": [
+          "Ronald A. Finke",
+          "Thomas B. Ward",
+          "Steven M. Smith"
+        ],
+        "year": 1992,
+        "url": "https://mitpress.mit.edu/9780262560962/creative-cognition/",
+        "identifier": "Hardcover ISBN 9780262061506; paperback ISBN 9780262560962",
+        "reading_level": "PUBLISHER_METADATA_DESCRIPTION",
+        "locator": "MIT Press: descripción; Hardcover Pub date October 16, 1992",
+        "supported_claim": "Libro que combina experimentos y psicología cognitiva para estudiar procesos y estructuras de creatividad.",
+        "limitations": "No lectura íntegra ni extracción de resultados individuales. Fecha del buscador 2024 no sustituye publicación de tapa dura de 1992.",
+        "license_status": "NOT_VERIFIED",
+        "reuse_policy": "Enlazar y parafrasear; no redistribuir el original. Acceso público no equivale a licencia.",
+        "consulted_on": "2026-10-28",
+        "chat_citation": "[web:567][web:562]"
+      },
+      {
+        "source_id": "A3-S07",
+        "title": "Creative cognition (capítulo de Ward, Smith y Finke)",
+        "authors": [
+          "Thomas B. Ward",
+          "Steven M. Smith",
+          "Ronald A. Finke"
+        ],
+        "year": null,
+        "url": "https://people.tamu.edu/~stevesmith/SmithCreativity/Ward_Smith&Finke.pdf",
+        "identifier": "APA record 1998-08125-010; año de capítulo pendiente de cotejo directo",
+        "reading_level": "AUTHOR_HOSTED_INDEXED_EXCERPT_ONLY",
+        "locator": "Pasaje indexado: Geneplore como modelo descriptivo y heurístico; registro APA",
+        "supported_claim": "Los autores caracterizan Geneplore como marco descriptivo y heurístico, no teoría explicativa completa.",
+        "limitations": "Fetch falló en ambos hosts it.tamu.edu y people.tamu.edu. Año 1999 es referencia de trabajo no verificada: no usarlo como año confirmado. Registro APA no basta para resolver edición.",
+        "license_status": "NOT_VERIFIED",
+        "reuse_policy": "Enlazar y parafrasear; no redistribuir el original. Acceso público no equivale a licencia.",
+        "consulted_on": "2026-10-28",
+        "chat_citation": "[web:587][web:576]",
+        "year_note": "Pendiente de cotejo del capítulo; no inferir fecha editorial de la fecha del registro APA."
+      }
+    ]
+  },
+  {
+    "id": "A3-OP-GPL-02",
+    "name": "A3-OP-GPL-02",
+    "title": "Reinterpretación funcional controlada",
+    "description": "Conservar identidad y estructura originales.\nProponer una función alternativa y explicitar qué relación la permite.\nDistinguir cambio de función de simple paráfrasis.\nReevaluar TODOS los requisitos; conservar motivo de descarte.",
+    "family": "inventiva_a3",
+    "thinking_class": "perspectiva",
+    "granularity": "method",
+    "origin": "original_adaptation",
+    "source": "a3",
+    "operator_record": {
+      "operator_id": "A3-OP-GPL-02",
+      "title": "Reinterpretación funcional controlada",
+      "source_ids": [
+        "A3-S06",
+        "A3-S07"
+      ],
+      "epistemic_class": "DESIGN_PROPOSAL",
+      "attribution": "Adaptación original para CRIBA; no transcripción ni algoritmo validado del autor.",
+      "appropriate_when": "Una misma estructura admite posibles funciones y se necesita evitar fijación prematura.",
+      "required_inputs": [
+        "Preestructura identificada",
+        "Función asignada inicialmente",
+        "Requisitos completos"
+      ],
+      "transformation_steps": [
+        "Conservar identidad y estructura originales.",
+        "Proponer una función alternativa y explicitar qué relación la permite.",
+        "Distinguir cambio de función de simple paráfrasis.",
+        "Reevaluar TODOS los requisitos; conservar motivo de descarte."
+      ],
+      "required_outputs": [
+        "structure_id",
+        "function_before",
+        "function_after",
+        "functional_difference",
+        "recheck"
+      ],
+      "preconditions": [
+        "Puede describirse una intervención u observable distinto."
+      ],
+      "hard_invariants": [
+        "No relajar seguridad, autorización, privacidad ni requisitos obligatorios.",
+        "No cambiar RNG, scoring, memoria adaptativa, gates ni runtime.",
+        "Ninguna inferencia transferida se registra como observación."
+      ],
+      "abstention_or_failure": [
+        "Solo cambia el vocabulario.",
+        "La nueva función depende de recursos no disponibles."
+      ],
+      "original_example": "Un registro de intentos puede reinterpretarse como fuente de contraejemplos, sin convertir fallos generados en observaciones reales.",
+      "counterexample": "Llamar a un log memoria inteligente sin cambiar su uso.",
+      "rival_explanation": "Una instrucción más larga, no la reinterpretación, explica la calidad.",
+      "discriminating_test": "Comparar propuestas ciegamente por función y prueba, no por nombres; resultados semánticos requieren revisión no cubierta por el checker.",
+      "creativity_mode": "EXPLORATORY",
+      "extension_of": "Añade función alternativa en sidecar; no duplica memoria.",
+      "execution_status": "NOT_EXECUTED",
+      "scientific_status": "NOT_VALIDATED_FOR_CRIBA"
+    },
+    "source_records": [
+      {
+        "source_id": "A3-S06",
+        "title": "Creative Cognition: Theory, Research, and Applications",
+        "authors": [
+          "Ronald A. Finke",
+          "Thomas B. Ward",
+          "Steven M. Smith"
+        ],
+        "year": 1992,
+        "url": "https://mitpress.mit.edu/9780262560962/creative-cognition/",
+        "identifier": "Hardcover ISBN 9780262061506; paperback ISBN 9780262560962",
+        "reading_level": "PUBLISHER_METADATA_DESCRIPTION",
+        "locator": "MIT Press: descripción; Hardcover Pub date October 16, 1992",
+        "supported_claim": "Libro que combina experimentos y psicología cognitiva para estudiar procesos y estructuras de creatividad.",
+        "limitations": "No lectura íntegra ni extracción de resultados individuales. Fecha del buscador 2024 no sustituye publicación de tapa dura de 1992.",
+        "license_status": "NOT_VERIFIED",
+        "reuse_policy": "Enlazar y parafrasear; no redistribuir el original. Acceso público no equivale a licencia.",
+        "consulted_on": "2026-10-28",
+        "chat_citation": "[web:567][web:562]"
+      },
+      {
+        "source_id": "A3-S07",
+        "title": "Creative cognition (capítulo de Ward, Smith y Finke)",
+        "authors": [
+          "Thomas B. Ward",
+          "Steven M. Smith",
+          "Ronald A. Finke"
+        ],
+        "year": null,
+        "url": "https://people.tamu.edu/~stevesmith/SmithCreativity/Ward_Smith&Finke.pdf",
+        "identifier": "APA record 1998-08125-010; año de capítulo pendiente de cotejo directo",
+        "reading_level": "AUTHOR_HOSTED_INDEXED_EXCERPT_ONLY",
+        "locator": "Pasaje indexado: Geneplore como modelo descriptivo y heurístico; registro APA",
+        "supported_claim": "Los autores caracterizan Geneplore como marco descriptivo y heurístico, no teoría explicativa completa.",
+        "limitations": "Fetch falló en ambos hosts it.tamu.edu y people.tamu.edu. Año 1999 es referencia de trabajo no verificada: no usarlo como año confirmado. Registro APA no basta para resolver edición.",
+        "license_status": "NOT_VERIFIED",
+        "reuse_policy": "Enlazar y parafrasear; no redistribuir el original. Acceso público no equivale a licencia.",
+        "consulted_on": "2026-10-28",
+        "chat_citation": "[web:587][web:576]",
+        "year_note": "Pendiente de cotejo del capítulo; no inferir fecha editorial de la fecha del registro APA."
+      }
+    ]
+  },
+  {
+    "id": "A3-OP-GPL-03",
+    "name": "A3-OP-GPL-03",
+    "title": "Revisar la preestructura tras un fallo explícito",
+    "description": "Identificar si el fallo es de representación, mecanismo o evidencia sin activar automáticamente otra arquitectura.\nModificar una relación declarada y preservar el artefacto padre.\nPredecir qué observable debería cambiar y qué restricciones no deben variar.\nParar al agotar presupuesto o faltar condiciones de prueba; no reintentar indefinidamente.",
+    "family": "inventiva_a3",
+    "thinking_class": "ruptura",
+    "granularity": "method",
+    "origin": "original_adaptation",
+    "source": "a3",
+    "operator_record": {
+      "operator_id": "A3-OP-GPL-03",
+      "title": "Revisar la preestructura tras un fallo explícito",
+      "source_ids": [
+        "A3-S06",
+        "A3-S07"
+      ],
+      "epistemic_class": "DESIGN_PROPOSAL",
+      "attribution": "Adaptación original para CRIBA; no transcripción ni algoritmo validado del autor.",
+      "appropriate_when": "Una propuesta no cumple una condición y se busca una revisión trazable sin borrar el fracaso.",
+      "required_inputs": [
+        "Artefacto original",
+        "Fallo observado o previsto, etiquetado",
+        "Una modificación candidata",
+        "Presupuesto de revisiones"
+      ],
+      "transformation_steps": [
+        "Identificar si el fallo es de representación, mecanismo o evidencia sin activar automáticamente otra arquitectura.",
+        "Modificar una relación declarada y preservar el artefacto padre.",
+        "Predecir qué observable debería cambiar y qué restricciones no deben variar.",
+        "Parar al agotar presupuesto o faltar condiciones de prueba; no reintentar indefinidamente."
+      ],
+      "required_outputs": [
+        "parent_artifact",
+        "failure_basis",
+        "revision_delta",
+        "changed_prediction",
+        "stop_rule"
+      ],
+      "preconditions": [
+        "Cada revisión conserva procedencia y no sobrescribe el resultado anterior."
+      ],
+      "hard_invariants": [
+        "No relajar seguridad, autorización, privacidad ni requisitos obligatorios.",
+        "No cambiar RNG, scoring, memoria adaptativa, gates ni runtime.",
+        "Ninguna inferencia transferida se registra como observación."
+      ],
+      "abstention_or_failure": [
+        "Se ocultan intentos fallidos.",
+        "Se cambia el criterio de aceptación para declarar éxito."
+      ],
+      "original_example": "Si dos revisores comparten el mismo sesgo, proponer fuentes de contraste distintas y registrar que la independencia aún no está demostrada.",
+      "counterexample": "Repetir generación hasta obtener elogio del propio evaluador.",
+      "rival_explanation": "La mejora procede de más intentos y selección favorable.",
+      "discriminating_test": "Comparar historial completo y presupuesto equivalente; contar fallos, abstenciones y revisiones, no solo el candidato final.",
+      "creativity_mode": "EXPLORATORY",
+      "extension_of": "Complementa crítica y cierre; no aprendizaje online.",
+      "execution_status": "NOT_EXECUTED",
+      "scientific_status": "NOT_VALIDATED_FOR_CRIBA"
+    },
+    "source_records": [
+      {
+        "source_id": "A3-S06",
+        "title": "Creative Cognition: Theory, Research, and Applications",
+        "authors": [
+          "Ronald A. Finke",
+          "Thomas B. Ward",
+          "Steven M. Smith"
+        ],
+        "year": 1992,
+        "url": "https://mitpress.mit.edu/9780262560962/creative-cognition/",
+        "identifier": "Hardcover ISBN 9780262061506; paperback ISBN 9780262560962",
+        "reading_level": "PUBLISHER_METADATA_DESCRIPTION",
+        "locator": "MIT Press: descripción; Hardcover Pub date October 16, 1992",
+        "supported_claim": "Libro que combina experimentos y psicología cognitiva para estudiar procesos y estructuras de creatividad.",
+        "limitations": "No lectura íntegra ni extracción de resultados individuales. Fecha del buscador 2024 no sustituye publicación de tapa dura de 1992.",
+        "license_status": "NOT_VERIFIED",
+        "reuse_policy": "Enlazar y parafrasear; no redistribuir el original. Acceso público no equivale a licencia.",
+        "consulted_on": "2026-10-28",
+        "chat_citation": "[web:567][web:562]"
+      },
+      {
+        "source_id": "A3-S07",
+        "title": "Creative cognition (capítulo de Ward, Smith y Finke)",
+        "authors": [
+          "Thomas B. Ward",
+          "Steven M. Smith",
+          "Ronald A. Finke"
+        ],
+        "year": null,
+        "url": "https://people.tamu.edu/~stevesmith/SmithCreativity/Ward_Smith&Finke.pdf",
+        "identifier": "APA record 1998-08125-010; año de capítulo pendiente de cotejo directo",
+        "reading_level": "AUTHOR_HOSTED_INDEXED_EXCERPT_ONLY",
+        "locator": "Pasaje indexado: Geneplore como modelo descriptivo y heurístico; registro APA",
+        "supported_claim": "Los autores caracterizan Geneplore como marco descriptivo y heurístico, no teoría explicativa completa.",
+        "limitations": "Fetch falló en ambos hosts it.tamu.edu y people.tamu.edu. Año 1999 es referencia de trabajo no verificada: no usarlo como año confirmado. Registro APA no basta para resolver edición.",
+        "license_status": "NOT_VERIFIED",
+        "reuse_policy": "Enlazar y parafrasear; no redistribuir el original. Acceso público no equivale a licencia.",
+        "consulted_on": "2026-10-28",
+        "chat_citation": "[web:587][web:576]",
+        "year_note": "Pendiente de cotejo del capítulo; no inferir fecha editorial de la fecha del registro APA."
+      }
+    ]
+  },
+  {
+    "id": "A4-OP-MOR-01",
+    "name": "A4-OP-MOR-01",
+    "title": "Caja morfológica con parámetros independientes",
+    "description": "Listar parámetros que describan decisiones distintas, no sinónimos.\nAsignar valores concretos a cada parámetro; marcar UNKNOWN los no justificados.\nConstruir el espacio formal y contar configuraciones.\nRegistrar parámetros descartados y motivo.",
+    "family": "inventiva_a4",
+    "thinking_class": "generacion",
+    "granularity": "method",
+    "origin": "original_adaptation",
+    "source": "a4",
+    "operator_record": {
+      "operator_id": "A4-OP-MOR-01",
+      "title": "Caja morfológica con parámetros independientes",
+      "source_ids": [
+        "A4-S01",
+        "A4-S02"
+      ],
+      "epistemic_class": "DESIGN_PROPOSAL",
+      "attribution": "Adaptación original para CRIBA; no algoritmo validado del autor.",
+      "appropriate_when": "El problema tiene varias decisiones de diseño combinables y se explora siempre una sola configuración.",
+      "required_inputs": [
+        "Problema",
+        "Parámetros candidatos",
+        "Valores justificados por parámetro",
+        "Restricciones obligatorias"
+      ],
+      "transformation_steps": [
+        "Listar parámetros que describan decisiones distintas, no sinónimos.",
+        "Asignar valores concretos a cada parámetro; marcar UNKNOWN los no justificados.",
+        "Construir el espacio formal y contar configuraciones.",
+        "Registrar parámetros descartados y motivo."
+      ],
+      "required_outputs": [
+        "parameters",
+        "values",
+        "formal_space_size",
+        "excluded_parameters"
+      ],
+      "preconditions": [
+        "Parámetros con significado operativo.",
+        "Número de valores acotado para poder revisar."
+      ],
+      "hard_invariants": [
+        "No relajar seguridad, autorización, privacidad ni requisitos obligatorios.",
+        "No tocar RNG, scoring, memoria adaptativa, gates ni runtime.",
+        "Lo generado no se registra como observado."
+      ],
+      "abstention_or_failure": [
+        "Parámetros dependientes o redundantes sin declararlo.",
+        "Valores inventados sin respaldo."
+      ],
+      "original_example": "Para revisión de propuestas: parámetro «momento de comprobación» con valores antes/durante/después; «quién comprueba» con valores generador/independiente.",
+      "counterexample": "Usar como parámetros «calidad» y «excelencia».",
+      "rival_explanation": "La mejora procede de enumerar más opciones, no de la estructura.",
+      "discriminating_test": "Mismo presupuesto: caja morfológica vs lista libre de alternativas; contar configuraciones factibles y familias funcionales distintas.",
+      "creativity_mode": "COMBINATIONAL",
+      "extension_of": "Refina OP-EXP sin tocar lottery/selector.",
+      "execution_status": "NOT_EXECUTED",
+      "scientific_status": "NOT_VALIDATED_FOR_CRIBA"
+    },
+    "source_records": [
+      {
+        "source_id": "A4-S01",
+        "title": "General Morphological Analysis (GMA)",
+        "authors": [
+          "UNKNOWN: autor del capítulo no visible en el extracto; verificar ficha Springer"
+        ],
+        "year": 2011,
+        "url": "https://link.springer.com/chapter/10.1007/978-3-642-19653-9_2",
+        "identifier": "DOI 10.1007/978-3-642-19653-9_2 (capítulo; año inferido del libro, pendiente de cotejo)",
+        "reading_level": "PUBLISHER_ABSTRACT",
+        "locator": "Springer chapter abstract",
+        "supported_claim": "GMA estructura relaciones en complejos multidimensionales no cuantificables y se atribuye a Fritz Zwicky.",
+        "limitations": "Solo resumen editorial. Autor y año del capítulo no confirmados en este extracto.",
+        "license_status": "NOT_VERIFIED",
+        "reuse_policy": "Enlazar y parafrasear; no redistribuir el original. Acceso público no equivale a licencia.",
+        "consulted_on": "2026-10-28",
+        "chat_citation": "[web:605]"
+      },
+      {
+        "source_id": "A4-S02",
+        "title": "General Morphological Analysis (página de método)",
+        "authors": [
+          "UNKNOWN: autoría de la página no verificada"
+        ],
+        "year": 2013,
+        "url": "https://swemorph.com/ma.html",
+        "identifier": "URL; fecha de la página 2013-01-15 según buscador",
+        "reading_level": "SECONDARY_WEB_PAGE_EXCERPT",
+        "locator": "Secciones Introduction y Cross Consistency Assessment",
+        "supported_claim": "Parámetros con valores forman una caja morfológica; la evaluación pareada de consistencia reduce configuraciones formales a un subconjunto internamente consistente.",
+        "limitations": "Fuente secundaria no revisada por pares; cita a Zwicky 1966/1969 pero no se leyeron esos originales.",
+        "license_status": "NOT_VERIFIED",
+        "reuse_policy": "Enlazar y parafrasear; no redistribuir el original. Acceso público no equivale a licencia.",
+        "consulted_on": "2026-10-28",
+        "chat_citation": "[web:615]"
+      }
+    ]
+  },
+  {
+    "id": "A4-OP-MOR-02",
+    "name": "A4-OP-MOR-02",
+    "title": "Consistencia cruzada pareada",
+    "description": "Comparar cada pareja de valores de parámetros distintos.\nMarcar pareja como compatible, incompatible o UNKNOWN con razón.\nExcluir configuraciones que contengan una pareja incompatible; conservar las UNKNOWN como pendientes, no como compatibles.\nInformar tamaño del espacio antes y después.",
+    "family": "inventiva_a4",
+    "thinking_class": "ruptura",
+    "granularity": "method",
+    "origin": "original_adaptation",
+    "source": "a4",
+    "operator_record": {
+      "operator_id": "A4-OP-MOR-02",
+      "title": "Consistencia cruzada pareada",
+      "source_ids": [
+        "A4-S02"
+      ],
+      "epistemic_class": "DESIGN_PROPOSAL",
+      "attribution": "Adaptación original para CRIBA; no algoritmo validado del autor.",
+      "appropriate_when": "La caja produce demasiadas combinaciones formales.",
+      "required_inputs": [
+        "Caja morfológica",
+        "Criterio de incompatibilidad por pareja",
+        "Evidencia o razón de cada exclusión"
+      ],
+      "transformation_steps": [
+        "Comparar cada pareja de valores de parámetros distintos.",
+        "Marcar pareja como compatible, incompatible o UNKNOWN con razón.",
+        "Excluir configuraciones que contengan una pareja incompatible; conservar las UNKNOWN como pendientes, no como compatibles.",
+        "Informar tamaño del espacio antes y después."
+      ],
+      "required_outputs": [
+        "pair_judgments",
+        "consistent_configurations",
+        "unknown_pairs"
+      ],
+      "preconditions": [
+        "Criterios explícitos y revisables."
+      ],
+      "hard_invariants": [
+        "No relajar seguridad, autorización, privacidad ni requisitos obligatorios.",
+        "No tocar RNG, scoring, memoria adaptativa, gates ni runtime.",
+        "Lo generado no se registra como observado."
+      ],
+      "abstention_or_failure": [
+        "Se marcan incompatibilidades por gusto del generador.",
+        "UNKNOWN tratado como compatible."
+      ],
+      "original_example": "Un valor «sin registro persistente» es incompatible con «recuperación tras reinicio».",
+      "counterexample": "Declarar incompatible una pareja solo porque es inusual.",
+      "rival_explanation": "El filtro elimina soluciones útiles por sesgo del juez.",
+      "discriminating_test": "Revisión independiente de un subconjunto de exclusiones; medir exclusiones indebidas con casos construidos.",
+      "creativity_mode": "COMBINATIONAL",
+      "extension_of": "Alimenta ruptura/restricciones del cruce.",
+      "execution_status": "NOT_EXECUTED",
+      "scientific_status": "NOT_VALIDATED_FOR_CRIBA"
+    },
+    "source_records": [
+      {
+        "source_id": "A4-S02",
+        "title": "General Morphological Analysis (página de método)",
+        "authors": [
+          "UNKNOWN: autoría de la página no verificada"
+        ],
+        "year": 2013,
+        "url": "https://swemorph.com/ma.html",
+        "identifier": "URL; fecha de la página 2013-01-15 según buscador",
+        "reading_level": "SECONDARY_WEB_PAGE_EXCERPT",
+        "locator": "Secciones Introduction y Cross Consistency Assessment",
+        "supported_claim": "Parámetros con valores forman una caja morfológica; la evaluación pareada de consistencia reduce configuraciones formales a un subconjunto internamente consistente.",
+        "limitations": "Fuente secundaria no revisada por pares; cita a Zwicky 1966/1969 pero no se leyeron esos originales.",
+        "license_status": "NOT_VERIFIED",
+        "reuse_policy": "Enlazar y parafrasear; no redistribuir el original. Acceso público no equivale a licencia.",
+        "consulted_on": "2026-10-28",
+        "chat_citation": "[web:615]"
+      }
+    ]
+  },
+  {
+    "id": "A4-OP-MOR-03",
+    "name": "A4-OP-MOR-03",
+    "title": "Selección de configuraciones por función, no por rareza",
+    "description": "Agrupar por mecanismo o recurso funcional.\nElegir al menos una por grupo con razón.\nRegistrar descartadas y cómo se eligió; si hay muestreo, registrar conjunto, orden y semilla cuando exista.\nNo usar distancia textual como único criterio.",
+    "family": "inventiva_a4",
+    "thinking_class": "escape",
+    "granularity": "method",
+    "origin": "original_adaptation",
+    "source": "a4",
+    "operator_record": {
+      "operator_id": "A4-OP-MOR-03",
+      "title": "Selección de configuraciones por función, no por rareza",
+      "source_ids": [
+        "A4-S01",
+        "A4-S02"
+      ],
+      "epistemic_class": "DESIGN_PROPOSAL",
+      "attribution": "Adaptación original para CRIBA; no algoritmo validado del autor.",
+      "appropriate_when": "Hay muchas configuraciones consistentes y hay que elegir un conjunto revisable.",
+      "required_inputs": [
+        "Configuraciones consistentes",
+        "Descriptor funcional por configuración",
+        "Presupuesto de revisión"
+      ],
+      "transformation_steps": [
+        "Agrupar por mecanismo o recurso funcional.",
+        "Elegir al menos una por grupo con razón.",
+        "Registrar descartadas y cómo se eligió; si hay muestreo, registrar conjunto, orden y semilla cuando exista.",
+        "No usar distancia textual como único criterio."
+      ],
+      "required_outputs": [
+        "selected",
+        "groups",
+        "selection_record",
+        "discarded"
+      ],
+      "preconditions": [
+        "Descriptores funcionales revisables."
+      ],
+      "hard_invariants": [
+        "No relajar seguridad, autorización, privacidad ni requisitos obligatorios.",
+        "No tocar RNG, scoring, memoria adaptativa, gates ni runtime.",
+        "Lo generado no se registra como observado."
+      ],
+      "abstention_or_failure": [
+        "Todas las configuraciones comparten el mismo mecanismo.",
+        "La agrupación se hace por vocabulario."
+      ],
+      "original_example": "Elegir una configuración con registro previo y otra con revisión posterior independiente.",
+      "counterexample": "Elegir las combinaciones con palabras más raras.",
+      "rival_explanation": "La rareza, no la función, explica el resultado.",
+      "discriminating_test": "Comparar selección por grupos funcionales vs aleatoria con presupuesto equivalente, evaluada ciegamente.",
+      "creativity_mode": "EXPLORATORY",
+      "extension_of": "Complementa diversidad; no modifica selector.",
+      "execution_status": "NOT_EXECUTED",
+      "scientific_status": "NOT_VALIDATED_FOR_CRIBA"
+    },
+    "source_records": [
+      {
+        "source_id": "A4-S01",
+        "title": "General Morphological Analysis (GMA)",
+        "authors": [
+          "UNKNOWN: autor del capítulo no visible en el extracto; verificar ficha Springer"
+        ],
+        "year": 2011,
+        "url": "https://link.springer.com/chapter/10.1007/978-3-642-19653-9_2",
+        "identifier": "DOI 10.1007/978-3-642-19653-9_2 (capítulo; año inferido del libro, pendiente de cotejo)",
+        "reading_level": "PUBLISHER_ABSTRACT",
+        "locator": "Springer chapter abstract",
+        "supported_claim": "GMA estructura relaciones en complejos multidimensionales no cuantificables y se atribuye a Fritz Zwicky.",
+        "limitations": "Solo resumen editorial. Autor y año del capítulo no confirmados en este extracto.",
+        "license_status": "NOT_VERIFIED",
+        "reuse_policy": "Enlazar y parafrasear; no redistribuir el original. Acceso público no equivale a licencia.",
+        "consulted_on": "2026-10-28",
+        "chat_citation": "[web:605]"
+      },
+      {
+        "source_id": "A4-S02",
+        "title": "General Morphological Analysis (página de método)",
+        "authors": [
+          "UNKNOWN: autoría de la página no verificada"
+        ],
+        "year": 2013,
+        "url": "https://swemorph.com/ma.html",
+        "identifier": "URL; fecha de la página 2013-01-15 según buscador",
+        "reading_level": "SECONDARY_WEB_PAGE_EXCERPT",
+        "locator": "Secciones Introduction y Cross Consistency Assessment",
+        "supported_claim": "Parámetros con valores forman una caja morfológica; la evaluación pareada de consistencia reduce configuraciones formales a un subconjunto internamente consistente.",
+        "limitations": "Fuente secundaria no revisada por pares; cita a Zwicky 1966/1969 pero no se leyeron esos originales.",
+        "license_status": "NOT_VERIFIED",
+        "reuse_policy": "Enlazar y parafrasear; no redistribuir el original. Acceso público no equivale a licencia.",
+        "consulted_on": "2026-10-28",
+        "chat_citation": "[web:615]"
+      }
+    ]
+  },
+  {
+    "id": "A4-OP-CK-01",
+    "name": "A4-OP-CK-01",
+    "title": "Separar concepto (C) de conocimiento (K)",
+    "description": "Redactar el concepto como objeto con propiedades cuyo estatus no puede decidirse con el conocimiento disponible.\nListar lo conocido como proposiciones verdadero/falso con fuente.\nEnumerar qué conocimiento permitiría decidir el concepto.\nNo escribir una propiedad conceptual como hecho.",
+    "family": "inventiva_a4",
+    "thinking_class": "perspectiva",
+    "granularity": "method",
+    "origin": "original_adaptation",
+    "source": "a4",
+    "operator_record": {
+      "operator_id": "A4-OP-CK-01",
+      "title": "Separar concepto (C) de conocimiento (K)",
+      "source_ids": [
+        "A4-S03",
+        "A4-S04"
+      ],
+      "epistemic_class": "DESIGN_PROPOSAL",
+      "attribution": "Adaptación original para CRIBA; no algoritmo validado del autor.",
+      "appropriate_when": "Una idea mezcla suposiciones no comprobadas con hechos.",
+      "required_inputs": [
+        "Idea candidata",
+        "Hechos con procedencia",
+        "Propiedades pendientes"
+      ],
+      "transformation_steps": [
+        "Redactar el concepto como objeto con propiedades cuyo estatus no puede decidirse con el conocimiento disponible.",
+        "Listar lo conocido como proposiciones verdadero/falso con fuente.",
+        "Enumerar qué conocimiento permitiría decidir el concepto.",
+        "No escribir una propiedad conceptual como hecho."
+      ],
+      "required_outputs": [
+        "concept",
+        "knowledge_items",
+        "undecidable_properties",
+        "knowledge_needed"
+      ],
+      "preconditions": [
+        "Procedencia para cada elemento de K."
+      ],
+      "hard_invariants": [
+        "No relajar seguridad, autorización, privacidad ni requisitos obligatorios.",
+        "No tocar RNG, scoring, memoria adaptativa, gates ni runtime.",
+        "Lo generado no se registra como observado."
+      ],
+      "abstention_or_failure": [
+        "Un elemento de K carece de fuente.",
+        "El concepto se formula de modo que ya es decidible."
+      ],
+      "original_example": "Concepto: «registro que permita reconstruir la decisión»; K: «el registro actual conserva marca temporal» [fixture].",
+      "counterexample": "Poner «es seguro» en K sin evidencia.",
+      "rival_explanation": "La separación no cambia la calidad, solo el formato.",
+      "discriminating_test": "Auditar si cada propiedad pendiente tiene una prueba o fuente identificada; comparar errores de atribución.",
+      "creativity_mode": "COMBINATIONAL",
+      "extension_of": "Mapa a supuestos/EVIDENCIA; no nuevo motor.",
+      "execution_status": "NOT_EXECUTED",
+      "scientific_status": "NOT_VALIDATED_FOR_CRIBA"
+    },
+    "source_records": [
+      {
+        "source_id": "A4-S03",
+        "title": "Bridging Design Science research and formal design theories (C-K)",
+        "authors": [
+          "UNKNOWN: autores no visibles en el extracto"
+        ],
+        "year": null,
+        "url": "https://scholarspace.manoa.hawaii.edu/bitstreams/d40b57db-7395-4ea8-8b19-4688591f5565/download",
+        "identifier": "URL",
+        "reading_level": "SECONDARY_EXCERPT",
+        "locator": "Descripción de espacios C y K y operadores",
+        "supported_claim": "C-K distingue conceptos sin estatus lógico y conocimiento con estatus verdadero/falso; operadores K→K, K→C, C→C, C→K.",
+        "limitations": "Descripción secundaria; Hatchuel y Weil originales no leídos. Año no visible.",
+        "license_status": "NOT_VERIFIED",
+        "reuse_policy": "Enlazar y parafrasear; no redistribuir el original. Acceso público no equivale a licencia.",
+        "consulted_on": "2026-10-28",
+        "chat_citation": "[web:611]"
+      },
+      {
+        "source_id": "A4-S04",
+        "title": "Simulation of design reasoning based on C-K theory (Graphi.CK)",
+        "authors": [
+          "UNKNOWN: autores no visibles en el extracto"
+        ],
+        "year": null,
+        "url": "https://www.designsociety.org/download-publication/29351/simulation_of_design_reasoning_bas",
+        "identifier": "URL",
+        "reading_level": "SECONDARY_EXCERPT",
+        "locator": "Descripción de conceptos, conocimiento y particiones",
+        "supported_claim": "Un concepto es indecidible respecto de K; las particiones restrictivas añaden propiedades habituales y las expansivas propiedades novedosas.",
+        "limitations": "Modelo de simulación; no demuestra utilidad en software ni LLM.",
+        "license_status": "NOT_VERIFIED",
+        "reuse_policy": "Enlazar y parafrasear; no redistribuir el original. Acceso público no equivale a licencia.",
+        "consulted_on": "2026-10-28",
+        "chat_citation": "[web:613]"
+      }
+    ]
+  },
+  {
+    "id": "A4-OP-CK-02",
+    "name": "A4-OP-CK-02",
+    "title": "Partición restrictiva vs expansiva",
+    "description": "Añadir una propiedad.\nClasificarla como restrictiva si usa propiedades habituales del objeto o expansiva si introduce una no habitual.\nRegistrar el motivo y qué conocimiento falta.\nMantener la restricción obligatoria en ambos casos.",
+    "family": "inventiva_a4",
+    "thinking_class": "escape",
+    "granularity": "method",
+    "origin": "original_adaptation",
+    "source": "a4",
+    "operator_record": {
+      "operator_id": "A4-OP-CK-02",
+      "title": "Partición restrictiva vs expansiva",
+      "source_ids": [
+        "A4-S04"
+      ],
+      "epistemic_class": "DESIGN_PROPOSAL",
+      "attribution": "Adaptación original para CRIBA; no algoritmo validado del autor.",
+      "appropriate_when": "Se detalla un concepto pero no está claro si solo se concreta o se abre otro espacio.",
+      "required_inputs": [
+        "Concepto inicial",
+        "Propiedad a añadir",
+        "Conocimiento actual"
+      ],
+      "transformation_steps": [
+        "Añadir una propiedad.",
+        "Clasificarla como restrictiva si usa propiedades habituales del objeto o expansiva si introduce una no habitual.",
+        "Registrar el motivo y qué conocimiento falta.",
+        "Mantener la restricción obligatoria en ambos casos."
+      ],
+      "required_outputs": [
+        "partition_type",
+        "property",
+        "reason",
+        "knowledge_gap"
+      ],
+      "preconditions": [
+        "La noción «habitual» es relativa al conocimiento declarado."
+      ],
+      "hard_invariants": [
+        "No relajar seguridad, autorización, privacidad ni requisitos obligatorios.",
+        "No tocar RNG, scoring, memoria adaptativa, gates ni runtime.",
+        "Lo generado no se registra como observado."
+      ],
+      "abstention_or_failure": [
+        "La clasificación depende de intuición no justificada."
+      ],
+      "original_example": "Añadir «con recibo por etapa» a un flujo de despacho: restrictiva si ya es habitual en K; expansiva si K no la contempla.",
+      "counterexample": "Llamar expansiva a una paráfrasis.",
+      "rival_explanation": "La clasificación no predice utilidad.",
+      "discriminating_test": "Concordancia entre revisores sobre el tipo de partición con instrucciones iguales.",
+      "creativity_mode": "EXPLORATORY",
+      "extension_of": "Etiqueta de modo creativo, sin scoring.",
+      "execution_status": "NOT_EXECUTED",
+      "scientific_status": "NOT_VALIDATED_FOR_CRIBA"
+    },
+    "source_records": [
+      {
+        "source_id": "A4-S04",
+        "title": "Simulation of design reasoning based on C-K theory (Graphi.CK)",
+        "authors": [
+          "UNKNOWN: autores no visibles en el extracto"
+        ],
+        "year": null,
+        "url": "https://www.designsociety.org/download-publication/29351/simulation_of_design_reasoning_bas",
+        "identifier": "URL",
+        "reading_level": "SECONDARY_EXCERPT",
+        "locator": "Descripción de conceptos, conocimiento y particiones",
+        "supported_claim": "Un concepto es indecidible respecto de K; las particiones restrictivas añaden propiedades habituales y las expansivas propiedades novedosas.",
+        "limitations": "Modelo de simulación; no demuestra utilidad en software ni LLM.",
+        "license_status": "NOT_VERIFIED",
+        "reuse_policy": "Enlazar y parafrasear; no redistribuir el original. Acceso público no equivale a licencia.",
+        "consulted_on": "2026-10-28",
+        "chat_citation": "[web:613]"
+      }
+    ]
+  },
+  {
+    "id": "A4-OP-CK-03",
+    "name": "A4-OP-CK-03",
+    "title": "Expansión de conocimiento dirigida por concepto",
+    "description": "Convertir la propiedad indecidible en pregunta verificable.\nProponer la consulta o la prueba sin ejecutarla.\nRegistrar resultado esperado vs resultado rival.\nMantener el concepto como NOT_VALIDATED hasta que K lo respalde.",
+    "family": "inventiva_a4",
+    "thinking_class": "generacion",
+    "granularity": "method",
+    "origin": "original_adaptation",
+    "source": "a4",
+    "operator_record": {
+      "operator_id": "A4-OP-CK-03",
+      "title": "Expansión de conocimiento dirigida por concepto",
+      "source_ids": [
+        "A4-S03",
+        "A4-S04"
+      ],
+      "epistemic_class": "DESIGN_PROPOSAL",
+      "attribution": "Adaptación original para CRIBA; no algoritmo validado del autor.",
+      "appropriate_when": "Un concepto prometedor queda indecidible por falta de datos.",
+      "required_inputs": [
+        "Concepto",
+        "Propiedad indecidible",
+        "Fuentes o pruebas accesibles"
+      ],
+      "transformation_steps": [
+        "Convertir la propiedad indecidible en pregunta verificable.",
+        "Proponer la consulta o la prueba sin ejecutarla.",
+        "Registrar resultado esperado vs resultado rival.",
+        "Mantener el concepto como NOT_VALIDATED hasta que K lo respalde."
+      ],
+      "required_outputs": [
+        "question",
+        "proposed_check",
+        "prediction",
+        "rival_prediction",
+        "status"
+      ],
+      "preconditions": [
+        "La pregunta es verificable con un observable."
+      ],
+      "hard_invariants": [
+        "No relajar seguridad, autorización, privacidad ni requisitos obligatorios.",
+        "No tocar RNG, scoring, memoria adaptativa, gates ni runtime.",
+        "Lo generado no se registra como observado."
+      ],
+      "abstention_or_failure": [
+        "No se puede formular observable.",
+        "Se presenta la pregunta como respuesta."
+      ],
+      "original_example": "Pregunta: ¿se conserva el identificador tras recargar? Consulta propuesta sobre almacenamiento temporal.",
+      "counterexample": "Declarar la propiedad verdadera porque suena coherente.",
+      "rival_explanation": "Cualquier información adicional mejora igual, no la dirigida.",
+      "discriminating_test": "Comparar expansión dirigida con lectura general a igual presupuesto, midiendo propiedades decididas.",
+      "creativity_mode": "EXPLORATORY",
+      "extension_of": "Alimenta prueba y protocolo; sin ejecución.",
+      "execution_status": "NOT_EXECUTED",
+      "scientific_status": "NOT_VALIDATED_FOR_CRIBA"
+    },
+    "source_records": [
+      {
+        "source_id": "A4-S03",
+        "title": "Bridging Design Science research and formal design theories (C-K)",
+        "authors": [
+          "UNKNOWN: autores no visibles en el extracto"
+        ],
+        "year": null,
+        "url": "https://scholarspace.manoa.hawaii.edu/bitstreams/d40b57db-7395-4ea8-8b19-4688591f5565/download",
+        "identifier": "URL",
+        "reading_level": "SECONDARY_EXCERPT",
+        "locator": "Descripción de espacios C y K y operadores",
+        "supported_claim": "C-K distingue conceptos sin estatus lógico y conocimiento con estatus verdadero/falso; operadores K→K, K→C, C→C, C→K.",
+        "limitations": "Descripción secundaria; Hatchuel y Weil originales no leídos. Año no visible.",
+        "license_status": "NOT_VERIFIED",
+        "reuse_policy": "Enlazar y parafrasear; no redistribuir el original. Acceso público no equivale a licencia.",
+        "consulted_on": "2026-10-28",
+        "chat_citation": "[web:611]"
+      },
+      {
+        "source_id": "A4-S04",
+        "title": "Simulation of design reasoning based on C-K theory (Graphi.CK)",
+        "authors": [
+          "UNKNOWN: autores no visibles en el extracto"
+        ],
+        "year": null,
+        "url": "https://www.designsociety.org/download-publication/29351/simulation_of_design_reasoning_bas",
+        "identifier": "URL",
+        "reading_level": "SECONDARY_EXCERPT",
+        "locator": "Descripción de conceptos, conocimiento y particiones",
+        "supported_claim": "Un concepto es indecidible respecto de K; las particiones restrictivas añaden propiedades habituales y las expansivas propiedades novedosas.",
+        "limitations": "Modelo de simulación; no demuestra utilidad en software ni LLM.",
+        "license_status": "NOT_VERIFIED",
+        "reuse_policy": "Enlazar y parafrasear; no redistribuir el original. Acceso público no equivale a licencia.",
+        "consulted_on": "2026-10-28",
+        "chat_citation": "[web:613]"
+      }
+    ]
+  },
+  {
+    "id": "A4-OP-FIX-01",
+    "name": "A4-OP-FIX-01",
+    "title": "Sembrar ejemplos sin fijar la solución",
+    "description": "Extraer el mecanismo de cada ejemplo y marcar sus defectos conocidos.\nPedir alternativas que cambien el mecanismo, no el vocabulario.\nComparar con una generación sin ejemplo en una condición de control.\nRegistrar si los defectos del ejemplo reaparecen.",
+    "family": "inventiva_a4",
+    "thinking_class": "ruptura",
+    "granularity": "method",
+    "origin": "original_adaptation",
+    "source": "a4",
+    "operator_record": {
+      "operator_id": "A4-OP-FIX-01",
+      "title": "Sembrar ejemplos sin fijar la solución",
+      "source_ids": [
+        "A4-S05"
+      ],
+      "epistemic_class": "DESIGN_PROPOSAL",
+      "attribution": "Adaptación original para CRIBA; no algoritmo validado del autor.",
+      "appropriate_when": "Se proporcionan ejemplos al generador y todas las salidas se parecen.",
+      "required_inputs": [
+        "Ejemplos",
+        "Problema",
+        "Mecanismos de los ejemplos"
+      ],
+      "transformation_steps": [
+        "Extraer el mecanismo de cada ejemplo y marcar sus defectos conocidos.",
+        "Pedir alternativas que cambien el mecanismo, no el vocabulario.",
+        "Comparar con una generación sin ejemplo en una condición de control.",
+        "Registrar si los defectos del ejemplo reaparecen."
+      ],
+      "required_outputs": [
+        "example_mechanisms",
+        "known_flaws",
+        "control_condition",
+        "reappearing_flaws"
+      ],
+      "preconditions": [
+        "Control sin ejemplo disponible."
+      ],
+      "hard_invariants": [
+        "No relajar seguridad, autorización, privacidad ni requisitos obligatorios.",
+        "No tocar RNG, scoring, memoria adaptativa, gates ni runtime.",
+        "Lo generado no se registra como observado."
+      ],
+      "abstention_or_failure": [
+        "Solo hay una condición.",
+        "Los defectos del ejemplo no están identificados."
+      ],
+      "original_example": "Mostrar un diseño de revisión con un fallo conocido y comprobar si la propuesta lo repite.",
+      "counterexample": "Medir fijación por el número de palabras repetidas.",
+      "rival_explanation": "El parecido procede del problema, no del ejemplo.",
+      "discriminating_test": "Control vs ejemplo con mismo problema/presupuesto; contar defectos heredados.",
+      "creativity_mode": "EXPLORATORY",
+      "extension_of": "Control del contexto recuperado.",
+      "execution_status": "NOT_EXECUTED",
+      "scientific_status": "NOT_VALIDATED_FOR_CRIBA"
+    },
+    "source_records": [
+      {
+        "source_id": "A4-S05",
+        "title": "Design fixation",
+        "authors": [
+          "David G. Jansson",
+          "Steven M. Smith"
+        ],
+        "year": 1991,
+        "url": "https://www.sciencedirect.com/science/article/pii/0142694X9190003F",
+        "identifier": "DOI 10.1016/0142-694x(91)90003-f; Design Studies 12(1), 3–11",
+        "reading_level": "ABSTRACT_PLUS_SECONDARY_SUMMARIES",
+        "locator": "Abstract; resumen secundario de experimentos con grupo control y grupo con ejemplo",
+        "supported_claim": "Experimentos con ingenieros/diseñadores: la exposición a un ejemplo puede limitar la salida de diseño conceptual (fijación).",
+        "limitations": "Texto completo no leído aquí; no extraer tamaños de efecto. Resultados humanos de 1991.",
+        "license_status": "NOT_VERIFIED",
+        "reuse_policy": "Enlazar y parafrasear; no redistribuir el original. Acceso público no equivale a licencia.",
+        "consulted_on": "2026-10-28",
+        "chat_citation": "[web:606][web:612][web:609]"
+      }
+    ]
+  },
+  {
+    "id": "A4-OP-FIX-02",
+    "name": "A4-OP-FIX-02",
+    "title": "Ejemplo defectuoso como prueba negativa",
+    "description": "Construir fixture sintético con defecto explícito.\nPedir propuesta y comprobar si el defecto se repite.\nRegistrar cualquier reaparición como fallo del caso.\nNo inferir comportamiento general.",
+    "family": "inventiva_a4",
+    "thinking_class": "ruptura",
+    "granularity": "method",
+    "origin": "original_adaptation",
+    "source": "a4",
+    "operator_record": {
+      "operator_id": "A4-OP-FIX-02",
+      "title": "Ejemplo defectuoso como prueba negativa",
+      "source_ids": [
+        "A4-S05"
+      ],
+      "epistemic_class": "DESIGN_PROPOSAL",
+      "attribution": "Adaptación original para CRIBA; no algoritmo validado del autor.",
+      "appropriate_when": "Se quiere comprobar si el sistema hereda errores de antecedentes.",
+      "required_inputs": [
+        "Antecedente con defecto declarado",
+        "Criterio que lo detecta"
+      ],
+      "transformation_steps": [
+        "Construir fixture sintético con defecto explícito.",
+        "Pedir propuesta y comprobar si el defecto se repite.",
+        "Registrar cualquier reaparición como fallo del caso.",
+        "No inferir comportamiento general."
+      ],
+      "required_outputs": [
+        "fixture",
+        "defect",
+        "reappearance",
+        "case_result"
+      ],
+      "preconditions": [
+        "Fixture etiquetado como sintético."
+      ],
+      "hard_invariants": [
+        "No relajar seguridad, autorización, privacidad ni requisitos obligatorios.",
+        "No tocar RNG, scoring, memoria adaptativa, gates ni runtime.",
+        "Lo generado no se registra como observado."
+      ],
+      "abstention_or_failure": [
+        "Se usa como benchmark independiente."
+      ],
+      "original_example": "Antecedente con comprobación únicamente al final; ¿la propuesta repite ese defecto?",
+      "counterexample": "Tomar un ejemplo bueno y llamarlo defectuoso.",
+      "rival_explanation": "Fallo por mala redacción del fixture.",
+      "discriminating_test": "Varios fixtures con defectos distintos y revisión ciega.",
+      "creativity_mode": "EXPLORATORY",
+      "extension_of": "Pruebas negativas de IMP-08.",
+      "execution_status": "NOT_EXECUTED",
+      "scientific_status": "NOT_VALIDATED_FOR_CRIBA"
+    },
+    "source_records": [
+      {
+        "source_id": "A4-S05",
+        "title": "Design fixation",
+        "authors": [
+          "David G. Jansson",
+          "Steven M. Smith"
+        ],
+        "year": 1991,
+        "url": "https://www.sciencedirect.com/science/article/pii/0142694X9190003F",
+        "identifier": "DOI 10.1016/0142-694x(91)90003-f; Design Studies 12(1), 3–11",
+        "reading_level": "ABSTRACT_PLUS_SECONDARY_SUMMARIES",
+        "locator": "Abstract; resumen secundario de experimentos con grupo control y grupo con ejemplo",
+        "supported_claim": "Experimentos con ingenieros/diseñadores: la exposición a un ejemplo puede limitar la salida de diseño conceptual (fijación).",
+        "limitations": "Texto completo no leído aquí; no extraer tamaños de efecto. Resultados humanos de 1991.",
+        "license_status": "NOT_VERIFIED",
+        "reuse_policy": "Enlazar y parafrasear; no redistribuir el original. Acceso público no equivale a licencia.",
+        "consulted_on": "2026-10-28",
+        "chat_citation": "[web:606][web:612][web:609]"
+      }
+    ]
+  },
+  {
+    "id": "A4-OP-FBS-01",
+    "name": "A4-OP-FBS-01",
+    "title": "Descripción función–estructura–comportamiento",
+    "description": "Escribir la función pretendida.\nEscribir la estructura (componentes y relaciones).\nEscribir comportamiento esperado y, aparte, comportamiento real observado o UNKNOWN.\nNo copiar el esperado en el real.",
+    "family": "inventiva_a4",
+    "thinking_class": "perspectiva",
+    "granularity": "method",
+    "origin": "original_adaptation",
+    "source": "a4",
+    "operator_record": {
+      "operator_id": "A4-OP-FBS-01",
+      "title": "Descripción función–estructura–comportamiento",
+      "source_ids": [
+        "A4-S06"
+      ],
+      "epistemic_class": "DESIGN_PROPOSAL",
+      "attribution": "Adaptación original para CRIBA; no algoritmo validado del autor.",
+      "appropriate_when": "Se confunde para qué sirve, cómo está hecho y cómo se comporta.",
+      "required_inputs": [
+        "Artefacto o propuesta"
+      ],
+      "transformation_steps": [
+        "Escribir la función pretendida.",
+        "Escribir la estructura (componentes y relaciones).",
+        "Escribir comportamiento esperado y, aparte, comportamiento real observado o UNKNOWN.",
+        "No copiar el esperado en el real."
+      ],
+      "required_outputs": [
+        "function",
+        "structure",
+        "behaviour_expected",
+        "behaviour_actual"
+      ],
+      "preconditions": [
+        "El comportamiento real solo con observación; en caso contrario UNKNOWN."
+      ],
+      "hard_invariants": [
+        "No relajar seguridad, autorización, privacidad ni requisitos obligatorios.",
+        "No tocar RNG, scoring, memoria adaptativa, gates ni runtime.",
+        "Lo generado no se registra como observado."
+      ],
+      "abstention_or_failure": [
+        "Esperado y real coinciden por copia.",
+        "Función no separable de la estructura."
+      ],
+      "original_example": "Función: rechazar acción sin permiso; estructura: guardia previa; esperado: cero despachos; real: UNKNOWN.",
+      "counterexample": "Rellenar comportamiento real con la predicción.",
+      "rival_explanation": "Formato extra sin efecto en calidad.",
+      "discriminating_test": "Comprobar si el formato reduce afirmaciones no respaldadas, ciegamente.",
+      "creativity_mode": "COMBINATIONAL",
+      "extension_of": "Mapa a hipótesis/mecanismo/prueba.",
+      "execution_status": "NOT_EXECUTED",
+      "scientific_status": "NOT_VALIDATED_FOR_CRIBA"
+    },
+    "source_records": [
+      {
+        "source_id": "A4-S06",
+        "title": "Design Prototypes: A Knowledge Representation Schema for Design",
+        "authors": [
+          "John S. Gero"
+        ],
+        "year": 1990,
+        "url": "https://ojs.aaai.org/aimagazine/index.php/aimagazine/article/view/854",
+        "identifier": "DOI 10.1609/aimag.v11i4.854; AI Magazine 11(4), 26",
+        "reading_level": "PUBLISHER_ABSTRACT_AND_INDEX_EXCERPT",
+        "locator": "Abstract; extracto Wiley",
+        "supported_claim": "Esquema de prototipos de diseño que separa función, estructura, comportamiento esperado y real, y distingue diseño rutinario, innovador y creativo.",
+        "limitations": "Texto completo no leído. No presentar FBS como ontología verificada para CRIBA.",
+        "license_status": "NOT_VERIFIED",
+        "reuse_policy": "Enlazar y parafrasear; no redistribuir el original. Acceso público no equivale a licencia.",
+        "consulted_on": "2026-10-28",
+        "chat_citation": "[web:592][web:594]"
+      }
+    ]
+  },
+  {
+    "id": "A4-OP-DBA-01",
+    "name": "A4-OP-DBA-01",
+    "title": "Re-representación a niveles de abstracción",
+    "description": "Reformular la función en términos más generales.\nGenerar términos de otros dominios que cumplan esa función.\nRegistrar para cada candidato distancia estimada y por qué.\nAplicar OP-GEN-01 antes de transferir.",
+    "family": "inventiva_a4",
+    "thinking_class": "generacion",
+    "granularity": "method",
+    "origin": "original_adaptation",
+    "source": "a4",
+    "operator_record": {
+      "operator_id": "A4-OP-DBA-01",
+      "title": "Re-representación a niveles de abstracción",
+      "source_ids": [
+        "A4-S07",
+        "A4-S08"
+      ],
+      "epistemic_class": "DESIGN_PROPOSAL",
+      "attribution": "Adaptación original para CRIBA; no algoritmo validado del autor.",
+      "appropriate_when": "La búsqueda de antecedentes solo devuelve casos del mismo dominio.",
+      "required_inputs": [
+        "Problema",
+        "Función central",
+        "Términos de dominio"
+      ],
+      "transformation_steps": [
+        "Reformular la función en términos más generales.",
+        "Generar términos de otros dominios que cumplan esa función.",
+        "Registrar para cada candidato distancia estimada y por qué.",
+        "Aplicar OP-GEN-01 antes de transferir."
+      ],
+      "required_outputs": [
+        "abstracted_function",
+        "candidate_domains",
+        "distance_notes",
+        "mapping_required"
+      ],
+      "preconditions": [
+        "La abstracción conserva la función."
+      ],
+      "hard_invariants": [
+        "No relajar seguridad, autorización, privacidad ni requisitos obligatorios.",
+        "No tocar RNG, scoring, memoria adaptativa, gates ni runtime.",
+        "Lo generado no se registra como observado."
+      ],
+      "abstention_or_failure": [
+        "Se pierde la restricción esencial.",
+        "Analogía lejana sin mapeo."
+      ],
+      "original_example": "Función «separar piezas útiles de residuos» → otros dominios de filtrado, solo como candidatos.",
+      "counterexample": "Abstraer tanto que pierda sentido.",
+      "rival_explanation": "Terminar con ideas arbitrarias y no analogías.",
+      "discriminating_test": "Comparar sugerencias cercanas vs lejanas con evaluación ciega de pertinencia; no asumir que la distancia mejora.",
+      "creativity_mode": "COMBINATIONAL",
+      "extension_of": "Extiende A3-OP-GEN-01 y recuperación por función.",
+      "execution_status": "NOT_EXECUTED",
+      "scientific_status": "NOT_VALIDATED_FOR_CRIBA"
+    },
+    "source_records": [
+      {
+        "source_id": "A4-S07",
+        "title": "Design by Analogy: A Study of the WordTree Method for Problem Re-Representation",
+        "authors": [
+          "Julie S. Linsey",
+          "Arthur B. Markman",
+          "Kristin L. Wood"
+        ],
+        "year": 2012,
+        "url": "https://asmedigitalcollection.asme.org/mechanicaldesign/article/134/4/041009/475511/Design-by-Analogy-A-Study-of-the-WordTree-Method",
+        "identifier": "DOI 10.1115/1.4006145; J. Mech. Des. 134(4), 041009",
+        "reading_level": "ABSTRACT_PLUS_PARTIAL_TEXT",
+        "locator": "Abstract; primera página indexada",
+        "supported_claim": "WordTree busca analogías de dominio lejano mediante re-representación del problema; experimento controlado y rediseños; ejemplo de despepitador de cerezas aplicado a pelar cacahuetes.",
+        "limitations": "Texto parcial; resultados cuantitativos no extraídos. Ejemplo de ingeniería mecánica, no software.",
+        "license_status": "NOT_VERIFIED",
+        "reuse_policy": "Enlazar y parafrasear; no redistribuir el original. Acceso público no equivale a licencia.",
+        "consulted_on": "2026-10-28",
+        "chat_citation": "[web:591][web:597]"
+      },
+      {
+        "source_id": "A4-S08",
+        "title": "The Meaning of \"Near\" and \"Far\": structuring design databases and distance of analogy",
+        "authors": [
+          "Katherine Fu",
+          "Joel Chan",
+          "Jonathan Cagan",
+          "Kenneth Kotovsky",
+          "Christian Schunn",
+          "Kristin Wood"
+        ],
+        "year": 2013,
+        "url": "https://asmedigitalcollection.asme.org/mechanicaldesign/article/135/2/021007/375727/The-Meaning-of-Near-and-Far-The-Impact-of",
+        "identifier": "J. Mech. Des. 135(2), 021007",
+        "reading_level": "ABSTRACT_ONLY",
+        "locator": "Abstract/snippet y lista de publicaciones del laboratorio",
+        "supported_claim": "Estímulos analógicos cercanos y lejanos se definieron a partir de una estructura de patentes (análisis semántico latente y algoritmo bayesiano).",
+        "limitations": "Solo resumen; no se leyeron resultados sobre el efecto de la distancia. DOI no verificado en este lote.",
+        "license_status": "NOT_VERIFIED",
+        "reuse_policy": "Enlazar y parafrasear; no redistribuir el original. Acceso público no equivale a licencia.",
+        "consulted_on": "2026-10-28",
+        "chat_citation": "[web:353][web:596]"
+      }
+    ]
+  }
+]

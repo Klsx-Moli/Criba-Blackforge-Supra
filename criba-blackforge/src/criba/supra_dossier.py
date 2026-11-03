@@ -16,6 +16,7 @@ import json
 import os
 import warnings
 from collections.abc import Callable
+from copy import deepcopy
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, TypeGuard
@@ -314,6 +315,8 @@ def preparar_dossier(
     documented = list(entry.get("evidence_documented_as_used", []))
     raw_provenance = entry.get("interpretacion_provenance")
     provenance = dict(raw_provenance) if isinstance(raw_provenance, dict) else {}
+    if "cross_operational_records" in entry:
+        provenance["cross_operational_records"] = deepcopy(entry["cross_operational_records"])
     limitations: list[str] = []
     # Exact relational failures are detectable; general semantic relevance is
     # not established by a JSON schema, self-assertion, or lexical overlap.
@@ -371,7 +374,7 @@ def guardar_dossier(dossier: dict[str, Any], directory: Path | None = None) -> P
     directory = _dossiers_dir(directory)
     path = directory / "dossiers.jsonl"
     identity = dossier.get("dossier_id")
-    if not isinstance(identity, str) or not identity.strip():
+    if not _exact_identity_text(identity):
         raise ValueError("dossier_id es obligatorio")
     if dossier.get("tipo") == "resultado_observado":
         raise ValueError("usar registrar_resultado para observaciones")
@@ -393,9 +396,9 @@ def cargar_dossier(
     directory: Path | None = None,
 ) -> dict[str, Any] | None:
     """Load one unambiguous local dossier by identity."""
-    identity = dossier_id.strip()
-    if not identity:
-        raise ValueError("dossier_id es obligatorio")
+    if not _exact_identity_text(dossier_id):
+        raise ValueError("dossier_id debe ser texto exacto no vacío")
+    identity = dossier_id
     path = _dossiers_dir(directory) / "dossiers.jsonl"
     dossiers, ambiguos, _ = _leer_historial(path)
     if identity in ambiguos:

@@ -1,0 +1,44 @@
+{
+  "proposal_id": "IMP-10-A-LOSSLESS-OPERATIONS",
+  "status": "APPLIED_VERIFIED_SCOPED",
+  "approval_text": "adelante tienes yolo",
+  "applied_evidence": "../evidence/imp10a_apply/applied_report.json",
+  "scope": "Preserve operation text; no RNG, selector, scores, provider, UI or persistence change",
+  "changes": [
+    {
+      "path": "criba-blackforge/src/criba/lottery.py",
+      "test_module": "criba._triz_proposal_lottery",
+      "test_package": "criba",
+      "hash_encoding": "UTF-8 with LF",
+      "before_sha256": "4ec945a2936cc3a6a39e6aba7aaf477d0a011ca924d0ce588dcd4bef67d376c6",
+      "after_sha256": "602bdef9bb1681713908da1ce293667ca0cd275b556eee106dc67182a5586d35",
+      "replacements": [
+        {
+          "old": "m1.get('description', '')[:200]",
+          "new": "m1.get('description', '')",
+          "count": 2
+        },
+        {
+          "old": "m2.get('description', '')[:200]",
+          "new": "m2.get('description', '')",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "path": "criba-blackforge/src/criba/interprete/contrato.py",
+      "test_module": "criba.interprete._triz_proposal_contrato",
+      "test_package": "criba.interprete",
+      "hash_encoding": "UTF-8 with LF",
+      "before_sha256": "bf1f1eed7b8e918971d8da3d78b487b8e7c10291afc7e453c1a0d1ab1eb04138",
+      "after_sha256": "35ec8f03af771f3145094f056f460c236ceb2be3a9dab6028e904cd40642005f",
+      "replacements": [
+        {
+          "old": "    # The prompt serialises the idea dict as JSON, so the operations must be\n    # present in the dict the producer hands us. Older ideas (tests, golden\n    # fixtures) may not carry them; in that case we leave the prompt as-is\n    # rather than crash the whole generation flow.\n    if not (\"method1_desc\" in idea and \"method2_desc\" in idea):\n        pass\n    else:\n        prompt_text = json.dumps(datos, ensure_ascii=False, sort_keys=True)\n        assert idea[\"method1_desc\"] in prompt_text or idea[\"method1_desc\"][:40] in prompt_text, \\\n            \"method1 operation lost between idea and prompt\"\n        assert idea[\"method2_desc\"] in prompt_text or idea[\"method2_desc\"][:40] in prompt_text, \\\n            \"method2 operation lost between idea and prompt\"\n",
+          "new": "",
+          "count": 1
+        }
+      ]
+    }
+  ]
+}

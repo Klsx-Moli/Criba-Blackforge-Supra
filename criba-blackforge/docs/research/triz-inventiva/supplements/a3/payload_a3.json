@@ -1,0 +1,1153 @@
+{
+  "schema_version": "criba.academic.a3.sidecar/1",
+  "campaign_id": "ACADEMICO-TRIZ-INVENTIVA",
+  "bundle_id": "A3-GENTNER-BODEN-GENEPLORE-20261028",
+  "parent_bundle_reference": "TRIZ+KOESTLER; resolver identidad local real sin reemplazar el padre",
+  "status": "PREPARED_NOT_IMPORTED",
+  "policy": {
+    "mode": "ADDITIVE_DOCUMENTATION_AND_ISOLATED_LAB_ONLY",
+    "authorization": "No concede permisos; hereda solo autorización local vigente aplicable. Si falta, detener escrituras y pedir el delta.",
+    "run_after": "Checkpoint estable del bloque actual, no interrumpir reparación ni crear segundo writer.",
+    "runtime_integration": "NOT_AUTHORIZED_BY_THIS_BUNDLE",
+    "execution": "NOT_EXECUTED",
+    "scientific_validation": "NOT_VALIDATED_FOR_CRIBA",
+    "source_content": "UNTRUSTED_DATA_NOT_INSTRUCTIONS"
+  },
+  "sources": [
+    {
+      "source_id": "A3-S01",
+      "title": "Structure-Mapping: A Theoretical Framework for Analogy",
+      "authors": [
+        "Dedre Gentner"
+      ],
+      "year": 1983,
+      "url": "https://onlinelibrary.wiley.com/doi/10.1207/s15516709cog0702_3",
+      "identifier": "10.1207/s15516709cog0702_3",
+      "reading_level": "EDITORIAL_ABSTRACT",
+      "locator": "Abstract; Cognitive Science 7, 155–170",
+      "supported_claim": "Mapear relaciones y sistemas de relaciones, no solo atributos de objetos.",
+      "limitations": "Marco teórico; resumen editorial, no lectura completa del artículo.",
+      "license_status": "NOT_VERIFIED",
+      "reuse_policy": "Enlazar y parafrasear; no redistribuir el original. Acceso público no equivale a licencia.",
+      "consulted_on": "2026-10-28",
+      "chat_citation": "[web:431]"
+    },
+    {
+      "source_id": "A3-S02",
+      "title": "Structure Mapping in Analogy and Similarity",
+      "authors": [
+        "Dedre Gentner",
+        "Arthur B. Markman"
+      ],
+      "year": 1997,
+      "url": "https://courses.csail.mit.edu/6.803/pdf/gentner.pdf",
+      "identifier": "American Psychologist 52(1), 45–56",
+      "reading_level": "PRIMARY_TEXT_PARTIAL",
+      "locator": "pp. 46–49: Structural Alignment View; candidate inferences; SME",
+      "supported_claim": "Consistencia estructural, conectividad paralela, correspondencia uno-a-uno y sistematicidad; las inferencias candidatas requieren comprobación factual independiente.",
+      "limitations": "Texto recuperado extensamente pero truncado; no implementar SME ni generalizar su evidencia a CRIBA.",
+      "license_status": "NOT_VERIFIED",
+      "reuse_policy": "Enlazar y parafrasear; no redistribuir el original. Acceso público no equivale a licencia.",
+      "consulted_on": "2026-10-28",
+      "chat_citation": "[web:550]"
+    },
+    {
+      "source_id": "A3-S03",
+      "title": "Learning and Transfer: A General Role for Analogical Encoding",
+      "authors": [
+        "Dedre Gentner",
+        "Jeffrey Loewenstein",
+        "Leigh Thompson"
+      ],
+      "year": 2003,
+      "url": "https://groups.psych.northwestern.edu/gentner/papers/GentnerLoewensteinThompson03.pdf",
+      "identifier": "10.1037/0022-0663.95.2.393",
+      "reading_level": "PRIMARY_TEXT_PARTIAL",
+      "locator": "Abstract pp.393; Experiment 1 Method/Discussion pp.396–398; comienzo Experiment 2",
+      "supported_claim": "Tres estudios de aprendizaje de negociación examinan comparación de casos y transferencia; el primer experimento combina comparación, definición y diagramas, y el segundo contrasta estudio separado frente a comparación.",
+      "limitations": "Resultados humanos en negociación. Extracción truncada al comienzo del Experimento 2; no atribuir efecto cuantitativo a CRIBA.",
+      "license_status": "NOT_VERIFIED",
+      "reuse_policy": "Enlazar y parafrasear; no redistribuir el original. Acceso público no equivale a licencia.",
+      "consulted_on": "2026-10-28",
+      "chat_citation": "[web:565]"
+    },
+    {
+      "source_id": "A3-S04",
+      "title": "Creativity and artificial intelligence",
+      "authors": [
+        "Margaret A. Boden"
+      ],
+      "year": 1998,
+      "url": "https://www.sciencedirect.com/science/article/pii/S0004370298000551",
+      "identifier": "10.1016/S0004-3702(98)00055-1",
+      "reading_level": "PRIMARY_TEXT_READ",
+      "locator": "§1 pp.347–348; §2 pp.348–349; §3; §4 pp.354–355; §5",
+      "supported_claim": "Distingue creatividad combinatoria, exploratoria y transformacional, P/H-creativity y dificultad de evaluar valor; una asociación aleatoria no basta para pertinencia.",
+      "limitations": "Análisis de 1998: sus afirmaciones sobre el estado de IA describen esa época, no modelos actuales. No es ensayo causal de prompts.",
+      "license_status": "NOT_VERIFIED",
+      "reuse_policy": "Enlazar y parafrasear; no redistribuir el original. Acceso público no equivale a licencia.",
+      "consulted_on": "2026-10-28",
+      "chat_citation": "[web:579]"
+    },
+    {
+      "source_id": "A3-S05",
+      "title": "The Creative Mind: Myths and Mechanisms, 2nd edition",
+      "authors": [
+        "Margaret A. Boden"
+      ],
+      "year": 2004,
+      "url": "https://www.routledge.com/The-Creative-Mind-Myths-and-Mechanisms/Boden/p/book/9780415314534",
+      "identifier": "ISBN 9780415314534; 10.4324/9780203508527",
+      "reading_level": "PUBLISHER_METADATA_DESCRIPTION",
+      "locator": "Routledge: edición, copyright, descripción",
+      "supported_claim": "Libro de referencia, segunda edición 2004; conecta creatividad y modelos computacionales.",
+      "limitations": "No lectura completa. La valoración es editorial propia; el contenido técnico se apoya principalmente en A3-S04.",
+      "license_status": "NOT_VERIFIED",
+      "reuse_policy": "Enlazar y parafrasear; no redistribuir el original. Acceso público no equivale a licencia.",
+      "consulted_on": "2026-10-28",
+      "chat_citation": "[web:564]"
+    },
+    {
+      "source_id": "A3-S06",
+      "title": "Creative Cognition: Theory, Research, and Applications",
+      "authors": [
+        "Ronald A. Finke",
+        "Thomas B. Ward",
+        "Steven M. Smith"
+      ],
+      "year": 1992,
+      "url": "https://mitpress.mit.edu/9780262560962/creative-cognition/",
+      "identifier": "Hardcover ISBN 9780262061506; paperback ISBN 9780262560962",
+      "reading_level": "PUBLISHER_METADATA_DESCRIPTION",
+      "locator": "MIT Press: descripción; Hardcover Pub date October 16, 1992",
+      "supported_claim": "Libro que combina experimentos y psicología cognitiva para estudiar procesos y estructuras de creatividad.",
+      "limitations": "No lectura íntegra ni extracción de resultados individuales. Fecha del buscador 2024 no sustituye publicación de tapa dura de 1992.",
+      "license_status": "NOT_VERIFIED",
+      "reuse_policy": "Enlazar y parafrasear; no redistribuir el original. Acceso público no equivale a licencia.",
+      "consulted_on": "2026-10-28",
+      "chat_citation": "[web:567][web:562]"
+    },
+    {
+      "source_id": "A3-S07",
+      "title": "Creative cognition (capítulo de Ward, Smith y Finke)",
+      "authors": [
+        "Thomas B. Ward",
+        "Steven M. Smith",
+        "Ronald A. Finke"
+      ],
+      "year": null,
+      "url": "https://people.tamu.edu/~stevesmith/SmithCreativity/Ward_Smith&Finke.pdf",
+      "identifier": "APA record 1998-08125-010; año de capítulo pendiente de cotejo directo",
+      "reading_level": "AUTHOR_HOSTED_INDEXED_EXCERPT_ONLY",
+      "locator": "Pasaje indexado: Geneplore como modelo descriptivo y heurístico; registro APA",
+      "supported_claim": "Los autores caracterizan Geneplore como marco descriptivo y heurístico, no teoría explicativa completa.",
+      "limitations": "Fetch falló en ambos hosts it.tamu.edu y people.tamu.edu. Año 1999 es referencia de trabajo no verificada: no usarlo como año confirmado. Registro APA no basta para resolver edición.",
+      "license_status": "NOT_VERIFIED",
+      "reuse_policy": "Enlazar y parafrasear; no redistribuir el original. Acceso público no equivale a licencia.",
+      "consulted_on": "2026-10-28",
+      "chat_citation": "[web:587][web:576]",
+      "year_note": "Pendiente de cotejo del capítulo; no inferir fecha editorial de la fecha del registro APA."
+    }
+  ],
+  "claims": [
+    {
+      "claim_id": "A3-CL-01",
+      "source_ids": [
+        "A3-S01",
+        "A3-S02"
+      ],
+      "claim": "La teoría de mapeo privilegia estructura relacional y sistematicidad.",
+      "limits": "No prueba transferencia física ni novedad.",
+      "epistemic_class": "FACT_FROM_SOURCE",
+      "transfer_to_criba": "DESIGN_PROPOSAL_NOT_VALIDATED"
+    },
+    {
+      "claim_id": "A3-CL-02",
+      "source_ids": [
+        "A3-S02"
+      ],
+      "claim": "Las inferencias proyectadas por analogía son candidatas y requieren comprobación independiente.",
+      "limits": "Consistencia estructural no es verdad.",
+      "epistemic_class": "FACT_FROM_SOURCE",
+      "transfer_to_criba": "DESIGN_PROPOSAL_NOT_VALIDATED"
+    },
+    {
+      "claim_id": "A3-CL-03",
+      "source_ids": [
+        "A3-S03"
+      ],
+      "claim": "La comparación de casos se estudió empíricamente en aprendizaje humano de negociación.",
+      "limits": "No es experimento de CRIBA ni de modelos actuales.",
+      "epistemic_class": "FACT_FROM_SOURCE",
+      "transfer_to_criba": "DESIGN_PROPOSAL_NOT_VALIDATED"
+    },
+    {
+      "claim_id": "A3-CL-04",
+      "source_ids": [
+        "A3-S03"
+      ],
+      "claim": "El primer experimento incluyó más intervención que solo comparar; el segundo aborda estudio separado vs comparación.",
+      "limits": "No atribuir al primer contraste un efecto puro de comparación.",
+      "epistemic_class": "FACT_FROM_SOURCE",
+      "transfer_to_criba": "DESIGN_PROPOSAL_NOT_VALIDATED"
+    },
+    {
+      "claim_id": "A3-CL-05",
+      "source_ids": [
+        "A3-S04"
+      ],
+      "claim": "Boden distingue combinación, exploración y transformación de espacios conceptuales.",
+      "limits": "Las fronteras dependen de una representación explícita y en ocasiones de juicio.",
+      "epistemic_class": "FACT_FROM_SOURCE",
+      "transfer_to_criba": "DESIGN_PROPOSAL_NOT_VALIDATED"
+    },
+    {
+      "claim_id": "A3-CL-06",
+      "source_ids": [
+        "A3-S04"
+      ],
+      "claim": "Novedad para una persona o sistema no equivale a novedad histórica.",
+      "limits": "Ni desconocimiento del sistema ni búsqueda sin resultado prueban patentabilidad.",
+      "epistemic_class": "FACT_FROM_SOURCE",
+      "transfer_to_criba": "DESIGN_PROPOSAL_NOT_VALIDATED"
+    },
+    {
+      "claim_id": "A3-CL-07",
+      "source_ids": [
+        "A3-S04"
+      ],
+      "claim": "Una transformación no garantiza valor; la evaluación es un problema separado.",
+      "limits": "Las observaciones sobre capacidades de IA del artículo son históricas.",
+      "epistemic_class": "FACT_FROM_SOURCE",
+      "transfer_to_criba": "DESIGN_PROPOSAL_NOT_VALIDATED"
+    },
+    {
+      "claim_id": "A3-CL-08",
+      "source_ids": [
+        "A3-S06"
+      ],
+      "claim": "Creative Cognition combina experimentos y procesos cognitivos como programa de investigación.",
+      "limits": "No se han leído todos los capítulos ni extraído efectos cuantitativos.",
+      "epistemic_class": "FACT_FROM_SOURCE",
+      "transfer_to_criba": "DESIGN_PROPOSAL_NOT_VALIDATED"
+    },
+    {
+      "claim_id": "A3-CL-09",
+      "source_ids": [
+        "A3-S07"
+      ],
+      "claim": "Un pasaje indexado de los autores presenta Geneplore como marco descriptivo y heurístico.",
+      "limits": "Fuente con acceso limitado; no usarlo como garantía causal ni receta universal.",
+      "epistemic_class": "FACT_FROM_SOURCE",
+      "transfer_to_criba": "DESIGN_PROPOSAL_NOT_VALIDATED"
+    },
+    {
+      "claim_id": "A3-CL-10",
+      "source_ids": [
+        "A3-S04"
+      ],
+      "claim": "Boden advierte que generar asociaciones aleatorias es fácil pero su pertinencia depende del enlace y el contexto.",
+      "limits": "No concluye que todo uso del azar sea inútil.",
+      "epistemic_class": "FACT_FROM_SOURCE",
+      "transfer_to_criba": "DESIGN_PROPOSAL_NOT_VALIDATED"
+    }
+  ],
+  "operators": [
+    {
+      "operator_id": "A3-OP-GEN-01",
+      "title": "Alineación relacional antes del cruce",
+      "source_ids": [
+        "A3-S01",
+        "A3-S02"
+      ],
+      "epistemic_class": "DESIGN_PROPOSAL",
+      "attribution": "Adaptación original para CRIBA; no transcripción ni algoritmo validado del autor.",
+      "appropriate_when": "Hay dos dominios y una analogía candidata, pero falta justificar el puente.",
+      "required_inputs": [
+        "Problema destino",
+        "Entidades y relaciones tipadas por dominio",
+        "Restricciones obligatorias"
+      ],
+      "transformation_steps": [
+        "Describir cada relación como predicado con argumentos ordenados.",
+        "Proponer correspondencias locales por papel funcional, no por nombre o apariencia.",
+        "Conservar solo un mapeo global consistente; si hay varias alternativas, separarlas sin mezclarlas.",
+        "Comprobar que relaciones alineadas llevan argumentos alineados en el mismo orden.",
+        "Enumerar inferencias nuevas como candidatas y señalar qué evidencia faltaría en el destino."
+      ],
+      "required_outputs": [
+        "mapping",
+        "matched_relations",
+        "candidate_inferences",
+        "analogy_breakpoint"
+      ],
+      "preconditions": [
+        "Representaciones suficientemente explícitas y con entidades identificables.",
+        "Predicados comparables por definición funcional; igualdad de etiquetas no prueba significado."
+      ],
+      "hard_invariants": [
+        "No relajar seguridad, autorización, privacidad ni requisitos obligatorios.",
+        "No cambiar RNG, scoring, memoria adaptativa, gates ni runtime.",
+        "Ninguna inferencia transferida se registra como observación."
+      ],
+      "abstention_or_failure": [
+        "No hay relación pertinente compartida.",
+        "El mapeo necesita asignar una entidad a varios destinos dentro de una misma interpretación.",
+        "El destino carece del observable requerido."
+      ],
+      "original_example": "Control de admisión: una compuerta asociada a un permiso se alinea con un control previo a una acción; la autorización sigue siendo requisito explícito.",
+      "counterexample": "Cruzar por color: un candado y una interfaz negra no comparten por ello un mecanismo de control.",
+      "rival_explanation": "La mejora procede de describir mejor el problema, no del mapeo.",
+      "discriminating_test": "Comparar con idénticos hechos y presupuesto, usando mapeo explícito frente a descripción sin mapeo; evaluar restricciones y predicciones específicas en casos nuevos.",
+      "creativity_mode": "COMBINATIONAL",
+      "extension_of": "Refina OP-BIS y campos cross_domain; no segundo motor.",
+      "execution_status": "NOT_EXECUTED",
+      "scientific_status": "NOT_VALIDATED_FOR_CRIBA"
+    },
+    {
+      "operator_id": "A3-OP-GEN-02",
+      "title": "Contraste con un casi-análogo",
+      "source_ids": [
+        "A3-S02"
+      ],
+      "epistemic_class": "DESIGN_PROPOSAL",
+      "attribution": "Adaptación original para CRIBA; no transcripción ni algoritmo validado del autor.",
+      "appropriate_when": "Una analogía parece convincente y se necesita delimitar dónde falla.",
+      "required_inputs": [
+        "Analogía candidata",
+        "Relación que se pretende transferir",
+        "Caso próximo que cambia una precondición"
+      ],
+      "transformation_steps": [
+        "Conservar la relación central y modificar una sola condición de aplicabilidad en el caso de contraste.",
+        "Predecir cuándo el mecanismo original deja de ser útil.",
+        "No inventar un casi-análogo observado: marcar si es fixture original.",
+        "Comparar candidato y contraejemplo usando la misma regla de evaluación."
+      ],
+      "required_outputs": [
+        "near_miss",
+        "changed_precondition",
+        "failure_prediction",
+        "preserved_constraints"
+      ],
+      "preconditions": [
+        "La condición modificada es explícita y material para el mecanismo."
+      ],
+      "hard_invariants": [
+        "No relajar seguridad, autorización, privacidad ni requisitos obligatorios.",
+        "No cambiar RNG, scoring, memoria adaptativa, gates ni runtime.",
+        "Ninguna inferencia transferida se registra como observación."
+      ],
+      "abstention_or_failure": [
+        "El contraste altera varias variables y no permite interpretar el fallo.",
+        "Se usa una diferencia superficial como si refutara una relación causal."
+      ],
+      "original_example": "Una cola de permisos conserva autorizaciones; una caché que devuelve permisos caducados es un casi-análogo que rompe vigencia.",
+      "counterexample": "Rechazar una analogía porque cambian los nombres de los objetos.",
+      "rival_explanation": "La prueba solo detecta una inconsistencia textual, no un límite del mecanismo.",
+      "discriminating_test": "Usar casos donde el vocabulario permanece igual y cambia la condición relevante; comprobar si se anticipa el fallo operativo sin activar acciones reales.",
+      "creativity_mode": "COMBINATIONAL",
+      "extension_of": "Añade breakpoint/contraejemplo al cruce existente.",
+      "execution_status": "NOT_EXECUTED",
+      "scientific_status": "NOT_VALIDATED_FOR_CRIBA"
+    },
+    {
+      "operator_id": "A3-OP-GEN-03",
+      "title": "Extraer esquema común de dos casos",
+      "source_ids": [
+        "A3-S02",
+        "A3-S03"
+      ],
+      "epistemic_class": "DESIGN_PROPOSAL",
+      "attribution": "Adaptación original para CRIBA; no transcripción ni algoritmo validado del autor.",
+      "appropriate_when": "Hay dos antecedentes con solución comparable y se busca una regla transferible.",
+      "required_inputs": [
+        "Dos casos identificados",
+        "Pasajes o fixtures con procedencia",
+        "Tercer problema separado para comprobación"
+      ],
+      "transformation_steps": [
+        "Separar hechos de cada caso de interpretaciones del agente.",
+        "Alinear relaciones y extraer regla común con precondiciones.",
+        "Registrar diferencias que la regla no explica.",
+        "Aplicar la regla solo como hipótesis al tercer problema, sin adaptar el esquema a su solución esperada."
+      ],
+      "required_outputs": [
+        "case_pair",
+        "abstracted_schema",
+        "boundary_conditions",
+        "third_case_prediction"
+      ],
+      "preconditions": [
+        "Los casos contienen relaciones comparables, no solo dos historias del mismo tema.",
+        "El tercer caso no se utiliza para elegir la regla durante evaluación."
+      ],
+      "hard_invariants": [
+        "No relajar seguridad, autorización, privacidad ni requisitos obligatorios.",
+        "No cambiar RNG, scoring, memoria adaptativa, gates ni runtime.",
+        "Ninguna inferencia transferida se registra como observación."
+      ],
+      "abstention_or_failure": [
+        "Solo se dispone de un caso.",
+        "Se filtra la solución del tercer caso al construir la regla."
+      ],
+      "original_example": "Caso A: separar lectura y escritura por permisos; caso B: separar propuesta y ejecución por autorización; esquema candidato: operaciones con riesgos distintos requieren controles por operación, no aprobación global.",
+      "counterexample": "Dos casos que mencionan seguridad pero tienen mecanismos incompatibles.",
+      "rival_explanation": "El beneficio procede de recibir más ejemplos o más tokens.",
+      "discriminating_test": "Mismos dos casos y presupuesto: comparar explícitamente vs estudiar por separado; evaluar transferencia a casos reservados. Evidencia humana no demuestra efecto en LLM.",
+      "creativity_mode": "COMBINATIONAL",
+      "extension_of": "Amplía ficha de antecedentes; sin escribir memoria adaptativa.",
+      "execution_status": "NOT_EXECUTED",
+      "scientific_status": "NOT_VALIDATED_FOR_CRIBA"
+    },
+    {
+      "operator_id": "A3-OP-BOD-01",
+      "title": "Composición con interfaz explícita",
+      "source_ids": [
+        "A3-S04"
+      ],
+      "epistemic_class": "DESIGN_PROPOSAL",
+      "attribution": "Adaptación original para CRIBA; no transcripción ni algoritmo validado del autor.",
+      "appropriate_when": "Se combinan recursos conocidos pero el resultado todavía es una lista de nombres.",
+      "required_inputs": [
+        "Componentes",
+        "Entradas/salidas de cada uno",
+        "Problema y restricciones"
+      ],
+      "transformation_steps": [
+        "Elegir dos componentes pertinentes.",
+        "Describir qué salida del primero alimenta qué entrada del segundo.",
+        "Declarar adaptación o coste de interfaz y detectar incompatibilidades.",
+        "Escribir modificación concreta y efecto contrastable; si no hay interacción, no afirmar mecanismo compuesto."
+      ],
+      "required_outputs": [
+        "composition",
+        "interface_contract",
+        "expected_effect",
+        "failure_condition"
+      ],
+      "preconditions": [
+        "Recursos disponibles o marcados UNKNOWN; no inventar adaptadores existentes."
+      ],
+      "hard_invariants": [
+        "No relajar seguridad, autorización, privacidad ni requisitos obligatorios.",
+        "No cambiar RNG, scoring, memoria adaptativa, gates ni runtime.",
+        "Ninguna inferencia transferida se registra como observación."
+      ],
+      "abstention_or_failure": [
+        "Las interfaces no son compatibles y no se ha propuesto adaptación viable.",
+        "La combinación viola una restricción obligatoria."
+      ],
+      "original_example": "Unir un registro de procedencia con recuperación de fichas: el identificador recuperado permite presentar el pasaje que respalda una afirmación.",
+      "counterexample": "Añadir las palabras TRIZ, blockchain y cuántico a una propuesta sin flujo de información.",
+      "rival_explanation": "La documentación extra, no la composición, explica cualquier mejora.",
+      "discriminating_test": "Comparar composición contra componentes separados con los mismos datos y presupuesto; contar errores de atribución y coste total.",
+      "creativity_mode": "COMBINATIONAL",
+      "extension_of": "Refina bisociación, no añade predictor de novedad.",
+      "execution_status": "NOT_EXECUTED",
+      "scientific_status": "NOT_VALIDATED_FOR_CRIBA"
+    },
+    {
+      "operator_id": "A3-OP-BOD-02",
+      "title": "Explorar un espacio declarado sin cambiar sus reglas",
+      "source_ids": [
+        "A3-S04"
+      ],
+      "epistemic_class": "DESIGN_PROPOSAL",
+      "attribution": "Adaptación original para CRIBA; no transcripción ni algoritmo validado del autor.",
+      "appropriate_when": "Existe un conjunto definido de opciones, pero se explora siempre la misma configuración.",
+      "required_inputs": [
+        "Dimensiones de diseño",
+        "Valores elegibles",
+        "Reglas vigentes",
+        "Restricciones inmutables"
+      ],
+      "transformation_steps": [
+        "Hacer explícitas dimensiones y valores conocidos.",
+        "Proponer variantes que cumplan las mismas reglas y registrar cuáles cambian.",
+        "Si se usa selección aleatoria en un experimento autorizado, registrar conjunto elegible, distribución, orden y semilla cuando corresponda.",
+        "No modificar el RNG productivo; este lote solo suministra reglas y fixtures."
+      ],
+      "required_outputs": [
+        "space_before",
+        "variant",
+        "changed_dimensions",
+        "unchanged_rules",
+        "selection_record"
+      ],
+      "preconditions": [
+        "Valores elegibles justificados; UNKNOWN no se trata como opción factible."
+      ],
+      "hard_invariants": [
+        "No relajar seguridad, autorización, privacidad ni requisitos obligatorios.",
+        "No cambiar RNG, scoring, memoria adaptativa, gates ni runtime.",
+        "Ninguna inferencia transferida se registra como observación."
+      ],
+      "abstention_or_failure": [
+        "Se presenta como exploración una variante que modifica la gramática sin declararlo.",
+        "Se confunde muestreo con evidencia de utilidad."
+      ],
+      "original_example": "Dentro de una representación de revisión, variar el orden de dos comprobaciones independientes sin eliminar ninguna.",
+      "counterexample": "Reducir controles obligatorios y llamarlo una exploración del mismo espacio.",
+      "rival_explanation": "El resultado procede de intentar más configuraciones.",
+      "discriminating_test": "Comparar número y presupuesto de intentos equivalentes; separar cobertura de factibilidad y diversidad funcional.",
+      "creativity_mode": "EXPLORATORY",
+      "extension_of": "Complementa OP-EXP; no altera lottery ni selector.",
+      "execution_status": "NOT_EXECUTED",
+      "scientific_status": "NOT_VALIDATED_FOR_CRIBA"
+    },
+    {
+      "operator_id": "A3-OP-BOD-03",
+      "title": "Transformar una suposición representacional, no una obligación",
+      "source_ids": [
+        "A3-S04"
+      ],
+      "epistemic_class": "DESIGN_PROPOSAL",
+      "attribution": "Adaptación original para CRIBA; no transcripción ni algoritmo validado del autor.",
+      "appropriate_when": "Una regla de representación impide expresar una alternativa potencialmente útil.",
+      "required_inputs": [
+        "Representación inicial",
+        "Regla o supuesto revisable",
+        "Restricciones obligatorias separadas"
+      ],
+      "transformation_steps": [
+        "Distinguir obligación externa de elección de representación.",
+        "Declarar la regla revisable y su origen.",
+        "Proponer una regla nueva y describir qué estructura antes inexpresable permite.",
+        "Conservar una proyección al problema original y todos sus requisitos.",
+        "Proponer evaluación independiente; transformación no equivale a mejora."
+      ],
+      "required_outputs": [
+        "rule_before",
+        "rule_after",
+        "newly_expressible_structure",
+        "constraint_preservation",
+        "revalidation_plan"
+      ],
+      "preconditions": [
+        "Hay una diferencia identificable entre los espacios, no solo cambio de nombre.",
+        "Es una propuesta documental; migración o ejecución requieren autorización aparte."
+      ],
+      "hard_invariants": [
+        "No relajar seguridad, autorización, privacidad ni requisitos obligatorios.",
+        "No cambiar RNG, scoring, memoria adaptativa, gates ni runtime.",
+        "Ninguna inferencia transferida se registra como observación."
+      ],
+      "abstention_or_failure": [
+        "La regla es seguridad, autorización, ley física o requisito obligatorio.",
+        "La solución solo funciona cambiando la pregunta original."
+      ],
+      "original_example": "Pasar de una ficha que permite un único recurso a una propuesta de representación con un grafo de recursos e interfaces; no modificar el esquema productivo.",
+      "counterexample": "Eliminar autorización humana para que el generador pueda ejecutar más acciones.",
+      "rival_explanation": "El nuevo formato solo añade verbosidad, no capacidad expresiva útil.",
+      "discriminating_test": "Ejemplo mínimo representable solo en la propuesta y casos de regresión; después, experimento de utilidad separado con mismo presupuesto.",
+      "creativity_mode": "TRANSFORMATIONAL",
+      "extension_of": "Documenta residuo de representación; no activa H2 ni metaevolución.",
+      "execution_status": "NOT_EXECUTED",
+      "scientific_status": "NOT_VALIDATED_FOR_CRIBA"
+    },
+    {
+      "operator_id": "A3-OP-GPL-01",
+      "title": "Separar preestructura de interpretación útil",
+      "source_ids": [
+        "A3-S06",
+        "A3-S07"
+      ],
+      "epistemic_class": "DESIGN_PROPOSAL",
+      "attribution": "Adaptación original para CRIBA; no transcripción ni algoritmo validado del autor.",
+      "appropriate_when": "El generador converge demasiado pronto a una solución narrativamente cerrada.",
+      "required_inputs": [
+        "Componentes o relaciones elegibles",
+        "Restricciones de seguridad y alcance",
+        "Problema objetivo"
+      ],
+      "transformation_steps": [
+        "Construir una preestructura abstracta original sin adjudicarle utilidad.",
+        "Guardar por separado la estructura y su posterior interpretación funcional.",
+        "Explorar una aplicación concreta al problema y comprobar restricciones.",
+        "Si no hay utilidad o factibilidad, conservar resultado negativo sin llamarlo invención."
+      ],
+      "required_outputs": [
+        "preinventive_structure",
+        "interpretation",
+        "constraint_check",
+        "status"
+      ],
+      "preconditions": [
+        "La preestructura es un artefacto de ideación, nunca una medición ni evidencia bibliográfica."
+      ],
+      "hard_invariants": [
+        "No relajar seguridad, autorización, privacidad ni requisitos obligatorios.",
+        "No cambiar RNG, scoring, memoria adaptativa, gates ni runtime.",
+        "Ninguna inferencia transferida se registra como observación."
+      ],
+      "abstention_or_failure": [
+        "Se relajan obligaciones durante la generación.",
+        "Se valida la estructura solo porque la historia posterior resulta convincente."
+      ],
+      "original_example": "Preestructura: dos rutas paralelas y un registro común. Interpretación candidata: revisión independiente con conciliación explícita de discrepancias.",
+      "counterexample": "Afirmar que dos agentes son independientes porque se dibujan como ramas separadas.",
+      "rival_explanation": "La mejora es efecto del segundo pase de generación.",
+      "discriminating_test": "Comparar dos pases con y sin separación de estructura/interpretación manteniendo presupuesto; evaluar defectos y familias funcionales con criterio externo.",
+      "creativity_mode": "COMBINATIONAL",
+      "extension_of": "Secuencia de ideación que reutiliza generación e interpretación existentes.",
+      "execution_status": "NOT_EXECUTED",
+      "scientific_status": "NOT_VALIDATED_FOR_CRIBA"
+    },
+    {
+      "operator_id": "A3-OP-GPL-02",
+      "title": "Reinterpretación funcional controlada",
+      "source_ids": [
+        "A3-S06",
+        "A3-S07"
+      ],
+      "epistemic_class": "DESIGN_PROPOSAL",
+      "attribution": "Adaptación original para CRIBA; no transcripción ni algoritmo validado del autor.",
+      "appropriate_when": "Una misma estructura admite posibles funciones y se necesita evitar fijación prematura.",
+      "required_inputs": [
+        "Preestructura identificada",
+        "Función asignada inicialmente",
+        "Requisitos completos"
+      ],
+      "transformation_steps": [
+        "Conservar identidad y estructura originales.",
+        "Proponer una función alternativa y explicitar qué relación la permite.",
+        "Distinguir cambio de función de simple paráfrasis.",
+        "Reevaluar TODOS los requisitos; conservar motivo de descarte."
+      ],
+      "required_outputs": [
+        "structure_id",
+        "function_before",
+        "function_after",
+        "functional_difference",
+        "recheck"
+      ],
+      "preconditions": [
+        "Puede describirse una intervención u observable distinto."
+      ],
+      "hard_invariants": [
+        "No relajar seguridad, autorización, privacidad ni requisitos obligatorios.",
+        "No cambiar RNG, scoring, memoria adaptativa, gates ni runtime.",
+        "Ninguna inferencia transferida se registra como observación."
+      ],
+      "abstention_or_failure": [
+        "Solo cambia el vocabulario.",
+        "La nueva función depende de recursos no disponibles."
+      ],
+      "original_example": "Un registro de intentos puede reinterpretarse como fuente de contraejemplos, sin convertir fallos generados en observaciones reales.",
+      "counterexample": "Llamar a un log memoria inteligente sin cambiar su uso.",
+      "rival_explanation": "Una instrucción más larga, no la reinterpretación, explica la calidad.",
+      "discriminating_test": "Comparar propuestas ciegamente por función y prueba, no por nombres; resultados semánticos requieren revisión no cubierta por el checker.",
+      "creativity_mode": "EXPLORATORY",
+      "extension_of": "Añade función alternativa en sidecar; no duplica memoria.",
+      "execution_status": "NOT_EXECUTED",
+      "scientific_status": "NOT_VALIDATED_FOR_CRIBA"
+    },
+    {
+      "operator_id": "A3-OP-GPL-03",
+      "title": "Revisar la preestructura tras un fallo explícito",
+      "source_ids": [
+        "A3-S06",
+        "A3-S07"
+      ],
+      "epistemic_class": "DESIGN_PROPOSAL",
+      "attribution": "Adaptación original para CRIBA; no transcripción ni algoritmo validado del autor.",
+      "appropriate_when": "Una propuesta no cumple una condición y se busca una revisión trazable sin borrar el fracaso.",
+      "required_inputs": [
+        "Artefacto original",
+        "Fallo observado o previsto, etiquetado",
+        "Una modificación candidata",
+        "Presupuesto de revisiones"
+      ],
+      "transformation_steps": [
+        "Identificar si el fallo es de representación, mecanismo o evidencia sin activar automáticamente otra arquitectura.",
+        "Modificar una relación declarada y preservar el artefacto padre.",
+        "Predecir qué observable debería cambiar y qué restricciones no deben variar.",
+        "Parar al agotar presupuesto o faltar condiciones de prueba; no reintentar indefinidamente."
+      ],
+      "required_outputs": [
+        "parent_artifact",
+        "failure_basis",
+        "revision_delta",
+        "changed_prediction",
+        "stop_rule"
+      ],
+      "preconditions": [
+        "Cada revisión conserva procedencia y no sobrescribe el resultado anterior."
+      ],
+      "hard_invariants": [
+        "No relajar seguridad, autorización, privacidad ni requisitos obligatorios.",
+        "No cambiar RNG, scoring, memoria adaptativa, gates ni runtime.",
+        "Ninguna inferencia transferida se registra como observación."
+      ],
+      "abstention_or_failure": [
+        "Se ocultan intentos fallidos.",
+        "Se cambia el criterio de aceptación para declarar éxito."
+      ],
+      "original_example": "Si dos revisores comparten el mismo sesgo, proponer fuentes de contraste distintas y registrar que la independencia aún no está demostrada.",
+      "counterexample": "Repetir generación hasta obtener elogio del propio evaluador.",
+      "rival_explanation": "La mejora procede de más intentos y selección favorable.",
+      "discriminating_test": "Comparar historial completo y presupuesto equivalente; contar fallos, abstenciones y revisiones, no solo el candidato final.",
+      "creativity_mode": "EXPLORATORY",
+      "extension_of": "Complementa crítica y cierre; no aprendizaje online.",
+      "execution_status": "NOT_EXECUTED",
+      "scientific_status": "NOT_VALIDATED_FOR_CRIBA"
+    }
+  ],
+  "cards": [
+    {
+      "card_id": "A3-T00",
+      "card_kind": "IMPLEMENTATION_TASK",
+      "title": "Recepción incremental y deduplicación",
+      "depends_on": [],
+      "status": "BACKLOG",
+      "assignee_role": "HERMES_CURRENT_SINGLE_WRITER",
+      "actions": [
+        "Leer checkpoint y normas vigentes sin reiniciar auditoría.",
+        "Comparar IDs A3 y DOI con el inventario existente; preservar alias si se reutiliza fuente.",
+        "Emitir delta de alcance y detectar si la autorización documental/lab incluye el incremento."
+      ],
+      "acceptance_criteria": [
+        "No duplicar campaña ni abrir objetivo paralelo.",
+        "Si falta permiso, limitarse a lectura y solicitar solo el delta."
+      ],
+      "risk_profile": "LAB",
+      "risk": {
+        "RISK": "YELLOW",
+        "COMPATIBILITY": "Sidecar documental/laboratorio propuesto; no contrato nativo ni compatibilidad productiva verificados.",
+        "EXPECTED_IMPACT": "Reducir extracción bibliográfica, diseño de operadores y escritura de comprobaciones por Hermes; utilidad inventiva por medir.",
+        "REVERSIBILITY": "Retirar únicamente archivos nuevos atribuibles al complemento; no restauración global.",
+        "BACKUP_REQUIRED": "Proteger baseline dirty y versiones originales de cualquier archivo existente antes de modificarlo.",
+        "ROLLBACK": "Retirar solo el subdirectorio nuevo si no contiene trabajo previo; restauraciones selectivas tras comparación.",
+        "AUTHORITATIVE_SOURCES": [
+          "A3-S01",
+          "A3-S02",
+          "A3-S03",
+          "A3-S04",
+          "A3-S06",
+          "Normas vigentes locales"
+        ],
+        "UNRESOLVED_QUESTIONS": [
+          "Estado local actual del validador padre",
+          "Permiso local efectivo para este incremento",
+          "Campo/extensión admitidos por contrato vivo",
+          "Licencias y texto íntegro pendiente en algunas fuentes",
+          "Beneficio real con evaluación independiente"
+        ]
+      },
+      "execution_status": "NOT_EXECUTED",
+      "scientific_status": "NOT_VALIDATED_FOR_CRIBA"
+    },
+    {
+      "card_id": "A3-T01",
+      "card_kind": "IMPLEMENTATION_TASK",
+      "title": "Incorporar fuentes y claims preparados",
+      "depends_on": [
+        "A3-T00"
+      ],
+      "status": "BACKLOG",
+      "assignee_role": "HERMES_CURRENT_SINGLE_WRITER",
+      "actions": [
+        "Usar los siete registros y diez claims suministrados.",
+        "Preservar reading_level y acceso fallido de A3-S07.",
+        "No bloquear metadatos por licencia desconocida: bloquear redistribución, no inventar licencia."
+      ],
+      "acceptance_criteria": [
+        "Referencias resueltas o bloqueo explícito.",
+        "Ninguna afirmación de lectura íntegra falsa."
+      ],
+      "risk_profile": "LAB",
+      "risk": {
+        "RISK": "YELLOW",
+        "COMPATIBILITY": "Sidecar documental/laboratorio propuesto; no contrato nativo ni compatibilidad productiva verificados.",
+        "EXPECTED_IMPACT": "Reducir extracción bibliográfica, diseño de operadores y escritura de comprobaciones por Hermes; utilidad inventiva por medir.",
+        "REVERSIBILITY": "Retirar únicamente archivos nuevos atribuibles al complemento; no restauración global.",
+        "BACKUP_REQUIRED": "Proteger baseline dirty y versiones originales de cualquier archivo existente antes de modificarlo.",
+        "ROLLBACK": "Retirar solo el subdirectorio nuevo si no contiene trabajo previo; restauraciones selectivas tras comparación.",
+        "AUTHORITATIVE_SOURCES": [
+          "A3-S01",
+          "A3-S02",
+          "A3-S03",
+          "A3-S04",
+          "A3-S06",
+          "Normas vigentes locales"
+        ],
+        "UNRESOLVED_QUESTIONS": [
+          "Estado local actual del validador padre",
+          "Permiso local efectivo para este incremento",
+          "Campo/extensión admitidos por contrato vivo",
+          "Licencias y texto íntegro pendiente en algunas fuentes",
+          "Beneficio real con evaluación independiente"
+        ]
+      },
+      "execution_status": "NOT_EXECUTED",
+      "scientific_status": "NOT_VALIDATED_FOR_CRIBA"
+    },
+    {
+      "card_id": "A3-T02",
+      "card_kind": "IMPLEMENTATION_TASK",
+      "title": "Acoplar nueve operadores como datos",
+      "depends_on": [
+        "A3-T01"
+      ],
+      "status": "BACKLOG",
+      "assignee_role": "HERMES_CURRENT_SINGLE_WRITER",
+      "actions": [
+        "Mapear a operadores existentes por contenido, no por coincidencia de título.",
+        "Conservar pasos, abstenciones, rival, contraejemplo y prueba en campos existentes o sidecar versionado.",
+        "No insertarlos en catálogo activo ni prompt productivo."
+      ],
+      "acceptance_criteria": [
+        "Nueve IDs resueltos como REUSE/EXTEND/NEW con razón.",
+        "No pérdida de límites o procedencia."
+      ],
+      "risk_profile": "LAB",
+      "risk": {
+        "RISK": "YELLOW",
+        "COMPATIBILITY": "Sidecar documental/laboratorio propuesto; no contrato nativo ni compatibilidad productiva verificados.",
+        "EXPECTED_IMPACT": "Reducir extracción bibliográfica, diseño de operadores y escritura de comprobaciones por Hermes; utilidad inventiva por medir.",
+        "REVERSIBILITY": "Retirar únicamente archivos nuevos atribuibles al complemento; no restauración global.",
+        "BACKUP_REQUIRED": "Proteger baseline dirty y versiones originales de cualquier archivo existente antes de modificarlo.",
+        "ROLLBACK": "Retirar solo el subdirectorio nuevo si no contiene trabajo previo; restauraciones selectivas tras comparación.",
+        "AUTHORITATIVE_SOURCES": [
+          "A3-S01",
+          "A3-S02",
+          "A3-S03",
+          "A3-S04",
+          "A3-S06",
+          "Normas vigentes locales"
+        ],
+        "UNRESOLVED_QUESTIONS": [
+          "Estado local actual del validador padre",
+          "Permiso local efectivo para este incremento",
+          "Campo/extensión admitidos por contrato vivo",
+          "Licencias y texto íntegro pendiente en algunas fuentes",
+          "Beneficio real con evaluación independiente"
+        ]
+      },
+      "execution_status": "NOT_EXECUTED",
+      "scientific_status": "NOT_VALIDATED_FOR_CRIBA"
+    },
+    {
+      "card_id": "A3-T03",
+      "card_kind": "IMPLEMENTATION_TASK",
+      "title": "Verificar bundle y checker aislados",
+      "depends_on": [
+        "A3-T02"
+      ],
+      "status": "BACKLOG",
+      "assignee_role": "HERMES_CURRENT_SINGLE_WRITER",
+      "actions": [
+        "Extraer el JSON y código entre marcadores; leer antes de ejecutar.",
+        "Usar Python disponible sin dependencias nuevas.",
+        "Ejecutar unittest del checker y comprobación del JSON, sin red ni producto."
+      ],
+      "acceptance_criteria": [
+        "Exit codes y resultados reales registrados.",
+        "No usar conteos nuevos para cambiar los 35/8/70 originales."
+      ],
+      "risk_profile": "LAB",
+      "risk": {
+        "RISK": "YELLOW",
+        "COMPATIBILITY": "Sidecar documental/laboratorio propuesto; no contrato nativo ni compatibilidad productiva verificados.",
+        "EXPECTED_IMPACT": "Reducir extracción bibliográfica, diseño de operadores y escritura de comprobaciones por Hermes; utilidad inventiva por medir.",
+        "REVERSIBILITY": "Retirar únicamente archivos nuevos atribuibles al complemento; no restauración global.",
+        "BACKUP_REQUIRED": "Proteger baseline dirty y versiones originales de cualquier archivo existente antes de modificarlo.",
+        "ROLLBACK": "Retirar solo el subdirectorio nuevo si no contiene trabajo previo; restauraciones selectivas tras comparación.",
+        "AUTHORITATIVE_SOURCES": [
+          "A3-S01",
+          "A3-S02",
+          "A3-S03",
+          "A3-S04",
+          "A3-S06",
+          "Normas vigentes locales"
+        ],
+        "UNRESOLVED_QUESTIONS": [
+          "Estado local actual del validador padre",
+          "Permiso local efectivo para este incremento",
+          "Campo/extensión admitidos por contrato vivo",
+          "Licencias y texto íntegro pendiente en algunas fuentes",
+          "Beneficio real con evaluación independiente"
+        ]
+      },
+      "execution_status": "NOT_EXECUTED",
+      "scientific_status": "NOT_VALIDATED_FOR_CRIBA"
+    },
+    {
+      "card_id": "A3-T04",
+      "card_kind": "IMPLEMENTATION_TASK",
+      "title": "Mapeo mínimo a contratos y prueba de conservación",
+      "depends_on": [
+        "A3-T03"
+      ],
+      "status": "BACKLOG",
+      "assignee_role": "HERMES_CURRENT_SINGLE_WRITER",
+      "actions": [
+        "Reutilizar mapa IMP-02 y pruebas IMP-04/05, sin reabrir hitos.",
+        "Mapear según tabla de este documento, comprobando tipos reales; no inventar rutas JSON.",
+        "Si hace falta adaptación, solo sidecar aislado y prueba de ida/vuelta sobre almacenamiento temporal."
+      ],
+      "acceptance_criteria": [
+        "Campos preservados sin promover estado científico.",
+        "La comparación semántica de mecanismos sigue pendiente de evaluación externa."
+      ],
+      "risk_profile": "LAB",
+      "risk": {
+        "RISK": "YELLOW",
+        "COMPATIBILITY": "Sidecar documental/laboratorio propuesto; no contrato nativo ni compatibilidad productiva verificados.",
+        "EXPECTED_IMPACT": "Reducir extracción bibliográfica, diseño de operadores y escritura de comprobaciones por Hermes; utilidad inventiva por medir.",
+        "REVERSIBILITY": "Retirar únicamente archivos nuevos atribuibles al complemento; no restauración global.",
+        "BACKUP_REQUIRED": "Proteger baseline dirty y versiones originales de cualquier archivo existente antes de modificarlo.",
+        "ROLLBACK": "Retirar solo el subdirectorio nuevo si no contiene trabajo previo; restauraciones selectivas tras comparación.",
+        "AUTHORITATIVE_SOURCES": [
+          "A3-S01",
+          "A3-S02",
+          "A3-S03",
+          "A3-S04",
+          "A3-S06",
+          "Normas vigentes locales"
+        ],
+        "UNRESOLVED_QUESTIONS": [
+          "Estado local actual del validador padre",
+          "Permiso local efectivo para este incremento",
+          "Campo/extensión admitidos por contrato vivo",
+          "Licencias y texto íntegro pendiente en algunas fuentes",
+          "Beneficio real con evaluación independiente"
+        ]
+      },
+      "execution_status": "NOT_EXECUTED",
+      "scientific_status": "NOT_VALIDATED_FOR_CRIBA"
+    },
+    {
+      "card_id": "A3-T05",
+      "card_kind": "IMPLEMENTATION_TASK",
+      "title": "Cierre incremental y propuesta operativa no aplicada",
+      "depends_on": [
+        "A3-T04"
+      ],
+      "status": "BACKLOG",
+      "assignee_role": "HERMES_CURRENT_SINGLE_WRITER",
+      "actions": [
+        "Entregar manifest con archivos propios, fuentes, verificaciones, límites y próxima acción.",
+        "Adjuntar solo delta a propuesta IMP-10, sin aplicarlo.",
+        "Mantener UNKNOWN, NOT_EXECUTED y NOT_VALIDATED donde corresponda."
+      ],
+      "acceptance_criteria": [
+        "PREPARED_NOT_INTEGRATED solo si cumplen criterios.",
+        "Tarjetas bloqueadas no declaradas DONE; no claim de superioridad."
+      ],
+      "risk_profile": "LAB",
+      "risk": {
+        "RISK": "YELLOW",
+        "COMPATIBILITY": "Sidecar documental/laboratorio propuesto; no contrato nativo ni compatibilidad productiva verificados.",
+        "EXPECTED_IMPACT": "Reducir extracción bibliográfica, diseño de operadores y escritura de comprobaciones por Hermes; utilidad inventiva por medir.",
+        "REVERSIBILITY": "Retirar únicamente archivos nuevos atribuibles al complemento; no restauración global.",
+        "BACKUP_REQUIRED": "Proteger baseline dirty y versiones originales de cualquier archivo existente antes de modificarlo.",
+        "ROLLBACK": "Retirar solo el subdirectorio nuevo si no contiene trabajo previo; restauraciones selectivas tras comparación.",
+        "AUTHORITATIVE_SOURCES": [
+          "A3-S01",
+          "A3-S02",
+          "A3-S03",
+          "A3-S04",
+          "A3-S06",
+          "Normas vigentes locales"
+        ],
+        "UNRESOLVED_QUESTIONS": [
+          "Estado local actual del validador padre",
+          "Permiso local efectivo para este incremento",
+          "Campo/extensión admitidos por contrato vivo",
+          "Licencias y texto íntegro pendiente en algunas fuentes",
+          "Beneficio real con evaluación independiente"
+        ]
+      },
+      "execution_status": "NOT_EXECUTED",
+      "scientific_status": "NOT_VALIDATED_FOR_CRIBA"
+    }
+  ],
+  "examples": [
+    {
+      "example_id": "A3-EX-01",
+      "data_class": "SYNTHETIC_ORIGINAL_FIXTURE",
+      "operator_ids": [
+        "A3-OP-GEN-01",
+        "A3-OP-GEN-02",
+        "A3-OP-BOD-01"
+      ],
+      "identity": {
+        "ficha_id": "A3-FIX-01",
+        "source_ids": [
+          "A3-S01",
+          "A3-S02",
+          "A3-S04"
+        ],
+        "claim_ids": [
+          "A3-CL-01",
+          "A3-CL-02",
+          "A3-CL-10"
+        ]
+      },
+      "content": {
+        "problema": "Preparar una acción externa sin confundir propuesta con autorización.",
+        "restricciones": [
+          "Toda acción externa requiere permiso aplicable.",
+          "Una propuesta generada no es una ejecución."
+        ],
+        "operacion": "Separar artefacto propuesto, comprobación de permiso y despacho; conservar recibos por etapa.",
+        "mecanismo": "Un control previo al despacho impide que crear o guardar la propuesta active la acción."
+      },
+      "cross_domain": {
+        "origen": "Compuerta abstracta con permiso",
+        "destino": "Despacho abstracto de acción",
+        "mapping": [
+          {
+            "source": "s_gate",
+            "target": "t_guard"
+          },
+          {
+            "source": "s_permit",
+            "target": "t_permission"
+          },
+          {
+            "source": "s_action",
+            "target": "t_dispatch"
+          }
+        ],
+        "matched_relations": [
+          {
+            "source": {
+              "predicate": "requires",
+              "arguments": [
+                "s_action",
+                "s_permit"
+              ]
+            },
+            "target": {
+              "predicate": "requires",
+              "arguments": [
+                "t_dispatch",
+                "t_permission"
+              ]
+            }
+          },
+          {
+            "source": {
+              "predicate": "guards",
+              "arguments": [
+                "s_gate",
+                "s_action"
+              ]
+            },
+            "target": {
+              "predicate": "guards",
+              "arguments": [
+                "t_guard",
+                "t_dispatch"
+              ]
+            }
+          }
+        ],
+        "candidate_inferences": [
+          "La ausencia de permiso impide despacho; se requiere comprobarlo en el sistema real."
+        ]
+      },
+      "limits": {
+        "precondiciones": [
+          "Permiso verificable en el instante de uso."
+        ],
+        "ruptura": "Un permiso caducado o asociado a otra acción rompe la correspondencia.",
+        "contraejemplo": "Guardar propuesta y ejecutar automáticamente sin permiso."
+      },
+      "discrimination": {
+        "rival": "El rechazo depende de una validación de formato, no del control de autorización.",
+        "observable": "Intentos despachados con formato válido y permiso ausente o no aplicable.",
+        "prediccion_mecanismo": "Cero despachos en esos fixtures negativos.",
+        "prediccion_rival": "Un formato válido podría pasar aunque falte permiso.",
+        "regla": "El fixture negativo debe rechazarse antes del punto de despacho.",
+        "fallo": "Cualquier despacho sin permiso aplicable."
+      },
+      "provenance": {
+        "lineage": "Ejemplo original; no caso publicado ni garantía de seguridad.",
+        "source_access": "A3-S01 abstract; A3-S02 texto parcial; A3-S04 texto leído",
+        "selection_method": "MANUAL",
+        "seed_present": false
+      },
+      "states": {
+        "workflow": "PREPARED",
+        "execution": "NOT_EXECUTED",
+        "scientific_validation": "NOT_VALIDATED_FOR_CRIBA"
+      }
+    },
+    {
+      "example_id": "A3-EX-02",
+      "data_class": "SYNTHETIC_ORIGINAL_FIXTURE",
+      "operator_ids": [
+        "A3-OP-BOD-02",
+        "A3-OP-BOD-03"
+      ],
+      "problem": "Representar varias rutas de transferencia sin mezclarlas como una analogía única.",
+      "fixed_constraints": [
+        "Misma obligación de evidenciar origen y destino.",
+        "Misma autorización de ejecución."
+      ],
+      "space_before": "Una correspondencia candidata por ficha.",
+      "exploratory_variant": "Cambiar qué correspondencia única se propone sin cambiar la regla.",
+      "transformational_proposal": "Proponer varias interpretaciones separadas con IDs propios y relación al artefacto padre.",
+      "not_allowed": "Modificar el contrato productivo con esta entrega.",
+      "rival": "Más longitud de respuesta explica la aparente mejora.",
+      "discriminating_test": "Mismo presupuesto: medir si se preservan alternativas realmente distintas y si se evita fusionar mappings incompatibles.",
+      "execution_status": "NOT_EXECUTED",
+      "scientific_status": "NOT_VALIDATED_FOR_CRIBA"
+    },
+    {
+      "example_id": "A3-EX-03",
+      "data_class": "SYNTHETIC_ORIGINAL_FIXTURE",
+      "operator_ids": [
+        "A3-OP-GPL-01",
+        "A3-OP-GPL-02",
+        "A3-OP-GPL-03"
+      ],
+      "problem": "Obtener funciones alternativas de una preestructura sin premiar paráfrasis.",
+      "preinventive_structure": "Dos rutas paralelas y un registro común.",
+      "interpretation_a": "Revisiones por perspectivas distintas con conciliación explícita.",
+      "interpretation_b": "Ruta rápida de diagnóstico y ruta de contraste independiente.",
+      "independence_limit": "Ni ramas separadas ni modelos distintos prueban independencia de errores.",
+      "required_revision": "Si ambas rutas comparten datos contaminados, registrar fallo y proponer una fuente de contraste distinta, sin afirmar ejecución.",
+      "rival": "Beneficio atribuible a un segundo pase o más tokens.",
+      "discriminating_test": "Igualar pases y presupuesto; evaluar funciones y restricciones ciegamente; no medir solo distancia textual.",
+      "execution_status": "NOT_EXECUTED",
+      "scientific_status": "NOT_VALIDATED_FOR_CRIBA"
+    }
+  ],
+  "risk_profiles": {
+    "LAB": {
+      "RISK": "YELLOW",
+      "COMPATIBILITY": "Sidecar documental/laboratorio propuesto; no contrato nativo ni compatibilidad productiva verificados.",
+      "EXPECTED_IMPACT": "Reducir extracción bibliográfica, diseño de operadores y escritura de comprobaciones por Hermes; utilidad inventiva por medir.",
+      "REVERSIBILITY": "Retirar únicamente archivos nuevos atribuibles al complemento; no restauración global.",
+      "BACKUP_REQUIRED": "Proteger baseline dirty y versiones originales de cualquier archivo existente antes de modificarlo.",
+      "ROLLBACK": "Retirar solo el subdirectorio nuevo si no contiene trabajo previo; restauraciones selectivas tras comparación.",
+      "AUTHORITATIVE_SOURCES": [
+        "A3-S01",
+        "A3-S02",
+        "A3-S03",
+        "A3-S04",
+        "A3-S06",
+        "Normas vigentes locales"
+      ],
+      "UNRESOLVED_QUESTIONS": [
+        "Estado local actual del validador padre",
+        "Permiso local efectivo para este incremento",
+        "Campo/extensión admitidos por contrato vivo",
+        "Licencias y texto íntegro pendiente en algunas fuentes",
+        "Beneficio real con evaluación independiente"
+      ]
+    }
+  },
+  "counts": {
+    "sources": 7,
+    "claims": 10,
+    "operators": 9,
+    "cards": 6,
+    "examples": 3
+  }
+}

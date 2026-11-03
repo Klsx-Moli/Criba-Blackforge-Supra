@@ -158,3 +158,77 @@ def test_order_of_reviews_does_not_change_outcome():
     a = evaluate_pairs(_manifest(), _reviews(*rows))
     b = evaluate_pairs(deepcopy(_manifest()), _reviews(*reversed(rows)))
     assert a == b
+
+
+def test_blackforge_win_is_descriptive_not_scientific():
+    manifest = _manifest()
+    manifest["cases"] = [manifest["cases"][0]]
+    manifest["cases"][0]["arms"]["A"]["system"] = "BLACKFORGE_SUPRA"
+    manifest["cases"][0]["arms"]["B"]["system"] = "DIRECT_LLM"
+    r = evaluate_pairs(manifest, _reviews(
+        _review("water-1", "judge1", "A"),
+        _review("water-1", "judge2", "A"),
+    ))
+    assert r["blackforge_wins"] == 1
+    assert r["criba_wins"] == 0
+    assert r["blackforge_paired_win_rate"] == 1.0
+    assert r["paired_win_rate"] is None
+    assert r["cases"][0]["pair_type"] == "BLACKFORGE_SUPRA_vs_DIRECT_LLM"
+    assert r["by_pair"]["BLACKFORGE_SUPRA_vs_DIRECT_LLM"]["compared"] == 1
+    assert r["scientific_advantage"] == "NOT_ESTABLISHED"
+
+
+def test_blackforge_loss_to_direct_is_recorded_not_relabelled():
+    manifest = _manifest()
+    manifest["cases"] = [manifest["cases"][0]]
+    manifest["cases"][0]["arms"]["A"]["system"] = "BLACKFORGE_SUPRA"
+    r = evaluate_pairs(manifest, _reviews(
+        _review("water-1", "judge1", "B"),
+        _review("water-1", "judge2", "B"),
+    ))
+    assert r["blackforge_wins"] == 0
+    assert r["direct_llm_wins"] == 1
+    assert r["blackforge_paired_win_rate"] == 0.0
+    assert r["paired_win_rate"] is None
+
+
+def test_criba_vs_blackforge_does_not_feed_direct_rates():
+    manifest = _manifest()
+    manifest["cases"] = [manifest["cases"][0]]
+    manifest["cases"][0]["arms"]["B"]["system"] = "BLACKFORGE_SUPRA"
+    r = evaluate_pairs(manifest, _reviews(
+        _review("water-1", "judge1", "A"),
+        _review("water-1", "judge2", "A"),
+    ))
+    assert r["criba_wins"] == 1
+    assert r["blackforge_wins"] == 0
+    assert r["paired_win_rate"] is None
+    assert r["blackforge_paired_win_rate"] is None
+    assert r["by_pair"]["BLACKFORGE_SUPRA_vs_CRIBA_SUPRA"]["compared"] == 1
+
+
+def test_mixed_pairs_keep_separate_denominators():
+    manifest = _manifest()
+    manifest["cases"][1]["split"] = "confirmatory"
+    manifest["cases"][1]["arms"]["A"]["system"] = "BLACKFORGE_SUPRA"
+    manifest["cases"][1]["arms"]["B"]["system"] = "DIRECT_LLM"
+    r = evaluate_pairs(manifest, _reviews(
+        _review("water-1", "judge1", "A"),
+        _review("water-1", "judge2", "A"),
+        _review("other-2", "judge1", "A"),
+        _review("other-2", "judge2", "A"),
+    ))
+    assert r["criba_wins"] == 1
+    assert r["blackforge_wins"] == 1
+    assert r["direct_llm_wins"] == 0
+    assert r["paired_win_rate"] == 1.0
+    assert r["blackforge_paired_win_rate"] == 1.0
+    assert r["by_pair"]["BLACKFORGE_SUPRA_vs_DIRECT_LLM"]["compared"] == 1
+    assert r["by_pair"]["CRIBA_SUPRA_vs_DIRECT_LLM"]["compared"] == 1
+
+
+def test_unknown_system_label_is_rejected():
+    manifest = _manifest()
+    manifest["cases"][0]["arms"]["B"]["system"] = "OTHER"
+    with pytest.raises(ValueError):
+        evaluate_pairs(manifest, _reviews())

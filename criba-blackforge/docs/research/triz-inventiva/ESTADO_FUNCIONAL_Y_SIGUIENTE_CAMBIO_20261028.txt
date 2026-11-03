@@ -1,0 +1,111 @@
+ESTADO FUNCIONAL Y SIGUIENTE CAMBIO — CRIBA / SHADOW
+Fecha: 2026-10-28. Candidato: C:\ASTRA_WORK\cbs-candidate
+Rama: hermes/cbs-t00-candidate-20261025
+HEAD: acaace748788ef465b4b43178424a76c1ee3cb31
+Estado: INCOMPLETO. No aplicación completamente funcional acreditada.
+
+OBJETIVO CONSERVADO
+Cruzar lentes y conocimientos para explorar asociaciones inesperadas y hacer que
+el modelo elegido las desarrolle en propuestas concretas. El azar ayuda a explorar,
+pero no demuestra que una combinación sea útil ni que nadie la haya pensado.
+No sustituir el motor por un chatbot, un validador o un gestor de expedientes.
+
+RESULTADO REAL DE ESTE BLOQUE
+1. Dirección incorporada al arranque del candidato: AGENTS.md, PROMPT_ARRANQUE.md,
+   CONTROL_PREVIO.md y anexo local del Estatuto. Conservadas garantías y WIP.
+2. Maestro fusionado parseado y comparado completo: igual a _payload_extract.json.
+   El MD base original está contenido íntegro en el maestro; no se reimporta.
+3. A3 y A4 extraídos exactamente en supplements/a3 y supplements/a4. Hashes de
+   payload/checker coinciden con los suministrados (el hash JSON excluye LF final).
+   Self-tests ejecutados aquí: A3 24/24, A4 28/28; payloads sin errores y con
+   7/8 warnings legítimos de derechos, respectivamente. No lecturas bibliográficas
+   ni beneficio científico certificados por esos checkers.
+4. Manifest incremental con 19 operadores mapeados como propuesta EXTEND. Los
+   registros padres conservan 35 fuentes, 8 operadores y 70 tarjetas. Mappings no
+   equivalen a consumidores productivos. Round-trip integral A3/A4 pendiente.
+5. Baseline de campaña ejecutada: 4 failed, 46 passed. Causa localizada en un
+   doble SUPRA: decía COMPLETED sin sandbox y omitía canales de preservación.
+   Reparado solo el laboratorio: workflow BLOCKED, sandbox NOT_REPORTED,
+   planning receipt PRESERVED_NOT_EXECUTED, mecanismo NOT_EXECUTED. No se debilitó
+   el cliente ni se fabricó una atestación de sandbox PASS.
+6. Reproducción previa: LotteryEngine recortaba operaciones a 200 caracteres.
+   Adaptador aislado lab/cross_packet.py conserva los dos registros completos,
+   deja RNG/puntuaciones/identidades intactos y rechaza mismo ID con contenido
+   diferente. Pruebas RED -> GREEN observadas. No conectado a producción.
+7. IMP-10-A APPLIED_VERIFIED_SCOPED, aprobado por «adelante tienes yolo».
+   Aplicado exactamente el diff en lottery.py y contrato.py: operaciones completas
+   y serialización de comillas/saltos legítimos. Tests reales RED 4 failed ->
+   GREEN 4 passed; regresión relacionada 137 passed y campaña 57 passed, exit 0.
+   Hashes posteriores coinciden con el diff aprobado. RNG/scores/identidad
+   preservados frente al snapshot previo; git apply --reverse --check PASS.
+   Catálogo empaquetado: 6870 registros; muestra de las dos descripciones más
+   largas (230/230 caracteres) llega íntegra al prompt. Ese prompt añade 60
+   caracteres frente al recorte antiguo; no se llamó a ningún modelo.
+   Ruff: test nuevo limpio; módulos modificados sin diagnósticos nuevos.
+   Evidencia y comandos actuales: evidence/imp10a_apply/.
+8. Regresión histórica de preparación: 57 passed in 2.65s, exit 0. Comando:
+   .venv/Scripts/python.exe -m pytest docs/research/triz-inventiva/tests
+   docs/research/triz-inventiva/lab
+   docs/research/triz-inventiva/imp05_supra_preservation/tests
+   docs/research/triz-inventiva/imp09_pilot_protocol/tests
+   -p no:randomly -p no:cacheprovider --import-mode=importlib
+   --basetemp=C:/Users/KLSX/AppData/Local/hermes/cache/scratch/triz_campaign_proposal_20261028_f
+   --junitxml=docs/research/triz-inventiva/evidence/resume_20261028/campaign_with_proposal.xml -q
+   No reutilizar ese basetemp si contiene evidencia; elegir uno nuevo.
+
+DISTANCIA AL PRODUCTO PEDIDO — NO HAY PORCENTAJE DEFENDIBLE
+El repositorio ya tiene catálogo, motor de cruces, intérprete cloud seleccionable,
+Shadow, persistencia y puente SUPRA. Eso es infraestructura observada, no E2E.
+La inspección acotada confirma rutas diferentes en ui/actions.py:
+  on_generar -> activate + enhance_criba_packet asíncrono;
+  on_inventar -> invent con instancia fijada del intérprete seleccionado.
+Hay que verificar/unir el recorrido de usuario pertinente sin añadir otro motor.
+Faltan como mínimo estas comprobaciones de producto:
+  - operaciones completas y conocimiento A3/A4 realmente consumidos por la ruta UI;
+  - propuestas comprensibles en Shadow y capacidades compartidas BLACKFORGE;
+  - guardar/cerrar/recuperar sin pérdida y sin promover estados;
+  - prueba cloud real, solo con permiso específico, con configuración de CRIBA,
+    no con el modelo de la sesión Hermes.
+No se ejecutó GUI visible, proveedor real ni reinicio del producto en este bloque.
+Los mocks y 57 tests de laboratorio NO acreditan ese recorrido ni ventaja creativa.
+Los tests antiguos del piloto contienen assertions débiles; su verde tampoco
+acredita potencia experimental. No se corrigen mediante cambiar un veredicto.
+
+RAMAS — INSPECCIÓN ACOTADA, NO PLAN DE MERGE GLOBAL
+main ya es ancestro del candidato. integrate/shadow-supra-final,
+hermes/blackforge-tab-20261011, hermes/ui-hilos-revision y
+hermes/cloud-provider-layer-20261013 tienen commits no ancestros.
+Eso NO demuestra funcionalidad ausente: puede estar portada o revertida.
+La rama de BLACKFORGE contiene tanto un embed como su revert. No fusionar todo
+por antigüedad o por cantidad de ramas; comparar comportamiento/consumidor concreto.
+
+PERMISOS Y PRÓXIMA DECISIÓN
+El propietario ha pedido mejorar arquitectura y usar artefactos/ramas para unir
+Shadow. No se interpreta 'main' como autorización de merge a la rama main.
+IMP-10-A ya fue aprobado después mediante «adelante tienes yolo» y aplicado
+con evidencia en runtime. No volver a solicitar permiso para ese mismo diff.
+La aprobación es específica: no convierte el resto de IMP-10 ni un merge
+masivo en autorizados. Siguiente capacidad pendiente: recorrido compartido
+Shadow/intérprete/conservación, con A3/A4 íntegros y pruebas de sus consumidores.
+Diff: imp10_integration/lossless_operations.diff
+Especificación verificable: imp10_integration/lossless_operations.json
+Backups y baseline: evidence/resume_20261028/before/ y baseline.json.
+Rollback: revisar diff inverso SOLO de los cambios propios si los hashes aún
+coinciden. Nunca git reset/clean/stash/checkout ni restauración global sobre WIP.
+Riesgo: prompts más largos; medir presupuesto/contexto en la fase de integración,
+fallar de forma explícita si no caben, no cortar silenciosamente operaciones.
+No gasto, instalaciones, commit/push/merge, cambio silencioso de proveedor,
+servicios del producto ni ejecución BLACKFORGE.
+
+REASONING Y CONTINUIDAD
+Recomendación de coste: mismo modelo con reasoning medium para aplicar el diff
+congelado, ejecutar comandos y registrar resultados. High para conflictos
+semánticos entre ramas, diseño de regresiones o arquitectura. Xhigh no es
+necesario para cada lectura/comando. No se ha cambiado modelo ni proveedor.
+El 80% disponible fue informado por el usuario; no se midió consumo de cuenta ni
+se promete ahorro cuantificado o calidad equivalente de un modelo menor.
+Si el propietario decide el handoff: retomar este documento y el checkpoint,
+medir hashes/estado y conservar IMP-10-A ya aplicado. No repetir su aprobación.
+Continuar desde la capacidad de integración pendiente, no desde la preparación
+del parche. No se ha cerrado el recorrido completo del producto.
+No reiniciar T00 ni inventarios globales. Este archivo no declara IMP-11 cerrado.

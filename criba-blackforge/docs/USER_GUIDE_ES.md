@@ -45,6 +45,14 @@ uv run criba inventar "tu problema" --seed 7 --top 3 --offline
 - `--offline` funciona sin red ni claves (juez offline, veredictos UNRESOLVED).
 - Cada corrida se registra en `%LOCALAPPDATA%\CRIBA-Blackforge\invention_ledger\verdicts.jsonl`.
 
+## Sorteos y catálogos combinados
+
+Los modos `optimized`, `associative`, `pure`, `alternating` y `stratified` son
+válidos tanto en Shadow como en BLACKFORGE. El catálogo BLACKFORGE no tiene
+`thinking_class`: en un sorteo estratificado mixto forma un estrato residual
+explícito (no se le asigna una clase inventada). Un catálogo sólo con métodos
+sin clase degrada a lotería pura, igual que antes.
+
 ## Flujos
 - **Nueva idea**: `activate` genera 12 ideas por defecto.
 - **Generar**: implícito en `activate` (divergencia + cross-consistency).

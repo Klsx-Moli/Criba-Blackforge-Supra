@@ -8,6 +8,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
+from criba.lottery import VALID_LOTTERY_MODES
 from criba.ui import actions
 from PySide6.QtCore import QEventLoop, QTimer
 from PySide6.QtWidgets import QApplication, QDialog, QListWidget, QPushButton
@@ -294,6 +295,85 @@ def test_blackforge_execute_uses_canonical_invention_service(qapp, tmp_path, she
             win._proposal_dialog.close()
         win.close()
         qapp.processEvents()
+
+
+def test_shadow_and_blackforge_dispatch_every_lottery_mode_to_shared_service(
+    tmp_path, sheet, monkeypatch
+):
+    """Paridad de cableado: ambas UI usan run_invention con los 5 modos.
+
+    Shadow llega por ``actions._run_inventar`` (entrada exacta de sus botones);
+    BLACKFORGE llega por ``BlackforgeWindow._execute`` con el Worker sincronizado
+    para evitar Qt/hilos en la aserción. Ninguna ruta simula el servicio.
+    """
+    captured: list[tuple[str, dict]] = []
+
+    def fake_run_invention(problem: str, **kwargs):
+        captured.append((problem, kwargs))
+        return copy.deepcopy(sheet)
+
+    monkeypatch.setattr("criba.invention_service.run_invention", fake_run_invention)
+
+    for mode in sorted(VALID_LOTTERY_MODES):
+        captured.clear()
+        actions._run_inventar(
+            "paridad de generación", mode=mode, seed=123, history_storage=False
+        )
+        assert len(captured) == 1
+        problem, kwargs = captured[0]
+        assert problem == "paridad de generación"
+        assert kwargs.get("mode", "stratified") == mode
+        assert kwargs["seed"] == 123
+        assert kwargs["history_storage"] is False
+
+    class _SyncSignals:
+        def __init__(self) -> None:
+            self.done = self
+            self.fail = self
+
+        def connect(self, *_args, **_kwargs) -> None:
+            pass
+
+        def emit(self, *_args, **_kwargs) -> None:
+            pass
+
+    class _SyncWorker:
+        def __init__(self, fn):
+            self.fn = fn
+            self.signals = _SyncSignals()
+
+    def _sync_start(win, worker, operation: str = "") -> None:
+        worker.fn()
+        win._set_busy(False)
+
+    monkeypatch.setattr("criba.ui.actions.Worker", _SyncWorker)
+    monkeypatch.setattr("criba.ui.actions._start_worker", _sync_start)
+
+    from criba.ui.blackforge_window import BlackforgeWindow
+
+    win = BlackforgeWindow(database=str(tmp_path / "parity.sqlite3"), query="paridad de generación")
+    try:
+        for mode in sorted(VALID_LOTTERY_MODES):
+            captured.clear()
+            win._select_mode(mode)
+            win.seed_input.setText("123")
+            win._execute()
+            assert len(captured) == 1
+            problem, kwargs = captured[0]
+            assert problem == "paridad de generación"
+            assert kwargs.get("mode", "stratified") == mode
+            assert kwargs["seed"] == 123
+            assert kwargs["history_storage"] is win.store
+            methods = kwargs["methods"]
+            assert len(methods) == 750  # 723 BLACKFORGE + 27 operadores CRIBA
+            method_ids = [
+                str(method.get("id") or method.get("blackforge_id") or "")
+                for method in methods
+            ]
+            assert any(method_id.startswith("BF-") for method_id in method_ids)
+            assert any(method_id.startswith("OP-") for method_id in method_ids)
+    finally:
+        win.close()
 
 
 def test_saved_proposal_survives_a_fresh_python_process(tmp_path, sheet):

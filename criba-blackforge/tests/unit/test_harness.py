@@ -9,7 +9,12 @@ from benchmarks.innovation.harness import CONDITIONS, exportar, run_condition, r
 
 
 def test_conditions_reservadas() -> None:
-    assert set(CONDITIONS) == {"A_DIRECT", "B_STRONG_PROMPT", "C_CRIBA"}
+    assert set(CONDITIONS) == {
+        "A_DIRECT",
+        "B_STRONG_PROMPT",
+        "C_CRIBA",
+        "D_BLACKFORGE",
+    }
 
 
 def test_sin_modelo_status_unavailable() -> None:
@@ -25,6 +30,7 @@ def test_smoke_sin_llamadas_externas_exporta_json(tmp_path) -> None:
     C_CRIBA usa criba_fn real (loop CRIBA); las condiciones de modelo usan el
     stub. Hallazgo 6: sin criba_fn, C_CRIBA sería UNAVAILABLE honesto.
     """
+    from benchmarks.innovation.blackforge_adapter import blackforge_fn
     from benchmarks.innovation.criba_adapter import criba_fn
 
     def _model_stub(prompt: str) -> list[dict]:
@@ -36,9 +42,14 @@ def test_smoke_sin_llamadas_externas_exporta_json(tmp_path) -> None:
              "texto": f"respuesta {i}"}
             for i in range(3)
         ]
-    report = run_smoke(model_fn=_model_stub, seed=7, criba_fn=criba_fn)
+    report = run_smoke(
+        model_fn=_model_stub,
+        seed=7,
+        criba_fn=criba_fn,
+        blackforge_fn=blackforge_fn,
+    )
     assert report["n_problemas"] == 10
-    assert len(report["runs"]) == 30  # 10 problemas × 3 condiciones
+    assert len(report["runs"]) == 40  # 10 problemas × 4 condiciones
     assert all(r["status"] == "OK" for r in report["runs"])
     out = exportar(report, tmp_path / "bench_smoke.json")
     data = json.loads(out.read_text(encoding="utf-8"))

@@ -115,6 +115,54 @@ class Storage:
         finally:
             con.close()
 
+    def save_invention(
+        self, sheet: Mapping[str, Any], selected_index: int = 0,
+    ) -> str:
+        """Preserve an interpreted run in the existing history, without evaluation.
+
+        Each save has its own identity: a seed/run ID may be reused with a
+        different model response. The complete sheet remains recoverable.
+        """
+        query = sheet.get("query")
+        entries = sheet.get("entries")
+        if not isinstance(query, str) or not query.strip():
+            raise ValueError("La propuesta requiere un problema no vacío.")
+        if (
+            not isinstance(entries, list)
+            or type(selected_index) is not int
+            or not 0 <= selected_index < len(entries)
+        ):
+            raise ValueError("Selecciona una propuesta de la sesión.")
+        selected = entries[selected_index]
+        if (
+            not isinstance(selected, dict)
+            or selected.get("estado_interpretacion") != "PROPUESTA"
+            or not isinstance(selected.get("mecanismo"), str)
+            or not selected["mecanismo"].strip()
+        ):
+            raise ValueError("No hay una propuesta interpretada que guardar.")
+        packet = {
+            "kind": "invention_sheet",
+            "sheet": dict(sheet),
+            "selected_index": selected_index,
+        }
+        encoded = json.dumps(packet, ensure_ascii=False, allow_nan=False)
+        ident = "invention-" + uuid.uuid4().hex
+        now = datetime.now(timezone.utc).isoformat()
+        digest = hashlib.sha256(query.encode("utf-8")).hexdigest()
+        current_id = str(selected.get("candidate_id") or selected.get("id") or selected_index)
+        con = self.connect()
+        try:
+            with con:
+                con.execute(
+                    "INSERT INTO sessions VALUES(?,?,?,?,?,?,?,?,?)",
+                    (ident, now, digest, query, current_id, "PROPUESTA",
+                     '{"kind":"invention_sheet","schema_version":1}', encoded, "[]"),
+                )
+            return ident
+        finally:
+            con.close()
+
     def save_blackforge_session(
         self,
         session_id: str,

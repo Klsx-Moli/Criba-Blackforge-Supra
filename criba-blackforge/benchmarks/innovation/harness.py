@@ -4,6 +4,7 @@ Condiciones reservadas (misma evidencia/presupuesto cuando se ejecute de verdad)
 - A_DIRECT:      prompt mínimo  «Genera N soluciones innovadoras para…»
 - B_STRONG_PROMPT: prompt de innovación bien diseñado, sin CRIBA
 - C_CRIBA:       mismo modelo vía cruces/selector/evidencia de CRIBA
+- D_BLACKFORGE:  lotería + selector diversity-aware sobre el catálogo BLACKFORGE
 
 Este harness v0 NO llama a ningún modelo: `model_fn` es inyectable (stub en
 tests/smoke). Con modelo ausente las comparaciones quedan UNAVAILABLE. Un
@@ -17,8 +18,9 @@ import hashlib
 import json
 import time
 import uuid
+from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 from benchmarks.diversity_measure import measure  # reutiliza métricas del contrato
 
@@ -39,11 +41,14 @@ CONDITIONS: dict[str, dict[str, str]] = {
     "C_CRIBA": {
         "plantilla": "CRIBA: cruces + selector diversity-aware + evidencia para: {problema}",
     },
+    "D_BLACKFORGE": {
+        "plantilla": "BLACKFORGE: lotería + selector diversity-aware para: {problema}",
+    },
 }
 
 
 def _run_id(problema_id: str, condition: str, seed: int) -> str:
-    digest = hashlib.sha256(f"{problema_id}|{condition}|{seed}".encode("utf-8")).hexdigest()[:12]
+    digest = hashlib.sha256(f"{problema_id}|{condition}|{seed}".encode()).hexdigest()[:12]
     return f"bench-{digest}"
 
 
@@ -53,18 +58,23 @@ def run_condition(
     *,
     seed: int,
     n_candidatos: int = 3,
-    model_fn: Callable[[str], list[dict[str, Any]]] | None = None,
+    model_fn: Callable[..., list[dict[str, Any]]] | None = None,
     criba_fn: Callable[[str, int, int], list[dict[str, Any]]] | None = None,
+    invent_fn: Callable[[str, int, int], Any] | None = None,
+    blackforge_fn: Callable[[str, int, int], Any] | None = None,
 ) -> dict[str, Any]:
     """Ejecuta UNA condición sobre UN problema. Sin modelo → UNAVAILABLE.
 
     Hallazgo 6 corregido:
     - ``model_fn`` recibe el prompt Y la semilla (firma ampliada vía
       ``_call_model`` para no romper callbacks de un solo argumento).
-    - C_CRIBA NO es un prompt distinto: ejecuta el LOOP REAL de CRIBA vía
-      ``criba_fn`` (lotería estratificada + selector + evidencia), inyectable.
-      Si no se provee ``criba_fn``, C_CRIBA queda UNAVAILABLE honesto — nunca
-      se simula CRIBA con un prompt de texto.
+    - C_CRIBA NO es un prompt distinto: ejecuta el LOOP REAL de CRIBA via
+      ``invent_fn`` (pipeline interpretado) o ``criba_fn`` (seleccion
+      estructurada), inyectables. Sin ninguno queda UNAVAILABLE honesto:
+      nunca se simula CRIBA con un prompt de texto.
+    - D_BLACKFORGE ejecuta la lotería + selector reales del catálogo
+      BLACKFORGE via ``blackforge_fn``. Sin callback queda UNAVAILABLE: nunca
+      se sustituye por un prompt.
     """
     if condition not in CONDITIONS:
         raise ValueError(f"condición desconocida: {condition}")
@@ -85,8 +95,9 @@ def run_condition(
     }
     started = time.monotonic()
     if condition == "C_CRIBA":
-        if criba_fn is not None:
-            result = criba_fn(problema["texto"], seed, n_candidatos)
+        runner = invent_fn if invent_fn is not None else criba_fn
+        if runner is not None:
+            result = runner(problema["texto"], seed, n_candidatos)
             # El informe se liga a ESTA invocación, no a un estado de módulo.
             # `run_criba_selection` devuelve CribaResult (candidatos + informe
             # ligados). Un callback que devuelve la lista heredada declara
@@ -104,10 +115,37 @@ def run_condition(
             record["metrics"] = measure(candidates[:n_candidatos], candidates)
             record["selection_report"] = copy.deepcopy(selection_report)
             record["status"] = "OK"
-            record["nota"] = "loop CRIBA real ejecutado via criba_fn"
+            if invent_fn is not None:
+                record["nota"] = "loop CRIBA interpretado ejecutado via invent_fn"
+                record["pipeline"] = "invent_fn"
+            else:
+                record["nota"] = "loop CRIBA real ejecutado via criba_fn"
+                record["pipeline"] = "criba_fn"
             record["latencia_s"] = round(time.monotonic() - started, 3)
         else:
-            record["nota"] = "C_CRIBA requiere criba_fn (loop real); sin él UNAVAILABLE"
+            record["nota"] = (
+                "C_CRIBA requiere invent_fn (pipeline interpretado) o criba_fn "
+                "(seleccion real); sin ellos UNAVAILABLE"
+            )
+    elif condition == "D_BLACKFORGE":
+        if blackforge_fn is not None:
+            from benchmarks.innovation.blackforge_adapter import coerce_result
+
+            result = blackforge_fn(problema["texto"], seed, n_candidatos)
+            candidates, selection_report = coerce_result(result)
+            _normalizar_candidatos(candidates)
+            record["candidates"] = copy.deepcopy(candidates)
+            record["metrics"] = measure(candidates[:n_candidatos], candidates)
+            record["selection_report"] = copy.deepcopy(selection_report)
+            record["status"] = "OK"
+            record["nota"] = "loop BLACKFORGE real ejecutado via blackforge_fn"
+            record["pipeline"] = "blackforge_fn"
+            record["latencia_s"] = round(time.monotonic() - started, 3)
+        else:
+            record["nota"] = (
+                "D_BLACKFORGE requiere blackforge_fn (lotería + selector real); "
+                "sin él UNAVAILABLE"
+            )
     elif model_fn is not None:
         candidates = _call_model(model_fn, prompt, seed)
         _normalizar_candidatos(candidates)
@@ -154,15 +192,20 @@ def _call_model(
 def run_smoke(model_fn: Callable[[str], list[dict[str, Any]]] | None = None,
               *, seed: int = 7,
               criba_fn: Callable[[str, int, int], list[dict[str, Any]]] | None = None,
+              invent_fn: Callable[[str, int, int], Any] | None = None,
+              blackforge_fn: Callable[[str, int, int], Any] | None = None,
               ) -> dict[str, Any]:
     """Smoke ≤10 problemas × todas las condiciones. Funcionalidad, no ciencia.
 
-    C_CRIBA ejecuta el loop real de CRIBA vía ``criba_fn``; sin él, esa
-    condición queda UNAVAILABLE honesto (hallazgo 6: nunca un prompt de texto
-    como sustituto de CRIBA).
+    C_CRIBA ejecuta el loop real de CRIBA vía ``criba_fn``; D_BLACKFORGE ejecuta
+    la lotería + selector reales de BLACKFORGE vía ``blackforge_fn``. Sin el
+    callback correspondiente, esa condición queda UNAVAILABLE honesto (nunca un
+    prompt de texto como sustituto del motor).
     """
     data = json.loads((DIR / "problems_smoke.json").read_text(encoding="utf-8"))
-    runs = [run_condition(cond, p, seed=seed, model_fn=model_fn, criba_fn=criba_fn)
+    runs = [run_condition(cond, p, seed=seed, model_fn=model_fn,
+                          criba_fn=criba_fn, invent_fn=invent_fn,
+                          blackforge_fn=blackforge_fn)
             for p in data["problemas"] for cond in CONDITIONS]
     return {
         "dataset": data["version"],

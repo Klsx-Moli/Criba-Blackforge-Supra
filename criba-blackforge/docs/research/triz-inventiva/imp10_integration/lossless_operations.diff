@@ -1,0 +1,45 @@
+--- a/criba-blackforge/src/criba/lottery.py
++++ b/criba-blackforge/src/criba/lottery.py
+@@ -630,8 +630,8 @@
+             'causal_variables': cv,
+             'method1_name': m1['title'][:60],
+             'method2_name': m2['title'][:60],
+-            'method1_desc': m1.get('description', '')[:200],
+-            'method2_desc': m2.get('description', '')[:200],
++            'method1_desc': m1.get('description', ''),
++            'method2_desc': m2.get('description', ''),
+             'family': fam1,
+             'family2': fam2,
+             'extreme': self.rng.random() < 0.2,  # 20% chance de extremo
+@@ -654,8 +654,8 @@
+             'description': description,
+             'method1': m1['title'][:60],
+             'method2': m2['title'][:60],
+-            'method1_desc': m1.get('description', '')[:200],
+-            'method2_desc': m2.get('description', '')[:200],
++            'method1_desc': m1.get('description', ''),
++            'method2_desc': m2.get('description', ''),
+             'method1_id': str(m1['id']),
+             'method2_id': str(m2['id']),
+             'family1': fam1,
+--- a/criba-blackforge/src/criba/interprete/contrato.py
++++ b/criba-blackforge/src/criba/interprete/contrato.py
+@@ -118,18 +118,6 @@
+         ],
+         "CONTENCION_DECLARADA": idea.get("containment_class", "DESCONOCIDA"),
+     }
+-    # The prompt serialises the idea dict as JSON, so the operations must be
+-    # present in the dict the producer hands us. Older ideas (tests, golden
+-    # fixtures) may not carry them; in that case we leave the prompt as-is
+-    # rather than crash the whole generation flow.
+-    if not ("method1_desc" in idea and "method2_desc" in idea):
+-        pass
+-    else:
+-        prompt_text = json.dumps(datos, ensure_ascii=False, sort_keys=True)
+-        assert idea["method1_desc"] in prompt_text or idea["method1_desc"][:40] in prompt_text, \
+-            "method1 operation lost between idea and prompt"
+-        assert idea["method2_desc"] in prompt_text or idea["method2_desc"][:40] in prompt_text, \
+-            "method2 operation lost between idea and prompt"
+     restricciones_de(idea)
+     return (
+         INSTRUCCIONES

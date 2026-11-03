@@ -156,6 +156,62 @@ def test_entries_carry_run_id_and_ledger_keeps_proposal_fields(tmp_path) -> None
             assert field in entry, f"el ledger debe conservar {field}"
 
 
+def test_ledger_retiene_diagnostico_de_fallo_del_proveedor(tmp_path) -> None:
+    """El ledger append-only debe explicar por qu� un candidato qued� pendiente.
+
+    Antes solo conservaba estado/mecanismo vac�o: el motivo real del proveedor
+    se perd�a y una aceptaci�n fallida quedaba sin causa auditable.
+    """
+    def propuesta_pendiente(*_args, **_kwargs):
+        return {
+            "estado": "PENDIENTE_INTERPRETACION",
+            "hipotesis": "",
+            "mecanismo": "",
+            "aportacion_por_tecnica": [],
+            "supuestos": [],
+            "prueba_concreta": "",
+            "ruta_desbloqueo": "",
+            "error": "validacion:falta_mecanismo",
+            "interpretacion_error_kind": "schema",
+            "interpretacion_diagnostico": {
+                "error_code": "SCHEMA_VALIDATION_FAILED",
+                "phase": "validacion",
+                "reason": "falta_mecanismo",
+                "retryable": False,
+                "next_action": "La respuesta no cumple el esquema del contrato.",
+            },
+            "interpretacion_finish_reason": "stop",
+            "interpretacion_usage": {"completion_tokens": 12, "reasoning_tokens": 0},
+            "interpretacion_provenance": {"model_requested": "fixture-model"},
+            "interpretacion_model_requests": 2,
+        }
+
+    sheet = invent(
+        "q", seed=3, rounds=1, batch_size=4, top=2, offline=False,
+        methods=_methods(), sources=_sources(), proponer=propuesta_pendiente,
+        history_storage=False,
+    )
+    path = append_ledger(sheet, ledger_dir=tmp_path)
+    record = json.loads(path.read_text(encoding="utf-8").strip().splitlines()[-1])
+    assert record["entries"]
+    for entry in record["entries"]:
+        assert entry["estado_interpretacion"] == "PENDIENTE_INTERPRETACION"
+        assert entry["interpretacion_error"] == "validacion:falta_mecanismo"
+        assert entry["interpretacion_error_kind"] == "schema"
+        assert entry["interpretacion_finish_reason"] == "stop"
+        assert entry["interpretacion_usage"] == {
+            "completion_tokens": 12,
+            "reasoning_tokens": 0,
+        }
+        assert entry["interpretacion_provenance"]["model_requested"] == "fixture-model"
+        assert entry["interpretacion_model_requests"] == 2
+        assert entry["interpretacion_diagnostico"]["error_code"] == (
+            "SCHEMA_VALIDATION_FAILED"
+        )
+        assert entry["interpretacion_diagnostico"]["phase"] == "validacion"
+        assert entry["interpretacion_diagnostico"]["retryable"] is False
+
+
 # ---------------------------------------------------------------------------
 # Fase 1: contrato corregido (mecanismo antes de antecedentes, IDs estables,
 # offline en el transporte, ficha honesta). Comportamiento nuevo intencionado;
@@ -375,6 +431,23 @@ def test_dv9_history_failure_degrades_gracefully(monkeypatch, tmp_path) -> None:
     sheet = invent("sin historial utilizable", seed=5, rounds=1, batch_size=6,
                    top=2, offline=True, methods=_methods(), sources=_sources(),
                    history_storage=_Broken())
+    assert len(sheet["entries"]) == 2
+
+
+def test_blackforge_records_without_id_are_normalized_for_history() -> None:
+    class _History:
+        def load_combination_first_seen(self, fingerprint):
+            return None
+
+        def save_lottery_combinations(self, *args, **kwargs):
+            return None
+
+    methods = _methods()
+    for method in methods:
+        method["blackforge_id"] = method.pop("id")
+    sheet = invent("cruce blackforge con historial", seed=7, rounds=1,
+                   batch_size=6, top=2, offline=True, methods=methods,
+                   sources=_sources(), history_storage=_History())
     assert len(sheet["entries"]) == 2
 
 

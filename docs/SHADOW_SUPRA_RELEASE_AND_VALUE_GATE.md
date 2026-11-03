@@ -69,11 +69,18 @@ uv run --locked python scripts/evaluate_product_value.py manifest.json reviews.j
 ```
 
 `manifest.json` debe contener `schema=criba-llm-paired/1`,
-`protocol_sha256` y una colección de `cases`, cada uno con
-`case_id`, `domain`, `split` (`exploratory` o `confirmatory`) y dos
-`arms` A/B. Cada brazo tiene `system` (`CRIBA_SUPRA` o
-`DIRECT_LLM`) y `artifact_sha256` real del resultado completo.
-Un caso debe contener **ambos sistemas** bajo condiciones comparables.
+`protocol_sha256` y una colección de `cases`, cada uno con `case_id`,
+`domain`, `split` (`exploratory` o `confirmatory`) y dos `arms` A/B. Cada brazo
+tiene `system` (`CRIBA_SUPRA`, `BLACKFORGE_SUPRA` o `DIRECT_LLM`) y
+`artifact_sha256` real del resultado completo. Un caso debe contener **dos
+sistemas distintos** bajo condiciones comparables.
+
+Los pares admitidos son `CRIBA_SUPRA_vs_DIRECT_LLM`,
+`BLACKFORGE_SUPRA_vs_DIRECT_LLM` y `BLACKFORGE_SUPRA_vs_CRIBA_SUPRA`. El
+informe mantiene denominadores separados por par (`by_pair`): una victoria en
+una comparación nunca alimenta la tasa de otra. `paired_win_rate` sólo usa
+CRIBA-vs-DIRECT, `blackforge_paired_win_rate` sólo BLACKFORGE-vs-DIRECT, y
+CRIBA-vs-BLACKFORGE no altera ninguno de esos dos ratios.
 
 `reviews.json` contiene `schema` y `reviews`: cada registro aporta
 `case_id`, `reviewer_id`, `choice` A/B/TIE/ABSTAIN,
@@ -87,7 +94,8 @@ parcialidad declarada, casos exploratorios y resultados sin evidencia quedan
 separados. El programa nunca rellena `UNKNOWN` con 0, nunca publica
 superioridad y no usa jueces sintéticos para fabricar una victoria.
 `paired_win_rate` tiene denominador únicamente sobre victorias confirmatorias
-descriptivas, sin empates ni desconocidos.
+descriptivas, sin empates ni desconocidos. Lo mismo aplica a
+`blackforge_paired_win_rate`; `by_pair` conserva los conteos por comparación.
 
 **Límites:** el hash no demuestra verdad del artefacto; la
 `blind_declared` no verifica independencia; el `protocol_sha256` sin

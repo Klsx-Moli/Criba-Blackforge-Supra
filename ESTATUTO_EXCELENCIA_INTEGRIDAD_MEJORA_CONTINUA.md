@@ -450,3 +450,44 @@ La declaración final adecuada no es «he hecho todo lo posible» sin más, sino
 
 **Fin del Estatuto EEIMC-001.**  
 **Nota de adopción:** su carácter operativo depende de que el propietario lo incorpore a las instrucciones y controles reales de cada entorno. La presencia del archivo es necesaria para la integración propuesta, pero no garantiza por sí sola la obediencia de cualquier modelo.
+
+## ANEXO LOCAL D. Dirección de producto del candidato CBS
+
+Adopción local versión 1, 2026-10-28, por orden del propietario. Motivo: mantener
+la finalidad inventiva durante la preparación e integración incremental. No
+modifica el cuerpo EEIMC-001 ni reduce sus garantías, gates o permisos.
+
+CRIBA existe para INNOVAR: cruzar las lentes, métodos, generación, ruptura,
+salto del espacio conocido, TRIZ y conocimiento de invención aportado, admitiendo
+azar y asociaciones inesperadas sin descartarlas solo por extrañas. Conserva el
+motor combinatorio existente; no lo sustituyas por un chatbot ni por una gestión
+de auditorías o expedientes.
+
+El modelo cloud elegido recibe el problema y las operaciones de los elementos
+cruzados y desarrolla propuestas concretas, comprensibles e imaginativas. Nombres
+concatenados o reformulaciones de la pregunta no satisfacen ese objetivo.
+Proveedor, modelo y protocolo permanecen separados. Conserva la integración
+existente de modelos gratuitos de Nous mediante Hermes sin imponer un backend
+local ni otro proveedor y sin confundir sesión Hermes con intérprete de CRIBA.
+
+Shadow es la interfaz principal; BLACKFORGE, la alternativa/especializada. Ambas
+reutilizan capacidades compartidas, sin duplicar motores ni eludir autorización,
+key/security o controles sensibles. Una capacidad restringida no debe bloquear
+las demás capacidades disponibles y autorizadas.
+
+Experiencia normal: problema -> generar -> propuestas claras -> conservar,
+comparar, desarrollar o volver a explorar. Mostrar qué se propone y cómo
+funcionaría; no exigir JSON, puntuaciones, dossiers, formularios ni explicaciones
+del razonamiento. Procedencia, técnicas, parámetros y diagnóstico quedan en modo
+avanzado opcional; los contratos internos se preservan. Una propuesta no es una
+solución validada: novedad, viabilidad y beneficio no se presuponen.
+
+Evidencia, memoria, dossiers, SUPRA y controles sirven al avance de ideas. No
+reabrir T00 ni crear otro objetivo, backlog o auditoría general. Priorizar un
+recorrido funcional verificable dentro del permiso vigente. La autorización
+actual de ACADEMICO-TRIZ-INVENTIVA cubre solo preparación local y laboratorio sin
+red, incluidos A3/A4; IMP-10 requiere aprobación específica del diff exacto.
+Registro de alcance y exclusiones:
+`criba-blackforge/docs/research/triz-inventiva/AUTORIZACION_LOCAL_20261028.txt`.
+Conservar originales, WIP y seguridad; esta adenda no autoriza runtime, llamadas
+externas, instalaciones, gasto, commit, push, merge ni ejecución BLACKFORGE.

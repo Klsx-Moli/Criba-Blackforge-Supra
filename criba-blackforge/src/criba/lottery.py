@@ -342,8 +342,11 @@ class LotteryEngine:
         clases ``DRAW_CLASSES`` y técnica uniforme dentro de cada clase.
 
         Evita que los catálogos grandes (lentes, metodologías) aplasten por
-        tamaño a los curados. Si el catálogo no tiene ``thinking_class``
-        (p. ej. el catálogo propio de BLACKFORGE), degrada a lotería pura.
+        tamaño a los curados. Los métodos sin ``thinking_class`` (p. ej. el
+        catálogo propio de BLACKFORGE) forman un estrato residual explícito
+        cuando hay al menos otra clase dibujable; nunca se les asigna una
+        clase inventada. Si el catálogo sólo tiene un estrato dibujable,
+        degrada a lotería pura.
         """
         if size < 1:
             raise ValueError("El tamaño del lote debe ser positivo.")
@@ -352,6 +355,8 @@ class LotteryEngine:
         for method in available:
             by_class.setdefault(str(method.get("thinking_class") or ""), []).append(method)
         draw_classes = tuple(c for c in DRAW_CLASSES if by_class.get(c))
+        if by_class.get(""):
+            draw_classes = draw_classes + ("",)
         if len(draw_classes) < 2:
             return self.select_random_batch(size)
 
@@ -630,8 +635,8 @@ class LotteryEngine:
             'causal_variables': cv,
             'method1_name': m1['title'][:60],
             'method2_name': m2['title'][:60],
-            'method1_desc': m1.get('description', '')[:200],
-            'method2_desc': m2.get('description', '')[:200],
+            'method1_desc': m1.get('description', ''),
+            'method2_desc': m2.get('description', ''),
             'family': fam1,
             'family2': fam2,
             'extreme': self.rng.random() < 0.2,  # 20% chance de extremo
@@ -654,6 +659,8 @@ class LotteryEngine:
             'description': description,
             'method1': m1['title'][:60],
             'method2': m2['title'][:60],
+            'method1_desc': m1.get('description', ''),
+            'method2_desc': m2.get('description', ''),
             'method1_id': str(m1['id']),
             'method2_id': str(m2['id']),
             'family1': fam1,

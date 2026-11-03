@@ -25,6 +25,25 @@ from lab.imp05_supra_roundtrip import (
 )
 
 
+def test_lab_does_not_attest_sandbox_execution() -> None:
+    """El doble conserva planificación sin simular un sandbox ejecutado."""
+    dossier = build_campaign_dossier()
+    client = SupraClient(
+        SupraClientConfig(endpoint="http://127.0.0.1:8000", api_key=""),
+        transport=_mock_transport(_dossier_payload_fingerprint(dossier)),
+    )
+    try:
+        result = client.run_project(
+            objective=objective_from_dossier(dossier), criba_dossier=dossier,
+        )
+    finally:
+        client.close()
+    assert result.status == "blocked"
+    assert result.completion_status == "BLOCKED"
+    assert result.secure_sandbox_status == "NOT_REPORTED"
+    assert result.posture["criba_dossier_receipt"]["execution_status"] == "NOT_EXECUTED"
+
+
 def test_dossier_lineage_is_complete() -> None:
     d = build_campaign_dossier()
     for field in ("dossier_id", "candidate_id", "claim_id", "mechanism_version", "protocol_version"):

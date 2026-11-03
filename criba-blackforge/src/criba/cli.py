@@ -126,6 +126,11 @@ def _inventar_canon_version(adaptive: bool) -> str | None:
 
 def main(argv: Sequence[str] | None = None) -> int:
     """Run the CRIBA command-line interface and return a process exit code."""
+    import sys as _dossier_sys
+    _dossier_argv = _dossier_sys.argv[1:] if argv is None else argv
+    if _dossier_argv and _dossier_argv[0] == "dossier":
+        from .dossier_workflow_cli import main as dossier_main
+        return dossier_main(_dossier_argv[1:])
     parser = argparse.ArgumentParser(
         prog="criba",
         description="CRIBA Current Engine - 3 modos de innovación:\n"
@@ -136,6 +141,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     parser.add_argument("--database", default=None, help="Ruta SQLite (por defecto artifacts/criba.sqlite3)")
     sub = parser.add_subparsers(dest="command", required=True)
+    _dossier_parser = sub.add_parser("dossier", add_help=False,
+                                    help="Dossier: prepare/send/recover/export/import")
+    _dossier_parser.add_argument("workflow_arguments", nargs=argparse.REMAINDER)
 
     def activation(name: str) -> argparse.ArgumentParser:
         command_parser = sub.add_parser(name)
@@ -327,6 +335,12 @@ def main(argv: Sequence[str] | None = None) -> int:
              "Sin él, evalúa la política uniforme (congelada).",
     )
     args = parser.parse_args(argv)
+    if args.command == "dossier":
+        if args.database is not None:
+            print("Dossier usa --home/CRIBASHADOW_HOME, no --database.", file=_dossier_sys.stderr)
+            return 2
+        from .dossier_workflow_cli import main as dossier_main
+        return dossier_main(args.workflow_arguments)
 
     try:
         if args.command in {"activate", "run"}:
@@ -408,9 +422,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             return 0
 
         if args.command == "inventar":
-            from .inventar import append_ledger, invent, print_sheet, record_outcomes
-
             from .intelligence.refresh import default_store
+            from .inventar import append_ledger, invent, print_sheet, record_outcomes
 
             active_store = _inventar_outcome_store(args.adaptive)
             canon = _inventar_canon_version(args.adaptive)
@@ -480,6 +493,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                 from .intelligence.outcome_store import (
                     CHANNEL_OBSERVED,
                     CHANNEL_VERDICT,
+                )
+                from .intelligence.outcome_store import (
                     default_store as _ostore,
                 )
 
@@ -513,6 +528,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         if args.command == "retro":
             from .intelligence.outcome_store import (
                 CHANNEL_OBSERVED,
+            )
+            from .intelligence.outcome_store import (
                 default_store as _outcome_store,
             )
 

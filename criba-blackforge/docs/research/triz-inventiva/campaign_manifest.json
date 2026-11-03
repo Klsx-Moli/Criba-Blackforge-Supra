@@ -7,8 +7,43 @@
   "candidate_repo": "C:/ASTRA_WORK/cbs-candidate/criba-blackforge",
   "branch": "hermes/cbs-t00-candidate-20261025",
   "head": "5e89959a0dfc3337663970a4aff74364f2702482",
-  "authorization": "LOCAL_PREPARATION_ONLY",
-  "imp10_status": "NOT_AUTHORIZED_DIFF_ONLY",
+  "resume_20261028": {
+    "observed_head": "acaace748788ef465b4b43178424a76c1ee3cb31",
+    "state": "INCOMPLETE",
+    "runtime_patch_status": "APPLIED_VERIFIED_SCOPED",
+    "approval_text": "adelante tienes yolo",
+    "runtime_regression": {"passed": 137, "failed": 0, "exit_code": 0},
+    "applied_evidence": "evidence/imp10a_apply/applied_report.json",
+    "proposal_id": "IMP-10-A-LOSSLESS-OPERATIONS",
+    "proposal_path": "imp10_integration/lossless_operations.diff",
+    "supplements_manifest": "supplements/manifest.json",
+    "latest_campaign_tests": {"passed": 57, "failed": 0, "exit_code": 0},
+    "junit": "evidence/imp10a_apply/campaign.xml",
+    "report": "ESTADO_FUNCIONAL_Y_SIGUIENTE_CAMBIO_20261028.txt",
+    "scientific_status": "SCIENTIFIC_BENEFIT_NOT_ESTABLISHED",
+    "not_verified": ["Shadow visible E2E", "real cloud call", "BLACKFORGE shared journey", "full A3/A4 durable round-trip"],
+    "reasoning_recommendation": "medium for frozen mechanical patch/test steps; high for semantic integration decisions"
+  },
+  "authorization": "LOCAL_FUNCTIONAL_INTEGRATION_PLUS_SEPARATE_NEW_LOT_AND_PREVIOUS_CONDITIONAL_BRANCH_PUSH",
+  "imp10_status": "FUNCTIONAL_INTEGRATION_PARTIAL_CLOUD_ACCEPTANCE_FAILED",
+  "current_20261029": {
+    "observed_head": "acaace748788ef465b4b43178424a76c1ee3cb31",
+    "state": "BLOCKED_CLOUD_ACCEPTANCE_BUDGET_EXHAUSTED",
+    "ready_for_push": false,
+    "new_lot": {
+      "maximum": 12,
+      "reserved": 12,
+      "unused": 0,
+      "prior_consumption": "UNKNOWN",
+      "historical_total": "UNKNOWN",
+      "ledger": "evidence/functional_integration/lot_20261029_035722/physical_budget_NEW_LOT.sqlite3"
+    },
+    "offline_evidence": "PARTITIONED_2405_PASS_16_SKIP_3_XFAIL_NOT_FINAL_MONOLITHIC",
+    "operational_record_transport": "PARENT_8_A3_9_A4_10_PROMPT_SQLITE_VERIFIED_WITH_EXPLICIT_SYNTHETIC_PROPOSER",
+    "packaged_acceptance": "SHADOW_NO_VALID_PROPOSAL_BLACKFORGE_AND_RESTORE_NOT_EXECUTED",
+    "evidence": "evidence/functional_integration/lot_20261029_035722/shadow-diagnostic-exception/FINAL_STATE_BUDGET_EXHAUSTED.json",
+    "scientific_status": "SCIENTIFIC_BENEFIT_NOT_ESTABLISHED"
+  },
   "counts_verified": {
     "campaign_tasks": 12,
     "original_finding_cards": 25,
@@ -152,8 +187,8 @@
   "campaign_progress": {
     "updated_on": "2026-10-28",
     "writer": "hermes (nous/ornith-1.5-122b:free session)",
-    "authorization": "LOCAL_PREPARATION_ONLY",
-    "imp10_status": "NOT_AUTHORIZED_DIFF_ONLY",
+    "authorization": "LOCAL_PREPARATION_PLUS_APPROVED_IMP10_A_ONLY",
+    "imp10_status": "PARTIAL_IMP10_A_APPLIED",
     "milestones": {
       "IMP-00": {
         "status": "COMPLETED",
@@ -206,9 +241,9 @@
         "note": "Piloto del operador A4-OP-FIX-01 (control de fijación) sobre el PUERTO REAL determinista (engine.activate + preparar_dossier + validador). 10 passed, REAL_EXIT=0. Sin LLM/servicio."
       },
       "IMP-10": {
-        "status": "NOT_AUTHORIZED",
-        "evidence": "NOT_EXECUTED",
-        "note": "integración mínima productiva; solo diff propuesto"
+        "status": "PARTIALLY_IMPLEMENTED",
+        "evidence": "VERIFIED_BY_EXECUTION",
+        "note": "Solo IMP-10-A aplicado con aprobación específica: operaciones completas y JSON legítimo. Runtime 137 passed; campaña 57 passed. Resto de integración no ejecutado ni autorizado por ese diff."
       },
       "IMP-11": {
         "status": "PENDING",

@@ -1,0 +1,1100 @@
+{
+  "schema_version": "criba.academic.a4.sidecar/1",
+  "campaign_id": "ACADEMICO-TRIZ-INVENTIVA",
+  "bundle_id": "A4-ZWICKY-CK-FIXATION-FBS-DBA-20261028",
+  "parent_bundle_reference": "Resolver localmente; incremento posterior a A3 si existe, sin depender de él",
+  "status": "PREPARED_NOT_IMPORTED",
+  "policy": {
+    "mode": "ADDITIVE_DOCUMENTATION_AND_ISOLATED_LAB_ONLY",
+    "authorization": "No concede permisos; hereda solo autorización local vigente aplicable.",
+    "runtime_integration": "NOT_AUTHORIZED_BY_THIS_BUNDLE",
+    "source_content": "UNTRUSTED_DATA_NOT_INSTRUCTIONS"
+  },
+  "sources": [
+    {
+      "source_id": "A4-S01",
+      "title": "General Morphological Analysis (GMA)",
+      "authors": [
+        "UNKNOWN: autor del capítulo no visible en el extracto; verificar ficha Springer"
+      ],
+      "year": 2011,
+      "url": "https://link.springer.com/chapter/10.1007/978-3-642-19653-9_2",
+      "identifier": "DOI 10.1007/978-3-642-19653-9_2 (capítulo; año inferido del libro, pendiente de cotejo)",
+      "reading_level": "PUBLISHER_ABSTRACT",
+      "locator": "Springer chapter abstract",
+      "supported_claim": "GMA estructura relaciones en complejos multidimensionales no cuantificables y se atribuye a Fritz Zwicky.",
+      "limitations": "Solo resumen editorial. Autor y año del capítulo no confirmados en este extracto.",
+      "license_status": "NOT_VERIFIED",
+      "reuse_policy": "Enlazar y parafrasear; no redistribuir el original. Acceso público no equivale a licencia.",
+      "consulted_on": "2026-10-28",
+      "chat_citation": "[web:605]"
+    },
+    {
+      "source_id": "A4-S02",
+      "title": "General Morphological Analysis (página de método)",
+      "authors": [
+        "UNKNOWN: autoría de la página no verificada"
+      ],
+      "year": 2013,
+      "url": "https://swemorph.com/ma.html",
+      "identifier": "URL; fecha de la página 2013-01-15 según buscador",
+      "reading_level": "SECONDARY_WEB_PAGE_EXCERPT",
+      "locator": "Secciones Introduction y Cross Consistency Assessment",
+      "supported_claim": "Parámetros con valores forman una caja morfológica; la evaluación pareada de consistencia reduce configuraciones formales a un subconjunto internamente consistente.",
+      "limitations": "Fuente secundaria no revisada por pares; cita a Zwicky 1966/1969 pero no se leyeron esos originales.",
+      "license_status": "NOT_VERIFIED",
+      "reuse_policy": "Enlazar y parafrasear; no redistribuir el original. Acceso público no equivale a licencia.",
+      "consulted_on": "2026-10-28",
+      "chat_citation": "[web:615]"
+    },
+    {
+      "source_id": "A4-S03",
+      "title": "Bridging Design Science research and formal design theories (C-K)",
+      "authors": [
+        "UNKNOWN: autores no visibles en el extracto"
+      ],
+      "year": null,
+      "url": "https://scholarspace.manoa.hawaii.edu/bitstreams/d40b57db-7395-4ea8-8b19-4688591f5565/download",
+      "identifier": "URL",
+      "reading_level": "SECONDARY_EXCERPT",
+      "locator": "Descripción de espacios C y K y operadores",
+      "supported_claim": "C-K distingue conceptos sin estatus lógico y conocimiento con estatus verdadero/falso; operadores K→K, K→C, C→C, C→K.",
+      "limitations": "Descripción secundaria; Hatchuel y Weil originales no leídos. Año no visible.",
+      "license_status": "NOT_VERIFIED",
+      "reuse_policy": "Enlazar y parafrasear; no redistribuir el original. Acceso público no equivale a licencia.",
+      "consulted_on": "2026-10-28",
+      "chat_citation": "[web:611]"
+    },
+    {
+      "source_id": "A4-S04",
+      "title": "Simulation of design reasoning based on C-K theory (Graphi.CK)",
+      "authors": [
+        "UNKNOWN: autores no visibles en el extracto"
+      ],
+      "year": null,
+      "url": "https://www.designsociety.org/download-publication/29351/simulation_of_design_reasoning_bas",
+      "identifier": "URL",
+      "reading_level": "SECONDARY_EXCERPT",
+      "locator": "Descripción de conceptos, conocimiento y particiones",
+      "supported_claim": "Un concepto es indecidible respecto de K; las particiones restrictivas añaden propiedades habituales y las expansivas propiedades novedosas.",
+      "limitations": "Modelo de simulación; no demuestra utilidad en software ni LLM.",
+      "license_status": "NOT_VERIFIED",
+      "reuse_policy": "Enlazar y parafrasear; no redistribuir el original. Acceso público no equivale a licencia.",
+      "consulted_on": "2026-10-28",
+      "chat_citation": "[web:613]"
+    },
+    {
+      "source_id": "A4-S05",
+      "title": "Design fixation",
+      "authors": [
+        "David G. Jansson",
+        "Steven M. Smith"
+      ],
+      "year": 1991,
+      "url": "https://www.sciencedirect.com/science/article/pii/0142694X9190003F",
+      "identifier": "DOI 10.1016/0142-694x(91)90003-f; Design Studies 12(1), 3–11",
+      "reading_level": "ABSTRACT_PLUS_SECONDARY_SUMMARIES",
+      "locator": "Abstract; resumen secundario de experimentos con grupo control y grupo con ejemplo",
+      "supported_claim": "Experimentos con ingenieros/diseñadores: la exposición a un ejemplo puede limitar la salida de diseño conceptual (fijación).",
+      "limitations": "Texto completo no leído aquí; no extraer tamaños de efecto. Resultados humanos de 1991.",
+      "license_status": "NOT_VERIFIED",
+      "reuse_policy": "Enlazar y parafrasear; no redistribuir el original. Acceso público no equivale a licencia.",
+      "consulted_on": "2026-10-28",
+      "chat_citation": "[web:606][web:612][web:609]"
+    },
+    {
+      "source_id": "A4-S06",
+      "title": "Design Prototypes: A Knowledge Representation Schema for Design",
+      "authors": [
+        "John S. Gero"
+      ],
+      "year": 1990,
+      "url": "https://ojs.aaai.org/aimagazine/index.php/aimagazine/article/view/854",
+      "identifier": "DOI 10.1609/aimag.v11i4.854; AI Magazine 11(4), 26",
+      "reading_level": "PUBLISHER_ABSTRACT_AND_INDEX_EXCERPT",
+      "locator": "Abstract; extracto Wiley",
+      "supported_claim": "Esquema de prototipos de diseño que separa función, estructura, comportamiento esperado y real, y distingue diseño rutinario, innovador y creativo.",
+      "limitations": "Texto completo no leído. No presentar FBS como ontología verificada para CRIBA.",
+      "license_status": "NOT_VERIFIED",
+      "reuse_policy": "Enlazar y parafrasear; no redistribuir el original. Acceso público no equivale a licencia.",
+      "consulted_on": "2026-10-28",
+      "chat_citation": "[web:592][web:594]"
+    },
+    {
+      "source_id": "A4-S07",
+      "title": "Design by Analogy: A Study of the WordTree Method for Problem Re-Representation",
+      "authors": [
+        "Julie S. Linsey",
+        "Arthur B. Markman",
+        "Kristin L. Wood"
+      ],
+      "year": 2012,
+      "url": "https://asmedigitalcollection.asme.org/mechanicaldesign/article/134/4/041009/475511/Design-by-Analogy-A-Study-of-the-WordTree-Method",
+      "identifier": "DOI 10.1115/1.4006145; J. Mech. Des. 134(4), 041009",
+      "reading_level": "ABSTRACT_PLUS_PARTIAL_TEXT",
+      "locator": "Abstract; primera página indexada",
+      "supported_claim": "WordTree busca analogías de dominio lejano mediante re-representación del problema; experimento controlado y rediseños; ejemplo de despepitador de cerezas aplicado a pelar cacahuetes.",
+      "limitations": "Texto parcial; resultados cuantitativos no extraídos. Ejemplo de ingeniería mecánica, no software.",
+      "license_status": "NOT_VERIFIED",
+      "reuse_policy": "Enlazar y parafrasear; no redistribuir el original. Acceso público no equivale a licencia.",
+      "consulted_on": "2026-10-28",
+      "chat_citation": "[web:591][web:597]"
+    },
+    {
+      "source_id": "A4-S08",
+      "title": "The Meaning of \"Near\" and \"Far\": structuring design databases and distance of analogy",
+      "authors": [
+        "Katherine Fu",
+        "Joel Chan",
+        "Jonathan Cagan",
+        "Kenneth Kotovsky",
+        "Christian Schunn",
+        "Kristin Wood"
+      ],
+      "year": 2013,
+      "url": "https://asmedigitalcollection.asme.org/mechanicaldesign/article/135/2/021007/375727/The-Meaning-of-Near-and-Far-The-Impact-of",
+      "identifier": "J. Mech. Des. 135(2), 021007",
+      "reading_level": "ABSTRACT_ONLY",
+      "locator": "Abstract/snippet y lista de publicaciones del laboratorio",
+      "supported_claim": "Estímulos analógicos cercanos y lejanos se definieron a partir de una estructura de patentes (análisis semántico latente y algoritmo bayesiano).",
+      "limitations": "Solo resumen; no se leyeron resultados sobre el efecto de la distancia. DOI no verificado en este lote.",
+      "license_status": "NOT_VERIFIED",
+      "reuse_policy": "Enlazar y parafrasear; no redistribuir el original. Acceso público no equivale a licencia.",
+      "consulted_on": "2026-10-28",
+      "chat_citation": "[web:353][web:596]"
+    }
+  ],
+  "claims": [
+    {
+      "claim_id": "A4-CL-01",
+      "source_ids": [
+        "A4-S01",
+        "A4-S02"
+      ],
+      "claim": "GMA estructura parámetros y valores en una caja multidimensional.",
+      "limits": "No prueba utilidad para ideación asistida por LLM.",
+      "epistemic_class": "FACT_FROM_SOURCE",
+      "transfer_to_criba": "DESIGN_PROPOSAL_NOT_VALIDATED"
+    },
+    {
+      "claim_id": "A4-CL-02",
+      "source_ids": [
+        "A4-S02"
+      ],
+      "claim": "La consistencia cruzada pareada reduce el espacio formal a configuraciones internamente consistentes.",
+      "limits": "La fuente es secundaria; la calidad de los juicios no queda garantizada.",
+      "epistemic_class": "FACT_FROM_SOURCE",
+      "transfer_to_criba": "DESIGN_PROPOSAL_NOT_VALIDATED"
+    },
+    {
+      "claim_id": "A4-CL-03",
+      "source_ids": [
+        "A4-S03",
+        "A4-S04"
+      ],
+      "claim": "C-K separa conceptos indecidibles de conocimiento decidible.",
+      "limits": "Descripción secundaria; no hay prueba de valor para CRIBA.",
+      "epistemic_class": "FACT_FROM_SOURCE",
+      "transfer_to_criba": "DESIGN_PROPOSAL_NOT_VALIDATED"
+    },
+    {
+      "claim_id": "A4-CL-04",
+      "source_ids": [
+        "A4-S04"
+      ],
+      "claim": "Particiones restrictivas y expansivas añaden propiedades habituales o novedosas.",
+      "limits": "Lo «habitual» depende del conocimiento declarado.",
+      "epistemic_class": "FACT_FROM_SOURCE",
+      "transfer_to_criba": "DESIGN_PROPOSAL_NOT_VALIDATED"
+    },
+    {
+      "claim_id": "A4-CL-05",
+      "source_ids": [
+        "A4-S05"
+      ],
+      "claim": "Los experimentos de 1991 apoyan la existencia de fijación al ejemplo en diseño conceptual.",
+      "limits": "No generalizar a modelos de lenguaje.",
+      "epistemic_class": "FACT_FROM_SOURCE",
+      "transfer_to_criba": "DESIGN_PROPOSAL_NOT_VALIDATED"
+    },
+    {
+      "claim_id": "A4-CL-06",
+      "source_ids": [
+        "A4-S06"
+      ],
+      "claim": "Gero separa función, estructura, comportamiento esperado y real.",
+      "limits": "Texto completo no leído.",
+      "epistemic_class": "FACT_FROM_SOURCE",
+      "transfer_to_criba": "DESIGN_PROPOSAL_NOT_VALIDATED"
+    },
+    {
+      "claim_id": "A4-CL-07",
+      "source_ids": [
+        "A4-S06"
+      ],
+      "claim": "El esquema distingue diseño rutinario, innovador y creativo.",
+      "limits": "Clasificación no verificada para CRIBA.",
+      "epistemic_class": "FACT_FROM_SOURCE",
+      "transfer_to_criba": "DESIGN_PROPOSAL_NOT_VALIDATED"
+    },
+    {
+      "claim_id": "A4-CL-08",
+      "source_ids": [
+        "A4-S07"
+      ],
+      "claim": "WordTree busca analogías de dominio lejano mediante re-representación.",
+      "limits": "Resultados cuantitativos no extraídos; ejemplo de ingeniería mecánica.",
+      "epistemic_class": "FACT_FROM_SOURCE",
+      "transfer_to_criba": "DESIGN_PROPOSAL_NOT_VALIDATED"
+    },
+    {
+      "claim_id": "A4-CL-09",
+      "source_ids": [
+        "A4-S08"
+      ],
+      "claim": "Estímulos cercanos y lejanos se definieron mediante una estructura de patentes.",
+      "limits": "Solo resumen; efecto de la distancia no leído.",
+      "epistemic_class": "FACT_FROM_SOURCE",
+      "transfer_to_criba": "DESIGN_PROPOSAL_NOT_VALIDATED"
+    }
+  ],
+  "operators": [
+    {
+      "operator_id": "A4-OP-MOR-01",
+      "title": "Caja morfológica con parámetros independientes",
+      "source_ids": [
+        "A4-S01",
+        "A4-S02"
+      ],
+      "epistemic_class": "DESIGN_PROPOSAL",
+      "attribution": "Adaptación original para CRIBA; no algoritmo validado del autor.",
+      "appropriate_when": "El problema tiene varias decisiones de diseño combinables y se explora siempre una sola configuración.",
+      "required_inputs": [
+        "Problema",
+        "Parámetros candidatos",
+        "Valores justificados por parámetro",
+        "Restricciones obligatorias"
+      ],
+      "transformation_steps": [
+        "Listar parámetros que describan decisiones distintas, no sinónimos.",
+        "Asignar valores concretos a cada parámetro; marcar UNKNOWN los no justificados.",
+        "Construir el espacio formal y contar configuraciones.",
+        "Registrar parámetros descartados y motivo."
+      ],
+      "required_outputs": [
+        "parameters",
+        "values",
+        "formal_space_size",
+        "excluded_parameters"
+      ],
+      "preconditions": [
+        "Parámetros con significado operativo.",
+        "Número de valores acotado para poder revisar."
+      ],
+      "hard_invariants": [
+        "No relajar seguridad, autorización, privacidad ni requisitos obligatorios.",
+        "No tocar RNG, scoring, memoria adaptativa, gates ni runtime.",
+        "Lo generado no se registra como observado."
+      ],
+      "abstention_or_failure": [
+        "Parámetros dependientes o redundantes sin declararlo.",
+        "Valores inventados sin respaldo."
+      ],
+      "original_example": "Para revisión de propuestas: parámetro «momento de comprobación» con valores antes/durante/después; «quién comprueba» con valores generador/independiente.",
+      "counterexample": "Usar como parámetros «calidad» y «excelencia».",
+      "rival_explanation": "La mejora procede de enumerar más opciones, no de la estructura.",
+      "discriminating_test": "Mismo presupuesto: caja morfológica vs lista libre de alternativas; contar configuraciones factibles y familias funcionales distintas.",
+      "creativity_mode": "COMBINATIONAL",
+      "extension_of": "Refina OP-EXP sin tocar lottery/selector.",
+      "execution_status": "NOT_EXECUTED",
+      "scientific_status": "NOT_VALIDATED_FOR_CRIBA"
+    },
+    {
+      "operator_id": "A4-OP-MOR-02",
+      "title": "Consistencia cruzada pareada",
+      "source_ids": [
+        "A4-S02"
+      ],
+      "epistemic_class": "DESIGN_PROPOSAL",
+      "attribution": "Adaptación original para CRIBA; no algoritmo validado del autor.",
+      "appropriate_when": "La caja produce demasiadas combinaciones formales.",
+      "required_inputs": [
+        "Caja morfológica",
+        "Criterio de incompatibilidad por pareja",
+        "Evidencia o razón de cada exclusión"
+      ],
+      "transformation_steps": [
+        "Comparar cada pareja de valores de parámetros distintos.",
+        "Marcar pareja como compatible, incompatible o UNKNOWN con razón.",
+        "Excluir configuraciones que contengan una pareja incompatible; conservar las UNKNOWN como pendientes, no como compatibles.",
+        "Informar tamaño del espacio antes y después."
+      ],
+      "required_outputs": [
+        "pair_judgments",
+        "consistent_configurations",
+        "unknown_pairs"
+      ],
+      "preconditions": [
+        "Criterios explícitos y revisables."
+      ],
+      "hard_invariants": [
+        "No relajar seguridad, autorización, privacidad ni requisitos obligatorios.",
+        "No tocar RNG, scoring, memoria adaptativa, gates ni runtime.",
+        "Lo generado no se registra como observado."
+      ],
+      "abstention_or_failure": [
+        "Se marcan incompatibilidades por gusto del generador.",
+        "UNKNOWN tratado como compatible."
+      ],
+      "original_example": "Un valor «sin registro persistente» es incompatible con «recuperación tras reinicio».",
+      "counterexample": "Declarar incompatible una pareja solo porque es inusual.",
+      "rival_explanation": "El filtro elimina soluciones útiles por sesgo del juez.",
+      "discriminating_test": "Revisión independiente de un subconjunto de exclusiones; medir exclusiones indebidas con casos construidos.",
+      "creativity_mode": "COMBINATIONAL",
+      "extension_of": "Alimenta ruptura/restricciones del cruce.",
+      "execution_status": "NOT_EXECUTED",
+      "scientific_status": "NOT_VALIDATED_FOR_CRIBA"
+    },
+    {
+      "operator_id": "A4-OP-MOR-03",
+      "title": "Selección de configuraciones por función, no por rareza",
+      "source_ids": [
+        "A4-S01",
+        "A4-S02"
+      ],
+      "epistemic_class": "DESIGN_PROPOSAL",
+      "attribution": "Adaptación original para CRIBA; no algoritmo validado del autor.",
+      "appropriate_when": "Hay muchas configuraciones consistentes y hay que elegir un conjunto revisable.",
+      "required_inputs": [
+        "Configuraciones consistentes",
+        "Descriptor funcional por configuración",
+        "Presupuesto de revisión"
+      ],
+      "transformation_steps": [
+        "Agrupar por mecanismo o recurso funcional.",
+        "Elegir al menos una por grupo con razón.",
+        "Registrar descartadas y cómo se eligió; si hay muestreo, registrar conjunto, orden y semilla cuando exista.",
+        "No usar distancia textual como único criterio."
+      ],
+      "required_outputs": [
+        "selected",
+        "groups",
+        "selection_record",
+        "discarded"
+      ],
+      "preconditions": [
+        "Descriptores funcionales revisables."
+      ],
+      "hard_invariants": [
+        "No relajar seguridad, autorización, privacidad ni requisitos obligatorios.",
+        "No tocar RNG, scoring, memoria adaptativa, gates ni runtime.",
+        "Lo generado no se registra como observado."
+      ],
+      "abstention_or_failure": [
+        "Todas las configuraciones comparten el mismo mecanismo.",
+        "La agrupación se hace por vocabulario."
+      ],
+      "original_example": "Elegir una configuración con registro previo y otra con revisión posterior independiente.",
+      "counterexample": "Elegir las combinaciones con palabras más raras.",
+      "rival_explanation": "La rareza, no la función, explica el resultado.",
+      "discriminating_test": "Comparar selección por grupos funcionales vs aleatoria con presupuesto equivalente, evaluada ciegamente.",
+      "creativity_mode": "EXPLORATORY",
+      "extension_of": "Complementa diversidad; no modifica selector.",
+      "execution_status": "NOT_EXECUTED",
+      "scientific_status": "NOT_VALIDATED_FOR_CRIBA"
+    },
+    {
+      "operator_id": "A4-OP-CK-01",
+      "title": "Separar concepto (C) de conocimiento (K)",
+      "source_ids": [
+        "A4-S03",
+        "A4-S04"
+      ],
+      "epistemic_class": "DESIGN_PROPOSAL",
+      "attribution": "Adaptación original para CRIBA; no algoritmo validado del autor.",
+      "appropriate_when": "Una idea mezcla suposiciones no comprobadas con hechos.",
+      "required_inputs": [
+        "Idea candidata",
+        "Hechos con procedencia",
+        "Propiedades pendientes"
+      ],
+      "transformation_steps": [
+        "Redactar el concepto como objeto con propiedades cuyo estatus no puede decidirse con el conocimiento disponible.",
+        "Listar lo conocido como proposiciones verdadero/falso con fuente.",
+        "Enumerar qué conocimiento permitiría decidir el concepto.",
+        "No escribir una propiedad conceptual como hecho."
+      ],
+      "required_outputs": [
+        "concept",
+        "knowledge_items",
+        "undecidable_properties",
+        "knowledge_needed"
+      ],
+      "preconditions": [
+        "Procedencia para cada elemento de K."
+      ],
+      "hard_invariants": [
+        "No relajar seguridad, autorización, privacidad ni requisitos obligatorios.",
+        "No tocar RNG, scoring, memoria adaptativa, gates ni runtime.",
+        "Lo generado no se registra como observado."
+      ],
+      "abstention_or_failure": [
+        "Un elemento de K carece de fuente.",
+        "El concepto se formula de modo que ya es decidible."
+      ],
+      "original_example": "Concepto: «registro que permita reconstruir la decisión»; K: «el registro actual conserva marca temporal» [fixture].",
+      "counterexample": "Poner «es seguro» en K sin evidencia.",
+      "rival_explanation": "La separación no cambia la calidad, solo el formato.",
+      "discriminating_test": "Auditar si cada propiedad pendiente tiene una prueba o fuente identificada; comparar errores de atribución.",
+      "creativity_mode": "COMBINATIONAL",
+      "extension_of": "Mapa a supuestos/EVIDENCIA; no nuevo motor.",
+      "execution_status": "NOT_EXECUTED",
+      "scientific_status": "NOT_VALIDATED_FOR_CRIBA"
+    },
+    {
+      "operator_id": "A4-OP-CK-02",
+      "title": "Partición restrictiva vs expansiva",
+      "source_ids": [
+        "A4-S04"
+      ],
+      "epistemic_class": "DESIGN_PROPOSAL",
+      "attribution": "Adaptación original para CRIBA; no algoritmo validado del autor.",
+      "appropriate_when": "Se detalla un concepto pero no está claro si solo se concreta o se abre otro espacio.",
+      "required_inputs": [
+        "Concepto inicial",
+        "Propiedad a añadir",
+        "Conocimiento actual"
+      ],
+      "transformation_steps": [
+        "Añadir una propiedad.",
+        "Clasificarla como restrictiva si usa propiedades habituales del objeto o expansiva si introduce una no habitual.",
+        "Registrar el motivo y qué conocimiento falta.",
+        "Mantener la restricción obligatoria en ambos casos."
+      ],
+      "required_outputs": [
+        "partition_type",
+        "property",
+        "reason",
+        "knowledge_gap"
+      ],
+      "preconditions": [
+        "La noción «habitual» es relativa al conocimiento declarado."
+      ],
+      "hard_invariants": [
+        "No relajar seguridad, autorización, privacidad ni requisitos obligatorios.",
+        "No tocar RNG, scoring, memoria adaptativa, gates ni runtime.",
+        "Lo generado no se registra como observado."
+      ],
+      "abstention_or_failure": [
+        "La clasificación depende de intuición no justificada."
+      ],
+      "original_example": "Añadir «con recibo por etapa» a un flujo de despacho: restrictiva si ya es habitual en K; expansiva si K no la contempla.",
+      "counterexample": "Llamar expansiva a una paráfrasis.",
+      "rival_explanation": "La clasificación no predice utilidad.",
+      "discriminating_test": "Concordancia entre revisores sobre el tipo de partición con instrucciones iguales.",
+      "creativity_mode": "EXPLORATORY",
+      "extension_of": "Etiqueta de modo creativo, sin scoring.",
+      "execution_status": "NOT_EXECUTED",
+      "scientific_status": "NOT_VALIDATED_FOR_CRIBA"
+    },
+    {
+      "operator_id": "A4-OP-CK-03",
+      "title": "Expansión de conocimiento dirigida por concepto",
+      "source_ids": [
+        "A4-S03",
+        "A4-S04"
+      ],
+      "epistemic_class": "DESIGN_PROPOSAL",
+      "attribution": "Adaptación original para CRIBA; no algoritmo validado del autor.",
+      "appropriate_when": "Un concepto prometedor queda indecidible por falta de datos.",
+      "required_inputs": [
+        "Concepto",
+        "Propiedad indecidible",
+        "Fuentes o pruebas accesibles"
+      ],
+      "transformation_steps": [
+        "Convertir la propiedad indecidible en pregunta verificable.",
+        "Proponer la consulta o la prueba sin ejecutarla.",
+        "Registrar resultado esperado vs resultado rival.",
+        "Mantener el concepto como NOT_VALIDATED hasta que K lo respalde."
+      ],
+      "required_outputs": [
+        "question",
+        "proposed_check",
+        "prediction",
+        "rival_prediction",
+        "status"
+      ],
+      "preconditions": [
+        "La pregunta es verificable con un observable."
+      ],
+      "hard_invariants": [
+        "No relajar seguridad, autorización, privacidad ni requisitos obligatorios.",
+        "No tocar RNG, scoring, memoria adaptativa, gates ni runtime.",
+        "Lo generado no se registra como observado."
+      ],
+      "abstention_or_failure": [
+        "No se puede formular observable.",
+        "Se presenta la pregunta como respuesta."
+      ],
+      "original_example": "Pregunta: ¿se conserva el identificador tras recargar? Consulta propuesta sobre almacenamiento temporal.",
+      "counterexample": "Declarar la propiedad verdadera porque suena coherente.",
+      "rival_explanation": "Cualquier información adicional mejora igual, no la dirigida.",
+      "discriminating_test": "Comparar expansión dirigida con lectura general a igual presupuesto, midiendo propiedades decididas.",
+      "creativity_mode": "EXPLORATORY",
+      "extension_of": "Alimenta prueba y protocolo; sin ejecución.",
+      "execution_status": "NOT_EXECUTED",
+      "scientific_status": "NOT_VALIDATED_FOR_CRIBA"
+    },
+    {
+      "operator_id": "A4-OP-FIX-01",
+      "title": "Sembrar ejemplos sin fijar la solución",
+      "source_ids": [
+        "A4-S05"
+      ],
+      "epistemic_class": "DESIGN_PROPOSAL",
+      "attribution": "Adaptación original para CRIBA; no algoritmo validado del autor.",
+      "appropriate_when": "Se proporcionan ejemplos al generador y todas las salidas se parecen.",
+      "required_inputs": [
+        "Ejemplos",
+        "Problema",
+        "Mecanismos de los ejemplos"
+      ],
+      "transformation_steps": [
+        "Extraer el mecanismo de cada ejemplo y marcar sus defectos conocidos.",
+        "Pedir alternativas que cambien el mecanismo, no el vocabulario.",
+        "Comparar con una generación sin ejemplo en una condición de control.",
+        "Registrar si los defectos del ejemplo reaparecen."
+      ],
+      "required_outputs": [
+        "example_mechanisms",
+        "known_flaws",
+        "control_condition",
+        "reappearing_flaws"
+      ],
+      "preconditions": [
+        "Control sin ejemplo disponible."
+      ],
+      "hard_invariants": [
+        "No relajar seguridad, autorización, privacidad ni requisitos obligatorios.",
+        "No tocar RNG, scoring, memoria adaptativa, gates ni runtime.",
+        "Lo generado no se registra como observado."
+      ],
+      "abstention_or_failure": [
+        "Solo hay una condición.",
+        "Los defectos del ejemplo no están identificados."
+      ],
+      "original_example": "Mostrar un diseño de revisión con un fallo conocido y comprobar si la propuesta lo repite.",
+      "counterexample": "Medir fijación por el número de palabras repetidas.",
+      "rival_explanation": "El parecido procede del problema, no del ejemplo.",
+      "discriminating_test": "Control vs ejemplo con mismo problema/presupuesto; contar defectos heredados.",
+      "creativity_mode": "EXPLORATORY",
+      "extension_of": "Control del contexto recuperado.",
+      "execution_status": "NOT_EXECUTED",
+      "scientific_status": "NOT_VALIDATED_FOR_CRIBA"
+    },
+    {
+      "operator_id": "A4-OP-FIX-02",
+      "title": "Ejemplo defectuoso como prueba negativa",
+      "source_ids": [
+        "A4-S05"
+      ],
+      "epistemic_class": "DESIGN_PROPOSAL",
+      "attribution": "Adaptación original para CRIBA; no algoritmo validado del autor.",
+      "appropriate_when": "Se quiere comprobar si el sistema hereda errores de antecedentes.",
+      "required_inputs": [
+        "Antecedente con defecto declarado",
+        "Criterio que lo detecta"
+      ],
+      "transformation_steps": [
+        "Construir fixture sintético con defecto explícito.",
+        "Pedir propuesta y comprobar si el defecto se repite.",
+        "Registrar cualquier reaparición como fallo del caso.",
+        "No inferir comportamiento general."
+      ],
+      "required_outputs": [
+        "fixture",
+        "defect",
+        "reappearance",
+        "case_result"
+      ],
+      "preconditions": [
+        "Fixture etiquetado como sintético."
+      ],
+      "hard_invariants": [
+        "No relajar seguridad, autorización, privacidad ni requisitos obligatorios.",
+        "No tocar RNG, scoring, memoria adaptativa, gates ni runtime.",
+        "Lo generado no se registra como observado."
+      ],
+      "abstention_or_failure": [
+        "Se usa como benchmark independiente."
+      ],
+      "original_example": "Antecedente con comprobación únicamente al final; ¿la propuesta repite ese defecto?",
+      "counterexample": "Tomar un ejemplo bueno y llamarlo defectuoso.",
+      "rival_explanation": "Fallo por mala redacción del fixture.",
+      "discriminating_test": "Varios fixtures con defectos distintos y revisión ciega.",
+      "creativity_mode": "EXPLORATORY",
+      "extension_of": "Pruebas negativas de IMP-08.",
+      "execution_status": "NOT_EXECUTED",
+      "scientific_status": "NOT_VALIDATED_FOR_CRIBA"
+    },
+    {
+      "operator_id": "A4-OP-FBS-01",
+      "title": "Descripción función–estructura–comportamiento",
+      "source_ids": [
+        "A4-S06"
+      ],
+      "epistemic_class": "DESIGN_PROPOSAL",
+      "attribution": "Adaptación original para CRIBA; no algoritmo validado del autor.",
+      "appropriate_when": "Se confunde para qué sirve, cómo está hecho y cómo se comporta.",
+      "required_inputs": [
+        "Artefacto o propuesta"
+      ],
+      "transformation_steps": [
+        "Escribir la función pretendida.",
+        "Escribir la estructura (componentes y relaciones).",
+        "Escribir comportamiento esperado y, aparte, comportamiento real observado o UNKNOWN.",
+        "No copiar el esperado en el real."
+      ],
+      "required_outputs": [
+        "function",
+        "structure",
+        "behaviour_expected",
+        "behaviour_actual"
+      ],
+      "preconditions": [
+        "El comportamiento real solo con observación; en caso contrario UNKNOWN."
+      ],
+      "hard_invariants": [
+        "No relajar seguridad, autorización, privacidad ni requisitos obligatorios.",
+        "No tocar RNG, scoring, memoria adaptativa, gates ni runtime.",
+        "Lo generado no se registra como observado."
+      ],
+      "abstention_or_failure": [
+        "Esperado y real coinciden por copia.",
+        "Función no separable de la estructura."
+      ],
+      "original_example": "Función: rechazar acción sin permiso; estructura: guardia previa; esperado: cero despachos; real: UNKNOWN.",
+      "counterexample": "Rellenar comportamiento real con la predicción.",
+      "rival_explanation": "Formato extra sin efecto en calidad.",
+      "discriminating_test": "Comprobar si el formato reduce afirmaciones no respaldadas, ciegamente.",
+      "creativity_mode": "COMBINATIONAL",
+      "extension_of": "Mapa a hipótesis/mecanismo/prueba.",
+      "execution_status": "NOT_EXECUTED",
+      "scientific_status": "NOT_VALIDATED_FOR_CRIBA"
+    },
+    {
+      "operator_id": "A4-OP-DBA-01",
+      "title": "Re-representación a niveles de abstracción",
+      "source_ids": [
+        "A4-S07",
+        "A4-S08"
+      ],
+      "epistemic_class": "DESIGN_PROPOSAL",
+      "attribution": "Adaptación original para CRIBA; no algoritmo validado del autor.",
+      "appropriate_when": "La búsqueda de antecedentes solo devuelve casos del mismo dominio.",
+      "required_inputs": [
+        "Problema",
+        "Función central",
+        "Términos de dominio"
+      ],
+      "transformation_steps": [
+        "Reformular la función en términos más generales.",
+        "Generar términos de otros dominios que cumplan esa función.",
+        "Registrar para cada candidato distancia estimada y por qué.",
+        "Aplicar OP-GEN-01 antes de transferir."
+      ],
+      "required_outputs": [
+        "abstracted_function",
+        "candidate_domains",
+        "distance_notes",
+        "mapping_required"
+      ],
+      "preconditions": [
+        "La abstracción conserva la función."
+      ],
+      "hard_invariants": [
+        "No relajar seguridad, autorización, privacidad ni requisitos obligatorios.",
+        "No tocar RNG, scoring, memoria adaptativa, gates ni runtime.",
+        "Lo generado no se registra como observado."
+      ],
+      "abstention_or_failure": [
+        "Se pierde la restricción esencial.",
+        "Analogía lejana sin mapeo."
+      ],
+      "original_example": "Función «separar piezas útiles de residuos» → otros dominios de filtrado, solo como candidatos.",
+      "counterexample": "Abstraer tanto que pierda sentido.",
+      "rival_explanation": "Terminar con ideas arbitrarias y no analogías.",
+      "discriminating_test": "Comparar sugerencias cercanas vs lejanas con evaluación ciega de pertinencia; no asumir que la distancia mejora.",
+      "creativity_mode": "COMBINATIONAL",
+      "extension_of": "Extiende A3-OP-GEN-01 y recuperación por función.",
+      "execution_status": "NOT_EXECUTED",
+      "scientific_status": "NOT_VALIDATED_FOR_CRIBA"
+    }
+  ],
+  "cards": [
+    {
+      "card_id": "A4-T00",
+      "card_kind": "IMPLEMENTATION_TASK",
+      "title": "Recepción y deduplicación del incremento A4",
+      "depends_on": [],
+      "status": "BACKLOG",
+      "actions": [
+        "Leer checkpoint; reutilizar autorización efectiva.",
+        "Comparar IDs A4 y DOI con el inventario.",
+        "Detener escrituras si falta permiso y pedir solo el delta."
+      ],
+      "acceptance_criteria": [
+        "Sin campaña duplicada."
+      ],
+      "risk_profile": "LAB",
+      "risk": {
+        "RISK": "YELLOW",
+        "COMPATIBILITY": "Sidecar documental/laboratorio; compatibilidad productiva no verificada.",
+        "EXPECTED_IMPACT": "Reduce investigación y escritura; utilidad inventiva por medir.",
+        "REVERSIBILITY": "Retirar solo archivos propios del incremento.",
+        "BACKUP_REQUIRED": "Proteger baseline dirty y originales antes de modificar.",
+        "ROLLBACK": "Retirar subdirectorio propio tras comparar; sin reset/clean/stash.",
+        "AUTHORITATIVE_SOURCES": [
+          "A4-S05",
+          "A4-S06",
+          "A4-S07",
+          "Normas locales vigentes"
+        ],
+        "UNRESOLVED_QUESTIONS": [
+          "Permiso efectivo",
+          "Estado del validador padre",
+          "Autoría/año de fuentes secundarias",
+          "Beneficio real"
+        ]
+      },
+      "execution_status": "NOT_EXECUTED",
+      "scientific_status": "NOT_VALIDATED_FOR_CRIBA"
+    },
+    {
+      "card_id": "A4-T01",
+      "card_kind": "IMPLEMENTATION_TASK",
+      "title": "Incorporar 8 fuentes y 9 claims",
+      "depends_on": [
+        "A4-T00"
+      ],
+      "status": "BACKLOG",
+      "actions": [
+        "Cargar registros preparados.",
+        "Conservar niveles de lectura y UNKNOWN de autoría/año."
+      ],
+      "acceptance_criteria": [
+        "Referencias resueltas o bloqueo explícito."
+      ],
+      "risk_profile": "LAB",
+      "risk": {
+        "RISK": "YELLOW",
+        "COMPATIBILITY": "Sidecar documental/laboratorio; compatibilidad productiva no verificada.",
+        "EXPECTED_IMPACT": "Reduce investigación y escritura; utilidad inventiva por medir.",
+        "REVERSIBILITY": "Retirar solo archivos propios del incremento.",
+        "BACKUP_REQUIRED": "Proteger baseline dirty y originales antes de modificar.",
+        "ROLLBACK": "Retirar subdirectorio propio tras comparar; sin reset/clean/stash.",
+        "AUTHORITATIVE_SOURCES": [
+          "A4-S05",
+          "A4-S06",
+          "A4-S07",
+          "Normas locales vigentes"
+        ],
+        "UNRESOLVED_QUESTIONS": [
+          "Permiso efectivo",
+          "Estado del validador padre",
+          "Autoría/año de fuentes secundarias",
+          "Beneficio real"
+        ]
+      },
+      "execution_status": "NOT_EXECUTED",
+      "scientific_status": "NOT_VALIDATED_FOR_CRIBA"
+    },
+    {
+      "card_id": "A4-T02",
+      "card_kind": "IMPLEMENTATION_TASK",
+      "title": "Acoplar 10 operadores como datos",
+      "depends_on": [
+        "A4-T01"
+      ],
+      "status": "BACKLOG",
+      "actions": [
+        "Mapear por contenido a operadores existentes.",
+        "Conservar pasos, límites, rival y prueba."
+      ],
+      "acceptance_criteria": [
+        "Diez IDs resueltos REUSE/EXTEND/NEW."
+      ],
+      "risk_profile": "LAB",
+      "risk": {
+        "RISK": "YELLOW",
+        "COMPATIBILITY": "Sidecar documental/laboratorio; compatibilidad productiva no verificada.",
+        "EXPECTED_IMPACT": "Reduce investigación y escritura; utilidad inventiva por medir.",
+        "REVERSIBILITY": "Retirar solo archivos propios del incremento.",
+        "BACKUP_REQUIRED": "Proteger baseline dirty y originales antes de modificar.",
+        "ROLLBACK": "Retirar subdirectorio propio tras comparar; sin reset/clean/stash.",
+        "AUTHORITATIVE_SOURCES": [
+          "A4-S05",
+          "A4-S06",
+          "A4-S07",
+          "Normas locales vigentes"
+        ],
+        "UNRESOLVED_QUESTIONS": [
+          "Permiso efectivo",
+          "Estado del validador padre",
+          "Autoría/año de fuentes secundarias",
+          "Beneficio real"
+        ]
+      },
+      "execution_status": "NOT_EXECUTED",
+      "scientific_status": "NOT_VALIDATED_FOR_CRIBA"
+    },
+    {
+      "card_id": "A4-T03",
+      "card_kind": "IMPLEMENTATION_TASK",
+      "title": "Ejecutar checker y fixtures morfológico/C-K/FBS",
+      "depends_on": [
+        "A4-T02"
+      ],
+      "status": "BACKLOG",
+      "actions": [
+        "Leer antes de ejecutar; Python disponible; sin red.",
+        "Registrar comando, directorio, salida y código."
+      ],
+      "acceptance_criteria": [
+        "Resultados locales reales."
+      ],
+      "risk_profile": "LAB",
+      "risk": {
+        "RISK": "YELLOW",
+        "COMPATIBILITY": "Sidecar documental/laboratorio; compatibilidad productiva no verificada.",
+        "EXPECTED_IMPACT": "Reduce investigación y escritura; utilidad inventiva por medir.",
+        "REVERSIBILITY": "Retirar solo archivos propios del incremento.",
+        "BACKUP_REQUIRED": "Proteger baseline dirty y originales antes de modificar.",
+        "ROLLBACK": "Retirar subdirectorio propio tras comparar; sin reset/clean/stash.",
+        "AUTHORITATIVE_SOURCES": [
+          "A4-S05",
+          "A4-S06",
+          "A4-S07",
+          "Normas locales vigentes"
+        ],
+        "UNRESOLVED_QUESTIONS": [
+          "Permiso efectivo",
+          "Estado del validador padre",
+          "Autoría/año de fuentes secundarias",
+          "Beneficio real"
+        ]
+      },
+      "execution_status": "NOT_EXECUTED",
+      "scientific_status": "NOT_VALIDATED_FOR_CRIBA"
+    },
+    {
+      "card_id": "A4-T04",
+      "card_kind": "IMPLEMENTATION_TASK",
+      "title": "Mapeo a contratos y conservación",
+      "depends_on": [
+        "A4-T03"
+      ],
+      "status": "BACKLOG",
+      "actions": [
+        "Usar IMP-02; sidecar si el contrato no admite campos."
+      ],
+      "acceptance_criteria": [
+        "Campos preservados sin promover estados."
+      ],
+      "risk_profile": "LAB",
+      "risk": {
+        "RISK": "YELLOW",
+        "COMPATIBILITY": "Sidecar documental/laboratorio; compatibilidad productiva no verificada.",
+        "EXPECTED_IMPACT": "Reduce investigación y escritura; utilidad inventiva por medir.",
+        "REVERSIBILITY": "Retirar solo archivos propios del incremento.",
+        "BACKUP_REQUIRED": "Proteger baseline dirty y originales antes de modificar.",
+        "ROLLBACK": "Retirar subdirectorio propio tras comparar; sin reset/clean/stash.",
+        "AUTHORITATIVE_SOURCES": [
+          "A4-S05",
+          "A4-S06",
+          "A4-S07",
+          "Normas locales vigentes"
+        ],
+        "UNRESOLVED_QUESTIONS": [
+          "Permiso efectivo",
+          "Estado del validador padre",
+          "Autoría/año de fuentes secundarias",
+          "Beneficio real"
+        ]
+      },
+      "execution_status": "NOT_EXECUTED",
+      "scientific_status": "NOT_VALIDATED_FOR_CRIBA"
+    },
+    {
+      "card_id": "A4-T05",
+      "card_kind": "IMPLEMENTATION_TASK",
+      "title": "Cierre incremental honesto",
+      "depends_on": [
+        "A4-T04"
+      ],
+      "status": "BACKLOG",
+      "actions": [
+        "Manifest, límites y delta IMP-10 no aplicado."
+      ],
+      "acceptance_criteria": [
+        "PREPARED_NOT_INTEGRATED solo si procede."
+      ],
+      "risk_profile": "LAB",
+      "risk": {
+        "RISK": "YELLOW",
+        "COMPATIBILITY": "Sidecar documental/laboratorio; compatibilidad productiva no verificada.",
+        "EXPECTED_IMPACT": "Reduce investigación y escritura; utilidad inventiva por medir.",
+        "REVERSIBILITY": "Retirar solo archivos propios del incremento.",
+        "BACKUP_REQUIRED": "Proteger baseline dirty y originales antes de modificar.",
+        "ROLLBACK": "Retirar subdirectorio propio tras comparar; sin reset/clean/stash.",
+        "AUTHORITATIVE_SOURCES": [
+          "A4-S05",
+          "A4-S06",
+          "A4-S07",
+          "Normas locales vigentes"
+        ],
+        "UNRESOLVED_QUESTIONS": [
+          "Permiso efectivo",
+          "Estado del validador padre",
+          "Autoría/año de fuentes secundarias",
+          "Beneficio real"
+        ]
+      },
+      "execution_status": "NOT_EXECUTED",
+      "scientific_status": "NOT_VALIDATED_FOR_CRIBA"
+    }
+  ],
+  "examples": [
+    {
+      "example_id": "A4-EX-01",
+      "data_class": "SYNTHETIC_ORIGINAL_FIXTURE",
+      "operator_ids": [
+        "A4-OP-MOR-01",
+        "A4-OP-MOR-02"
+      ],
+      "morph": {
+        "parameters": {
+          "momento": [
+            "antes",
+            "durante",
+            "despues"
+          ],
+          "revisor": [
+            "generador",
+            "independiente"
+          ],
+          "registro": [
+            "ninguno",
+            "por_etapa"
+          ]
+        },
+        "incompatible_pairs": [
+          [
+            [
+              "revisor",
+              "generador"
+            ],
+            [
+              "momento",
+              "despues"
+            ]
+          ],
+          [
+            [
+              "registro",
+              "ninguno"
+            ],
+            [
+              "momento",
+              "despues"
+            ]
+          ]
+        ],
+        "note": "Exclusiones de ejemplo; criterio no validado."
+      },
+      "states": {
+        "execution": "NOT_EXECUTED",
+        "scientific_validation": "NOT_VALIDATED_FOR_CRIBA"
+      }
+    },
+    {
+      "example_id": "A4-EX-02",
+      "data_class": "SYNTHETIC_ORIGINAL_FIXTURE",
+      "operator_ids": [
+        "A4-OP-CK-01",
+        "A4-OP-CK-02",
+        "A4-OP-CK-03"
+      ],
+      "ck": {
+        "concept": {
+          "id": "C0",
+          "text": "Registro que permite reconstruir la decisión",
+          "status": "UNDECIDABLE"
+        },
+        "knowledge": [
+          {
+            "id": "K1",
+            "text": "El registro actual conserva marca temporal",
+            "source": "FIXTURE",
+            "truth": "TRUE"
+          }
+        ],
+        "partition": {
+          "type": "RESTRICTIVE",
+          "reason": "Propiedad ya presente en K1"
+        }
+      },
+      "states": {
+        "execution": "NOT_EXECUTED",
+        "scientific_validation": "NOT_VALIDATED_FOR_CRIBA"
+      }
+    },
+    {
+      "example_id": "A4-EX-03",
+      "data_class": "SYNTHETIC_ORIGINAL_FIXTURE",
+      "operator_ids": [
+        "A4-OP-FBS-01"
+      ],
+      "fbs": {
+        "function": "Rechazar acción sin permiso",
+        "structure": "Guardia previa al despacho",
+        "behaviour_expected": "Cero despachos sin permiso",
+        "behaviour_actual": "UNKNOWN"
+      },
+      "states": {
+        "execution": "NOT_EXECUTED",
+        "scientific_validation": "NOT_VALIDATED_FOR_CRIBA"
+      }
+    }
+  ],
+  "risk_profiles": {
+    "LAB": {
+      "RISK": "YELLOW",
+      "COMPATIBILITY": "Sidecar documental/laboratorio; compatibilidad productiva no verificada.",
+      "EXPECTED_IMPACT": "Reduce investigación y escritura; utilidad inventiva por medir.",
+      "REVERSIBILITY": "Retirar solo archivos propios del incremento.",
+      "BACKUP_REQUIRED": "Proteger baseline dirty y originales antes de modificar.",
+      "ROLLBACK": "Retirar subdirectorio propio tras comparar; sin reset/clean/stash.",
+      "AUTHORITATIVE_SOURCES": [
+        "A4-S05",
+        "A4-S06",
+        "A4-S07",
+        "Normas locales vigentes"
+      ],
+      "UNRESOLVED_QUESTIONS": [
+        "Permiso efectivo",
+        "Estado del validador padre",
+        "Autoría/año de fuentes secundarias",
+        "Beneficio real"
+      ]
+    }
+  },
+  "counts": {
+    "sources": 8,
+    "claims": 9,
+    "operators": 10,
+    "cards": 6,
+    "examples": 3
+  }
+}

@@ -42,10 +42,14 @@ a = Analysis(
         (str(ROOT / "schemas"), "schemas"),
     ] + copy_metadata("criba"),
     hiddenimports=[
+        "criba.dossier_workflow",
+        "criba.dossier_workflow_cli",
+        "criba.ui.dossier_workflow_view",
         # Shadow UI: modulos sueltos, no visibles para el analisis estatico
         "shadow_window",
         "shadow_context",
         "shadow_bundle_probe",  # opt-in isolated EXE end-to-end CI probe
+        "shadow_invention_probe",  # real provider, save and fresh-process recovery
         "SHADOW_BINDINGS",
         "SHADOW_BINDINGS.bindings",
         # SUPRA completo: el exe arranca el servidor real

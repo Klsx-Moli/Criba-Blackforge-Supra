@@ -76,6 +76,68 @@ Con autorización expresa del propietario:
 - Proveedores clouds configurados priorizados para el intérprete
   (proxy Nous:free, stepfun, poolside, upstage, meituan).
 
+## Dirección de producto prioritaria (incorporada 2026-10-26)
+
+CRIBA existe para INNOVAR: potenciar a un modelo para generar ideas, inventos y
+soluciones que no surgirían fácilmente de una consulta directa.
+
+La idea fundacional es cruzar los aproximadamente 1.700 puntos de vista o lentes
+con métodos, técnicas de generación, ruptura de marco, salto del espacio conocido,
+TRIZ, libros y demás material de invención aportado por el propietario. Los cruces
+deben admitir aleatoriedad y asociaciones inesperadas para explorar posibilidades
+que no se habrían elegido deliberadamente.
+
+Preserva esa base y hazla funcionar. No sustituyas el motor combinatorio por un
+chatbot genérico ni conviertas la aplicación en un gestor de auditorías,
+expedientes y validaciones.
+
+El modelo debe recibir el problema y el contenido operativo de los elementos
+cruzados y convertirlos en propuestas concretas, comprensibles e imaginativas.
+No basta concatenar nombres, producir frases raras o reformular la pregunta.
+
+El usuario debe poder elegir modelos cloud de distintos proveedores, sin quedar
+limitado a modelos de OpenAI ni a un backend local. La vía actual es utilizar los
+modelos gratuitos de Nous mediante Hermes. Mantén la integración existente que
+funcione y separa proveedor, modelo y protocolo de comunicación.
+
+La experiencia principal debe ser sencilla:
+plantear un problema o intención -> generar -> recibir propuestas claras ->
+conservar, comparar, desarrollar o volver a explorar.
+
+Los resultados deben presentar la idea o invento propuesto y lo necesario para
+comprender qué se propone y cómo funcionaría. No mostrar JSON, puntuaciones
+epistemológicas, informes técnicos o formularios como requisito para usarla.
+
+Los detalles de técnicas empleadas, procedencia, parámetros, interpretación,
+pruebas y diagnóstico pueden quedar en un MODO AVANZADO opcional. Mantén
+internamente los datos y contratos necesarios sin imponer su lectura al usuario.
+No se exige explicar por defecto el razonamiento ni la función de cada técnica;
+la configuración del modelo de Hermes no acredita la del intérprete de CRIBA.
+
+Alcance local de ACADEMICO-TRIZ-INVENTIVA (2026-10-28): preparación documental,
+incrementos A3/A4 y pruebas aisladas sin red; IMP-10 exige aprobación específica
+del diff exacto antes de aplicar runtime. Registro de autorización y exclusiones:
+`criba-blackforge/docs/research/triz-inventiva/AUTORIZACION_LOCAL_20261028.txt`.
+La prioridad funcional no amplía estos permisos ni autoriza ejecución sensible.
+
+CRIBA Shadow UI debe funcionar lo antes posible. BLACKFORGE también debe funcionar
+lo antes posible como interfaz alternativa o especializada, compartiendo las
+capacidades pertinentes sin duplicar motores. No interpretes Shadow principal como
+prohibición de que BLACKFORGE funcione. Tampoco permitas que una capacidad
+restringida de BLACKFORGE impida utilizar las demás funciones disponibles y
+autorizadas.
+
+No descartes una combinación solo porque sea extraña, poco convencional o todavía
+no se sepa valorar. El azar y la sorpresa forman parte del propósito. Distingue
+una propuesta creativa de una solución comprobada: no prometas novedad,
+viabilidad o eficacia demostradas cuando todavía no lo estén.
+
+La evidencia, la memoria, los dossiers, SUPRA y los controles están al servicio
+de generar, desarrollar y avanzar ideas; no deben desplazar ese objetivo.
+
+Conserva las reglas de seguridad, los permisos vigentes, el WIP y los materiales
+originales. No abras otro objetivo, otro backlog ni otra auditoría general.
+
 ## 4. Evidencia y vocabulario de estado (EEIMC-001 — Artículo 10)
 
 - **VERIFIED_BY_EXECUTION:** operación ejecutada con resultado observado.

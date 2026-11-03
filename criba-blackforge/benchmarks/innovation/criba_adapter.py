@@ -13,7 +13,7 @@ determinista y su diversidad de mecanismos, no su redacción.
 from __future__ import annotations
 
 import copy
-from typing import Any
+from typing import Any, cast
 
 
 class CribaResult:
@@ -64,12 +64,16 @@ def _coerce_result(result: Any) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     - lista (contrato heredado) -> ``REPORT_UNAVAILABLE`` explícito; **nunca**
       hereda el informe de otra invocación.
     """
+    candidates: list[dict[str, Any]]
+    report: dict[str, Any] | None
     if isinstance(result, CribaResult):
         candidates, report = result.candidates, result.selection_report
     elif isinstance(result, tuple) and len(result) == 2:
-        candidates, report = result[0], result[1]
+        candidates = cast(list[dict[str, Any]], result[0])
+        report = cast(dict[str, Any] | None, result[1])
     else:
-        candidates, report = result, None
+        candidates = cast(list[dict[str, Any]], result)
+        report = None
     if report is None:
         return candidates, {
             "instrumented": False,
@@ -77,6 +81,86 @@ def _coerce_result(result: Any) -> tuple[list[dict[str, Any]], dict[str, Any]]:
             "reason": "criba_fn_callback_did_not_supply_selection_report",
         }
     return candidates, report
+
+
+def _entry_to_candidate(entry: dict[str, Any], index: int, seed: int) -> dict[str, Any]:
+    """Map an interpreted invention entry to the harness candidate contract."""
+    classes = [str(value) for value in (entry.get("classes") or []) if value]
+    methods = [str(value) for value in (entry.get("methods") or []) if value]
+    mechanism = str(entry.get("mecanismo") or entry.get("hipotesis") or "")
+    genome = entry.get("genome")
+    if not isinstance(genome, dict) or not genome:
+        genome = {
+            "mechanism": [mechanism] if mechanism else [],
+            "classes": classes,
+        }
+    return {
+        "idea_id": str(entry.get("candidate_id") or f"criba-{seed}-{index:02d}"),
+        "title": str(entry.get("title") or ""),
+        "description": mechanism,
+        "score": float(entry.get("score", 0.0) or 0.0),
+        "genome": genome,
+        "family": classes[0] if classes else "unknown",
+        "methods": methods,
+        "classes": classes,
+        "estado_interpretacion": entry.get("estado_interpretacion"),
+        "prueba_concreta": entry.get("prueba_concreta"),
+    }
+
+
+def run_criba_invention(
+    problema_texto: str,
+    seed: int,
+    n_candidatos: int,
+    *,
+    mode: str = "stratified",
+    backend: str | None = None,
+    model: str | None = None,
+    methods: list[dict[str, Any]] | None = None,
+    invent_callable: Any = None,
+) -> CribaResult:
+    """Ejecuta el pipeline interpretado de CRIBA y devuelve candidatos + informe.
+
+    ``invent_callable`` permite inyectar el servicio compartido sin red en
+    pruebas. Por defecto usa ``criba.invention_service.run_invention``, de modo
+    que la condición C_CRIBA mida el mismo pipeline que Shadow/BLACKFORGE.
+    """
+    if invent_callable is None:
+        from criba.invention_service import run_invention
+
+        invent_callable = run_invention
+    sheet = invent_callable(
+        problema_texto,
+        seed=seed,
+        mode=mode,
+        backend=backend,
+        model=model,
+        methods=methods,
+        history_storage=False,
+        write_ledger=False,
+    )
+    entries = list(sheet.get("entries") or [])[: max(0, int(n_candidatos))]
+    candidates = [_entry_to_candidate(entry, index, seed)
+                  for index, entry in enumerate(entries)]
+    selection_audit = sheet.get("selection_audit") or {}
+    report = selection_audit.get("selection_report")
+    if not isinstance(report, dict):
+        report = {
+            "instrumented": False,
+            "status": "REPORT_UNAVAILABLE",
+            "reason": "invention_sheet_did_not_supply_selection_report",
+        }
+    selection_report = copy.deepcopy(report)
+    accounting = (
+        selection_audit.get("opportunity_accounting")
+        or sheet.get("opportunity_accounting")
+        or sheet.get("call_accounting")
+        or {}
+    )
+    if accounting:
+        selection_report["opportunity_accounting"] = copy.deepcopy(accounting)
+    selection_report["pipeline"] = "invent_fn"
+    return CribaResult(candidates, selection_report)
 
 
 def run_criba_selection(problema_texto: str, seed: int,

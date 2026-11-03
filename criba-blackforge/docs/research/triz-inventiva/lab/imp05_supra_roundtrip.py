@@ -97,12 +97,16 @@ def _mock_transport(expected_fingerprint: str) -> httpx.MockTransport:
             "payload_fingerprint": expected_fingerprint,
         }
         payload = {
-            "status": "success",
-            "completion_status": "COMPLETED",
-            "workflow_status": "COMPLETED",
-            "verification_status": "COMPLETED",
-            "stage": "COMPLETED",
+            # Este doble conserva el receipt sin fingir ejecución de sandbox.
+            # BLOCKED pertenece al workflow; el candidato sigue NOT_EXECUTED.
+            "status": "blocked",
+            "completion_status": "BLOCKED",
+            "workflow_status": "BLOCKED",
+            "verification_status": "NOT_EVALUATED",
+            "stage": "BLOCKED",
             "secure_sandbox_status": "NOT_REPORTED",
+            "criba_planning_receipt_status": "PRESERVED_NOT_EXECUTED",
+            "criba_mechanism_execution_status": "NOT_EXECUTED",
             "project_id": "proj-triz-lab",
             "posture": {"criba_dossier_receipt": receipt},
         }

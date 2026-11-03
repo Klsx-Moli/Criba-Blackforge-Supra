@@ -140,7 +140,9 @@ def _externa_configurada() -> tuple[bool, str]:
 
 
 @pytest.fixture(scope="module")
-def interprete_externo():
+def interprete_externo(request):
+    if not request.config.getoption("--live-inference-ledger"):
+        pytest.skip("Real inference requires explicit --live-inference-ledger and native guard")
     listo, motivo = _externa_configurada()
     if not listo:
         pytest.skip(f"interprete externo no disponible: {motivo}")
