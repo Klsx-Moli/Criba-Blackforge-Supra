@@ -20,6 +20,8 @@ def run_invention(
     methods: list[dict[str, Any]] | None = None,
     mode: str = "stratified",
     seed: int | None = None,
+    batch_size: int | None = None,
+    top: int | None = None,
     history_storage: Any = True,
     write_ledger: bool = True,
 ) -> dict[str, Any]:
@@ -69,6 +71,10 @@ def run_invention(
         options["mode"] = mode
     if seed is not None:
         options["seed"] = seed
+    if batch_size is not None:
+        options["batch_size"] = batch_size
+    if top is not None:
+        options["top"] = top
     if history_storage is not True:
         options["history_storage"] = history_storage
     sheet = invent(problem, store=default_store(), proponer=propose, **options)

@@ -889,8 +889,15 @@ class OpenAICompatibleInterpreter:
         No interpreta ni valida el contenido: devuelve el sobre con
         ``raw_output`` para que el llamador aplique su propio contrato. Un
         fallo de red o de formato queda como PENDIENTE con su causa real.
+
+        Si el modelo agota ``max_tokens`` (``finish_reason='length'``), se
+        reintenta una vez con el doble de presupuesto, igual que en ``propor``
+        y ``critica``. El refinamiento operativo pide un JSON mucho mayor que
+        una propuesta, asi que sin este reintento el contrato mas estricto
+        acaba siempre truncado. No se relaja el contrato ni se rellena nada.
         """
-        return self._pedir(
+        presupuesto = max_tokens if max_tokens is not None else self.max_tokens
+        transporte = self._pedir(
             prompt,
             self.model,
             schema=schema,
@@ -899,6 +906,25 @@ class OpenAICompatibleInterpreter:
             timeout_s=timeout_s,
             schema_name=schema_name,
         )
+        if _respuesta_truncada(transporte):
+            base = max(presupuesto, 1)
+            ampliado = min(base * 2, 32768)
+            if ampliado > base:
+                reintento = self._pedir(
+                    prompt,
+                    self.model,
+                    schema=schema,
+                    max_tokens=ampliado,
+                    temperature=temperature,
+                    timeout_s=timeout_s,
+                    schema_name=schema_name,
+                )
+                reintento = replace(
+                    reintento,
+                    model_requests=transporte.model_requests + reintento.model_requests,
+                )
+                transporte = reintento
+        return transporte
 
     def proponer(
         self,

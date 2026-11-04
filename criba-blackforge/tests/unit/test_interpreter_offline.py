@@ -756,3 +756,59 @@ def test_critica_truncada_se_reintenta_con_mas_presupuesto(monkeypatch) -> None:
     presupuesto = min((interprete.critique_max_tokens or interprete.max_tokens) * 2, 32768)
     assert llamadas[2] == presupuesto
     assert resultado.estado == ESTADO_PROPUESTA
+
+
+def test_completar_json_truncado_se_reintenta_con_doble_presupuesto(monkeypatch) -> None:
+    """El refinamiento operativo pide un JSON grande: si se trunca, se reintenta.
+
+    Sin este reintento el contrato mas estricto (mecanismo concreto) acaba
+    siempre en ``sin_contenido:finish_reason=length`` con el modelo free.
+    """
+    interprete, _ = _make_interpreter(monkeypatch, [FakeHTTPResponse(payload={})])
+    llamadas: list[int | None] = []
+
+    def mock_pedir(prompt: str, model: str, schema=None, **kwargs):
+        llamadas.append(kwargs.get("max_tokens"))
+        if len(llamadas) == 1:
+            return InterpretationResult(
+                estado=ESTADO_PENDIENTE,
+                error="sin_contenido:finish_reason=length tokens=8192 razonamiento=0",
+                finish_reason="length",
+                model_requests=1,
+            )
+        return InterpretationResult(
+            estado=ESTADO_PROPUESTA,
+            raw_output='{"resumen":"ok"}',
+            finish_reason="stop",
+            model_requests=1,
+        )
+
+    with patch.object(interprete, "_pedir", side_effect=mock_pedir):
+        resultado = interprete.completar_json("p", schema_name="protocolo_operativo", max_tokens=8192)
+
+    assert len(llamadas) == 2
+    assert llamadas[0] == 8192
+    assert llamadas[1] == 16384
+    assert resultado.estado == ESTADO_PROPUESTA
+    assert resultado.model_requests == 2
+
+
+def test_completar_json_no_truncado_hace_una_sola_llamada(monkeypatch) -> None:
+    """Sin truncamiento no hay reintento: no se gastan llamadas de mas."""
+    interprete, _ = _make_interpreter(monkeypatch, [FakeHTTPResponse(payload={})])
+    llamadas: list[int | None] = []
+
+    def mock_pedir(prompt: str, model: str, schema=None, **kwargs):
+        llamadas.append(kwargs.get("max_tokens"))
+        return InterpretationResult(
+            estado=ESTADO_PROPUESTA,
+            raw_output='{"resumen":"ok"}',
+            finish_reason="stop",
+            model_requests=1,
+        )
+
+    with patch.object(interprete, "_pedir", side_effect=mock_pedir):
+        resultado = interprete.completar_json("p", max_tokens=8192)
+
+    assert len(llamadas) == 1
+    assert resultado.model_requests == 1
