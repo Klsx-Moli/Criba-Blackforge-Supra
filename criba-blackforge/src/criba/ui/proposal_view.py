@@ -129,6 +129,44 @@ def format_proposal(entry: dict[str, Any], position: int = 1, total: int = 1) ->
     return "\n\n".join(sections)
 
 
+def _lineas_mecanismo(protocolo: dict[str, Any]) -> list[str]:
+    """Formatea el bloque de mecanismo concreto si el protocolo lo trae.
+
+    Es una declaración propuesta por el intérprete, no un resultado medido.
+    Un protocolo anterior al cambio de contrato no tiene estos campos y no
+    debe renderizar una cabecera vacía.
+    """
+    lineas: list[str] = []
+
+    mecanismo = str(protocolo.get("mecanismo_concreto") or "").strip()
+    if mecanismo:
+        lineas.append(f"Mecanismo: {mecanismo}")
+
+    componentes = protocolo.get("componentes")
+    if isinstance(componentes, list) and componentes:
+        lineas.append("Componentes:")
+        lineas.extend(f"- {item}" for item in componentes if str(item).strip())
+
+    secuencia = protocolo.get("secuencia_operativa")
+    if isinstance(secuencia, list) and secuencia:
+        lineas.append("Secuencia operativa:")
+        lineas.extend(f"- {item}" for item in secuencia if str(item).strip())
+
+    punto_fisico = str(protocolo.get("punto_fisico") or "").strip()
+    if punto_fisico:
+        lineas.append(f"Punto físico: {punto_fisico}")
+
+    modo = str(protocolo.get("modo_efecto") or "").strip().upper()
+    if modo:
+        lineas.append(f"Modo de efecto declarado: {modo}")
+
+    prueba = str(protocolo.get("prueba_mecanismo") or "").strip()
+    if prueba:
+        lineas.append(f"Prueba del mecanismo: {prueba}")
+
+    return lineas
+
+
 def _format_protocolo(protocolo: dict[str, Any], entry: dict[str, Any]) -> str:
     """Render del protocolo operativo. Es una propuesta, no un resultado."""
     lineas: list[str] = []
@@ -136,15 +174,27 @@ def _format_protocolo(protocolo: dict[str, Any], entry: dict[str, Any]) -> str:
     if resumen:
         lineas.append(f"Resumen: {resumen}")
 
+    for clave, etiqueta in (
+        ("fuente_error", "Fuente del error"),
+        ("punto_intervencion", "Punto de intervención"),
+        ("por_que_reduce", "Por qué reduce"),
+    ):
+        valor = str(protocolo.get(clave) or "").strip()
+        if valor:
+            lineas.append(f"{etiqueta}: {valor}")
+
+    mecanismo = _lineas_mecanismo(protocolo)
+    if mecanismo:
+        lineas.append("")
+        lineas.append("MECANISMO CONCRETO")
+        lineas.extend(mecanismo)
+
     definiciones = protocolo.get("definiciones_operativas")
     if isinstance(definiciones, list) and definiciones:
         lineas.append("Definiciones operativas:")
         lineas.extend(f"- {item}" for item in definiciones if str(item).strip())
 
     campos = (
-        ("fuente_error", "Fuente del error"),
-        ("punto_intervencion", "Punto de intervención"),
-        ("por_que_reduce", "Por qué reduce"),
         ("criterio_dominancia", "Criterio de dominancia"),
         ("asignacion_presupuesto", "Asignación de presupuesto"),
         ("metrica_principal", "Métrica principal"),
