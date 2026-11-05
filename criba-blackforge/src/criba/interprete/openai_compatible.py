@@ -193,8 +193,10 @@ def _should_retry_http_error(exc: BaseException) -> bool:
 def _extract_content(response_json: dict[str, Any]) -> str:
     """Extrae y valida el contenido del mensaje de la respuesta del modelo.
 
-    content puede ser string o null (protocolo Chat Completions).
-    Valida antes de json.loads para evitar TypeError por content=None.
+    content puede ser string o null (protocolo Chat Completions). Si content
+    es None o vacio y el mensaje trae reasoning_content (modelos con
+    razonamiento interleaved, p. ej. GOAT), usa el razonamiento como fuente y
+    lo declara en el error solo si tampoco hay razonamiento.
     """
     choices = response_json.get("choices") or []
 
@@ -205,6 +207,11 @@ def _extract_content(response_json: dict[str, Any]) -> str:
     message = choice.get("message") or {}
     content = message.get("content")
     finish_reason = choice.get("finish_reason")
+
+    if content is None or (isinstance(content, str) and not content.strip()):
+        reasoning = message.get("reasoning_content")
+        if isinstance(reasoning, str) and reasoning.strip():
+            return reasoning.strip()
 
     if content is None:
         raise ExternalModelEmptyResponse(

@@ -28,7 +28,8 @@ class BudgetLedger:
         self.path = Path(path)
         self.model, self.upstream = model, upstream.rstrip("/")
         parsed = urlsplit(self.upstream)
-        if (
+        direct = os.getenv("CRIBA_ACCEPTANCE_DIRECT") == "1"
+        if not direct and (
             parsed.scheme != "http"
             or parsed.hostname not in {"127.0.0.1", "localhost"}
             or parsed.username
@@ -39,6 +40,11 @@ class BudgetLedger:
             or not model.endswith(":free")
         ):
             raise ValueError("Acceptance permits one loopback /v1 upstream and a free model only")
+        if direct and parsed.scheme not in {"http", "https"}:
+            raise ValueError("Direct acceptance requires an http(s) upstream")
+        # Con CRIBA_ACCEPTANCE_DIRECT=1 (transporte directo autorizado por el
+        # operador, preregistro A9C) se mantienen: tope de 12 intentos fisicos,
+        # fijacion modelo/upstream por ledger y el conteo fisico antes del reenvio.
         if initialize:
             self.path.parent.mkdir(parents=True, exist_ok=True)
             with self.path.open("xb"):
