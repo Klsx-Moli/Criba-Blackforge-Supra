@@ -166,7 +166,10 @@ def test_prompt_exige_mecanismo_concreto_y_no_acepta_verbos_de_gestion() -> None
     assert "mecanismo_concreto" in prompt
     assert "modo_efecto" in prompt
     assert "ELIMINA|MITIGA|DETECTA" in prompt
-    assert "No uses como mecanismo" in prompt
+    assert "bucle causal" in prompt
+    assert "punto donde ocurre la operacion" in prompt
+    assert "procedimiento de gestion" in prompt
+    assert "No describas como mecanismo" in prompt
 
 
 def test_prompt_rechaza_entry_sin_mecanismo() -> None:
@@ -293,7 +296,9 @@ def test_entry_para_desarrollo_prefiere_la_visible_y_salta_pendientes() -> None:
         candidates=SimpleNamespace(interpretation_index=0),
     )
     sheet = {"entries": [pendiente, valida]}
-    index, entry = _entry_para_desarrollo(win, sheet)
+    resultado = _entry_para_desarrollo(win, sheet)
+    assert resultado is not None
+    index, entry = resultado
     assert index == 1 and entry is valida
 
     win.candidates.interpretation_index = 0
