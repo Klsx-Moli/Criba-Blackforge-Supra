@@ -170,16 +170,26 @@ def budget_proxy(ledger: BudgetLedger):
 
         def forward(self, body):
             timeout_up = float(os.getenv("CRIBA_ACCEPTANCE_FORWARD_TIMEOUT_S", "240"))
-            connection = http.client.HTTPConnection(
-                target.hostname, target.port, timeout=timeout_up
-            )
+            if target.scheme == "https":
+                connection = http.client.HTTPSConnection(
+                    target.hostname, target.port or 443, timeout=timeout_up
+                )
+            else:
+                connection = http.client.HTTPConnection(
+                    target.hostname, target.port, timeout=timeout_up
+                )
             try:
                 headers = {
                     name: self.headers[name]
                     for name in ("Authorization", "Content-Type")
                     if name in self.headers
                 }
-                connection.request(self.command, self.path, body=body, headers=headers)
+                rel = self.path
+                if rel.startswith("/v1"):
+                    rel = rel[3:]
+                base_path = (target.path or "").rstrip("/")
+                upstream_path = base_path + rel
+                connection.request(self.command, upstream_path, body=body, headers=headers)
                 response = connection.getresponse()
                 content = response.read()
                 self.reply(
