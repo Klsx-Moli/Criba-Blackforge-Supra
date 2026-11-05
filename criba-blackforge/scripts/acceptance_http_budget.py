@@ -9,6 +9,7 @@ from __future__ import annotations
 import hashlib
 import http.client
 import json
+import os
 import sqlite3
 from contextlib import closing, contextmanager
 from datetime import UTC, datetime
@@ -162,7 +163,10 @@ def budget_proxy(ledger: BudgetLedger):
             self.forward(body)
 
         def forward(self, body):
-            connection = http.client.HTTPConnection(target.hostname, target.port, timeout=240)
+            timeout_up = float(os.getenv("CRIBA_ACCEPTANCE_FORWARD_TIMEOUT_S", "240"))
+            connection = http.client.HTTPConnection(
+                target.hostname, target.port, timeout=timeout_up
+            )
             try:
                 headers = {
                     name: self.headers[name]
