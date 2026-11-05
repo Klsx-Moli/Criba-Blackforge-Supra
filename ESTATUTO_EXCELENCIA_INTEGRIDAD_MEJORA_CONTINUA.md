@@ -491,3 +491,42 @@ Registro de alcance y exclusiones:
 `criba-blackforge/docs/research/triz-inventiva/AUTORIZACION_LOCAL_20261028.txt`.
 Conservar originales, WIP y seguridad; esta adenda no autoriza runtime, llamadas
 externas, instalaciones, gasto, commit, push, merge ni ejecución BLACKFORGE.
+
+## ANEXO LOCAL D · Adopción local versión 2 (2026-11-05)
+
+Por orden del propietario. Motivo: dejar implícita en este Estatuto la función
+objetivo del candidato CRIBA × BLACKFORGE × SUPRA, sin añadir puertas nuevas
+ni rebajar las del cuerpo EEIMC-001 o de la versión 1 de este anexo.
+
+El conjunto existe para que la app dé mejores respuestas e invenciones que el
+mismo modelo interpretador consultado sin ella: el cruce de lentes, métodos,
+TRIZ, marcos y saltos del espacio conocido, más la evidencia, la memoria, los
+dossiers y SUPRA, deben aportar lo que el modelo desnudo no produce. Esa
+ventaja no se presume: solo se da por establecida con una medición
+preregistrada y honesta, y un resultado BASELINE_SUPERIOR o NOT_ESTABLISHED es
+un resultado válido, no un defecto que maquillar. Mientras no esté demostrada,
+la diferencia es una hipótesis de producto.
+
+La aplicación tiene varios modos que comparten motores sin duplicarlos: motor
+determinista (activate/run), doble lotería, pipeline BLACKFORGE, híbrido,
+inventar (lotería, juez, prior-art y ficha), CLI, API, MCP, UI clásica, Shadow
+UI (interfaz principal) y SUPRA (desarrollo y verificación de dossiers).
+Shadow conecta con SUPRA mediante el cliente canónico; BLACKFORGE, accesible
+desde Shadow, persigue lo mismo orientado a ciberseguridad y hacking, con sus
+garantías de seguridad, autorización y alcance por delante de la funcionalidad.
+Una capacidad restringida no bloquea las demás disponibles y autorizadas.
+
+Las propuestas se generan por varias vías: modelo cloud gratuito a través del
+proxy local de credenciales (proveedor, modelo y protocolo separados), runtime
+local (llama.cpp u Ollama) y motor determinista sin modelo. La evaluación la
+hacen jueces que solo califican lo que evaluaron de verdad; un fallo de
+proveedor queda pendiente y declarado, nunca convertido en juicio ni en
+puntuación.
+
+La función objetivo es la referencia implícita para decidir qué cambio vale
+la pena: lo que no acerque la app a dar mejores respuestas que el modelo sin
+ella es secundario.
+
+Conservar originales, WIP y seguridad; esta versión tampoco autoriza runtime,
+llamadas externas, instalaciones, gasto, commit, push, merge ni ejecución
+BLACKFORGE.
