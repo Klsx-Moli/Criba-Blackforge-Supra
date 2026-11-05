@@ -7,13 +7,14 @@ la GUI nunca se congela (WIDGET_TREE §3).
 from __future__ import annotations
 
 import json
+import time
 import traceback
 from collections.abc import Callable
 from datetime import datetime
 from threading import Event
 from typing import Any
 
-from PySide6.QtCore import QObject, QRunnable, Qt, Signal, Slot
+from PySide6.QtCore import QObject, QRunnable, Qt, QTimer, Signal, Slot
 from PySide6.QtGui import QColor
 
 from .. import __version__ as ENGINE_VERSION
@@ -407,6 +408,59 @@ def _invention_controls(win: Any) -> tuple[str, int | None]:
     return mode, seed
 
 
+def _format_elapsed(seconds: float) -> str:
+    total = max(0, int(seconds))
+    return f"{total // 60:02d}:{total % 60:02d}"
+
+
+def _invent_tick(win: Any) -> None:
+    topcards = getattr(win, "topcards", None)
+    if topcards is None:
+        return
+    started = getattr(win, "_invent_started_at", None)
+    if started is None:
+        return
+    elapsed = _format_elapsed(time.monotonic() - started)
+    if getattr(win, "interpreter_cancel_requested", False):
+        text = (
+            "Cancelación solicitada; se aplicará al terminar la petición en curso."
+            f" Tiempo: {elapsed}"
+        )
+    else:
+        payload = getattr(win, "_invent_last_progress", None)
+        if isinstance(payload, dict):
+            text = (
+                f"Interpretación {payload.get('completed', 0)} · "
+                f"{payload.get('status', 'PENDIENTE')} · "
+                f"{payload.get('candidate', '')} · Tiempo: {elapsed}"
+            )
+        else:
+            label = getattr(win, "_invent_status_label", "Intérprete")
+            text = f"{label} · esperando la primera propuesta · Tiempo: {elapsed}"
+    topcards.interpreter_status.setText(text)
+
+
+def _stop_invent_clock(win: Any) -> None:
+    timer = getattr(win, "_invent_timer", None)
+    if timer is not None:
+        timer.stop()
+    win._invent_started_at = None
+    win._invent_last_progress = None
+
+
+def _start_invent_clock(win: Any) -> None:
+    timer = getattr(win, "_invent_timer", None)
+    if timer is None:
+        timer = QTimer(win)
+        timer.setInterval(1000)
+        timer.timeout.connect(lambda: _invent_tick(win))
+        win._invent_timer = timer
+    win._invent_started_at = time.monotonic()
+    win._invent_last_progress = None
+    timer.start()
+    _invent_tick(win)
+
+
 def on_inventar(win: Any) -> None:
     win.nav["navInventar"].setChecked(False)
     if not win.problem:
@@ -454,9 +508,11 @@ def on_inventar(win: Any) -> None:
         topcards.cancel_interpretation.setEnabled(True)
         topcards.cancel_interpretation.setText("Cancelar interpretación")
         topcards.cancel_interpretation.show()
+        win._invent_status_label = topcards.interpreter_selector.currentText()
         topcards.interpreter_status.setText(
-            f"{topcards.interpreter_selector.currentText()} · comprobando disponibilidad…"
+            f"{win._invent_status_label} · comprobando disponibilidad…"
         )
+        _start_invent_clock(win)
 
     holder: dict[str, Worker] = {}
 
@@ -484,6 +540,7 @@ def on_inventar(win: Any) -> None:
 
 
 def _finish_invent_controls(win: Any) -> None:
+    _stop_invent_clock(win)
     topcards = getattr(win, "topcards", None)
     if topcards is None:
         return
@@ -492,14 +549,8 @@ def _finish_invent_controls(win: Any) -> None:
 
 
 def _on_invent_progress(win: Any, payload: dict[str, Any]) -> None:
-    topcards = getattr(win, "topcards", None)
-    if topcards is None:
-        return
-    topcards.interpreter_status.setText(
-        f"Interpretación {payload.get('completed', 0)} · "
-        f"{payload.get('status', 'PENDIENTE')} · "
-        f"{payload.get('candidate', '')}"
-    )
+    win._invent_last_progress = dict(payload)
+    _invent_tick(win)
 
 
 def on_cancel_inventar(win: Any) -> None:
@@ -509,9 +560,7 @@ def on_cancel_inventar(win: Any) -> None:
     if topcards is not None:
         topcards.cancel_interpretation.setEnabled(False)
         topcards.cancel_interpretation.setText("Cancelación solicitada…")
-        topcards.interpreter_status.setText(
-            "Cancelación solicitada; se aplicará al terminar la petición en curso."
-        )
+        _invent_tick(win)
     _activity(win, "amber", "Cancelación de interpretación solicitada")
 
 
