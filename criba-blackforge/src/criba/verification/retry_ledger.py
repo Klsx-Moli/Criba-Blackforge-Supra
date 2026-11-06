@@ -41,7 +41,7 @@ def _process_lock(lock_path: Path) -> Iterator[None]:
         else:
             import fcntl
 
-            fcntl.flock(fd, fcntl.LOCK_EX)
+            getattr(fcntl, "flock")(fd, getattr(fcntl, "LOCK_EX"))
         yield
     finally:
         try:
@@ -53,7 +53,7 @@ def _process_lock(lock_path: Path) -> Iterator[None]:
             else:
                 import fcntl
 
-                fcntl.flock(fd, fcntl.LOCK_UN)
+                getattr(fcntl, "flock")(fd, getattr(fcntl, "LOCK_UN"))
         finally:
             os.close(fd)
 

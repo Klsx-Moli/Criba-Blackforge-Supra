@@ -11,6 +11,15 @@ import pytest
 
 BUNDLE = Path(__file__).resolve().parents[1]
 REPO = BUNDLE.parents[3]
+EVIDENCE_BUNDLE = BUNDLE / "evidence" / "resume_20261028" / "before"
+
+pytestmark = pytest.mark.skipif(
+    not EVIDENCE_BUNDLE.is_dir(),
+    reason=(
+        "Historical IMP-10 evidence bundle is not versioned; current contract is "
+        "covered by tests/unit/test_lossless_operations_contract.py"
+    ),
+)
 
 
 def _projected():

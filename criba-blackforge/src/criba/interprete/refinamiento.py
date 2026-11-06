@@ -167,8 +167,10 @@ def build_refinement_prompt(query: str, entry: dict[str, Any]) -> str:
     else:
         prueba_txt = _texto(prueba)
 
-    critica = entry.get("critica") if isinstance(entry.get("critica"), dict) else {}
-    respuesta = critica.get("respuesta") if isinstance(critica.get("respuesta"), dict) else {}
+    critica_raw = entry.get("critica")
+    critica = critica_raw if isinstance(critica_raw, dict) else {}
+    respuesta_raw = critica.get("respuesta")
+    respuesta = respuesta_raw if isinstance(respuesta_raw, dict) else {}
     objeciones = _lineas(respuesta.get("objeciones"))
     criterios = respuesta.get("respuestas_epistemologicas")
     criterios_txt = (
@@ -281,13 +283,13 @@ def validar_protocolo(data: Any) -> tuple[dict[str, Any] | None, list[str]]:
         protocolo[campo] = valor
 
     for campo, minimo in _LISTAS_MINIMAS.items():
-        valor = data.get(campo)
+        valor_lista = data.get(campo)
         if campo == "prueba_brazos":
             brazos: list[dict[str, str]] = []
-            if not isinstance(valor, list):
+            if not isinstance(valor_lista, list):
                 errores.append(f"falta:{campo}")
             else:
-                for indice, brazo in enumerate(valor):
+                for indice, brazo in enumerate(valor_lista):
                     if not isinstance(brazo, dict):
                         errores.append(f"{campo}[{indice}]:no_es_objeto")
                         continue
@@ -308,8 +310,8 @@ def validar_protocolo(data: Any) -> tuple[dict[str, Any] | None, list[str]]:
             protocolo[campo] = brazos
             continue
 
-        lista = _lineas(valor)
-        if not isinstance(valor, list):
+        lista = _lineas(valor_lista)
+        if not isinstance(valor_lista, list):
             errores.append(f"falta:{campo}")
         elif len(lista) < minimo:
             errores.append(f"{campo}:minimo:{minimo}")
