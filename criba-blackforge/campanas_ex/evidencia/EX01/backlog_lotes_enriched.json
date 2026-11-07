@@ -1,0 +1,966 @@
+{
+  "format": "CBS_EX01_BACKLOG_V1",
+  "base": "EX00",
+  "total_planned": 101,
+  "lots": [
+    {
+      "lot_id": "L0_SPECIAL_PROMOTION",
+      "family": "INVENTION",
+      "owner": "CRIBA",
+      "count": 2,
+      "ids": [
+        "T054",
+        "T061"
+      ],
+      "risk": "HIGH (gate owner/attestation)",
+      "est_hours": 3.0,
+      "has_module": true,
+      "needs_owner_gate": true,
+      "ids_detail": [
+        {
+          "id": "T054",
+          "import_ok": true,
+          "tests_exist": [],
+          "src_mentions": 5
+        },
+        {
+          "id": "T061",
+          "import_ok": true,
+          "tests_exist": [],
+          "src_mentions": 7
+        }
+      ]
+    },
+    {
+      "lot_id": "L0_SPECIAL_SHADOW_BYPASS",
+      "family": "SIGNALS_EVIDENCE_OPPORTUNITY",
+      "owner": "CRIBA",
+      "count": 2,
+      "ids": [
+        "T104",
+        "T111"
+      ],
+      "risk": "HIGH (gate owner/attestation)",
+      "est_hours": 3.0,
+      "has_module": true,
+      "needs_owner_gate": true,
+      "ids_detail": [
+        {
+          "id": "T104",
+          "import_ok": true,
+          "tests_exist": [],
+          "src_mentions": 13
+        },
+        {
+          "id": "T111",
+          "import_ok": true,
+          "tests_exist": [],
+          "src_mentions": 11
+        }
+      ]
+    },
+    {
+      "lot_id": "L_MOD_ADVERSARIAL_FUTURES",
+      "family": "ADVERSARIAL_FUTURES",
+      "owner": "CRIBA",
+      "count": 6,
+      "ids": [
+        "T117",
+        "T119",
+        "T123",
+        "T124",
+        "T125",
+        "T130"
+      ],
+      "risk": "MEDIUM (test+consumer missing)",
+      "est_hours": 3.0,
+      "has_module": true,
+      "needs_owner_gate": false,
+      "ids_detail": [
+        {
+          "id": "T117",
+          "import_ok": true,
+          "tests_exist": [],
+          "src_mentions": 0
+        },
+        {
+          "id": "T119",
+          "import_ok": true,
+          "tests_exist": [],
+          "src_mentions": 0
+        },
+        {
+          "id": "T123",
+          "import_ok": true,
+          "tests_exist": [],
+          "src_mentions": 0
+        },
+        {
+          "id": "T124",
+          "import_ok": true,
+          "tests_exist": [],
+          "src_mentions": 0
+        },
+        {
+          "id": "T125",
+          "import_ok": true,
+          "tests_exist": [],
+          "src_mentions": 0
+        },
+        {
+          "id": "T130",
+          "import_ok": true,
+          "tests_exist": [],
+          "src_mentions": 9
+        }
+      ]
+    },
+    {
+      "lot_id": "L_MOD_EXTERNAL_SOURCES",
+      "family": "EXTERNAL_SOURCES",
+      "owner": "CRIBA_IIE",
+      "count": 4,
+      "ids": [
+        "T011",
+        "T015",
+        "T018",
+        "T020"
+      ],
+      "risk": "MEDIUM (test+consumer missing)",
+      "est_hours": 2.0,
+      "has_module": true,
+      "needs_owner_gate": false,
+      "ids_detail": [
+        {
+          "id": "T011",
+          "import_ok": true,
+          "tests_exist": [],
+          "src_mentions": 0
+        },
+        {
+          "id": "T015",
+          "import_ok": true,
+          "tests_exist": [],
+          "src_mentions": 0
+        },
+        {
+          "id": "T018",
+          "import_ok": true,
+          "tests_exist": [],
+          "src_mentions": 0
+        },
+        {
+          "id": "T020",
+          "import_ok": true,
+          "tests_exist": [],
+          "src_mentions": 0
+        }
+      ]
+    },
+    {
+      "lot_id": "L_MOD_INVENTION",
+      "family": "INVENTION",
+      "owner": "CRIBA",
+      "count": 7,
+      "ids": [
+        "T058",
+        "T066",
+        "T072",
+        "T073",
+        "T074",
+        "T075",
+        "T078"
+      ],
+      "risk": "MEDIUM (test+consumer missing)",
+      "est_hours": 3.5,
+      "has_module": true,
+      "needs_owner_gate": false,
+      "ids_detail": [
+        {
+          "id": "T058",
+          "import_ok": true,
+          "tests_exist": [],
+          "src_mentions": 1
+        },
+        {
+          "id": "T066",
+          "import_ok": true,
+          "tests_exist": [],
+          "src_mentions": 1
+        },
+        {
+          "id": "T072",
+          "import_ok": true,
+          "tests_exist": [],
+          "src_mentions": 0
+        },
+        {
+          "id": "T073",
+          "import_ok": true,
+          "tests_exist": [],
+          "src_mentions": 0
+        },
+        {
+          "id": "T074",
+          "import_ok": true,
+          "tests_exist": [],
+          "src_mentions": 0
+        },
+        {
+          "id": "T075",
+          "import_ok": true,
+          "tests_exist": [],
+          "src_mentions": 0
+        },
+        {
+          "id": "T078",
+          "import_ok": true,
+          "tests_exist": [],
+          "src_mentions": 0
+        }
+      ]
+    },
+    {
+      "lot_id": "L_MOD_NOVELTY_KNOWLEDGE_GRAPH",
+      "family": "NOVELTY_KNOWLEDGE_GRAPH",
+      "owner": "CRIBA_IIE",
+      "count": 7,
+      "ids": [
+        "T080",
+        "T081",
+        "T087",
+        "T088",
+        "T089",
+        "T090",
+        "T092"
+      ],
+      "risk": "MEDIUM (test+consumer missing)",
+      "est_hours": 3.5,
+      "has_module": true,
+      "needs_owner_gate": false,
+      "ids_detail": [
+        {
+          "id": "T080",
+          "import_ok": true,
+          "tests_exist": [],
+          "src_mentions": 1
+        },
+        {
+          "id": "T081",
+          "import_ok": true,
+          "tests_exist": [],
+          "src_mentions": 1
+        },
+        {
+          "id": "T087",
+          "import_ok": true,
+          "tests_exist": [],
+          "src_mentions": 0
+        },
+        {
+          "id": "T088",
+          "import_ok": true,
+          "tests_exist": [],
+          "src_mentions": 0
+        },
+        {
+          "id": "T089",
+          "import_ok": true,
+          "tests_exist": [],
+          "src_mentions": 0
+        },
+        {
+          "id": "T090",
+          "import_ok": true,
+          "tests_exist": [],
+          "src_mentions": 0
+        },
+        {
+          "id": "T092",
+          "import_ok": true,
+          "tests_exist": [],
+          "src_mentions": 0
+        }
+      ]
+    },
+    {
+      "lot_id": "L_MOD_PATENT_INTELLIGENCE",
+      "family": "PATENT_INTELLIGENCE",
+      "owner": "CRIBA_IIE",
+      "count": 5,
+      "ids": [
+        "T001",
+        "T005",
+        "T006",
+        "T007",
+        "T008"
+      ],
+      "risk": "MEDIUM (test+consumer missing)",
+      "est_hours": 2.5,
+      "has_module": true,
+      "needs_owner_gate": false,
+      "ids_detail": [
+        {
+          "id": "T001",
+          "import_ok": true,
+          "tests_exist": [],
+          "src_mentions": 10
+        },
+        {
+          "id": "T005",
+          "import_ok": true,
+          "tests_exist": [],
+          "src_mentions": 0
+        },
+        {
+          "id": "T006",
+          "import_ok": true,
+          "tests_exist": [],
+          "src_mentions": 0
+        },
+        {
+          "id": "T007",
+          "import_ok": true,
+          "tests_exist": [],
+          "src_mentions": 0
+        },
+        {
+          "id": "T008",
+          "import_ok": true,
+          "tests_exist": [],
+          "src_mentions": 0
+        }
+      ]
+    },
+    {
+      "lot_id": "L_MOD_RETRIEVAL_GRAPH",
+      "family": "RETRIEVAL_GRAPH",
+      "owner": "CRIBA_IIE",
+      "count": 10,
+      "ids": [
+        "T032",
+        "T033",
+        "T034",
+        "T037",
+        "T040",
+        "T041",
+        "T042",
+        "T043",
+        "T044",
+        "T045"
+      ],
+      "risk": "MEDIUM (test+consumer missing)",
+      "est_hours": 5.0,
+      "has_module": true,
+      "needs_owner_gate": false,
+      "ids_detail": [
+        {
+          "id": "T032",
+          "import_ok": true,
+          "tests_exist": [],
+          "src_mentions": 2
+        },
+        {
+          "id": "T033",
+          "import_ok": true,
+          "tests_exist": [],
+          "src_mentions": 5
+        },
+        {
+          "id": "T034",
+          "import_ok": true,
+          "tests_exist": [],
+          "src_mentions": 4
+        },
+        {
+          "id": "T037",
+          "import_ok": true,
+          "tests_exist": [],
+          "src_mentions": 1
+        },
+        {
+          "id": "T040",
+          "import_ok": true,
+          "tests_exist": [],
+          "src_mentions": 0
+        },
+        {
+          "id": "T041",
+          "import_ok": true,
+          "tests_exist": [],
+          "src_mentions": 0
+        },
+        {
+          "id": "T042",
+          "import_ok": true,
+          "tests_exist": [],
+          "src_mentions": 0
+        },
+        {
+          "id": "T043",
+          "import_ok": true,
+          "tests_exist": [],
+          "src_mentions": 0
+        },
+        {
+          "id": "T044",
+          "import_ok": true,
+          "tests_exist": [],
+          "src_mentions": 0
+        },
+        {
+          "id": "T045",
+          "import_ok": true,
+          "tests_exist": [],
+          "src_mentions": 0
+        }
+      ]
+    },
+    {
+      "lot_id": "L_MOD_SIGNALS_EVIDENCE_OPPORTUNITY",
+      "family": "SIGNALS_EVIDENCE_OPPORTUNITY",
+      "owner": "CRIBA_IIE",
+      "count": 2,
+      "ids": [
+        "T100",
+        "T103"
+      ],
+      "risk": "MEDIUM (test+consumer missing)",
+      "est_hours": 1.0,
+      "has_module": true,
+      "needs_owner_gate": false,
+      "ids_detail": [
+        {
+          "id": "T100",
+          "import_ok": true,
+          "tests_exist": [],
+          "src_mentions": 0
+        },
+        {
+          "id": "T103",
+          "import_ok": true,
+          "tests_exist": [],
+          "src_mentions": 0
+        }
+      ]
+    },
+    {
+      "lot_id": "L_MOD_TOPIC_DYNAMICS",
+      "family": "TOPIC_DYNAMICS",
+      "owner": "CRIBA_IIE",
+      "count": 1,
+      "ids": [
+        "T047"
+      ],
+      "risk": "MEDIUM (test+consumer missing)",
+      "est_hours": 0.5,
+      "has_module": true,
+      "needs_owner_gate": false,
+      "ids_detail": [
+        {
+          "id": "T047",
+          "import_ok": true,
+          "tests_exist": [],
+          "src_mentions": 0
+        }
+      ]
+    },
+    {
+      "lot_id": "L_NOMOD_ADVERSARIAL_FUTURES",
+      "family": "ADVERSARIAL_FUTURES",
+      "owner": "CRIBA_IIE",
+      "count": 6,
+      "ids": [
+        "T118",
+        "T120",
+        "T121",
+        "T122",
+        "T126",
+        "T127"
+      ],
+      "risk": "LOW-MEDIUM (new construction)",
+      "est_hours": 6.0,
+      "has_module": false,
+      "needs_owner_gate": false,
+      "ids_detail": [
+        {
+          "id": "T118",
+          "import_ok": false,
+          "tests_exist": [],
+          "src_mentions": 0
+        },
+        {
+          "id": "T120",
+          "import_ok": true,
+          "tests_exist": [],
+          "src_mentions": 0
+        },
+        {
+          "id": "T121",
+          "import_ok": false,
+          "tests_exist": [],
+          "src_mentions": 0
+        },
+        {
+          "id": "T122",
+          "import_ok": false,
+          "tests_exist": [],
+          "src_mentions": 5
+        },
+        {
+          "id": "T126",
+          "import_ok": false,
+          "tests_exist": [],
+          "src_mentions": 0
+        },
+        {
+          "id": "T127",
+          "import_ok": false,
+          "tests_exist": [],
+          "src_mentions": 0
+        }
+      ]
+    },
+    {
+      "lot_id": "L_NOMOD_EXTERNAL_SOURCES",
+      "family": "EXTERNAL_SOURCES",
+      "owner": "CRIBA_IIE",
+      "count": 16,
+      "ids": [
+        "T010",
+        "T012",
+        "T013",
+        "T014",
+        "T016",
+        "T017",
+        "T021",
+        "T022",
+        "T023",
+        "T024",
+        "T025",
+        "T026",
+        "T027",
+        "T028",
+        "T029",
+        "T030"
+      ],
+      "risk": "LOW-MEDIUM (new construction)",
+      "est_hours": 16.0,
+      "has_module": false,
+      "needs_owner_gate": false,
+      "ids_detail": [
+        {
+          "id": "T010",
+          "import_ok": false,
+          "tests_exist": [],
+          "src_mentions": 2
+        },
+        {
+          "id": "T012",
+          "import_ok": false,
+          "tests_exist": [],
+          "src_mentions": 0
+        },
+        {
+          "id": "T013",
+          "import_ok": false,
+          "tests_exist": [],
+          "src_mentions": 0
+        },
+        {
+          "id": "T014",
+          "import_ok": false,
+          "tests_exist": [],
+          "src_mentions": 1
+        },
+        {
+          "id": "T016",
+          "import_ok": false,
+          "tests_exist": [],
+          "src_mentions": 0
+        },
+        {
+          "id": "T017",
+          "import_ok": false,
+          "tests_exist": [],
+          "src_mentions": 2
+        },
+        {
+          "id": "T021",
+          "import_ok": false,
+          "tests_exist": [],
+          "src_mentions": 0
+        },
+        {
+          "id": "T022",
+          "import_ok": false,
+          "tests_exist": [],
+          "src_mentions": 0
+        },
+        {
+          "id": "T023",
+          "import_ok": false,
+          "tests_exist": [],
+          "src_mentions": 0
+        },
+        {
+          "id": "T024",
+          "import_ok": false,
+          "tests_exist": [],
+          "src_mentions": 0
+        },
+        {
+          "id": "T025",
+          "import_ok": false,
+          "tests_exist": [],
+          "src_mentions": 0
+        },
+        {
+          "id": "T026",
+          "import_ok": false,
+          "tests_exist": [],
+          "src_mentions": 0
+        },
+        {
+          "id": "T027",
+          "import_ok": false,
+          "tests_exist": [],
+          "src_mentions": 0
+        },
+        {
+          "id": "T028",
+          "import_ok": false,
+          "tests_exist": [],
+          "src_mentions": 0
+        },
+        {
+          "id": "T029",
+          "import_ok": false,
+          "tests_exist": [],
+          "src_mentions": 0
+        },
+        {
+          "id": "T030",
+          "import_ok": false,
+          "tests_exist": [],
+          "src_mentions": 0
+        }
+      ]
+    },
+    {
+      "lot_id": "L_NOMOD_INVENTION",
+      "family": "INVENTION",
+      "owner": "CRIBA",
+      "count": 4,
+      "ids": [
+        "T056",
+        "T076",
+        "T077",
+        "T079"
+      ],
+      "risk": "LOW-MEDIUM (new construction)",
+      "est_hours": 4.0,
+      "has_module": false,
+      "needs_owner_gate": false,
+      "ids_detail": [
+        {
+          "id": "T056",
+          "import_ok": false,
+          "tests_exist": [],
+          "src_mentions": 1
+        },
+        {
+          "id": "T076",
+          "import_ok": true,
+          "tests_exist": [],
+          "src_mentions": 0
+        },
+        {
+          "id": "T077",
+          "import_ok": true,
+          "tests_exist": [],
+          "src_mentions": 0
+        },
+        {
+          "id": "T079",
+          "import_ok": false,
+          "tests_exist": [],
+          "src_mentions": 0
+        }
+      ]
+    },
+    {
+      "lot_id": "L_NOMOD_NOVELTY_KNOWLEDGE_GRAPH",
+      "family": "NOVELTY_KNOWLEDGE_GRAPH",
+      "owner": "CRIBA_IIE",
+      "count": 5,
+      "ids": [
+        "T082",
+        "T083",
+        "T084",
+        "T085",
+        "T093"
+      ],
+      "risk": "LOW-MEDIUM (new construction)",
+      "est_hours": 5.0,
+      "has_module": false,
+      "needs_owner_gate": false,
+      "ids_detail": [
+        {
+          "id": "T082",
+          "import_ok": false,
+          "tests_exist": [],
+          "src_mentions": 0
+        },
+        {
+          "id": "T083",
+          "import_ok": false,
+          "tests_exist": [],
+          "src_mentions": 0
+        },
+        {
+          "id": "T084",
+          "import_ok": false,
+          "tests_exist": [],
+          "src_mentions": 0
+        },
+        {
+          "id": "T085",
+          "import_ok": false,
+          "tests_exist": [],
+          "src_mentions": 0
+        },
+        {
+          "id": "T093",
+          "import_ok": false,
+          "tests_exist": [],
+          "src_mentions": 0
+        }
+      ]
+    },
+    {
+      "lot_id": "L_NOMOD_PATENT_INTELLIGENCE",
+      "family": "PATENT_INTELLIGENCE",
+      "owner": "CRIBA_IIE",
+      "count": 4,
+      "ids": [
+        "T002",
+        "T003",
+        "T004",
+        "T009"
+      ],
+      "risk": "LOW-MEDIUM (new construction)",
+      "est_hours": 4.0,
+      "has_module": false,
+      "needs_owner_gate": false,
+      "ids_detail": [
+        {
+          "id": "T002",
+          "import_ok": false,
+          "tests_exist": [],
+          "src_mentions": 0
+        },
+        {
+          "id": "T003",
+          "import_ok": false,
+          "tests_exist": [],
+          "src_mentions": 1
+        },
+        {
+          "id": "T004",
+          "import_ok": false,
+          "tests_exist": [],
+          "src_mentions": 0
+        },
+        {
+          "id": "T009",
+          "import_ok": true,
+          "tests_exist": [],
+          "src_mentions": 0
+        }
+      ]
+    },
+    {
+      "lot_id": "L_NOMOD_RETRIEVAL_GRAPH",
+      "family": "RETRIEVAL_GRAPH",
+      "owner": "CRIBA_IIE",
+      "count": 5,
+      "ids": [
+        "T031",
+        "T035",
+        "T036",
+        "T038",
+        "T039"
+      ],
+      "risk": "LOW-MEDIUM (new construction)",
+      "est_hours": 5.0,
+      "has_module": false,
+      "needs_owner_gate": false,
+      "ids_detail": [
+        {
+          "id": "T031",
+          "import_ok": false,
+          "tests_exist": [],
+          "src_mentions": 1
+        },
+        {
+          "id": "T035",
+          "import_ok": false,
+          "tests_exist": [],
+          "src_mentions": 4
+        },
+        {
+          "id": "T036",
+          "import_ok": false,
+          "tests_exist": [],
+          "src_mentions": 4
+        },
+        {
+          "id": "T038",
+          "import_ok": false,
+          "tests_exist": [],
+          "src_mentions": 3
+        },
+        {
+          "id": "T039",
+          "import_ok": false,
+          "tests_exist": [],
+          "src_mentions": 3
+        }
+      ]
+    },
+    {
+      "lot_id": "L_NOMOD_SIGNALS_EVIDENCE_OPPORTUNITY",
+      "family": "SIGNALS_EVIDENCE_OPPORTUNITY",
+      "owner": "CRIBA",
+      "count": 11,
+      "ids": [
+        "T102",
+        "T105",
+        "T106",
+        "T107",
+        "T108",
+        "T109",
+        "T110",
+        "T112",
+        "T113",
+        "T114",
+        "T115"
+      ],
+      "risk": "LOW-MEDIUM (new construction)",
+      "est_hours": 11.0,
+      "has_module": false,
+      "needs_owner_gate": false,
+      "ids_detail": [
+        {
+          "id": "T102",
+          "import_ok": false,
+          "tests_exist": [],
+          "src_mentions": 0
+        },
+        {
+          "id": "T105",
+          "import_ok": false,
+          "tests_exist": [],
+          "src_mentions": 0
+        },
+        {
+          "id": "T106",
+          "import_ok": false,
+          "tests_exist": [],
+          "src_mentions": 0
+        },
+        {
+          "id": "T107",
+          "import_ok": false,
+          "tests_exist": [],
+          "src_mentions": 0
+        },
+        {
+          "id": "T108",
+          "import_ok": false,
+          "tests_exist": [],
+          "src_mentions": 0
+        },
+        {
+          "id": "T109",
+          "import_ok": false,
+          "tests_exist": [],
+          "src_mentions": 0
+        },
+        {
+          "id": "T110",
+          "import_ok": false,
+          "tests_exist": [],
+          "src_mentions": 0
+        },
+        {
+          "id": "T112",
+          "import_ok": false,
+          "tests_exist": [],
+          "src_mentions": 0
+        },
+        {
+          "id": "T113",
+          "import_ok": false,
+          "tests_exist": [],
+          "src_mentions": 0
+        },
+        {
+          "id": "T114",
+          "import_ok": false,
+          "tests_exist": [],
+          "src_mentions": 0
+        },
+        {
+          "id": "T115",
+          "import_ok": true,
+          "tests_exist": [],
+          "src_mentions": 0
+        }
+      ]
+    },
+    {
+      "lot_id": "L_NOMOD_TOPIC_DYNAMICS",
+      "family": "TOPIC_DYNAMICS",
+      "owner": "CRIBA_IIE",
+      "count": 4,
+      "ids": [
+        "T046",
+        "T050",
+        "T051",
+        "T052"
+      ],
+      "risk": "LOW-MEDIUM (new construction)",
+      "est_hours": 4.0,
+      "has_module": false,
+      "needs_owner_gate": false,
+      "ids_detail": [
+        {
+          "id": "T046",
+          "import_ok": false,
+          "tests_exist": [],
+          "src_mentions": 0
+        },
+        {
+          "id": "T050",
+          "import_ok": false,
+          "tests_exist": [],
+          "src_mentions": 0
+        },
+        {
+          "id": "T051",
+          "import_ok": false,
+          "tests_exist": [],
+          "src_mentions": 0
+        },
+        {
+          "id": "T052",
+          "import_ok": false,
+          "tests_exist": [],
+          "src_mentions": 0
+        }
+      ]
+    }
+  ]
+}
