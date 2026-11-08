@@ -347,3 +347,41 @@ def test_sensitive_project_read_rejects_remote_unconfigured_token(monkeypatch) -
         "headers": [], "client": ("127.0.0.1", 4242),
     })
     service._require_project_read_authority(loopback)
+
+def test_mcp_body_is_bounded_before_dispatched_to_app() -> None:
+    """A 413 at the handler AFTER buffering is not a DoS protection."""
+    messages: list[dict] = []
+    app_was_called = False
+
+    async def unbounded_app(scope, receive, send) -> None:
+        nonlocal app_was_called
+        app_was_called = True
+        await send({"type": "http.response.start", "status": 200, "headers": []})
+        await send({"type": "http.response.body", "body": b"accepted"})
+
+    chunks = [
+        b"x" * (service.MAX_MCP_BODY_SIZE // 2),
+        b"y" * (service.MAX_MCP_BODY_SIZE // 2 + 1),
+    ]
+
+    async def receive() -> dict:
+        if not chunks:
+            raise AssertionError("Middleware read past the declared finite stream")
+        chunk = chunks.pop(0)
+        return {
+            "type": "http.request",
+            "body": chunk,
+            "more_body": bool(chunks),
+        }
+
+    async def send(message: dict) -> None:
+        messages.append(message)
+
+    scope = {
+        "type": "http", "method": "POST", "path": "/api/v1/mcp",
+        "headers": [], "client": ("203.0.113.10", 12345),
+    }
+    asyncio.run(service._BoundedJsonBodyMiddleware(unbounded_app)(scope, receive, send))
+    assert app_was_called is False, "MCP must be rejected before framework parsing"
+    assert messages[0]["type"] == "http.response.start"
+    assert messages[0]["status"] == 413
