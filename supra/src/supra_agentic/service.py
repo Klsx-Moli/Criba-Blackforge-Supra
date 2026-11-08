@@ -31,7 +31,7 @@ _BOUNDED_JSON_PATHS = {"/api/v1/projects", "/api/v1/generate"}
 _LOOPBACK_CLIENTS = {"127.0.0.1", "::1", "testclient"}
 
 
-def _require_mutation_authority(request: Request) -> None:
+def _require_mutation_authority(request: Request, *, resource: str = "Mutation") -> None:
     """Require bearer auth when configured; otherwise permit loopback only.
 
     SUPRA is local-first. An unset token is not an open network mode: mutation
@@ -50,7 +50,7 @@ def _require_mutation_authority(request: Request) -> None:
         ):
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Mutation authorization required.",
+                detail=f"{resource} authorization required.",
                 headers={"WWW-Authenticate": "Bearer"},
             )
         return
@@ -61,15 +61,21 @@ def _require_mutation_authority(request: Request) -> None:
     if require_auth:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Mutation authorization is not configured.",
+            detail=f"{resource} authorization is not configured.",
         )
 
     client_host = request.client.host if request.client is not None else None
     if client_host not in _LOOPBACK_CLIENTS:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Mutation endpoints require loopback access or SUPRA_API_TOKEN.",
+            detail=f"{resource} endpoints require loopback access or SUPRA_API_TOKEN.",
         )
+
+
+
+def _require_project_read_authority(request: Request) -> None:
+    """Protect private project state/export surfaces, including MCP resources."""
+    _require_mutation_authority(request, resource="Project read")
 
 
 def _parse_cors_origins(raw: str | None) -> list[str]:
@@ -697,8 +703,9 @@ def generate_with_provider(req: GenerateRequest, request: Request) -> dict[str, 
 
 
 @app.get("/api/v1/projects", tags=["Taskmaster"])
-def list_projects(limit: int = 20) -> dict[str, Any]:
+def list_projects(request: Request, limit: int = 20) -> dict[str, Any]:
     """List recent Taskmaster projects."""
+    _require_project_read_authority(request)
     projects, storage_errors = state_manager.list_projects_with_errors(limit=limit)
     return {
         "status": "success",
@@ -709,7 +716,7 @@ def list_projects(limit: int = 20) -> dict[str, Any]:
 
 
 @app.get("/api/v1/projects/{project_id}", tags=["Taskmaster"])
-def get_project_posture(project_id: str) -> dict[str, Any]:
+def get_project_posture(project_id: str, request: Request) -> dict[str, Any]:
     """Retrieve full project telemetry and deliverable ledger.
 
     This is the read path a consumer uses to reconstruct state after a
@@ -726,6 +733,7 @@ def get_project_posture(project_id: str) -> dict[str, Any]:
     correctly, so the fix corrects the label and adds the artifact verdict
     instead of refusing an answer that is true.
     """
+    _require_project_read_authority(request)
     posture, source, artifact_status, artifact_error_kind = (
         state_manager.get_project_with_provenance(project_id)
     )
@@ -842,13 +850,18 @@ async def mcp_jsonrpc_endpoint(request: Request) -> dict[str, Any]:
 
     if payload.get("method") == "tools/call":
         _require_mutation_authority(request)
+    elif payload.get("method") == "resources/read":
+        params = payload.get("params")
+        if isinstance(params, dict) and params.get("uri") == "supra://state/active-projects":
+            _require_project_read_authority(request)
 
     return handle_mcp_jsonrpc_request(payload)
 
 
 @app.get("/api/v1/export/dossier/{project_id}", tags=["Export"])
-def export_technical_dossier(project_id: str) -> dict[str, Any]:
+def export_technical_dossier(project_id: str, request: Request) -> dict[str, Any]:
     """Export a markdown technical dossier of the completed project."""
+    _require_project_read_authority(request)
     posture = state_manager.get_project(project_id)
     if not posture:
         raise HTTPException(status_code=404, detail=f"Project '{project_id}' not found.")
@@ -920,8 +933,9 @@ def export_technical_dossier(project_id: str) -> dict[str, Any]:
 
 
 @app.get("/api/v1/export/dossier/html/{project_id}", response_class=HTMLResponse, tags=["Export"])
-def export_html_dossier_route(project_id: str) -> HTMLResponse:
+def export_html_dossier_route(project_id: str, request: Request) -> HTMLResponse:
     """Export a self-contained HTML specification with embedded SVG architecture."""
+    _require_project_read_authority(request)
     posture = state_manager.get_project(project_id)
     if not posture:
         raise HTTPException(status_code=404, detail=f"Project '{project_id}' not found.")
