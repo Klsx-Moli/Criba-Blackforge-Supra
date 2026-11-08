@@ -27,7 +27,7 @@ from .state import DuplicateProjectError, ProjectStateLoadError, state_manager
 logger = logging.getLogger("supra_agentic.service")
 MAX_MCP_BODY_SIZE = 8 * 1024 * 1024
 MAX_API_BODY_SIZE = 8 * 1024 * 1024
-_BOUNDED_JSON_PATHS = {"/api/v1/projects", "/api/v1/generate"}
+_BOUNDED_JSON_PATHS = {"/api/v1/projects", "/api/v1/generate", "/api/v1/mcp"}
 _LOOPBACK_CLIENTS = {"127.0.0.1", "::1", "testclient"}
 
 
