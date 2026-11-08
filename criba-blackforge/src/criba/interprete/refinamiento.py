@@ -265,57 +265,101 @@ def parse_refinement(raw: str) -> tuple[dict[str, Any] | None, list[str]]:
     return validar_protocolo(data)
 
 
+def _validar_texto_esquema(
+    valor: Any,
+    campo: str,
+    esquema: dict[str, Any],
+    errores: list[str],
+) -> str:
+    """No permitir coerciones silenciosas ni saltarse límites del esquema."""
+    if valor is None or valor == "":
+        errores.append(f"falta:{campo}")
+        return ""
+    if not isinstance(valor, str):
+        errores.append(f"{campo}:tipo_invalido")
+        return ""
+    limpio = valor.strip()
+    if not limpio:
+        errores.append(f"falta:{campo}")
+    elif len(limpio) < esquema.get("minLength", 0):
+        errores.append(f"{campo}:minimo:{esquema['minLength']}")
+    elif len(limpio) > esquema.get("maxLength", float("inf")):
+        errores.append(f"{campo}:maximo:{esquema['maxLength']}")
+    return limpio
+
+
 def validar_protocolo(data: Any) -> tuple[dict[str, Any] | None, list[str]]:
-    """Valida el contrato del protocolo sin completar huecos."""
+    """Valida el contrato real, incluidos tipos, límites y claves anidadas."""
     if not isinstance(data, dict):
         return None, ["protocolo_no_es_objeto"]
+    if any(not isinstance(key, str) for key in data):
+        return None, ["protocolo_clave_no_texto"]
+
     errores: list[str] = []
     protocolo: dict[str, Any] = {}
-
-    desconocidas = sorted(set(data) - set(REFINEMENT_SCHEMA["properties"]))
+    propiedades = REFINEMENT_SCHEMA["properties"]
+    desconocidas = sorted(set(data) - set(propiedades))
     if desconocidas:
         errores.append("campos_desconocidos:" + ",".join(desconocidas))
 
     for campo in _CAMPOS_TEXTO:
-        valor = _texto(data.get(campo))
-        if not valor:
-            errores.append(f"falta:{campo}")
-        protocolo[campo] = valor
+        protocolo[campo] = _validar_texto_esquema(
+            data.get(campo), campo, propiedades[campo], errores,
+        )
 
     for campo, minimo in _LISTAS_MINIMAS.items():
         valor_lista = data.get(campo)
+        lista_schema = propiedades[campo]
+        if not isinstance(valor_lista, list):
+            errores.append(f"falta:{campo}")
+            protocolo[campo] = []
+            continue
+
+        if len(valor_lista) < minimo:
+            errores.append(f"{campo}:minimo:{minimo}")
+        maximo = lista_schema.get("maxItems")
+        if maximo is not None and len(valor_lista) > maximo:
+            errores.append(f"{campo}:maximo:{maximo}")
+
         if campo == "prueba_brazos":
             brazos: list[dict[str, str]] = []
-            if not isinstance(valor_lista, list):
-                errores.append(f"falta:{campo}")
-            else:
-                for indice, brazo in enumerate(valor_lista):
-                    if not isinstance(brazo, dict):
-                        errores.append(f"{campo}[{indice}]:no_es_objeto")
-                        continue
-                    limpio = {
-                        clave: _texto(brazo.get(clave))
-                        for clave in ("brazo", "descripcion", "metrica", "umbral")
-                    }
-                    faltan = [clave for clave, texto in limpio.items() if not texto]
-                    if faltan:
-                        errores.append(f"{campo}[{indice}]:falta:" + ",".join(faltan))
-                        continue
+            campos_brazo = lista_schema["items"]["properties"]
+            for indice, brazo in enumerate(valor_lista):
+                if not isinstance(brazo, dict):
+                    errores.append(f"{campo}[{indice}]:no_es_objeto")
+                    continue
+                extras = sorted(set(brazo) - set(campos_brazo))
+                if extras:
+                    errores.append(
+                        f"{campo}[{indice}]:campos_desconocidos:" + ",".join(extras)
+                    )
+                limpio = {
+                    clave: _validar_texto_esquema(
+                        brazo.get(clave), f"{campo}[{indice}].{clave}",
+                        esquema, errores,
+                    )
+                    for clave, esquema in campos_brazo.items()
+                }
+                if all(limpio.values()):
                     brazos.append(limpio)
-                if len(brazos) < minimo:
-                    errores.append(f"{campo}:minimo:{minimo}")
-                etiquetas = {brazo["brazo"].lower() for brazo in brazos}
-                if len(etiquetas) < len(brazos):
-                    errores.append(f"{campo}:brazos_duplicados")
+            etiquetas = {brazo["brazo"].casefold() for brazo in brazos}
+            if len(etiquetas) < len(brazos):
+                errores.append(f"{campo}:brazos_duplicados")
             protocolo[campo] = brazos
             continue
 
-        lista = _lineas(valor_lista)
-        if not isinstance(valor_lista, list):
-            errores.append(f"falta:{campo}")
-        elif len(lista) < minimo:
-            errores.append(f"{campo}:minimo:{minimo}")
-        protocolo[campo] = lista
+        limpia: list[str] = []
+        for indice, valor in enumerate(valor_lista):
+            item = _validar_texto_esquema(
+                valor, f"{campo}[{indice}]", lista_schema["items"], errores,
+            )
+            if item:
+                limpia.append(item)
+        if len(limpia) < minimo:
+            error_min = f"{campo}:minimo:{minimo}"
+            if error_min not in errores:
+                errores.append(error_min)
+        protocolo[campo] = limpia
 
     if errores:
         return None, errores
