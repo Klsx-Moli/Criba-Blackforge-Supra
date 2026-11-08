@@ -281,3 +281,107 @@ def test_expensive_json_endpoints_reject_invalid_content_length(monkeypatch, pat
     monkeypatch.setattr(service, "MAX_API_BODY_SIZE", 64)
     response = client.post(path, content=b"{}", headers={"content-type": "application/json", "content-length": "not-a-number"})
     assert response.status_code == 400
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        "/api/v1/projects",
+        "/api/v1/projects/nonexistent",
+        "/api/v1/export/dossier/nonexistent",
+        "/api/v1/export/dossier/html/nonexistent",
+    ],
+)
+def test_sensitive_project_reads_require_bearer(monkeypatch, path) -> None:
+    monkeypatch.setenv("SUPRA_API_TOKEN", "read-secret")
+    assert client.get(path).status_code == 401
+    assert client.get(
+        path, headers={"Authorization": "Bearer wrong-secret"}
+    ).status_code == 401
+
+
+def test_sensitive_project_read_accepts_exact_token(monkeypatch) -> None:
+    monkeypatch.setenv("SUPRA_API_TOKEN", "read-secret")
+    response = client.get(
+        "/api/v1/projects", headers={"Authorization": "Bearer read-secret"},
+    )
+    assert response.status_code == 200
+    assert "projects" in response.json()
+
+
+def test_mcp_active_projects_read_requires_authority(monkeypatch) -> None:
+    monkeypatch.setenv("SUPRA_API_TOKEN", "read-secret")
+    private_resource = {
+        "jsonrpc": "2.0", "id": 10, "method": "resources/read",
+        "params": {"uri": "supra://state/active-projects"},
+    }
+    assert client.post("/api/v1/mcp", json=private_resource).status_code == 401
+    accepted = client.post(
+        "/api/v1/mcp", json=private_resource,
+        headers={"Authorization": "Bearer read-secret"},
+    )
+    assert accepted.status_code == 200
+    assert "result" in accepted.json()
+
+    public_schema = {
+        "jsonrpc": "2.0", "id": 11, "method": "resources/read",
+        "params": {"uri": "supra://schema/invariants"},
+    }
+    assert client.post("/api/v1/mcp", json=public_schema).status_code == 200
+
+
+def test_sensitive_project_read_rejects_remote_unconfigured_token(monkeypatch) -> None:
+    monkeypatch.delenv("SUPRA_API_TOKEN", raising=False)
+    monkeypatch.delenv("SUPRA_REQUIRE_AUTH", raising=False)
+    monkeypatch.delenv("K_SERVICE", raising=False)
+    remote = Request({
+        "type": "http", "method": "GET", "path": "/api/v1/projects",
+        "headers": [], "client": ("203.0.113.10", 4242),
+    })
+    with pytest.raises(HTTPException) as raised:
+        service._require_project_read_authority(remote)
+    assert raised.value.status_code == 403
+
+    loopback = Request({
+        "type": "http", "method": "GET", "path": "/api/v1/projects",
+        "headers": [], "client": ("127.0.0.1", 4242),
+    })
+    service._require_project_read_authority(loopback)
+
+def test_mcp_body_is_bounded_before_dispatched_to_app() -> None:
+    """A 413 at the handler AFTER buffering is not a DoS protection."""
+    messages: list[dict] = []
+    app_was_called = False
+
+    async def unbounded_app(scope, receive, send) -> None:
+        nonlocal app_was_called
+        app_was_called = True
+        await send({"type": "http.response.start", "status": 200, "headers": []})
+        await send({"type": "http.response.body", "body": b"accepted"})
+
+    chunks = [
+        b"x" * (service.MAX_MCP_BODY_SIZE // 2),
+        b"y" * (service.MAX_MCP_BODY_SIZE // 2 + 1),
+    ]
+
+    async def receive() -> dict:
+        if not chunks:
+            raise AssertionError("Middleware read past the declared finite stream")
+        chunk = chunks.pop(0)
+        return {
+            "type": "http.request",
+            "body": chunk,
+            "more_body": bool(chunks),
+        }
+
+    async def send(message: dict) -> None:
+        messages.append(message)
+
+    scope = {
+        "type": "http", "method": "POST", "path": "/api/v1/mcp",
+        "headers": [], "client": ("203.0.113.10", 12345),
+    }
+    asyncio.run(service._BoundedJsonBodyMiddleware(unbounded_app)(scope, receive, send))
+    assert app_was_called is False, "MCP must be rejected before framework parsing"
+    assert messages[0]["type"] == "http.response.start"
+    assert messages[0]["status"] == 413

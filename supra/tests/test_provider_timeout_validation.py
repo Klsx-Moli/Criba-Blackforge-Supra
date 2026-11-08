@@ -2,7 +2,6 @@
 
 import httpx
 import pytest
-
 from supra_agentic.providers.openai_compatible import OpenAICompatibleProvider
 
 

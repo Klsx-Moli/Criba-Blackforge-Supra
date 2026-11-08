@@ -307,3 +307,60 @@ def test_format_proposal_muestra_fuente_y_punto_de_intervencion() -> None:
     assert "Fuente del error: La transcripcion manual" in text
     assert "Punto de intervención:" in text
     assert "Por qué reduce:" in text
+
+def test_parse_rechaza_coercion_de_tipos_y_excesos_del_esquema() -> None:
+    """Sentinels: un JSON parseable no debe saltarse REFINEMENT_SCHEMA."""
+    casos = [
+        ("resumen", 7, "resumen:tipo_invalido"),
+        ("resumen", False, "resumen:tipo_invalido"),
+        ("resumen", "x" * 801, "resumen:maximo:800"),
+        ("riesgos", ["Riesgo real", 42], "riesgos[1]:tipo_invalido"),
+        ("riesgos", ["r"] * 11, "riesgos:maximo:10"),
+        (
+            "definiciones_operativas",
+            ["x" * 501, "Definicion dos", "Definicion tres"],
+            "definiciones_operativas[0]:maximo:500",
+        ),
+    ]
+    for campo, valor, error_esperado in casos:
+        data = _protocolo()
+        data[campo] = valor
+        protocolo, errores = parse_refinement(json.dumps(data))
+        assert protocolo is None, (campo, valor)
+        assert error_esperado in errores, (campo, errores)
+
+
+def test_parse_rechaza_brazos_con_campos_extra_y_tipo_incorrecto() -> None:
+    data = _protocolo()
+    data["prueba_brazos"][0]["verificado"] = True
+    protocolo, errores = parse_refinement(json.dumps(data))
+    assert protocolo is None
+    assert "prueba_brazos[0]:campos_desconocidos:verificado" in errores
+
+    data = _protocolo()
+    data["prueba_brazos"][0]["umbral"] = 0.9
+    protocolo, errores = parse_refinement(json.dumps(data))
+    assert protocolo is None
+    assert "prueba_brazos[0].umbral:tipo_invalido" in errores
+
+    data = _protocolo()
+    data["prueba_brazos"][0]["descripcion"] = "x" * 601
+    protocolo, errores = parse_refinement(json.dumps(data))
+    assert protocolo is None
+    assert "prueba_brazos[0].descripcion:maximo:600" in errores
+
+    data = _protocolo()
+    data["prueba_brazos"].extend([dict(data["prueba_brazos"][0])] * 2)
+    protocolo, errores = parse_refinement(json.dumps(data))
+    assert protocolo is None
+    assert "prueba_brazos:maximo:4" in errores
+
+
+def test_parse_admite_lista_a_calibrar_vacia_y_limites_validos() -> None:
+    data = _protocolo()
+    data["parametros_a_calibrar"] = []
+    data["resumen"] = "r" * 800
+    protocolo, errores = parse_refinement(json.dumps(data))
+    assert errores == []
+    assert protocolo is not None
+    assert protocolo["parametros_a_calibrar"] == []

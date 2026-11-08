@@ -1,9 +1,10 @@
 # ESTATUTO DE EXCELENCIA, INTEGRIDAD Y MEJORA CONTINUA DE SISTEMAS Y AGENTES DE IA
 
 **Identificador:** EEIMC-001  
-**Versión:** 1.0  
+**Versión:** 1.1  
 **Fecha de emisión:** 17 de octubre de 2026  
-**Estado:** Norma operativa propuesta para adopción por el propietario del proyecto  
+**Última actualización:** 5 de noviembre de 2026  
+**Estado:** Norma operativa adoptada; la versión 1.1 incorpora el Artículo 26 (Desafío de innovación, invención y evidencia)  
 **Ámbito:** Repositorios, carpetas de trabajo, aplicaciones, servicios, sistemas de datos, investigación, automatizaciones y agentes de IA  
 **Responsable de adopción:** Propietario o responsable autorizado del sistema
 
@@ -412,6 +413,133 @@ La declaración final adecuada no es «he hecho todo lo posible» sin más, sino
 - por qué se detuvo la iteración;
 - qué no se ha demostrado.
 
+## ARTÍCULO 26. DESAFÍO DE INNOVACIÓN, INVENCIÓN Y EVIDENCIA
+
+**26.1. Adopción y finalidad.** Con fecha 5 de noviembre de 2026, por orden del propietario, se adopta como parte de este Estatuto el siguiente desafío de trabajo:
+
+> Mi innovación no consiste en crear una tecnología que no exista, sino en introducir un enfoque nuevo para un problema concreto: combinar, dirigir y evaluar capacidades existentes de forma que se generen propuestas más útiles y verificables que usando el modelo directamente.
+
+Contexto adoptado:
+
+> El problema es que un modelo usado de forma aislada tiende a repetir enfoques conocidos y a proponer ideas poco contrastadas. Mi innovación es un sistema que estructura la búsqueda creativa mediante múltiples perspectivas, cruza conocimiento de forma dirigida y somete las propuestas a criterios de viabilidad y verificación. Su valor no es inventar desde cero, sino aumentar la calidad, originalidad y utilidad de las soluciones generadas.
+
+El desafío no exige crear un componente tecnológico inédito. Exige un **enfoque nuevo para un problema concreto**, construido combinando, dirigiendo y evaluando capacidades existentes. La invención se entiende como nuevo método, configuración o aplicación para el problema, no necesariamente como tecnología nueva. La finalidad es aumentar la calidad, originalidad, utilidad y verificabilidad de las propuestas; no sustituir el motor combinatorio por un chatbot ni convertir el producto en un gestor de auditorías.
+
+**26.2. Definiciones operativas.**
+
+- **Innovación combinatoria dirigida:** enfoque nuevo que combina, dirige y evalúa capacidades existentes para un problema concreto. No exige tecnología inédita.
+- **Invención:** creación de un enfoque, método, configuración o aplicación técnicamente nueva para el problema, aunque sus componentes ya existan.
+- **Propuesta:** idea generada. No es una solución validada.
+- **Claim de invención:** ficha estructurada que separa problema, mecanismo, capacidades combinadas, diferencia, prior art, viabilidad y evidencia.
+- **Prior art:** divulgación anterior relevante en patentes, papers, productos, estándares, código abierto o literatura técnica.
+- **Mejora medible:** mejora en una métrica operacional del problema, definida antes de ejecutar; no solo estilo, longitud o fluidez.
+- **Verificación:** comprobación de un criterio explícito en un alcance declarado; no equivale a validez universal.
+- **Juez ciego:** evaluador que no conoce la condición experimental.
+- **Baseline B0:** mismo modelo, versión, proveedor, prompt directo y presupuesto, sin CRIBA.
+- **Tratamiento T:** CRIBA completo con el mismo modelo y presupuesto.
+- **Ablación:** variante de CRIBA que elimina un componente para aislar su efecto.
+- **Pre-registro:** documento previo que fija hipótesis, endpoints, muestra, exclusiones y regla de selección.
+
+**26.3. Niveles de novedad.**
+
+| Nivel | Nombre | Significado | Defensa |
+|---|---|---|---|
+| N0 | Nuevo para la sesión | El modelo no lo había dicho en ese contexto | Insuficiente |
+| N1 | Nuevo para el equipo/producto | No está en el historial local | Búsqueda interna |
+| N2 | Nuevo para el problema/dominio | No se encontró aplicado a ese problema en la literatura, patentes o productos consultados | Prior art + expertos |
+| N3 | Nuevo para el mundo | No existe divulgación equivalente | Búsqueda exhaustiva + validación externa |
+
+El objetivo inicial es producir candidatos **N2** con viabilidad y utilidad. No se promete N3.
+
+**26.4. Hipótesis falsables.** Toda afirmación del desafío debe expresarse como hipótesis y poder refutarse:
+
+| Hipótesis | Afirmación | Refutación |
+|---|---|---|
+| H1 — Mejora | CRIBA+modelo supera al modelo solo en calidad, originalidad, utilidad y verificabilidad | Sin diferencia práctica o empeoramiento |
+| H2 — Atribución | La mejora se debe a la búsqueda multi-perspectiva, el cruce dirigido y la evaluación, no solo a más tokens o llamadas | La ventaja desaparece al igualar presupuesto |
+| H3 — Novedad | Al menos una propuesta es un enfoque/configuración N2 no aplicado antes al problema y no obvio para expertos | Prior art idéntico o combinación obvia |
+| H4 — Viabilidad | La propuesta se puede construir/probar con recursos declarados | Imposible, indefinida o no verificable |
+| H5 — Utilidad | Resuelve un problema real con una mejora medible | Solo mejora en estilo o rúbrica autoimpuesta |
+| H6 — Reproductibilidad | Los resultados se replican con semillas y evaluadores independientes | Solo aparece en una semilla o una selección |
+
+**26.5. Criterios de éxito y claims permitidos.**
+
+| Nivel | Criterio | Claim permitido |
+|---|---|---|
+| Mínimo | Mejor que B0 en calidad/utilidad con evidencia ciega, reproducible y sin incidentes | “Mejora la calidad de las propuestas” |
+| Fuerte | Mínimo + ≥1 candidato N2 viable y útil | “Genera enfoques nuevos para el problema en el dominio evaluado” |
+| Excepcional | Fuerte + validación externa/replicación | “Candidato a innovación con novedad N2 validada” |
+| No alcanzado | Sin diferencia o sin novedad | “No demostrado” |
+
+“Invención real” no se declara desde el equipo. Se declara cuando el claim sobrevive a prior art, viabilidad y validación externa. “Técnicamente nuevo” no equivale a “patentable”, “útil” ni “exitoso”.
+
+**26.6. Protocolo mínimo de evidencia.**
+
+| Condición | Qué recibe el modelo | Para qué |
+|---|---|---|
+| B0 — Modelo solo | Problema directo, mismo presupuesto | Baseline principal |
+| B1 — Prompt creativo | “Sé creativo, da ideas novedosas” | Controlar instrucción |
+| B2 — Técnicas aleatorias | Lista aleatoria, mismo número/tokens | Controlar más contexto |
+| B3 — Multi-perspectiva sin cruce dirigido | Varias perspectivas, sin dirección | Aislar el cruce dirigido |
+| T — CRIBA completo | Cruce, lógica y presupuesto de CRIBA | Tratamiento |
+| A1/A2 — Ablaciones | CRIBA sin lotería/estratos; CRIBA sin modelo | Aislar componentes |
+
+Requisitos:
+
+1. Mismo modelo, versión, proveedor, contexto, presupuesto de tokens/tiempo/herramientas y condiciones de red.
+2. Problemas reales pre-registrados, orden aleatorizado, jueces ciegos, múltiples semillas, análisis pareado y reporte de todos los runs, incluidos fallos.
+3. Piloto de 12–20 problemas y 3 semillas; benchmark completo de 30–50 problemas y 3–5 semillas.
+4. Pre-registro de hipótesis, endpoints, muestra, exclusiones y regla de selección antes de ver resultados.
+5. Endpoints co-primarios: tasa de victoria ciega en calidad/utilidad y proporción de propuestas N2 viables y útiles. Se reportan por separado.
+6. Artefactos: `PREREGISTRATION.md`, `problems.jsonl`, prompts, runs, jueces, prior art, análisis, `manifest.json` y `REPORT.md`.
+7. Regla de decisión y umbrales aprobados por el propietario antes del piloto; no se cambian después de ver resultados.
+
+**26.7. Jueces, prior art y claim.**
+
+- Mínimo 3 jueces ciegos; orden aleatorizado; rúbrica de utilidad, originalidad, novedad, viabilidad, verificabilidad y especificidad; medir acuerdo (kappa/ICC).
+- Un juez LLM es apoyo, no verdad única; usar varios modelos y spot-check humano. Ningún juez evalúa su propia condición.
+- Prior art: definir dominio, problema y fecha de corte; consultar patentes, papers, productos, estándares y código abierto; registrar queries, fechas, resultados y veredictos; comparar el enfoque completo, no solo componentes.
+- “No encontrado” no significa “no existe”; documentar el límite.
+- Todo candidato debe registrarse con la plantilla de claim: ID, problema, stakeholder, enfoques existentes, enfoque propuesto, capacidades combinadas, secuencia dirigida, mecanismo, efecto, viabilidad, plan de verificación, prior art, diferencia, nivel N0–N3, revisiones y siguiente prueba.
+
+**26.8. Reglas de honestidad y prohibiciones.**
+
+1. No declarar “validado” sin `verification PASS` en el alcance declarado.
+2. No declarar “invención” sin N2 + validación externa; N0/N1 no son invención.
+3. No declarar “mejor” sin comparación B0/B1/B2 y presupuesto equivalente.
+4. No confundir novedad para el modelo con novedad para el mundo.
+5. No seleccionar casos después de ver los resultados ni ocultar fallos.
+6. No cambiar endpoints, métricas o umbrales después de conocer los datos.
+7. No usar un solo juez LLM como evaluación independiente.
+8. No debilitar tests, borrar pruebas o rebajar aserciones para obtener verde.
+9. No afirmar patentabilidad sin asesoramiento jurídico.
+10. No iniciar runtime, red, gasto, BLACKFORGE sensible, merge, release o publicación sin autorización.
+11. No abrir otro objetivo, backlog o auditoría general que desplace este desafío.
+12. No presentar una propuesta creativa como solución comprobada.
+
+**26.9. Puertas antes de trabajar en la app.**
+
+| Puerta | Requisito | Evidencia |
+|---|---|---|
+| G0 | Operacionalizar el desafío: dominio, 1–3 problemas reales, baseline, jueces, métrica, presupuesto, N2/N3 y autorizaciones | `PREREGISTRATION.md` |
+| G1 | Línea base verde: CI y tests pertinentes | Run verde |
+| G2 | Runtime mínimo: CLI, GUI, SUPRA y un flujo de dossier | Logs/capturas |
+| G3 | Harness A/B reproducible | `benchmark/` + manifiesto |
+| G4 | Piloto de innovación | Resultados preliminares |
+| G5 | Benchmark completo + auditoría de novedad | Informe + claims N2 |
+| G6 | Validación externa/replicación | Dictámenes |
+| G7 | Productización | UX, coste, seguridad, docs |
+
+Ninguna tarea que modifique el comportamiento o la promesa de la app puede iniciarse sin G0 y sin declarar a qué hipótesis y puerta sirve, qué evidencia producirá, qué riesgo tiene y cuál es su stop condition. Se permite trabajo habilitante —CI verde, fixtures, seguridad, runtime smoke, instrumentación— si se declara que habilita una puerta y no altera la promesa del producto. Si una tarea no se mapea a una puerta, se declara fuera de alcance o se pide autorización.
+
+**26.10. Relación con el dossier operativo.** El dossier `CBS_DOSSIER_CONTEXTO_RAZONADOR_2026-11-05.md` contiene el detalle operativo, comandos, rutas, hallazgos y protocolos. Este Artículo 26 es la norma; el dossier es referencia. El dossier puede actualizarse sin modificar el Estatuto si no cambia los criterios del desafío. Todo cambio de hipótesis, criterio de éxito, nivel de novedad o regla de honestidad requiere modificar este artículo.
+
+**26.11. Decisiones reservadas al propietario.** Permanecen pendientes y no pueden ser inventadas por un agente: dominio y problemas reales, baseline exacto, modelo/proveedor, jueces, métrica primaria, muestra y semillas, presupuesto, deadline, nivel N2/N3 y autorizaciones. Los “defaults propuestos” del dossier son propuestas, no aprobaciones.
+
+**26.12. Vigencia y registro de cambios.** La versión 1.1 (2026-11-05) añade este Artículo 26 y no modifica los Artículos 1–25. Motivo: integrar el desafío de innovación en la norma de trabajo antes de modificar la app. Alcance: define el desafío, sus hipótesis, criterios, protocolo de evidencia, prohibiciones y puertas. Cualquier cambio sustancial requiere aprobación del propietario y actualización de versión.
+
+---
+
 ## ANEXO A. Lista de control previa a una fase
 
 - [ ] He leído la política aplicable y las instrucciones locales.
@@ -448,8 +576,8 @@ La declaración final adecuada no es «he hecho todo lo posible» sin más, sino
 
 ---
 
-**Fin del Estatuto EEIMC-001.**  
-**Nota de adopción:** su carácter operativo depende de que el propietario lo incorpore a las instrucciones y controles reales de cada entorno. La presencia del archivo es necesaria para la integración propuesta, pero no garantiza por sí sola la obediencia de cualquier modelo.
+**Fin del Estatuto EEIMC-001, versión 1.1.**  
+**Nota de adopción:** la versión 1.1 incorpora el Artículo 26 por orden del propietario. Su aplicación efectiva requiere que las instrucciones locales, checklists y controles reales referencien este artículo. La presencia del archivo es necesaria para la integración, pero no garantiza por sí sola la obediencia de cualquier modelo.
 
 ## ANEXO LOCAL D. Dirección de producto del candidato CBS
 
