@@ -37,11 +37,11 @@ def _process_lock(lock_path: Path) -> Iterator[None]:
             if os.fstat(fd).st_size == 0:
                 os.write(fd, b"\0")
             os.lseek(fd, 0, os.SEEK_SET)
-            msvcrt.locking(fd, msvcrt.LK_LOCK, 1)
+            getattr(msvcrt, "locking")(fd, getattr(msvcrt, "LK_LOCK"), 1)
         else:
             import fcntl
 
-            fcntl.flock(fd, fcntl.LOCK_EX)
+            getattr(fcntl, "flock")(fd, getattr(fcntl, "LOCK_EX"))
         yield
     finally:
         try:
@@ -49,11 +49,11 @@ def _process_lock(lock_path: Path) -> Iterator[None]:
                 import msvcrt
 
                 os.lseek(fd, 0, os.SEEK_SET)
-                msvcrt.locking(fd, msvcrt.LK_UNLCK, 1)
+                getattr(msvcrt, "locking")(fd, getattr(msvcrt, "LK_UNLCK"), 1)
             else:
                 import fcntl
 
-                fcntl.flock(fd, fcntl.LOCK_UN)
+                getattr(fcntl, "flock")(fd, getattr(fcntl, "LOCK_UN"))
         finally:
             os.close(fd)
 
