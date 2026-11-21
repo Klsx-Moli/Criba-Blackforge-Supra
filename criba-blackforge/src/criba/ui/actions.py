@@ -199,9 +199,27 @@ def on_nueva_idea(win: Any) -> None:
 
     problem = ask_problem(win)
     win.nav["navNuevaIdea"].setChecked(False)
-    if not problem:
+    if rechazar_problema_vacio(win, problem):
         return
     _apply_new_problem(win, problem)
+
+
+def rechazar_problema_vacio(win: Any, problem: str | None) -> bool:
+    """Avisa en el banner si el problema base esta vacio.
+
+    Devuelve True cuando hay que abortar. Antes, `ask_problem` devolvia None y
+    el llamador hacia un `return` silencioso: el usuario pulsaba "Definir
+    problema", el dialogo se cerraba y no pasaba nada ni se explicaba por que.
+    Reproducido en el .exe empaquetado (2026-11-21).
+    """
+    if problem is not None and problem.strip():
+        return False
+    show_error(
+        win,
+        "Nueva idea",
+        "Escribe el problema base antes de definirlo.",
+    )
+    return True
 
 
 def on_nueva_idea_no_dialog(win: Any, problem: str) -> None:
@@ -211,7 +229,7 @@ def on_nueva_idea_no_dialog(win: Any, problem: str) -> None:
     on_nueva_idea path exactly, minus the QDialog.
     """
     win.nav["navNuevaIdea"].setChecked(False)
-    if not problem:
+    if rechazar_problema_vacio(win, problem):
         return
     _apply_new_problem(win, problem)
 
