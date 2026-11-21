@@ -1,0 +1,45 @@
+{
+  "model": "stepfun/step-5-preview:free",
+  "seed": 20261011,
+  "estado": "PENDIENTE_INTERPRETACION",
+  "es_propuesta": false,
+  "error": "validacion:critica.fiel_evidencia; critica.restricciones_respetadas; critica.objeciones",
+  "pertinencia": "",
+  "evaluation_status": "REJECTED",
+  "same_model": true,
+  "finish_reason_propuesta": "stop",
+  "completion_tokens_propuesta": 6172,
+  "critica_finish_reason": "stop",
+  "critica_completion_tokens": 3709,
+  "critica_respuesta": {
+    "pertinente": true,
+    "mecanismo_especifico": true,
+    "falsable": true,
+    "fiel_evidencia": false,
+    "restricciones_respetadas": false,
+    "discrimina_alternativas": true,
+    "intercambio_tecnicas_generico": false,
+    "objeciones": [
+      "La evidencia [1] es descriptiva y no establece causalidad ni validez de la intervención.",
+      "No se declaran restricciones de factibilidad ni contención; CONTENCION_DECLARADA es DESCONOCIDA.",
+      "El mecanismo asume error evitable en origen sin considerar workarounds o complejidad del formulario.",
+      "La prueba no especifica control de contaminación entre clústeres ni efecto Hawthorne.",
+      "No se buscan antecedentes sistemáticos; se afirma novedad sin verificación."
+    ],
+    "incertidumbre": "Límites de esta crítica automática: no se verifica la calidad de la evidencia [1] más allá de su abstract; no se conocen restricciones no declaradas; la crítica se basa solo en el texto entregado.",
+    "respuestas_epistemologicas": {
+      "Q1": "La evidencia [1] indica que 30 de 100 visitas se repiten por registros incompletos, pero no hay observación de que un sistema de prevención reduzca esto; la anomalía es la alta tasa de repetición sin intervención probada.",
+      "Q2": "Se desconocen antecedentes sistemáticos; la propuesta admite no haber buscado literatura. La diferencia concreta no puede establecerse sin búsqueda previa.",
+      "Q3": "La validación en origen (Poka-Yoke) podría reducir la carga cognitiva del operador de forma similar a como los checklists en aviación reducen errores de procedimiento, transfiriendo la memoria de trabajo del humano al sistema.",
+      "Q4": "Que bloquear la confirmación reduzca las segundas visitas: un experto podría esperar que aumente la cola inicial o genere workarounds (datos falsos) sin reducir la causa raíz si el problema es complejidad clínica.",
+      "Q5": "DESCONOCIDO. No hay marco declarado; CONTENCION_DECLARADA es DESCONOCIDA y comprobacion_restricciones está vacío. Sin restricciones, la falsación es incompleta porque no se controlan variables de confusión ni contaminación.",
+      "Q6": "Aumento de la cola inicial por validación obligatoria, frustración del personal que genere workarounds (datos ficticios), o desplazamiento del error a otros campos no validados.",
+      "Q7": "Beneficiados: pacientes (menos segundas visitas) y administración (menos reproceso). Oposición: personal de registro si aumenta su carga o si percibe el sistema como vigilancia; desarrolladores si requiere cambios costosos en el sistema legacy.",
+      "Q8": "ECA por clúster con baseline actual. Métrica: tasa de segundas visitas por registro incompleto (%). Umbral: reducción <20% respecto a baseline con IC 95%. Fracaso: si la tasa no disminuye o aumenta pese a reducir registros incompletos.",
+      "Q9": "H2: complejidad clínica no capturada en el registro causa segundas visitas. Se discriminaría auditando si los registros 'completos' tras intervención aún generan segundas visitas por motivos clínicos no registrables.",
+      "Q10": "Si el paciente valida sus datos antes de la cita (autoservicio), el mecanismo pasa de prevención en origen a corrección distribuida; si el sistema genera el error (bug), la retroalimentación debe dirigirse al desarrollador, no al operador.",
+      "Q11": "En el pasado (registro en papel), el Poka-Yoke sería físico (formularios con campos obligatorios pre-impresos) y la retroalimentación verbal del supervisor. En el futuro (IA predictiva), el sistema podría predecir el error antes de que ocurra, haciendo obsoleto el bloqueo reactivo."
+    }
+  },
+  "restricciones_obligatorias_del_caso": []
+}

@@ -1976,7 +1976,7 @@ techniques:
   family: NOVELTY_KNOWLEDGE_GRAPH
   owner: CRIBA
   module:
-    - criba.intelligence.scoring.novelty
+    - criba.scoring.novelty
   phase:
     - P11
   pipelines:
@@ -2543,7 +2543,7 @@ techniques:
   family: SIGNALS_EVIDENCE_OPPORTUNITY
   owner: CRIBA
   module:
-    - criba.intelligence.scoring.confidence
+    - criba.intelligence.scoring.evidence
   phase:
     - P11
   pipelines:
@@ -2704,7 +2704,7 @@ techniques:
   family: SIGNALS_EVIDENCE_OPPORTUNITY
   owner: CRIBA
   module:
-    - criba.intelligence.scoring.feasibility
+    - criba.intelligence.scoring.evidence
   phase:
     - P11
   pipelines:

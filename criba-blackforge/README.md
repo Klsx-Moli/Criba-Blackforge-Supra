@@ -110,10 +110,22 @@ rate-limit controls (no network in CI runs).
 ## Development
 
 ```bash
-uv run pytest -q            # 866 tests
+uv run pytest -q            # full suite of the live tree
 uv run mypy src/criba       # strict typing over the engine
 uv run ruff check src       # lint
 ```
+
+Innovation benchmarks (functional, not scientific):
+
+```bash
+uv run python benchmarks/innovation/run_dual_domains_smoke.py
+```
+
+The smoke runs A_DIRECT/B_STRONG_PROMPT with a deterministic stub and C_CRIBA /
+D_BLACKFORGE with their real local engines. It validates schema, runner and
+metrics; it does **not** conclude superiority over a model. Product-value
+evaluation remains `scripts/evaluate_product_value.py` with declared blinded
+reviews.
 
 Contributions are welcome — see [CONTRIBUTING](./CONTRIBUTING.md) and the
 [security policy](./SECURITY.md). Releases are built from tags and published

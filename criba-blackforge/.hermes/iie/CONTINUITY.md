@@ -1,5 +1,13 @@
 # IIE CONTINUITY — CRIBA · BLACKFORGE · SUPRA
 
+> **ESTADO DEL DOCUMENTO: OBSOLETO respecto a P10 (marcado 2026-10-20).**
+> Este fichero describe el árbol del 2026-09-05. Sus afirmaciones sobre P10-T07
+> (`PARTIAL`) y P10-T09 (`NOT_STARTED`) son **incorrectas**: ambos están commiteados
+> en `91246df` y probados (17 tests T07, 8 tests T09). El estado vigente se apoya en
+> `docs/architecture/adr/ADR-P10-T07-cross-domain-contract.md`, en los tests y en las
+> entradas `STATE-RECONCILIATION-2026-10-20*` de `STATE.json`. El contenido original
+> se conserva **sin reescribir** como histórico.
+
 **Última actualización:** 2026-09-05 00:28:47+02:00 — P10-T01..T06 COMMITTED/VERIFIED; P10-T07 PARTIAL con contrato local GREEN; P10-T08 Skeptic VERIFIED sin commit; P10-T09 verdict engine pendiente; HIGH_REVIEW/SECOND_PASS abierto; BF-P00-T06 DEFERRED
 
 ## WHAT IS THE PROJECT?

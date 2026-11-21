@@ -100,3 +100,26 @@ def test_emits_artifacts_and_normalized_matches_rerun(tmp_path: Path):
     with open(paths["normalized"], encoding="utf-8") as f:
         saved = json.load(f)
     assert saved == bp._stable(p2)
+
+def test_selection_failure_packet_keeps_persistable_identity(monkeypatch):
+    class FailedSelection:
+        failure = object()
+
+        def to_dict(self):
+            return {"selected_ids": [], "selected_count": 0}
+
+    monkeypatch.setattr(
+        bp,
+        "select_blackforge",
+        lambda **kwargs: FailedSelection(),
+    )
+    packet = bp.run_headless(
+        query="forced selector failure",
+        session_id="bf-failed-selection",
+    )
+
+    assert packet["status"] == "SELECTION_FAILED"
+    assert packet["session_id"] == "bf-failed-selection"
+    assert packet["activation_id"]
+    assert packet["timestamp"].endswith("+00:00")
+

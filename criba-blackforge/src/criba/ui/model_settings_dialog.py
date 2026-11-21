@@ -6,7 +6,8 @@ import uuid
 from pathlib import Path
 from typing import Any
 
-from PySide6.QtCore import Qt, QThreadPool, Signal
+from PySide6.QtCore import Qt, QThreadPool, QTimer, Signal
+from PySide6.QtGui import QShowEvent
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -22,6 +23,7 @@ from PySide6.QtWidgets import (
     QListWidgetItem,
     QMessageBox,
     QPushButton,
+    QScrollArea,
     QSpinBox,
     QVBoxLayout,
     QWidget,
@@ -47,8 +49,10 @@ class ModelSettingsDialog(QDialog):
         self.pool = QThreadPool.globalInstance()
         self._loading = False
         self._current_profile_id = ""
+        self._breath_timer: QTimer | None = None
+        self._breath_phase = 0
         self.setWindowTitle("CRIBA · Modelos IA")
-        self.setMinimumSize(900, 640)
+        self.setMinimumSize(640, 360)
         self.resize(980, 690)
         self.setModal(True)
         self._build_ui()
@@ -71,6 +75,17 @@ class ModelSettingsDialog(QDialog):
             "font-weight:700; }"
         )
 
+    def showEvent(self, event: QShowEvent) -> None:
+        super().showEvent(event)
+        screen = self.screen()
+        if screen is not None:
+            available = screen.availableGeometry()
+            # Qt uses logical pixels: leave room for the native frame and taskbar.
+            self.resize(min(980, available.width() - 48), min(690, available.height() - 80))
+            frame = self.frameGeometry()
+            frame.moveCenter(available.center())
+            self.move(frame.topLeft())
+
     def _build_ui(self) -> None:
         root = QVBoxLayout(self)
         root.setContentsMargins(22, 20, 22, 18)
@@ -92,7 +107,9 @@ class ModelSettingsDialog(QDialog):
         )
         root.addWidget(self.use_model)
 
-        body = QHBoxLayout()
+        body_widget = QWidget()
+        body = QHBoxLayout(body_widget)
+        body.setContentsMargins(0, 0, 0, 0)
         body.setSpacing(14)
         profiles_panel = QFrame()
         profiles_panel.setObjectName("modelPanel")
@@ -204,7 +221,11 @@ class ModelSettingsDialog(QDialog):
         editor_layout.addWidget(self.status_label)
         editor_layout.addStretch(1)
         body.addWidget(editor_panel, 1)
-        root.addLayout(body, 1)
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.Shape.NoFrame)
+        scroll.setWidget(body_widget)
+        root.addWidget(scroll, 1)
 
         footer = QHBoxLayout()
         test_button = QPushButton("Probar / iniciar modelo")
@@ -376,6 +397,41 @@ class ModelSettingsDialog(QDialog):
         self.profile_list.takeItem(row)
         self.profile_list.setCurrentRow(max(0, row - 1))
 
+    def _start_breathing(self) -> None:
+        """Start neon breathing gradient on the test button while loading."""
+        self._breath_phase = 0
+        self.test_button.setText("Cargando…")
+        self._breath_timer = QTimer(self)
+        self._breath_timer.setInterval(50)
+        self._breath_timer.timeout.connect(self._tick_breath)
+        self._breath_timer.start()
+
+    def _stop_breathing(self) -> None:
+        """Stop the breathing gradient and restore the button."""
+        if self._breath_timer is not None:
+            self._breath_timer.stop()
+            self._breath_timer = None
+        self.test_button.setText("Probar / iniciar modelo")
+        self.test_button.setStyleSheet("")
+
+    def _tick_breath(self) -> None:
+        """Update button color with a breathing neon gradient."""
+        import math
+
+        self._breath_phase = (self._breath_phase + 1) % 120
+        t = self._breath_phase / 120.0
+        # Sine wave 0..1..0 over ~6 seconds
+        wave = (math.sin(t * 2 * math.pi) + 1.0) / 2.0
+        # Interpolate between cyan (#28c8f6) and magenta (#ff2d95)
+        r = int(0x28 + (0xFF - 0x28) * wave)
+        g = int(0xC8 + (0x2D - 0xC8) * wave)
+        b = int(0xF6 + (0x95 - 0xF6) * wave)
+        color = f"#{r:02x}{g:02x}{b:02x}"
+        self.test_button.setStyleSheet(
+            f"QPushButton {{ background: {color}; color: #0c131d; "
+            f"font-weight: 700; border-radius: 6px; padding: 8px 13px; }}"
+        )
+
     def _test_profile(self) -> None:
         profile = self._profile_by_id(self._current_profile_id)
         self._store_form(profile)
@@ -385,16 +441,57 @@ class ModelSettingsDialog(QDialog):
         self.status_label.setText(
             "Comprobando el runtime y cargando el GGUF si es necesario…"
         )
+        self._start_breathing()
         worker = Worker(lambda: test_model_profile(profile, start=True))
         worker.signals.done.connect(self._on_test_ok)
         worker.signals.fail.connect(self._on_test_error)
         _start_worker(self, worker)
+        # Safety net: always restore the button even if the worker crashes
+        worker.signals.finished.connect(lambda: self._stop_breathing())
+        # Progress updates: show what is actually happening
+        self._progress_timer = QTimer(self)
+        self._progress_timer.setInterval(2000)
+        self._progress_timer.timeout.connect(self._update_progress)
+        self._progress_timer.start()
+        worker.signals.finished.connect(lambda: self._progress_timer.stop())
+
+    def _update_progress(self) -> None:
+        """Show real progress instead of a static 'Cargando…'."""
+        profile = self._profile_by_id(self._current_profile_id)
+        if profile is None:
+            return
+        try:
+            from ..model_runtime import _runtime_status
+
+            try:
+                status = _runtime_status(profile, timeout=2.0)
+                if status:
+                    self.status_label.setText(
+                        f"Runtime respondiendo · cargando {profile.model}…"
+                    )
+                    return
+            except Exception:
+                pass
+            if profile.backend == "llama_cpp" and profile.auto_start:
+                self.status_label.setText(
+                    f"Arrancando llama-server · cargando {profile.model}…"
+                )
+            else:
+                self.status_label.setText("Conectando con el runtime…")
+        except Exception:
+            self.status_label.setText("Comprobando el runtime…")
 
     def _on_test_ok(self, result: Any) -> None:
+        self._stop_breathing()
+        if hasattr(self, "_progress_timer"):
+            self._progress_timer.stop()
         self.test_button.setEnabled(True)
         self.status_label.setText(f"✓ {result}")
 
     def _on_test_error(self, message: str) -> None:
+        self._stop_breathing()
+        if hasattr(self, "_progress_timer"):
+            self._progress_timer.stop()
         self.test_button.setEnabled(True)
         first_line = message.splitlines()[0]
         self.status_label.setText(f"✕ {first_line}")

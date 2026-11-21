@@ -229,6 +229,7 @@ class ShadowActionContext:
         self.saved_ids: set[str] = set()
         self.sources_updated_at: datetime | None = None
         self.invent_sheet: dict[str, Any] | None = None
+        self.evidence_mode: str = "creative"
         self.sources_report: dict[str, Any] | None = None
         self._live_workers: list[Any] = []
         self._progress_label: Any = None
@@ -358,9 +359,9 @@ class ShadowActionContext:
                 self.sessionDot = session_dot
             if getattr(footer, "sources_block", None) is not None:
                 self.footerSegs["fsFuentes"] = _SegAdapter(footer.sources_block)
-        # títulos reales del panel "Candidatos y evaluación"
-        self.content_label = cand.title
-        self.content_sub = cand.sub
+        # títulos reales del panel de interpretación (zona central dominante)
+        self.content_label = cand.detail_title
+        self.content_sub = cand.detail_desc
         self.errorBanner = self.win.errorBanner
         self.errorBannerText = self.win.errorBannerText
         # layout real donde actions.py inserta el label transitorio de progreso

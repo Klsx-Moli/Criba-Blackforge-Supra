@@ -1,0 +1,110 @@
+{
+  "schema_version": "1.0",
+  "test_case_id": "e2e-anomaly-001",
+  "scenario": "E2E: interpreter proposes remediation from observed anomaly evidence",
+  "generated_at": "2026-10-17T16:53:00Z",
+  "data_provenance": {
+    "source": "synthetic",
+    "generator": "deterministic fixture generator",
+    "seed": 42,
+    "notes": "No production data; values are intentionally realistic but fictional."
+  },
+  "system_under_test": {
+    "service": "telemetry-ingest",
+    "version": "1.4.2",
+    "environment": "e2e-local"
+  },
+  "baseline": {
+    "window": {
+      "start": "2026-10-17T15:00:00Z",
+      "end": "2026-10-17T15:30:00Z"
+    },
+    "metrics": {
+      "p95_latency_ms": 180,
+      "error_rate": 0.002,
+      "throughput_events_per_min": 1200
+    }
+  },
+  "observations": [
+    {
+      "observation_id": "obs-001",
+      "timestamp": "2026-10-17T16:00:00Z",
+      "signal": "error_rate",
+      "value": 0.18,
+      "unit": "ratio",
+      "threshold": 0.05,
+      "severity": "high",
+      "evidence": [
+        "http_status=500",
+        "endpoint=/ingest",
+        "count=180"
+      ]
+    },
+    {
+      "observation_id": "obs-002",
+      "timestamp": "2026-10-17T16:00:00Z",
+      "signal": "p95_latency_ms",
+      "value": 1450,
+      "unit": "ms",
+      "threshold": 500,
+      "severity": "high",
+      "evidence": [
+        "upstream=postgres",
+        "query_timeout_ms=1000"
+      ]
+    },
+    {
+      "observation_id": "obs-003",
+      "timestamp": "2026-10-17T16:01:00Z",
+      "signal": "dependency_health",
+      "value": "degraded",
+      "severity": "high",
+      "evidence": [
+        "postgres_connections=98/100",
+        "lock_wait_events=37"
+      ]
+    }
+  ],
+  "correlations": [
+    {
+      "correlation_id": "corr-001",
+      "related_observations": [
+        "obs-001",
+        "obs-002",
+        "obs-003"
+      ],
+      "temporal_overlap": true,
+      "strength": "strong",
+      "explanation": "Error-rate and latency spikes coincide with PostgreSQL connection saturation."
+    }
+  ],
+  "constraints": {
+    "allowed_actions": [
+      "propose_remediation",
+      "request_more_evidence"
+    ],
+    "forbidden_actions": [
+      "execute_change",
+      "access_production"
+    ],
+    "required_output": {
+      "proposal": "string",
+      "confidence": "number",
+      "evidence_ids": [
+        "string"
+      ],
+      "risks": [
+        "string"
+      ],
+      "verification_steps": [
+        "string"
+      ]
+    }
+  },
+  "expected_behavior": {
+    "must_propose": true,
+    "minimum_confidence": 0.6,
+    "must_cite_evidence": true,
+    "must_not_execute": true
+  }
+}

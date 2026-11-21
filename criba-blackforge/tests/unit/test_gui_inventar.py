@@ -27,6 +27,29 @@ def qapp() -> QApplication:
     return QApplication.instance() or QApplication([])
 
 
+@pytest.fixture(autouse=True)
+def _drain_qt_pool(qapp):
+    """Drenar el QThreadPool global antes de cada test GUI.
+
+    Los tests de shadow_loadings (y cualquier otro que use Worker /
+    _start_worker) dejan workers en QThreadPool.globalInstance(), que
+    sobrevive al test. Con reordenamiento (pytest-randomly) un worker
+    tardío ajeno contamina el siguiente test GUI: on_inventar emite su
+    señal 'done' antes de que este test espere, y la aserción de
+    invent_sheet queda en None. Drenar el pool antes de empezar aísla
+    el test sin tocar el producto.
+    """
+    from PySide6.QtCore import QThreadPool
+
+    pool = QThreadPool.globalInstance()
+    pool.clear()
+    pool.waitForDone(3000)
+    qapp.processEvents()
+    yield
+    pool.clear()
+    qapp.processEvents()
+
+
 def _sheet_stub(query: str) -> dict:
     return {
         "query": query,
@@ -99,6 +122,31 @@ def test_inventar_button_runs_shared_service(qapp, tmp_path, monkeypatch) -> Non
         win.close()
 
 
+def _wait_for_sheet(qapp, win, timeout_ms=10000):
+    """Esperar a que el worker entregue invent_sheet.
+
+    QTest.qWait no bombea señales cross-thread de Qt (el worker corre en
+    QThreadPool y emite 'done' desde otro hilo). Sin un event loop real la
+    señal nunca se procesa y el test queda colgado. Usar QEventLoop con
+    timeout explícito es la forma canónica de esperar en tests Qt.
+    """
+    from PySide6.QtCore import QEventLoop, QTimer
+
+    loop = QEventLoop()
+
+    def _check():
+        if getattr(win, "invent_sheet", None) is not None:
+            loop.quit()
+
+    timer = QTimer()
+    timer.timeout.connect(_check)
+    timer.start(50)
+    QTimer.singleShot(timeout_ms, loop.quit)
+    loop.exec()
+    timer.stop()
+    return getattr(win, "invent_sheet", None)
+
+
 def test_inventar_passes_default_store_like_cli(qapp, tmp_path, monkeypatch) -> None:
     """Auditoría de la base: la GUI llamaba a invent() sin almacén de
     evidencia — la interpretación desde la interfaz perdía la evidencia
@@ -123,13 +171,7 @@ def test_inventar_passes_default_store_like_cli(qapp, tmp_path, monkeypatch) -> 
         actions.on_nueva_idea_no_dialog(win, "permisos excesivos de un agente")
         qapp.processEvents()
         actions.on_inventar(win)
-        for _ in range(1000):
-            qapp.processEvents()
-            if getattr(win, "invent_sheet", None) is not None:
-                break
-            QTest.qWait(10)
-
-        assert getattr(win, "invent_sheet", None) is not None
+        assert _wait_for_sheet(qapp, win) is not None
         assert kwargs_captured.get("store") is sentinel
     finally:
         win.close()

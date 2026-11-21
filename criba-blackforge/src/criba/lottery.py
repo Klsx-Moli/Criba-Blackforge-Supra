@@ -342,8 +342,11 @@ class LotteryEngine:
         clases ``DRAW_CLASSES`` y técnica uniforme dentro de cada clase.
 
         Evita que los catálogos grandes (lentes, metodologías) aplasten por
-        tamaño a los curados. Si el catálogo no tiene ``thinking_class``
-        (p. ej. el catálogo propio de BLACKFORGE), degrada a lotería pura.
+        tamaño a los curados. Los métodos sin ``thinking_class`` (p. ej. el
+        catálogo propio de BLACKFORGE) forman un estrato residual explícito
+        cuando hay al menos otra clase dibujable; nunca se les asigna una
+        clase inventada. Si el catálogo sólo tiene un estrato dibujable,
+        degrada a lotería pura.
         """
         if size < 1:
             raise ValueError("El tamaño del lote debe ser positivo.")
@@ -352,6 +355,8 @@ class LotteryEngine:
         for method in available:
             by_class.setdefault(str(method.get("thinking_class") or ""), []).append(method)
         draw_classes = tuple(c for c in DRAW_CLASSES if by_class.get(c))
+        if by_class.get(""):
+            draw_classes = draw_classes + ("",)
         if len(draw_classes) < 2:
             return self.select_random_batch(size)
 
@@ -532,6 +537,31 @@ class LotteryEngine:
             idea["class1"] = str(m1.get("thinking_class") or "")
             idea["class2"] = str(m2.get("thinking_class") or "")
 
+            # Entrega fiel al consumidor: el selector diversity-aware lee
+            # ``family`` y ``genome`` (engine._genome_from_vector). El pool del
+            # lote exponía ``family1``/``family2`` y un genoma vacío, de modo que
+            # ``select_finalists`` comparaba ``None == None`` como familia repetida
+            # y la distancia estructural era siempre 0. Se restauran SIN fabricar
+            # datos: ``family`` deriva de la familia canónica y ``genome`` del
+            # productor canónico del motor, sobre la base canónica ``_BASE_VALUES``
+            # (no desde títulos/longitud). Si el genoma no puede construirse se
+            # conserva ausencia explícita (nunca UNKNOWN convertido en dato).
+            if not idea.get("family"):
+                idea["family"] = str(idea.get("family1") or "")
+            try:
+                from .engine import _BASE_VALUES, _genome_from_vector
+
+                cv = dict(idea.get("causal_variables") or {})
+                base_for_genome = dict(_BASE_VALUES)
+                genome = _genome_from_vector(base_for_genome, cv, str(idea.get("family") or ""))
+                if genome and any(genome.values()):
+                    idea["genome"] = genome
+                else:
+                    idea["genome"] = idea.get("genome") or {}
+            except Exception:
+                # Ausencia explícita: no se fabrica genoma desde títulos/longitud.
+                idea.setdefault("genome", {})
+
         if hasattr(self, "storage") and self.storage is not None and new_combos:
             self.storage.save_lottery_combinations(
                 self.catalog_fingerprint,
@@ -605,8 +635,8 @@ class LotteryEngine:
             'causal_variables': cv,
             'method1_name': m1['title'][:60],
             'method2_name': m2['title'][:60],
-            'method1_desc': m1.get('description', '')[:200],
-            'method2_desc': m2.get('description', '')[:200],
+            'method1_desc': m1.get('description', ''),
+            'method2_desc': m2.get('description', ''),
             'family': fam1,
             'family2': fam2,
             'extreme': self.rng.random() < 0.2,  # 20% chance de extremo
@@ -629,10 +659,13 @@ class LotteryEngine:
             'description': description,
             'method1': m1['title'][:60],
             'method2': m2['title'][:60],
+            'method1_desc': m1.get('description', ''),
+            'method2_desc': m2.get('description', ''),
             'method1_id': str(m1['id']),
             'method2_id': str(m2['id']),
             'family1': fam1,
             'family2': fam2,
+            'causal_variables': cv,
             'quality': quality,
             'score': round(score, 3),
             'mode': mode,

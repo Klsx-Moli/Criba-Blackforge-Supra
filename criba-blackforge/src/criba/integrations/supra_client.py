@@ -253,6 +253,17 @@ class SupraCribaPlanningReceipt(BaseModel):
 
     This is deliberately a planning-only record.  Loading a persisted project
     must never promote receipt preservation into execution or validation.
+
+    ``criba_dossier_id`` and ``criba_candidate_id`` are ``min_length=1`` on the
+    *write* path, where CRIBA itself guarantees a non-blank lineage.  On the
+    *read* path a persisted receipt is a projection of what was submitted, not a
+    fresh assertion: a receipt that lost its ``criba_dossier_id`` (empty string)
+    is exactly the shape a truncated/legacy ``criba_dossier_id: str = ""`` field
+    produces, and it must stay readable as an unbound planning record rather than
+    become a total read failure.  ``claim_id``, ``mechanism_version`` and
+    ``protocol_version`` keep their non-blank contracts: those are what bind the
+    receipt to the dossier, and weakening them would silently accept a receipt
+    that no longer identifies its own planning payload.
     """
 
     model_config = ConfigDict(extra="allow")
@@ -260,7 +271,11 @@ class SupraCribaPlanningReceipt(BaseModel):
     receipt_scope: Literal["PLANNED_DISCRIMINANT_PROTOCOL_ONLY"]
     execution_status: Literal["NOT_EXECUTED"]
     scientific_status: Literal["NOT_VALIDATED"]
-    criba_dossier_id: str = Field(min_length=1)
+    criba_dossier_id: str = Field(default="", description=(
+        "Empty string is a readable unbound record; the read path must not turn "
+        "it into a total failure. Blank-lineage submissions are rejected earlier "
+        "on the write path."
+    ))
     criba_candidate_id: str = Field(min_length=1)
     claim_id: str = Field(min_length=1)
     mechanism_version: str = Field(pattern=r"^sha256:[0-9a-f]{64}$")

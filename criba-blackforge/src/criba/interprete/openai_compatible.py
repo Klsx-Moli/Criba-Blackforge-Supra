@@ -17,18 +17,32 @@ import logging
 import math
 import os
 import time
+from collections.abc import Callable
 from dataclasses import replace
 from typing import Any
 
 import httpx
+from tenacity import (
+    RetryCallState,
+    retry,
+    retry_if_exception,
+    stop_after_attempt,
+    stop_after_delay,
+    wait_exponential_jitter,
+)
+from tenacity.wait import wait_base
 
 from .contrato import (
-    CRITICA_INSTRUCCIONES,
-    PREGUNTAS_TEXTO,
+    KIND_DOMAIN,
+    KIND_SCHEMA,
     SYSTEM,
+    prompt_critica,
     prompt_propuesta,
+    schema_critica,
+    schema_propuesta,
+    separar_errores_critica,
     validar_critica,
-    validar_propuesta,
+    validar_propuesta_estructurada,
 )
 from .puerto import (
     ESTADO_PENDIENTE,
@@ -57,6 +71,274 @@ TEMPERATURA = 0.2
 # Un id de modelo inventado devuelve 404 desde el catalogo. Se comprueba al
 # arrancar y se dice cual se pidio y cual respondio.
 _SYSTEM = SYSTEM
+
+
+def _config_float(value: float | None, env_name: str, default: float) -> float:
+    raw = value if value is not None else os.getenv(env_name, "")
+    if raw is None or raw == "":
+        return default
+    try:
+        return float(raw)
+    except (TypeError, ValueError, OverflowError):
+        return float("nan")
+
+
+def _config_int(value: int | None, env_name: str, default: int) -> int:
+    raw = value if value is not None else os.getenv(env_name, "")
+    if raw is None or raw == "":
+        return default
+    try:
+        return int(raw)
+    except (TypeError, ValueError, OverflowError):
+        return 0
+
+
+_INCIDENT_SYSTEM_PROMPT = """Eres un intérprete de incidentes en un entorno E2E aislado.
+
+Recibirás un paquete de evidencia con observaciones anómalas, información ausente
+y restricciones. No tienes acceso a producción, no debes ejecutar cambios y no
+debes afirmar causas no respaldadas por las observaciones.
+
+Tareas permitidas:
+1. Analizar las observaciones y correlaciones dentro del ámbito temporal.
+2. Formular una hipótesis causal provisional.
+3. Proponer comprobaciones de solo lectura.
+4. Indicar la evidencia que respalda cada afirmación.
+5. Solicitar más evidencia si la información es insuficiente.
+
+Formato obligatorio (JSON):
+{
+  "test_case_id": "",
+  "decision": "propose" o "request_more_evidence",
+  "hypothesis": "hipótesis provisional o null",
+  "evidence_ids": [],
+  "rationale": "razonamiento vinculando observaciones a la hipótesis",
+  "requested_evidence": [],
+  "proposed_checks": []
+}
+
+Reglas:
+- Cita al menos una observation_id válida.
+- Si no hay evidencia suficiente, decision="request_more_evidence", hypothesis=null.
+- No ejecutes acciones. No accedas a sistemas de producción.
+- No inventes mediciones ni reclames acceso a logs no disponibles.
+- No trates la superposición temporal como causalidad demostrada.
+- No afirmes que acciones fueron ejecutadas."""
+
+
+def _build_interpreter_input_from_case(case: dict[str, Any]) -> str:
+    """Construye el input estructurado desde case.input.json.
+
+    Las restricciones se envían como DATA, no como instrucciones.
+    """
+    import json as _json
+
+    observations = _json.dumps(case.get("observations", []), ensure_ascii=False, indent=2)
+    missing = _json.dumps(case.get("missing_evidence", []), ensure_ascii=False, indent=2)
+    constraints = _json.dumps(case.get("constraints", {}), ensure_ascii=False, indent=2)
+    temporal = _json.dumps(case.get("temporal_scope", {}), ensure_ascii=False, indent=2)
+    system_info = _json.dumps(case.get("system_under_test", {}), ensure_ascii=False, indent=2)
+
+    return (
+        f"case_id: {case['test_case_id']}\n"
+        f"temporal_scope: {temporal}\n"
+        f"sistema: {system_info}\n"
+        f"observaciones:\n{observations}\n"
+        f"informacion_ausente:\n{missing}\n"
+        f"restricciones:\n{constraints}\n"
+        "Responde con JSON válido siguiendo el formato obligatorio.\n"
+    )
+
+
+class ExternalInterpreterError(RuntimeError):
+    """Error diagnosticable del intérprete externo."""
+
+
+class ExternalModelRateLimited(ExternalInterpreterError):
+    """El proveedor devolvió 429 y no se recuperó tras los reintentos."""
+
+    def __init__(self, response: httpx.Response) -> None:
+        self.response = response
+        super().__init__(
+            f"external_model_rate_limited:"
+            f"status={response.status_code}:"
+            f"retry_after={response.headers.get('retry-after')}"
+        )
+
+
+class ExternalModelEmptyResponse(ExternalInterpreterError):
+    """La respuesta llegó, pero no contenía texto utilizable."""
+
+
+class ExternalModelInvalidJSON(ExternalInterpreterError):
+    """La respuesta no es JSON válido o no es un objeto."""
+
+
+def _is_transient_http_error(exc: BaseException) -> bool:
+    """Determina si un error HTTP es transitorio y admite reintento."""
+    if isinstance(exc, ExternalModelRateLimited):
+        return True
+    if isinstance(exc, (httpx.TimeoutException, httpx.TransportError)):
+        return True
+    return False
+
+
+def _should_retry_http_error(exc: BaseException) -> bool:
+    """Budgeted acceptance counts physical attempts and disables hidden retries."""
+    if os.environ.get("CRIBA_ACCEPTANCE_NO_RETRIES") == "1":
+        return False
+    return _is_transient_http_error(exc)
+
+
+def _extract_content(response_json: dict[str, Any]) -> str:
+    """Extrae y valida el contenido del mensaje de la respuesta del modelo.
+
+    content puede ser string o null (protocolo Chat Completions).
+    Valida antes de json.loads para evitar TypeError por content=None.
+    """
+    choices = response_json.get("choices") or []
+
+    if not choices:
+        raise ExternalModelEmptyResponse("external_model_empty_choices")
+
+    choice = choices[0]
+    message = choice.get("message") or {}
+    content = message.get("content")
+    finish_reason = choice.get("finish_reason")
+
+    if content is None:
+        raise ExternalModelEmptyResponse(
+            f"external_model_null_content:finish_reason={finish_reason!r}"
+        )
+
+    if not isinstance(content, str):
+        raise ExternalModelEmptyResponse(
+            f"external_model_invalid_content_type:{type(content).__name__}"
+        )
+
+    content = content.strip()
+
+    if not content:
+        raise ExternalModelEmptyResponse(
+            f"external_model_empty_content:finish_reason={finish_reason!r}"
+        )
+
+    return content
+
+
+def _parse_model_json(raw: str) -> dict[str, Any]:
+    """Parsea el contenido como JSON, validando que sea un objeto dict."""
+    try:
+        parsed = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        raise ExternalModelInvalidJSON("external_model_invalid_json") from exc
+
+    if not isinstance(parsed, dict):
+        raise ExternalModelInvalidJSON(
+            f"external_model_invalid_json_type:{type(parsed).__name__}"
+        )
+
+    return parsed
+
+
+def _is_truncated_response(exc: BaseException) -> bool:
+    """Detecta respuestas truncadas por finish_reason='length'."""
+    return (
+        isinstance(exc, ExternalModelEmptyResponse)
+        and "finish_reason='length'" in str(exc)
+    )
+
+
+def _respuesta_truncada(resultado: InterpretationResult) -> bool:
+    """True si el modelo agotó ``max_tokens`` sin salida utilizable.
+
+    En ese caso la propuesta no es inválida por contenido: el presupuesto de
+    salida se quedó corto. Se reintenta una vez con el doble, dentro del límite
+    duro del transporte. No se rellena ningún campo ni se relaja el contrato.
+    """
+    return resultado.finish_reason == "length" or "finish_reason=length" in (
+        resultado.error or ""
+    )
+
+
+class wait_retry_after(wait_base):
+    """Estrategia de espera que respeta Retry-After (segundos o fecha HTTP)."""
+
+    def __init__(self, fallback: Any) -> None:
+        self.fallback = fallback
+
+    def __call__(self, retry_state: RetryCallState) -> float:
+        outcome = retry_state.outcome
+        exc = outcome.exception() if outcome else None
+
+        if isinstance(exc, ExternalModelRateLimited):
+            raw = exc.response.headers.get("retry-after")
+            if raw:
+                try:
+                    return min(max(float(raw), 1.0), 30.0)
+                except ValueError:
+                    try:
+                        from email.utils import parsedate_to_datetime
+
+                        target = parsedate_to_datetime(raw)
+                        delay = target.timestamp() - time.time()
+                        return min(max(delay, 1.0), 30.0)
+                    except (TypeError, ValueError):
+                        pass
+
+        return float(self.fallback(retry_state))
+
+
+@retry(
+    retry=retry_if_exception(_should_retry_http_error),
+    stop=(stop_after_attempt(4) | stop_after_delay(45)),
+    wait=wait_retry_after(
+        fallback=wait_exponential_jitter(initial=1, max=15, jitter=2)
+    ),
+    reraise=True,
+)
+def _post_chat_completion(
+    client: httpx.Client,
+    url: str,
+    payload: dict[str, Any],
+    headers: dict[str, str],
+) -> httpx.Response:
+    """POST a /chat/completions con reintentos para 429 y errores transitorios."""
+    response = client.post(url, json=payload, headers=headers)
+
+    if response.status_code == 429:
+        raise ExternalModelRateLimited(response)
+
+    response.raise_for_status()
+    return response
+
+
+@retry(
+    retry=retry_if_exception(_is_truncated_response),
+    stop=stop_after_attempt(2),
+    wait=wait_exponential_jitter(initial=1, max=5),
+    reraise=True,
+)
+def _request_structured_json(
+    client: httpx.Client,
+    url: str,
+    payload: dict[str, Any],
+    headers: dict[str, str],
+) -> dict[str, Any]:
+    """Obtiene JSON estructurado con reintento único si se trunca por max_tokens.
+
+    No reintenta content=None con tool_calls o content_filter; esos son errores
+    diagnósticos permanentes.
+    """
+    response = _post_chat_completion(client, url, payload, headers)
+    raw = _extract_content(response.json())
+
+    try:
+        return _parse_model_json(raw)
+    except ExternalModelInvalidJSON as exc:
+        raise ExternalModelEmptyResponse(
+            "external_model_invalid_json:possible_truncation"
+        ) from exc
 
 
 def _extraer_json(contenido: str) -> dict[str, Any]:
@@ -111,6 +393,45 @@ def construir_prompt(
     return prompt_propuesta(query, idea, domain, evidence)
 
 
+
+def endpoint_problem(base: str) -> str | None:
+    """Motivo por el que un endpoint NO debe contactarse, o ``None`` si es aceptable.
+
+    Se evalúa ANTES de abrir ninguna conexión, para que ni la URL ni el
+    ``Authorization: Bearer`` lleguen a un destino no confiable:
+
+    - esquema distinto de http/https o sin host -> rechazado;
+    - usuario/contraseña embebidos en la URL -> rechazado (credenciales en claro);
+    - http sin TLS hacia un host que no es loopback -> rechazado (el Bearer
+      viajaría sin cifrar). https remoto sigue permitido.
+    """
+    import ipaddress
+    from urllib.parse import urlsplit
+
+    try:
+        url = urlsplit(base)
+        host = url.hostname
+        _ = url.port  # fuerza la validación del puerto
+    except ValueError:
+        return "URL malformada"
+    if url.scheme not in ("http", "https"):
+        return "esquema no permitido (solo http/https)"
+    if not host:
+        return "URL sin host"
+    if url.username or url.password:
+        return "credenciales embebidas en la URL"
+    if url.scheme == "http":
+        loopback = host == "localhost"
+        if not loopback:
+            try:
+                loopback = ipaddress.ip_address(host).is_loopback
+            except ValueError:
+                loopback = False
+        if not loopback:
+            return "http sin TLS hacia un host que no es loopback"
+    return None
+
+
 class OpenAICompatibleInterpreter:
     """Un interprete, un endpoint. Sin llave embebida y sin estado global."""
 
@@ -127,12 +448,17 @@ class OpenAICompatibleInterpreter:
         max_tokens: int | None = None,
         temperature: float | None = None,
         reasoning_effort: str | None = None,
+        critique_max_tokens: int | None = None,
+        critique_temperature: float | None = None,
+        critique_timeout_s: float | None = None,
+        critique_reasoning_effort: str | None = None,
         enable_thinking: bool | None = None,
+        seed: int | None = None,
     ) -> None:
         self.base = (
             base_url or os.getenv("CRIBA_EXTERNAL_BASE_URL") or "http://127.0.0.1:8645/v1"
         ).rstrip("/")
-        self.model = model or os.getenv("CRIBA_EXTERNAL_MODEL") or "stealth/space-bunny-alpha"
+        self.model = model or os.getenv("CRIBA_EXTERNAL_MODEL") or "poolside/laguna-s-2.1:free"
         self.critic_model = critic_model or os.getenv("CRIBA_CRITIC_MODEL") or self.model
         # La clave se lee SOLO del entorno y nunca se escribe en logs ni en la
         # procedencia. Un proxy local acepta cualquier bearer.
@@ -156,7 +482,32 @@ class OpenAICompatibleInterpreter:
             if reasoning_effort is not None
             else os.getenv("CRIBA_EXTERNAL_REASONING_EFFORT", "").strip()
         )
+        self.critique_max_tokens = _config_int(
+            critique_max_tokens,
+            "CRIBA_EXTERNAL_CRITIQUE_MAX_TOKENS",
+            self.max_tokens,
+        )
+        self.critique_temperature = _config_float(
+            critique_temperature,
+            "CRIBA_EXTERNAL_CRITIQUE_TEMPERATURE",
+            self.temperature,
+        )
+        self.critique_timeout_s = _config_float(
+            critique_timeout_s,
+            "CRIBA_EXTERNAL_CRITIQUE_TIMEOUT_S",
+            self.timeout_s,
+        )
+        self.critique_reasoning_effort = (
+            critique_reasoning_effort
+            if critique_reasoning_effort is not None
+            else os.getenv("CRIBA_EXTERNAL_CRITIQUE_REASONING_EFFORT", "").strip()
+        ) or self.reasoning_effort
         self.enable_thinking = enable_thinking
+        semilla = seed if seed is not None else os.getenv("CRIBA_EXTERNAL_SEED", "").strip()
+        try:
+            self.seed: int | None = int(semilla) if semilla != "" else None
+        except (TypeError, ValueError):
+            self.seed = None
         self.fallback_local = (
             fallback_local
             if fallback_local is not None
@@ -176,6 +527,19 @@ class OpenAICompatibleInterpreter:
             "timeout_s": self.timeout_s,
             "reasoning_effort": self.reasoning_effort,
             "enable_thinking": self.enable_thinking,
+            "seed": self.seed,
+        }
+
+    @property
+    def critique_generation_parameters(self) -> dict[str, Any]:
+        """Parámetros efectivos de la crítica, separados de la propuesta."""
+        return {
+            "max_tokens": self.critique_max_tokens,
+            "temperature": self.critique_temperature,
+            "timeout_s": self.critique_timeout_s,
+            "reasoning_effort": self.critique_reasoning_effort,
+            "enable_thinking": self.enable_thinking,
+            "seed": self.seed,
         }
 
     # -- estado real, no optimista ---------------------------------------
@@ -184,6 +548,9 @@ class OpenAICompatibleInterpreter:
         configuracion: tiene que responder."""
         if not self.base:
             return False, "sin CRIBA_EXTERNAL_BASE_URL"
+        problema = endpoint_problem(self.base)
+        if problema:
+            return False, f"endpoint rechazado antes de conectar: {problema}"
         try:
             with httpx.Client(timeout=min(self.timeout_s, 15.0)) as client:
                 resp = client.get(f"{self.base}/models", headers=self._headers())
@@ -217,7 +584,12 @@ class OpenAICompatibleInterpreter:
         fallback_used: bool,
         prompt: str = "",
         model_requested: str = "",
+        constrained_decoding: str = "",
+        parameters: dict[str, Any] | None = None,
     ) -> Provenance:
+        parametros = dict(self.generation_parameters if parameters is None else parameters)
+        if constrained_decoding:
+            parametros["constrained_decoding"] = constrained_decoding
         return Provenance(
             interpreter_backend=self.backend,
             provider=self.provider,
@@ -232,22 +604,62 @@ class OpenAICompatibleInterpreter:
             fallback_used=fallback_used,
             raw_output_sha256=hash_salida(raw),
             prompt_sha256=hash_salida(_SYSTEM + prompt),
-            generation_parameters=self.generation_parameters,
+            generation_parameters=parametros,
         )
 
-    def _pedir(self, prompt: str, model: str) -> InterpretationResult:
-        """Una petición, con diagnóstico y procedencia propios incluso si falla."""
+    def _pedir(
+        self,
+        prompt: str,
+        model: str,
+        schema: dict[str, Any] | None = None,
+        *,
+        max_tokens: int | None = None,
+        temperature: float | None = None,
+        timeout_s: float | None = None,
+        reasoning_effort: str | None = None,
+        schema_name: str = "propuesta",
+    ) -> InterpretationResult:
+        """Una petición, con diagnóstico y procedencia propios incluso si falla.
+
+        ``schema`` activa decodificación restringida (json_schema -> grammar en
+        llama-server). Fija la forma del JSON, nunca el veredicto. La procedencia
+        registra los parámetros efectivos de cada fase para no comparar peras con
+        manzanas.
+        """
         request_id = nuevo_request_id()
         inicio = time.monotonic()
+        max_tokens_efectivo = self.max_tokens if max_tokens is None else max_tokens
+        temperatura_efectiva = self.temperature if temperature is None else temperature
+        timeout_efectivo = self.timeout_s if timeout_s is None else timeout_s
+        reasoning_efectivo = (
+            self.reasoning_effort if reasoning_effort is None else reasoning_effort
+        )
+        parametros_efectivos = {
+            "max_tokens": max_tokens_efectivo,
+            "temperature": temperatura_efectiva,
+            "timeout_s": timeout_efectivo,
+            "reasoning_effort": reasoning_efectivo,
+            "enable_thinking": self.enable_thinking,
+            "seed": self.seed,
+        }
         payload = {
             "model": model,
             "messages": [
                 {"role": "system", "content": _SYSTEM},
                 {"role": "user", "content": prompt},
             ],
-            "temperature": self.temperature,
-            "response_format": {"type": "json_object"},
+            "temperature": temperatura_efectiva,
+            "response_format": (
+                {
+                    "type": "json_schema",
+                    "json_schema": {"name": schema_name, "schema": schema},
+                }
+                if schema
+                else {"type": "json_object"}
+            ),
         }
+        if self.seed is not None:
+            payload["seed"] = self.seed
         model_reported = ""
         raw_output = ""
         finish_reason = ""
@@ -257,10 +669,16 @@ class OpenAICompatibleInterpreter:
         def _numero_opcional(value: Any) -> int | None:
             return value if type(value) is int and value >= 0 else None
 
-        def _fallo(motivo: str, *, raw_para_hash: str | None = None) -> InterpretationResult:
+        def _fallo(
+            motivo: str,
+            *,
+            raw_para_hash: str | None = None,
+            error_kind: str = "",  # NEW: clasificación estructurada del fallo
+        ) -> InterpretationResult:
             return InterpretationResult(
                 estado=ESTADO_PENDIENTE,
                 error=motivo,
+                error_kind=error_kind,
                 provenance=self._provenance(
                     request_id=request_id,
                     inicio=inicio,
@@ -269,6 +687,8 @@ class OpenAICompatibleInterpreter:
                     fallback_used=False,
                     prompt=prompt,
                     model_requested=model,
+                    constrained_decoding="json_schema" if schema is not None else "",
+                    parameters=parametros_efectivos,
                 ),
                 raw_output=raw_output,
                 finish_reason=finish_reason,
@@ -277,20 +697,32 @@ class OpenAICompatibleInterpreter:
                 model_requests=1,
             )
 
+        problema_endpoint = endpoint_problem(self.base)
+        if problema_endpoint:
+            return replace(
+                _fallo(f"configuracion_invalida:endpoint:{problema_endpoint}", error_kind="config"),
+                model_requests=0,
+            )
+
         try:
-            try:
-                max_tokens = self.max_tokens
-                if not 1 <= max_tokens <= 32768:
-                    raise ValueError("max_tokens debe ser positivo")
-            except ValueError:
-                return replace(_fallo("configuracion_invalida:max_tokens"), model_requests=0)
-            payload["max_tokens"] = max_tokens
-            if not math.isfinite(self.timeout_s) or not 0 < self.timeout_s <= 1800:
-                return replace(_fallo("configuracion_invalida:timeout"), model_requests=0)
-            if not math.isfinite(self.temperature) or not 0 <= self.temperature <= 2:
-                return replace(_fallo("configuracion_invalida:temperature"), model_requests=0)
-            if self.reasoning_effort:
-                if self.reasoning_effort not in {
+            if not 1 <= max_tokens_efectivo <= 32768:
+                return replace(
+                    _fallo("configuracion_invalida:max_tokens", error_kind="config"),
+                    model_requests=0,
+                )
+            payload["max_tokens"] = max_tokens_efectivo
+            if not math.isfinite(timeout_efectivo) or not 0 < timeout_efectivo <= 1800:
+                return replace(
+                    _fallo("configuracion_invalida:timeout", error_kind="config"),
+                    model_requests=0,
+                )
+            if not math.isfinite(temperatura_efectiva) or not 0 <= temperatura_efectiva <= 2:
+                return replace(
+                    _fallo("configuracion_invalida:temperature", error_kind="config"),
+                    model_requests=0,
+                )
+            if reasoning_efectivo:
+                if reasoning_efectivo not in {
                     "none",
                     "minimal",
                     "low",
@@ -300,42 +732,46 @@ class OpenAICompatibleInterpreter:
                     "max",
                 }:
                     return replace(
-                        _fallo("configuracion_invalida:reasoning_effort"), model_requests=0
+                        _fallo(
+                            "configuracion_invalida:reasoning_effort",
+                            error_kind="config",
+                        ),
+                        model_requests=0,
                     )
                 from urllib.parse import urlsplit
 
                 if urlsplit(self.base).hostname == "openrouter.ai":
-                    payload["reasoning"] = {"effort": self.reasoning_effort}
+                    payload["reasoning"] = {"effort": reasoning_efectivo}
                 else:
-                    payload["reasoning_effort"] = self.reasoning_effort
+                    payload["reasoning_effort"] = reasoning_efectivo
             if self.enable_thinking is not None:
                 payload["chat_template_kwargs"] = {"enable_thinking": self.enable_thinking}
-            with httpx.Client(timeout=self.timeout_s) as client:
-                resp = client.post(
-                    f"{self.base}/chat/completions", json=payload, headers=self._headers()
+            with httpx.Client(timeout=timeout_efectivo) as client:
+                resp = _post_chat_completion(
+                    client,
+                    f"{self.base}/chat/completions",
+                    payload=payload,
+                    headers=self._headers(),
                 )
-            if resp.status_code == 429:
-                # El cuerpo puede contener metadatos de cuenta: se hashea para
-                # procedencia, pero no se muestra ni se guarda como salida.
-                return _fallo("plan_agotado_429", raw_para_hash=resp.text[:2000])
-            if resp.status_code in (401, 403):
-                return _fallo(f"credenciales rechazadas: HTTP {resp.status_code}")
-            if resp.status_code >= 400:
-                return _fallo(f"http_error_{resp.status_code}")
-
             try:
                 cuerpo = resp.json()
             except ValueError as exc:
-                return _fallo(f"respuesta_json_invalida:{type(exc).__name__}")
+                return _fallo(f"respuesta_json_invalida:{type(exc).__name__}", error_kind="schema")
             if not isinstance(cuerpo, dict):
-                return _fallo(f"respuesta_tipo_inesperado:{type(cuerpo).__name__}")
+                return _fallo(
+                    f"respuesta_tipo_inesperado:{type(cuerpo).__name__}",
+                    error_kind="schema",
+                )
             model_reported = str(cuerpo.get("model") or "")
             choices = cuerpo.get("choices")
             if not isinstance(choices, list) or not choices:
-                return _fallo("respuesta_sin_choices")
+                return _fallo("respuesta_sin_choices", error_kind="schema")
             eleccion = choices[0]
             if not isinstance(eleccion, dict):
-                return _fallo(f"choice_tipo_inesperado:{type(eleccion).__name__}")
+                return _fallo(
+                    f"choice_tipo_inesperado:{type(eleccion).__name__}",
+                    error_kind="schema",
+                )
 
             finish_reason = str(eleccion.get("finish_reason") or "")
             uso = cuerpo.get("usage")
@@ -344,40 +780,79 @@ class OpenAICompatibleInterpreter:
                 detalles = uso.get("completion_tokens_details")
                 if isinstance(detalles, dict):
                     reasoning_tokens = _numero_opcional(detalles.get("reasoning_tokens"))
-
             message = eleccion.get("message")
             if not isinstance(message, dict):
-                return _fallo(f"message_tipo_inesperado:{type(message).__name__}")
-            contenido = message.get("content")
-            if contenido is None or (isinstance(contenido, str) and not contenido.strip()):
+                return _fallo(
+                    f"message_tipo_inesperado:{type(message).__name__}",
+                    error_kind="schema",
+                )
+
+            # Usa _extract_content para validar content (None, tipo, vacío)
+            try:
+                raw_output = _extract_content(cuerpo)
+            except ExternalModelEmptyResponse as exc:
+                # finish_reason='length' -> ExternalModelEmptyResponse con finish_reason='length'
+                if "finish_reason='length'" in str(exc):
+                    return _fallo(
+                        f"sin_contenido:finish_reason=length "
+                        f"tokens={completion_tokens} razonamiento={reasoning_tokens}",
+                        error_kind="truncated",
+                    )
+                # Un content de tipo inesperado no se convierte a texto: se
+                # nombra el tipo real para que el diagnóstico sea accionable.
+                if "invalid_content_type" in str(exc):
+                    tipo = str(exc).rsplit(":", 1)[-1]
+                    return _fallo(f"contenido_tipo_inesperado:{tipo}", error_kind="schema")
                 if message.get("tool_calls"):
-                    return _fallo("tool_calls_sin_contenido")
+                    return _fallo("tool_calls_sin_contenido", error_kind="schema")
                 return _fallo(
                     f"sin_contenido:finish_reason={finish_reason or 'desconocido'} "
-                    f"tokens={completion_tokens} razonamiento={reasoning_tokens}"
+                    f"tokens={completion_tokens} razonamiento={reasoning_tokens}",
+                    error_kind="schema",
                 )
-            if not isinstance(contenido, str):
-                return _fallo(f"contenido_tipo_inesperado:{type(contenido).__name__}")
-            raw_output = contenido
-            if finish_reason == "length":
-                return _fallo(
-                    f"salida_truncada:finish_reason=length "
-                    f"tokens={completion_tokens} ({len(raw_output)} chars)"
-                )
+
+            # Validación JSON (usa _extraer_json que ya existe para consistencia)
             try:
                 _extraer_json(raw_output)
             except (json.JSONDecodeError, ValueError) as exc:
-                return _fallo(f"json_invalido:{type(exc).__name__}")
+                # Una respuesta cortada por límite de tokens NO es JSON inválido:
+                # decir "JSONDecodeError" oculta la causa real. Se atribuye al
+                # truncamiento cuando el modelo lo declaró con finish_reason.
+                if finish_reason == "length":
+                    return _fallo(
+                        f"salida_truncada:finish_reason=length "
+                        f"tokens={completion_tokens} razonamiento={reasoning_tokens}",
+                        error_kind="truncated",
+                    )
+                return _fallo(f"json_invalido:{type(exc).__name__}", error_kind="parse_error")
         except httpx.TimeoutException:
-            return _fallo("timeout")
+            return _fallo("timeout", error_kind="timeout")
+        except ExternalModelRateLimited as exc:
+            # El 429 se reintenta en _post_chat_completion (4 intentos / 45s) y
+            # agota el plan: se conserva el código y NO se vuelca el cuerpo de la
+            # respuesta. Sin este manejador el error caía en el `except Exception`
+            # genérico y el motivo real se perdía como proposal_failed:AttributeError.
+            return _fallo(
+                "plan_agotado_429",
+                error_kind="rate_limit",
+                raw_para_hash=exc.response.text[:2000],
+            )
+        except httpx.HTTPStatusError as exc:
+            # Contrato restaurado del flujo previo al refactor de tenacity:
+            # 401/403 -> credenciales rechazadas; cualquier otro -> http_error_N.
+            # En ninguno de los dos se vuelca el cuerpo de la respuesta.
+            codigo = exc.response.status_code if exc.response is not None else 0
+            if codigo in (401, 403):
+                return _fallo(f"credenciales rechazadas: HTTP {codigo}", error_kind="auth")
+            return _fallo(f"http_error_{codigo}", error_kind="http")
         except httpx.HTTPError as exc:
             tipo = type(exc).__name__
             log.warning("interpretacion %s fallo de transporte: %s", request_id, tipo)
-            return _fallo(f"transporte_http:{tipo}")
+            return _fallo(f"transporte_http:{tipo}", error_kind="transport")
         except Exception as exc:  # noqa: BLE001 - una propuesta nunca rompe el loop
             tipo = type(exc).__name__
             log.warning("interpretacion %s fallo: %s", request_id, tipo)
-            return _fallo(f"proposal_failed:{tipo}")
+            return _fallo(f"proposal_failed:{tipo}", error_kind="internal_error")
 
         return InterpretationResult(
             estado=ESTADO_PROPUESTA,
@@ -389,12 +864,40 @@ class OpenAICompatibleInterpreter:
                 fallback_used=False,
                 prompt=prompt,
                 model_requested=model,
+                constrained_decoding="json_schema" if schema is not None else "",
+                parameters=parametros_efectivos,
             ),
             raw_output=raw_output,
             finish_reason=finish_reason,
             completion_tokens=completion_tokens,
             reasoning_tokens=reasoning_tokens,
             model_requests=1,
+        )
+
+    def completar_json(
+        self,
+        prompt: str,
+        *,
+        schema: dict[str, Any] | None = None,
+        schema_name: str = "respuesta",
+        max_tokens: int | None = None,
+        temperature: float | None = None,
+        timeout_s: float | None = None,
+    ) -> InterpretationResult:
+        """Una petición JSON con el mismo transporte, diagnóstico y procedencia.
+
+        No interpreta ni valida el contenido: devuelve el sobre con
+        ``raw_output`` para que el llamador aplique su propio contrato. Un
+        fallo de red o de formato queda como PENDIENTE con su causa real.
+        """
+        return self._pedir(
+            prompt,
+            self.model,
+            schema=schema,
+            max_tokens=max_tokens,
+            temperature=temperature,
+            timeout_s=timeout_s,
+            schema_name=schema_name,
         )
 
     def proponer(
@@ -417,28 +920,76 @@ class OpenAICompatibleInterpreter:
                     fallback_used=False,
                 ),
             )
-        transporte = self._pedir(prompt, self.model)
+        restringido = os.getenv("CRIBA_CONSTRAINED_DECODING", "").strip().lower() in (
+            "json_schema",
+            "1",
+            "true",
+        )
+        transporte = self._pedir(
+            prompt,
+            self.model,
+            schema=schema_propuesta(idea, evidence) if restringido else None,
+        )
+        if _respuesta_truncada(transporte):
+            ampliado = min(max(self.max_tokens, 1) * 2, 32768)
+            if ampliado > self.max_tokens:
+                reintento = self._pedir(
+                    prompt,
+                    self.model,
+                    schema=schema_propuesta(idea, evidence) if restringido else None,
+                    max_tokens=ampliado,
+                )
+                reintento = replace(
+                    reintento,
+                    model_requests=transporte.model_requests + reintento.model_requests,
+                )
+                transporte = reintento
         if transporte.estado == ESTADO_PENDIENTE:
             return transporte
         parsed = _extraer_json(transporte.raw_output)
-        errores = validar_propuesta(parsed, idea, evidence)
-        if errores:
+        errores_estructurados = validar_propuesta_estructurada(parsed, idea, evidence)
+        if errores_estructurados:
+            kinds = {kind for kind, _ in errores_estructurados}
+            error_kind = KIND_SCHEMA if KIND_SCHEMA in kinds else KIND_DOMAIN
             return replace(
                 transporte,
                 estado=ESTADO_PENDIENTE,
                 pertinencia=str(parsed.get("pertinencia") or ""),
-                error="validacion:" + "; ".join(errores),
+                error="validacion:" + "; ".join(m for _, m in errores_estructurados),
+                error_kind=error_kind,
             )
-        critica_prompt = (
-            CRITICA_INSTRUCCIONES
-            + "\n"
-            + PREGUNTAS_TEXTO
-            + "\nENTRADA:\n"
-            + prompt
-            + "\nPROPUESTA A CRITICAR:\n"
-            + json.dumps(parsed, ensure_ascii=False)
+        critica_prompt = prompt_critica(query, idea, domain, evidence, parsed)
+        critica = self._pedir(
+            critica_prompt,
+            self.critic_model,
+            schema=schema_critica() if restringido else None,
+            max_tokens=self.critique_max_tokens,
+            temperature=self.critique_temperature,
+            timeout_s=self.critique_timeout_s,
+            reasoning_effort=self.critique_reasoning_effort,
+            schema_name="critica",
         )
-        critica = self._pedir(critica_prompt, self.critic_model)
+        if _respuesta_truncada(critica):
+            presupuesto_critica = min(
+                max(self.critique_max_tokens or self.max_tokens, 1) * 2, 32768
+            )
+            if presupuesto_critica > (self.critique_max_tokens or 0):
+                reintento_critica = self._pedir(
+                    critica_prompt,
+                    self.critic_model,
+                    schema=schema_critica() if restringido else None,
+                    max_tokens=presupuesto_critica,
+                    temperature=self.critique_temperature,
+                    timeout_s=self.critique_timeout_s,
+                    reasoning_effort=self.critique_reasoning_effort,
+                    schema_name="critica",
+                )
+                reintento_critica = replace(
+                    reintento_critica,
+                    model_requests=critica.model_requests
+                    + reintento_critica.model_requests,
+                )
+                critica = reintento_critica
         diagnostico: dict[str, Any] = {
             "evaluation_status": "NOT_EVALUATED",
             "independent_validation": False,
@@ -459,13 +1010,31 @@ class OpenAICompatibleInterpreter:
             )
         contenido_critica = _extraer_json(critica.raw_output)
         diagnostico["respuesta"] = contenido_critica
+        objeciones = contenido_critica.get("objeciones")
+        diagnostico["objection_count"] = (
+            len(objeciones) if isinstance(objeciones, list) else 0
+        )
+        diagnostico["admitida_con_objeciones"] = bool(objeciones) if isinstance(
+            objeciones, list
+        ) else False
         errores = validar_critica(contenido_critica)
+        estructurales, rechazos = separar_errores_critica(contenido_critica, errores)
+        if errores and not estructurales and not rechazos:
+            estructurales = list(errores)
         diagnostico["evaluation_status"] = "CRITIQUED" if not errores else "REJECTED"
         if errores:
+            if estructurales:
+                error = "critica_invalida:" + "; ".join(estructurales)
+                error_kind = "critique_invalid"
+            else:
+                error = "critica_rechazada:" + "; ".join(rechazos)
+                error_kind = "critique_rejected"
+                diagnostico["rejection_reasons"] = list(rechazos)
             return replace(
                 transporte,
                 estado=ESTADO_PENDIENTE,
-                error="validacion:" + "; ".join(errores),
+                error=error,
+                error_kind=error_kind,
                 critica=diagnostico,
                 model_requests=transporte.model_requests + critica.model_requests,
             )
@@ -495,6 +1064,40 @@ class OpenAICompatibleInterpreter:
             model_requests=transporte.model_requests + critica.model_requests,
         )
 
+    def analizar_caso(self, case: dict[str, Any]) -> dict[str, Any]:
+        """Analiza un caso estructurado de evidencia eincidente.
+
+        Envía observaciones, información ausente y restricciones como DATA
+        al modelo y devuelve JSON validado. Aplica reintentos de Tenacity
+        para errores transitorios (429, timeouts, transport errors).
+
+        Lanza:
+          - ExternalModelRateLimited: tras 4 intentos o 45s (no reintentable)
+          - ExternalModelEmptyResponse: content=None/vacío (no reintentable)
+          - ExternalModelInvalidJSON: respuesta no es JSON válido
+        """
+        input_text = _build_interpreter_input_from_case(case)
+        payload = {
+            "model": self.model,
+            "messages": [
+                {"role": "system", "content": _INCIDENT_SYSTEM_PROMPT},
+                {"role": "user", "content": input_text},
+            ],
+            "temperature": self.temperature,
+            "max_tokens": self.max_tokens,
+            "response_format": {"type": "json_object"},
+        }
+        if self.seed is not None:
+            payload["seed"] = self.seed
+
+        with httpx.Client(timeout=self.timeout_s) as client:
+            return _request_structured_json(
+                client,
+                f"{self.base}/chat/completions",
+                payload=payload,
+                headers=self._headers(),
+            )
+
 
 class LocalLlamaInterpreter(OpenAICompatibleInterpreter):
     """Runtime local OpenAI-compatible, operativo solo tras superar el banco."""
@@ -503,9 +1106,18 @@ class LocalLlamaInterpreter(OpenAICompatibleInterpreter):
     ETIQUETA = "EXPERIMENTAL / NO VERIFICADO"
     MOTIVO = "interpretación operativa pendiente: falta superar el banco local"
 
-    def __init__(self, base_url: str | None = None, model: str | None = None) -> None:
+    def __init__(
+        self,
+        base_url: str | None = None,
+        model: str | None = None,
+        *,
+        cancel_requested: Callable[[], bool] | None = None,
+        progress: Callable[[dict[str, Any]], None] | None = None,
+    ) -> None:
         from criba.model_config import load_model_settings
 
+        self._bank_cancel_requested = cancel_requested
+        self._bank_progress = progress
         settings = load_model_settings()
         profile = settings.active_profile() if settings.enabled else None
         base = (
@@ -547,10 +1159,26 @@ class LocalLlamaInterpreter(OpenAICompatibleInterpreter):
         except ValueError:
             return False
 
+    def _modo_actual(self) -> str:
+        """Modo de decodificación con el que se evaluaría el banco ahora mismo."""
+        restringido = os.getenv("CRIBA_CONSTRAINED_DECODING", "").strip().lower() in (
+            "json_schema",
+            "1",
+            "true",
+        )
+        return "json_schema" if restringido else ""
+
     def operativo(self) -> tuple[bool, str]:
         if not self._local():
             return False, "interpretación operativa rechazada: el endpoint local no es loopback"
+        modo = self._modo_actual()
         if self.gate_report is not None:
+            if self.gate_report.get("constrained_decoding", "") != modo:
+                return False, (
+                    "banco local evaluado en otro modo de decodificación "
+                    f"({self.gate_report.get('constrained_decoding', '')!r} != {modo!r}); "
+                    "reevaluar"
+                )
             ok = bool(self.gate_report["passed"])
             return ok, "banco local superado" if ok else self.MOTIVO
         listo, motivo = super().operativo()
@@ -559,10 +1187,15 @@ class LocalLlamaInterpreter(OpenAICompatibleInterpreter):
         from .banco import evaluar_banco
 
         self.gate_report = evaluar_banco(
-            lambda q, i, d, e: super(LocalLlamaInterpreter, self).proponer(q, i, d, e)
+            lambda q, i, d, e: super(LocalLlamaInterpreter, self).proponer(q, i, d, e),
+            cancel_requested=self._bank_cancel_requested,
+            progress=self._bank_progress,
+            constrained_decoding=modo,
         )
         ok = bool(self.gate_report["passed"])
         self.ETIQUETA = "" if ok else "EXPERIMENTAL / NO VERIFICADO"
+        if self.gate_report["cancelled"]:
+            return False, "banco local cancelado; intérprete no admitido"
         return ok, "banco local superado" if ok else self.MOTIVO
 
     def proponer(

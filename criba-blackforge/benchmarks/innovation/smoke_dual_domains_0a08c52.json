@@ -1,0 +1,5684 @@
+{
+  "dataset": "smoke-v0",
+  "n_problemas": 10,
+  "conditions": [
+    "A_DIRECT",
+    "B_STRONG_PROMPT",
+    "C_CRIBA",
+    "D_BLACKFORGE"
+  ],
+  "runs": [
+    {
+      "run_id": "4f9c53406981428fb50bc5b49e2a8e32",
+      "bench_run_id": "bench-986a05b71900",
+      "problem_id": "G01",
+      "condition": "A_DIRECT",
+      "seed": 7,
+      "seed_source": "explicit",
+      "prompt": "Genera 3 soluciones innovadoras para: Reducir el consumo de agua de un huerto urbano sin penalizar el rendimiento.",
+      "candidates": [
+        {
+          "idea_id": "direct-00",
+          "title": "Respuesta directa stub 1",
+          "description": "Stub para Reducir el consumo de agua de un huerto urbano sin penalizar el rendimiento.",
+          "score": 0.5,
+          "family": "direct_stub",
+          "methods": [
+            "direct_prompt"
+          ],
+          "classes": [
+            "stub"
+          ],
+          "genome": {
+            "mechanism": [
+              "stub"
+            ],
+            "classes": [
+              "stub"
+            ]
+          }
+        },
+        {
+          "idea_id": "direct-01",
+          "title": "Respuesta directa stub 2",
+          "description": "Stub para Reducir el consumo de agua de un huerto urbano sin penalizar el rendimiento.",
+          "score": 0.5,
+          "family": "direct_stub",
+          "methods": [
+            "direct_prompt"
+          ],
+          "classes": [
+            "stub"
+          ],
+          "genome": {
+            "mechanism": [
+              "stub"
+            ],
+            "classes": [
+              "stub"
+            ]
+          }
+        },
+        {
+          "idea_id": "direct-02",
+          "title": "Respuesta directa stub 3",
+          "description": "Stub para Reducir el consumo de agua de un huerto urbano sin penalizar el rendimiento.",
+          "score": 0.5,
+          "family": "direct_stub",
+          "methods": [
+            "direct_prompt"
+          ],
+          "classes": [
+            "stub"
+          ],
+          "genome": {
+            "mechanism": [
+              "stub"
+            ],
+            "classes": [
+              "stub"
+            ]
+          }
+        }
+      ],
+      "metrics": {
+        "duplication_rate": 0.0,
+        "close_variant_rate": 0.0,
+        "structural_diversity": 0.0,
+        "unique_mechanisms": 1,
+        "family_coverage": 1.0,
+        "pair_reuse_rate": 0.6667,
+        "finalists": [
+          "direct-00",
+          "direct-01",
+          "direct-02"
+        ],
+        "pair_verdicts": [
+          [
+            "direct-00",
+            "direct-01",
+            "insufficient_evidence"
+          ],
+          [
+            "direct-00",
+            "direct-02",
+            "insufficient_evidence"
+          ],
+          [
+            "direct-01",
+            "direct-02",
+            "insufficient_evidence"
+          ]
+        ]
+      },
+      "status": "OK",
+      "nota": "sin modelo configurado: comparación no ejecutada",
+      "latencia_s": 0.0
+    },
+    {
+      "run_id": "c9a6f2fd1ad84ca89106fca1457bc3b9",
+      "bench_run_id": "bench-4a702087f193",
+      "problem_id": "G01",
+      "condition": "B_STRONG_PROMPT",
+      "seed": 7,
+      "seed_source": "explicit",
+      "prompt": "Genera 3 soluciones para: Reducir el consumo de agua de un huerto urbano sin penalizar el rendimiento.\nRequisitos: mecanismo causal explícito, qué supuesto cambias, respecto de qué solución de referencia, restricciones conservadas, y una prueba mínima con condición de fracaso.",
+      "candidates": [
+        {
+          "idea_id": "direct-00",
+          "title": "Respuesta directa stub 1",
+          "description": "Stub para Reducir el consumo de agua de un huerto urbano sin penalizar el rendimiento.\nReq",
+          "score": 0.5,
+          "family": "direct_stub",
+          "methods": [
+            "direct_prompt"
+          ],
+          "classes": [
+            "stub"
+          ],
+          "genome": {
+            "mechanism": [
+              "stub"
+            ],
+            "classes": [
+              "stub"
+            ]
+          }
+        },
+        {
+          "idea_id": "direct-01",
+          "title": "Respuesta directa stub 2",
+          "description": "Stub para Reducir el consumo de agua de un huerto urbano sin penalizar el rendimiento.\nReq",
+          "score": 0.5,
+          "family": "direct_stub",
+          "methods": [
+            "direct_prompt"
+          ],
+          "classes": [
+            "stub"
+          ],
+          "genome": {
+            "mechanism": [
+              "stub"
+            ],
+            "classes": [
+              "stub"
+            ]
+          }
+        },
+        {
+          "idea_id": "direct-02",
+          "title": "Respuesta directa stub 3",
+          "description": "Stub para Reducir el consumo de agua de un huerto urbano sin penalizar el rendimiento.\nReq",
+          "score": 0.5,
+          "family": "direct_stub",
+          "methods": [
+            "direct_prompt"
+          ],
+          "classes": [
+            "stub"
+          ],
+          "genome": {
+            "mechanism": [
+              "stub"
+            ],
+            "classes": [
+              "stub"
+            ]
+          }
+        }
+      ],
+      "metrics": {
+        "duplication_rate": 0.0,
+        "close_variant_rate": 0.0,
+        "structural_diversity": 0.0,
+        "unique_mechanisms": 1,
+        "family_coverage": 1.0,
+        "pair_reuse_rate": 0.6667,
+        "finalists": [
+          "direct-00",
+          "direct-01",
+          "direct-02"
+        ],
+        "pair_verdicts": [
+          [
+            "direct-00",
+            "direct-01",
+            "insufficient_evidence"
+          ],
+          [
+            "direct-00",
+            "direct-02",
+            "insufficient_evidence"
+          ],
+          [
+            "direct-01",
+            "direct-02",
+            "insufficient_evidence"
+          ]
+        ]
+      },
+      "status": "OK",
+      "nota": "sin modelo configurado: comparación no ejecutada",
+      "latencia_s": 0.0
+    },
+    {
+      "run_id": "07ac0c57b71745e1add9ecd880a10e0c",
+      "bench_run_id": "bench-dfb72dcace9b",
+      "problem_id": "G01",
+      "condition": "C_CRIBA",
+      "seed": 7,
+      "seed_source": "explicit",
+      "prompt": "CRIBA: cruces + selector diversity-aware + evidencia para: Reducir el consumo de agua de un huerto urbano sin penalizar el rendimiento.",
+      "candidates": [
+        {
+          "idea_id": "criba-7-00",
+          "title": "Lente de ventaja comparativa x Ética de reversibilidad",
+          "description": "Combinar 'estrategia' + 'ruptura_marco'",
+          "score": 0.349,
+          "genome": {
+            "actor": [
+              "operator"
+            ],
+            "mechanism": [
+              "unknown"
+            ],
+            "topology": [
+              "centralized"
+            ],
+            "trust_model": [
+              "implicit"
+            ],
+            "time_model": [
+              "staged"
+            ]
+          },
+          "family": "estrategia",
+          "methods": [
+            "Lente de ventaja comparativa",
+            "Ética de reversibilidad"
+          ],
+          "classes": [
+            "perspectiva",
+            "ruptura"
+          ]
+        },
+        {
+          "idea_id": "criba-7-01",
+          "title": "Prueba de abandono x Ética de reversibilidad",
+          "description": "Combinar 'general' + 'ruptura_marco'",
+          "score": 0.349,
+          "genome": {
+            "actor": [
+              "operator"
+            ],
+            "mechanism": [
+              "unknown"
+            ],
+            "topology": [
+              "centralized"
+            ],
+            "trust_model": [
+              "implicit"
+            ],
+            "time_model": [
+              "staged"
+            ]
+          },
+          "family": "general",
+          "methods": [
+            "Prueba de abandono",
+            "Ética de reversibilidad"
+          ],
+          "classes": [
+            "generacion",
+            "ruptura"
+          ]
+        },
+        {
+          "idea_id": "criba-7-02",
+          "title": "Ética de reversibilidad x Coaliciones emergentes",
+          "description": "Combinar 'ruptura_marco' + 'salto_espacio'",
+          "score": 0.349,
+          "genome": {
+            "actor": [
+              "operator"
+            ],
+            "mechanism": [
+              "unknown"
+            ],
+            "topology": [
+              "centralized"
+            ],
+            "trust_model": [
+              "implicit"
+            ],
+            "time_model": [
+              "staged"
+            ]
+          },
+          "family": "ruptura_marco",
+          "methods": [
+            "Ética de reversibilidad",
+            "Coaliciones emergentes"
+          ],
+          "classes": [
+            "ruptura",
+            "escape"
+          ]
+        }
+      ],
+      "metrics": {
+        "duplication_rate": 0.0,
+        "close_variant_rate": 1.0,
+        "structural_diversity": 0.0,
+        "unique_mechanisms": 1,
+        "family_coverage": 1.0,
+        "pair_reuse_rate": 0.0,
+        "finalists": [
+          "criba-7-00",
+          "criba-7-01",
+          "criba-7-02"
+        ],
+        "pair_verdicts": [
+          [
+            "criba-7-00",
+            "criba-7-01",
+            "close_variant"
+          ],
+          [
+            "criba-7-00",
+            "criba-7-02",
+            "close_variant"
+          ],
+          [
+            "criba-7-01",
+            "criba-7-02",
+            "close_variant"
+          ]
+        ]
+      },
+      "status": "OK",
+      "nota": "loop CRIBA real ejecutado via criba_fn",
+      "selection_report": {
+        "status": "OK",
+        "quality_floor": 0.199,
+        "pool_size": 12,
+        "valid_size": 12,
+        "picks": [
+          {
+            "idea_id": null,
+            "why": "mejor score sobre el suelo (0.349)"
+          },
+          {
+            "idea_id": null,
+            "why": "utilidad marginal -0.001 (distancia mínima a elegidos=0.00; variante cercana x1)"
+          },
+          {
+            "idea_id": null,
+            "why": "utilidad marginal -0.351 (distancia mínima a elegidos=0.00; variante cercana x2)"
+          }
+        ],
+        "tie_sets": [
+          [
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            ""
+          ],
+          [
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            ""
+          ]
+        ],
+        "tiebreak_rule": "deterministic idea_id order among equal operational utility; tie-break is not scientific superiority",
+        "finalists": [
+          null,
+          null,
+          null
+        ],
+        "discarded_by_floor": [],
+        "opportunity_accounting": {
+          "generated_candidates": 28,
+          "selection_candidates_considered": 12,
+          "initial_finalists": 3,
+          "candidate_development_attempts": 0,
+          "replacement_attempts": 0,
+          "finalists": 3,
+          "provider_model_requests": 0,
+          "provider_model_requests_authoritative": true,
+          "provider_model_requests_scope": "CANDIDATE_PROPOSAL_AND_CRITIC_ONLY",
+          "evaluation_calls_authoritative": false,
+          "budget_complete": false,
+          "scope": "LOCAL_PIPELINE_ACCOUNTING_ONLY"
+        }
+      },
+      "pipeline": "criba_fn",
+      "latencia_s": 1.36
+    },
+    {
+      "run_id": "98dd5b2d2cb44155911a47e8ac40f72e",
+      "bench_run_id": "bench-3dae24a5bc02",
+      "problem_id": "G01",
+      "condition": "D_BLACKFORGE",
+      "seed": 7,
+      "seed_source": "explicit",
+      "prompt": "BLACKFORGE: lotería + selector diversity-aware para: Reducir el consumo de agua de un huerto urbano sin penalizar el rendimiento.",
+      "candidates": [
+        {
+          "idea_id": "bf-7-00",
+          "title": "Prueba antes de despliegue x Secreto dividido",
+          "description": "Combinar 'evidence_verification' + 'data_privacy_provenance'",
+          "score": 0.349,
+          "genome": {
+            "actor": [
+              "operator"
+            ],
+            "mechanism": [
+              "unknown"
+            ],
+            "topology": [
+              "centralized"
+            ],
+            "trust_model": [
+              "implicit"
+            ],
+            "time_model": [
+              "staged"
+            ]
+          },
+          "family": "evidence_verification",
+          "methods": [
+            "Prueba antes de despliegue",
+            "Secreto dividido"
+          ],
+          "classes": [],
+          "source": "BLACKFORGE",
+          "mode": "optimized",
+          "prueba_concreta": null
+        },
+        {
+          "idea_id": "bf-7-01",
+          "title": "Secreto dividido x Lente de envenenamiento de dat",
+          "description": "Combinar 'data_privacy_provenance' + 'adversarial_threat'",
+          "score": 0.349,
+          "genome": {
+            "actor": [
+              "operator"
+            ],
+            "mechanism": [
+              "unknown"
+            ],
+            "topology": [
+              "centralized"
+            ],
+            "trust_model": [
+              "implicit"
+            ],
+            "time_model": [
+              "staged"
+            ]
+          },
+          "family": "data_privacy_provenance",
+          "methods": [
+            "Secreto dividido",
+            "Lente de envenenamiento de datos"
+          ],
+          "classes": [],
+          "source": "BLACKFORGE",
+          "mode": "optimized",
+          "prueba_concreta": null
+        },
+        {
+          "idea_id": "bf-7-02",
+          "title": "Lente de inversión de modelo x Fatiga de recuperación",
+          "description": "Combinar 'agents_ai_devtools' + 'human_factors'",
+          "score": 0.349,
+          "genome": {
+            "actor": [
+              "operator"
+            ],
+            "mechanism": [
+              "unknown"
+            ],
+            "topology": [
+              "centralized"
+            ],
+            "trust_model": [
+              "implicit"
+            ],
+            "time_model": [
+              "staged"
+            ]
+          },
+          "family": "agents_ai_devtools",
+          "methods": [
+            "Lente de inversión de modelo",
+            "Fatiga de recuperación"
+          ],
+          "classes": [],
+          "source": "BLACKFORGE",
+          "mode": "optimized",
+          "prueba_concreta": null
+        }
+      ],
+      "metrics": {
+        "duplication_rate": 0.0,
+        "close_variant_rate": 1.0,
+        "structural_diversity": 0.0,
+        "unique_mechanisms": 1,
+        "family_coverage": 1.0,
+        "pair_reuse_rate": 0.0,
+        "finalists": [
+          "bf-7-00",
+          "bf-7-01",
+          "bf-7-02"
+        ],
+        "pair_verdicts": [
+          [
+            "bf-7-00",
+            "bf-7-01",
+            "close_variant"
+          ],
+          [
+            "bf-7-00",
+            "bf-7-02",
+            "close_variant"
+          ],
+          [
+            "bf-7-01",
+            "bf-7-02",
+            "close_variant"
+          ]
+        ]
+      },
+      "status": "OK",
+      "nota": "loop BLACKFORGE real ejecutado via blackforge_fn",
+      "selection_report": {
+        "instrumented": false,
+        "status": "REPORT_UNAVAILABLE",
+        "reason": "criba_fn_callback_did_not_supply_selection_report"
+      },
+      "pipeline": "blackforge_fn",
+      "latencia_s": 0.156
+    },
+    {
+      "run_id": "40067373eee24642ba7b7bfff0de88fe",
+      "bench_run_id": "bench-b44eec9cdbf0",
+      "problem_id": "G02",
+      "condition": "A_DIRECT",
+      "seed": 7,
+      "seed_source": "explicit",
+      "prompt": "Genera 3 soluciones innovadoras para: Detectar abuso de permisos en agentes de software autónomos.",
+      "candidates": [
+        {
+          "idea_id": "direct-00",
+          "title": "Respuesta directa stub 1",
+          "description": "Stub para Detectar abuso de permisos en agentes de software autónomos.",
+          "score": 0.5,
+          "family": "direct_stub",
+          "methods": [
+            "direct_prompt"
+          ],
+          "classes": [
+            "stub"
+          ],
+          "genome": {
+            "mechanism": [
+              "stub"
+            ],
+            "classes": [
+              "stub"
+            ]
+          }
+        },
+        {
+          "idea_id": "direct-01",
+          "title": "Respuesta directa stub 2",
+          "description": "Stub para Detectar abuso de permisos en agentes de software autónomos.",
+          "score": 0.5,
+          "family": "direct_stub",
+          "methods": [
+            "direct_prompt"
+          ],
+          "classes": [
+            "stub"
+          ],
+          "genome": {
+            "mechanism": [
+              "stub"
+            ],
+            "classes": [
+              "stub"
+            ]
+          }
+        },
+        {
+          "idea_id": "direct-02",
+          "title": "Respuesta directa stub 3",
+          "description": "Stub para Detectar abuso de permisos en agentes de software autónomos.",
+          "score": 0.5,
+          "family": "direct_stub",
+          "methods": [
+            "direct_prompt"
+          ],
+          "classes": [
+            "stub"
+          ],
+          "genome": {
+            "mechanism": [
+              "stub"
+            ],
+            "classes": [
+              "stub"
+            ]
+          }
+        }
+      ],
+      "metrics": {
+        "duplication_rate": 0.0,
+        "close_variant_rate": 0.0,
+        "structural_diversity": 0.0,
+        "unique_mechanisms": 1,
+        "family_coverage": 1.0,
+        "pair_reuse_rate": 0.6667,
+        "finalists": [
+          "direct-00",
+          "direct-01",
+          "direct-02"
+        ],
+        "pair_verdicts": [
+          [
+            "direct-00",
+            "direct-01",
+            "insufficient_evidence"
+          ],
+          [
+            "direct-00",
+            "direct-02",
+            "insufficient_evidence"
+          ],
+          [
+            "direct-01",
+            "direct-02",
+            "insufficient_evidence"
+          ]
+        ]
+      },
+      "status": "OK",
+      "nota": "sin modelo configurado: comparación no ejecutada",
+      "latencia_s": 0.0
+    },
+    {
+      "run_id": "04afeb8774214836acc931f503d8bcc2",
+      "bench_run_id": "bench-5116d0f31647",
+      "problem_id": "G02",
+      "condition": "B_STRONG_PROMPT",
+      "seed": 7,
+      "seed_source": "explicit",
+      "prompt": "Genera 3 soluciones para: Detectar abuso de permisos en agentes de software autónomos.\nRequisitos: mecanismo causal explícito, qué supuesto cambias, respecto de qué solución de referencia, restricciones conservadas, y una prueba mínima con condición de fracaso.",
+      "candidates": [
+        {
+          "idea_id": "direct-00",
+          "title": "Respuesta directa stub 1",
+          "description": "Stub para Detectar abuso de permisos en agentes de software autónomos.\nRequisitos: mecanis",
+          "score": 0.5,
+          "family": "direct_stub",
+          "methods": [
+            "direct_prompt"
+          ],
+          "classes": [
+            "stub"
+          ],
+          "genome": {
+            "mechanism": [
+              "stub"
+            ],
+            "classes": [
+              "stub"
+            ]
+          }
+        },
+        {
+          "idea_id": "direct-01",
+          "title": "Respuesta directa stub 2",
+          "description": "Stub para Detectar abuso de permisos en agentes de software autónomos.\nRequisitos: mecanis",
+          "score": 0.5,
+          "family": "direct_stub",
+          "methods": [
+            "direct_prompt"
+          ],
+          "classes": [
+            "stub"
+          ],
+          "genome": {
+            "mechanism": [
+              "stub"
+            ],
+            "classes": [
+              "stub"
+            ]
+          }
+        },
+        {
+          "idea_id": "direct-02",
+          "title": "Respuesta directa stub 3",
+          "description": "Stub para Detectar abuso de permisos en agentes de software autónomos.\nRequisitos: mecanis",
+          "score": 0.5,
+          "family": "direct_stub",
+          "methods": [
+            "direct_prompt"
+          ],
+          "classes": [
+            "stub"
+          ],
+          "genome": {
+            "mechanism": [
+              "stub"
+            ],
+            "classes": [
+              "stub"
+            ]
+          }
+        }
+      ],
+      "metrics": {
+        "duplication_rate": 0.0,
+        "close_variant_rate": 0.0,
+        "structural_diversity": 0.0,
+        "unique_mechanisms": 1,
+        "family_coverage": 1.0,
+        "pair_reuse_rate": 0.6667,
+        "finalists": [
+          "direct-00",
+          "direct-01",
+          "direct-02"
+        ],
+        "pair_verdicts": [
+          [
+            "direct-00",
+            "direct-01",
+            "insufficient_evidence"
+          ],
+          [
+            "direct-00",
+            "direct-02",
+            "insufficient_evidence"
+          ],
+          [
+            "direct-01",
+            "direct-02",
+            "insufficient_evidence"
+          ]
+        ]
+      },
+      "status": "OK",
+      "nota": "sin modelo configurado: comparación no ejecutada",
+      "latencia_s": 0.0
+    },
+    {
+      "run_id": "5206aaad0ebf4d78a84ded7157d93864",
+      "bench_run_id": "bench-093156087cdf",
+      "problem_id": "G02",
+      "condition": "C_CRIBA",
+      "seed": 7,
+      "seed_source": "explicit",
+      "prompt": "CRIBA: cruces + selector diversity-aware + evidencia para: Detectar abuso de permisos en agentes de software autónomos.",
+      "candidates": [
+        {
+          "idea_id": "criba-7-00",
+          "title": "Lente de ventaja comparativa x Ética de reversibilidad",
+          "description": "Combinar 'estrategia' + 'ruptura_marco'",
+          "score": 0.349,
+          "genome": {
+            "actor": [
+              "operator"
+            ],
+            "mechanism": [
+              "unknown"
+            ],
+            "topology": [
+              "centralized"
+            ],
+            "trust_model": [
+              "implicit"
+            ],
+            "time_model": [
+              "staged"
+            ]
+          },
+          "family": "estrategia",
+          "methods": [
+            "Lente de ventaja comparativa",
+            "Ética de reversibilidad"
+          ],
+          "classes": [
+            "perspectiva",
+            "ruptura"
+          ]
+        },
+        {
+          "idea_id": "criba-7-01",
+          "title": "Prueba de abandono x Ética de reversibilidad",
+          "description": "Combinar 'general' + 'ruptura_marco'",
+          "score": 0.349,
+          "genome": {
+            "actor": [
+              "operator"
+            ],
+            "mechanism": [
+              "unknown"
+            ],
+            "topology": [
+              "centralized"
+            ],
+            "trust_model": [
+              "implicit"
+            ],
+            "time_model": [
+              "staged"
+            ]
+          },
+          "family": "general",
+          "methods": [
+            "Prueba de abandono",
+            "Ética de reversibilidad"
+          ],
+          "classes": [
+            "generacion",
+            "ruptura"
+          ]
+        },
+        {
+          "idea_id": "criba-7-02",
+          "title": "Ética de reversibilidad x Coaliciones emergentes",
+          "description": "Combinar 'ruptura_marco' + 'salto_espacio'",
+          "score": 0.349,
+          "genome": {
+            "actor": [
+              "operator"
+            ],
+            "mechanism": [
+              "unknown"
+            ],
+            "topology": [
+              "centralized"
+            ],
+            "trust_model": [
+              "implicit"
+            ],
+            "time_model": [
+              "staged"
+            ]
+          },
+          "family": "ruptura_marco",
+          "methods": [
+            "Ética de reversibilidad",
+            "Coaliciones emergentes"
+          ],
+          "classes": [
+            "ruptura",
+            "escape"
+          ]
+        }
+      ],
+      "metrics": {
+        "duplication_rate": 0.0,
+        "close_variant_rate": 1.0,
+        "structural_diversity": 0.0,
+        "unique_mechanisms": 1,
+        "family_coverage": 1.0,
+        "pair_reuse_rate": 0.0,
+        "finalists": [
+          "criba-7-00",
+          "criba-7-01",
+          "criba-7-02"
+        ],
+        "pair_verdicts": [
+          [
+            "criba-7-00",
+            "criba-7-01",
+            "close_variant"
+          ],
+          [
+            "criba-7-00",
+            "criba-7-02",
+            "close_variant"
+          ],
+          [
+            "criba-7-01",
+            "criba-7-02",
+            "close_variant"
+          ]
+        ]
+      },
+      "status": "OK",
+      "nota": "loop CRIBA real ejecutado via criba_fn",
+      "selection_report": {
+        "status": "OK",
+        "quality_floor": 0.199,
+        "pool_size": 12,
+        "valid_size": 12,
+        "picks": [
+          {
+            "idea_id": null,
+            "why": "mejor score sobre el suelo (0.349)"
+          },
+          {
+            "idea_id": null,
+            "why": "utilidad marginal -0.001 (distancia mínima a elegidos=0.00; variante cercana x1)"
+          },
+          {
+            "idea_id": null,
+            "why": "utilidad marginal -0.351 (distancia mínima a elegidos=0.00; variante cercana x2)"
+          }
+        ],
+        "tie_sets": [
+          [
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            ""
+          ],
+          [
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            ""
+          ]
+        ],
+        "tiebreak_rule": "deterministic idea_id order among equal operational utility; tie-break is not scientific superiority",
+        "finalists": [
+          null,
+          null,
+          null
+        ],
+        "discarded_by_floor": [],
+        "opportunity_accounting": {
+          "generated_candidates": 28,
+          "selection_candidates_considered": 12,
+          "initial_finalists": 3,
+          "candidate_development_attempts": 0,
+          "replacement_attempts": 0,
+          "finalists": 3,
+          "provider_model_requests": 0,
+          "provider_model_requests_authoritative": true,
+          "provider_model_requests_scope": "CANDIDATE_PROPOSAL_AND_CRITIC_ONLY",
+          "evaluation_calls_authoritative": false,
+          "budget_complete": false,
+          "scope": "LOCAL_PIPELINE_ACCOUNTING_ONLY"
+        }
+      },
+      "pipeline": "criba_fn",
+      "latencia_s": 0.094
+    },
+    {
+      "run_id": "81ac56175cb842c8b162773616ae39af",
+      "bench_run_id": "bench-88ea3225da0c",
+      "problem_id": "G02",
+      "condition": "D_BLACKFORGE",
+      "seed": 7,
+      "seed_source": "explicit",
+      "prompt": "BLACKFORGE: lotería + selector diversity-aware para: Detectar abuso de permisos en agentes de software autónomos.",
+      "candidates": [
+        {
+          "idea_id": "bf-7-00",
+          "title": "Prueba antes de despliegue x Secreto dividido",
+          "description": "Combinar 'evidence_verification' + 'data_privacy_provenance'",
+          "score": 0.349,
+          "genome": {
+            "actor": [
+              "operator"
+            ],
+            "mechanism": [
+              "unknown"
+            ],
+            "topology": [
+              "centralized"
+            ],
+            "trust_model": [
+              "implicit"
+            ],
+            "time_model": [
+              "staged"
+            ]
+          },
+          "family": "evidence_verification",
+          "methods": [
+            "Prueba antes de despliegue",
+            "Secreto dividido"
+          ],
+          "classes": [],
+          "source": "BLACKFORGE",
+          "mode": "optimized",
+          "prueba_concreta": null
+        },
+        {
+          "idea_id": "bf-7-01",
+          "title": "Secreto dividido x Lente de envenenamiento de dat",
+          "description": "Combinar 'data_privacy_provenance' + 'adversarial_threat'",
+          "score": 0.349,
+          "genome": {
+            "actor": [
+              "operator"
+            ],
+            "mechanism": [
+              "unknown"
+            ],
+            "topology": [
+              "centralized"
+            ],
+            "trust_model": [
+              "implicit"
+            ],
+            "time_model": [
+              "staged"
+            ]
+          },
+          "family": "data_privacy_provenance",
+          "methods": [
+            "Secreto dividido",
+            "Lente de envenenamiento de datos"
+          ],
+          "classes": [],
+          "source": "BLACKFORGE",
+          "mode": "optimized",
+          "prueba_concreta": null
+        },
+        {
+          "idea_id": "bf-7-02",
+          "title": "Lente de inversión de modelo x Fatiga de recuperación",
+          "description": "Combinar 'agents_ai_devtools' + 'human_factors'",
+          "score": 0.349,
+          "genome": {
+            "actor": [
+              "operator"
+            ],
+            "mechanism": [
+              "unknown"
+            ],
+            "topology": [
+              "centralized"
+            ],
+            "trust_model": [
+              "implicit"
+            ],
+            "time_model": [
+              "staged"
+            ]
+          },
+          "family": "agents_ai_devtools",
+          "methods": [
+            "Lente de inversión de modelo",
+            "Fatiga de recuperación"
+          ],
+          "classes": [],
+          "source": "BLACKFORGE",
+          "mode": "optimized",
+          "prueba_concreta": null
+        }
+      ],
+      "metrics": {
+        "duplication_rate": 0.0,
+        "close_variant_rate": 1.0,
+        "structural_diversity": 0.0,
+        "unique_mechanisms": 1,
+        "family_coverage": 1.0,
+        "pair_reuse_rate": 0.0,
+        "finalists": [
+          "bf-7-00",
+          "bf-7-01",
+          "bf-7-02"
+        ],
+        "pair_verdicts": [
+          [
+            "bf-7-00",
+            "bf-7-01",
+            "close_variant"
+          ],
+          [
+            "bf-7-00",
+            "bf-7-02",
+            "close_variant"
+          ],
+          [
+            "bf-7-01",
+            "bf-7-02",
+            "close_variant"
+          ]
+        ]
+      },
+      "status": "OK",
+      "nota": "loop BLACKFORGE real ejecutado via blackforge_fn",
+      "selection_report": {
+        "instrumented": false,
+        "status": "REPORT_UNAVAILABLE",
+        "reason": "criba_fn_callback_did_not_supply_selection_report"
+      },
+      "pipeline": "blackforge_fn",
+      "latencia_s": 0.015
+    },
+    {
+      "run_id": "23f4cbe5f174452fb1de18dffdc21308",
+      "bench_run_id": "bench-e2ad687434d1",
+      "problem_id": "G03",
+      "condition": "A_DIRECT",
+      "seed": 7,
+      "seed_source": "explicit",
+      "prompt": "Genera 3 soluciones innovadoras para: Reducir la cola de atención de una oficina sin contratar personal.",
+      "candidates": [
+        {
+          "idea_id": "direct-00",
+          "title": "Respuesta directa stub 1",
+          "description": "Stub para Reducir la cola de atención de una oficina sin contratar personal.",
+          "score": 0.5,
+          "family": "direct_stub",
+          "methods": [
+            "direct_prompt"
+          ],
+          "classes": [
+            "stub"
+          ],
+          "genome": {
+            "mechanism": [
+              "stub"
+            ],
+            "classes": [
+              "stub"
+            ]
+          }
+        },
+        {
+          "idea_id": "direct-01",
+          "title": "Respuesta directa stub 2",
+          "description": "Stub para Reducir la cola de atención de una oficina sin contratar personal.",
+          "score": 0.5,
+          "family": "direct_stub",
+          "methods": [
+            "direct_prompt"
+          ],
+          "classes": [
+            "stub"
+          ],
+          "genome": {
+            "mechanism": [
+              "stub"
+            ],
+            "classes": [
+              "stub"
+            ]
+          }
+        },
+        {
+          "idea_id": "direct-02",
+          "title": "Respuesta directa stub 3",
+          "description": "Stub para Reducir la cola de atención de una oficina sin contratar personal.",
+          "score": 0.5,
+          "family": "direct_stub",
+          "methods": [
+            "direct_prompt"
+          ],
+          "classes": [
+            "stub"
+          ],
+          "genome": {
+            "mechanism": [
+              "stub"
+            ],
+            "classes": [
+              "stub"
+            ]
+          }
+        }
+      ],
+      "metrics": {
+        "duplication_rate": 0.0,
+        "close_variant_rate": 0.0,
+        "structural_diversity": 0.0,
+        "unique_mechanisms": 1,
+        "family_coverage": 1.0,
+        "pair_reuse_rate": 0.6667,
+        "finalists": [
+          "direct-00",
+          "direct-01",
+          "direct-02"
+        ],
+        "pair_verdicts": [
+          [
+            "direct-00",
+            "direct-01",
+            "insufficient_evidence"
+          ],
+          [
+            "direct-00",
+            "direct-02",
+            "insufficient_evidence"
+          ],
+          [
+            "direct-01",
+            "direct-02",
+            "insufficient_evidence"
+          ]
+        ]
+      },
+      "status": "OK",
+      "nota": "sin modelo configurado: comparación no ejecutada",
+      "latencia_s": 0.0
+    },
+    {
+      "run_id": "ce4dc44b1dca4f29bd802a46aac615db",
+      "bench_run_id": "bench-127cc168044b",
+      "problem_id": "G03",
+      "condition": "B_STRONG_PROMPT",
+      "seed": 7,
+      "seed_source": "explicit",
+      "prompt": "Genera 3 soluciones para: Reducir la cola de atención de una oficina sin contratar personal.\nRequisitos: mecanismo causal explícito, qué supuesto cambias, respecto de qué solución de referencia, restricciones conservadas, y una prueba mínima con condición de fracaso.",
+      "candidates": [
+        {
+          "idea_id": "direct-00",
+          "title": "Respuesta directa stub 1",
+          "description": "Stub para Reducir la cola de atención de una oficina sin contratar personal.\nRequisitos: m",
+          "score": 0.5,
+          "family": "direct_stub",
+          "methods": [
+            "direct_prompt"
+          ],
+          "classes": [
+            "stub"
+          ],
+          "genome": {
+            "mechanism": [
+              "stub"
+            ],
+            "classes": [
+              "stub"
+            ]
+          }
+        },
+        {
+          "idea_id": "direct-01",
+          "title": "Respuesta directa stub 2",
+          "description": "Stub para Reducir la cola de atención de una oficina sin contratar personal.\nRequisitos: m",
+          "score": 0.5,
+          "family": "direct_stub",
+          "methods": [
+            "direct_prompt"
+          ],
+          "classes": [
+            "stub"
+          ],
+          "genome": {
+            "mechanism": [
+              "stub"
+            ],
+            "classes": [
+              "stub"
+            ]
+          }
+        },
+        {
+          "idea_id": "direct-02",
+          "title": "Respuesta directa stub 3",
+          "description": "Stub para Reducir la cola de atención de una oficina sin contratar personal.\nRequisitos: m",
+          "score": 0.5,
+          "family": "direct_stub",
+          "methods": [
+            "direct_prompt"
+          ],
+          "classes": [
+            "stub"
+          ],
+          "genome": {
+            "mechanism": [
+              "stub"
+            ],
+            "classes": [
+              "stub"
+            ]
+          }
+        }
+      ],
+      "metrics": {
+        "duplication_rate": 0.0,
+        "close_variant_rate": 0.0,
+        "structural_diversity": 0.0,
+        "unique_mechanisms": 1,
+        "family_coverage": 1.0,
+        "pair_reuse_rate": 0.6667,
+        "finalists": [
+          "direct-00",
+          "direct-01",
+          "direct-02"
+        ],
+        "pair_verdicts": [
+          [
+            "direct-00",
+            "direct-01",
+            "insufficient_evidence"
+          ],
+          [
+            "direct-00",
+            "direct-02",
+            "insufficient_evidence"
+          ],
+          [
+            "direct-01",
+            "direct-02",
+            "insufficient_evidence"
+          ]
+        ]
+      },
+      "status": "OK",
+      "nota": "sin modelo configurado: comparación no ejecutada",
+      "latencia_s": 0.0
+    },
+    {
+      "run_id": "b44d1eab71fa4e0eab4837a1a65812e7",
+      "bench_run_id": "bench-34699a466c89",
+      "problem_id": "G03",
+      "condition": "C_CRIBA",
+      "seed": 7,
+      "seed_source": "explicit",
+      "prompt": "CRIBA: cruces + selector diversity-aware + evidencia para: Reducir la cola de atención de una oficina sin contratar personal.",
+      "candidates": [
+        {
+          "idea_id": "criba-7-00",
+          "title": "Lente de ventaja comparativa x Ética de reversibilidad",
+          "description": "Combinar 'estrategia' + 'ruptura_marco'",
+          "score": 0.349,
+          "genome": {
+            "actor": [
+              "operator"
+            ],
+            "mechanism": [
+              "unknown"
+            ],
+            "topology": [
+              "centralized"
+            ],
+            "trust_model": [
+              "implicit"
+            ],
+            "time_model": [
+              "staged"
+            ]
+          },
+          "family": "estrategia",
+          "methods": [
+            "Lente de ventaja comparativa",
+            "Ética de reversibilidad"
+          ],
+          "classes": [
+            "perspectiva",
+            "ruptura"
+          ]
+        },
+        {
+          "idea_id": "criba-7-01",
+          "title": "Prueba de abandono x Ética de reversibilidad",
+          "description": "Combinar 'general' + 'ruptura_marco'",
+          "score": 0.349,
+          "genome": {
+            "actor": [
+              "operator"
+            ],
+            "mechanism": [
+              "unknown"
+            ],
+            "topology": [
+              "centralized"
+            ],
+            "trust_model": [
+              "implicit"
+            ],
+            "time_model": [
+              "staged"
+            ]
+          },
+          "family": "general",
+          "methods": [
+            "Prueba de abandono",
+            "Ética de reversibilidad"
+          ],
+          "classes": [
+            "generacion",
+            "ruptura"
+          ]
+        },
+        {
+          "idea_id": "criba-7-02",
+          "title": "Ética de reversibilidad x Coaliciones emergentes",
+          "description": "Combinar 'ruptura_marco' + 'salto_espacio'",
+          "score": 0.349,
+          "genome": {
+            "actor": [
+              "operator"
+            ],
+            "mechanism": [
+              "unknown"
+            ],
+            "topology": [
+              "centralized"
+            ],
+            "trust_model": [
+              "implicit"
+            ],
+            "time_model": [
+              "staged"
+            ]
+          },
+          "family": "ruptura_marco",
+          "methods": [
+            "Ética de reversibilidad",
+            "Coaliciones emergentes"
+          ],
+          "classes": [
+            "ruptura",
+            "escape"
+          ]
+        }
+      ],
+      "metrics": {
+        "duplication_rate": 0.0,
+        "close_variant_rate": 1.0,
+        "structural_diversity": 0.0,
+        "unique_mechanisms": 1,
+        "family_coverage": 1.0,
+        "pair_reuse_rate": 0.0,
+        "finalists": [
+          "criba-7-00",
+          "criba-7-01",
+          "criba-7-02"
+        ],
+        "pair_verdicts": [
+          [
+            "criba-7-00",
+            "criba-7-01",
+            "close_variant"
+          ],
+          [
+            "criba-7-00",
+            "criba-7-02",
+            "close_variant"
+          ],
+          [
+            "criba-7-01",
+            "criba-7-02",
+            "close_variant"
+          ]
+        ]
+      },
+      "status": "OK",
+      "nota": "loop CRIBA real ejecutado via criba_fn",
+      "selection_report": {
+        "status": "OK",
+        "quality_floor": 0.199,
+        "pool_size": 12,
+        "valid_size": 12,
+        "picks": [
+          {
+            "idea_id": null,
+            "why": "mejor score sobre el suelo (0.349)"
+          },
+          {
+            "idea_id": null,
+            "why": "utilidad marginal -0.001 (distancia mínima a elegidos=0.00; variante cercana x1)"
+          },
+          {
+            "idea_id": null,
+            "why": "utilidad marginal -0.351 (distancia mínima a elegidos=0.00; variante cercana x2)"
+          }
+        ],
+        "tie_sets": [
+          [
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            ""
+          ],
+          [
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            ""
+          ]
+        ],
+        "tiebreak_rule": "deterministic idea_id order among equal operational utility; tie-break is not scientific superiority",
+        "finalists": [
+          null,
+          null,
+          null
+        ],
+        "discarded_by_floor": [],
+        "opportunity_accounting": {
+          "generated_candidates": 28,
+          "selection_candidates_considered": 12,
+          "initial_finalists": 3,
+          "candidate_development_attempts": 0,
+          "replacement_attempts": 0,
+          "finalists": 3,
+          "provider_model_requests": 0,
+          "provider_model_requests_authoritative": true,
+          "provider_model_requests_scope": "CANDIDATE_PROPOSAL_AND_CRITIC_ONLY",
+          "evaluation_calls_authoritative": false,
+          "budget_complete": false,
+          "scope": "LOCAL_PIPELINE_ACCOUNTING_ONLY"
+        }
+      },
+      "pipeline": "criba_fn",
+      "latencia_s": 0.11
+    },
+    {
+      "run_id": "82a7380cc8c7426f94604c38de87180f",
+      "bench_run_id": "bench-d3c5cc5dfc04",
+      "problem_id": "G03",
+      "condition": "D_BLACKFORGE",
+      "seed": 7,
+      "seed_source": "explicit",
+      "prompt": "BLACKFORGE: lotería + selector diversity-aware para: Reducir la cola de atención de una oficina sin contratar personal.",
+      "candidates": [
+        {
+          "idea_id": "bf-7-00",
+          "title": "Prueba antes de despliegue x Secreto dividido",
+          "description": "Combinar 'evidence_verification' + 'data_privacy_provenance'",
+          "score": 0.349,
+          "genome": {
+            "actor": [
+              "operator"
+            ],
+            "mechanism": [
+              "unknown"
+            ],
+            "topology": [
+              "centralized"
+            ],
+            "trust_model": [
+              "implicit"
+            ],
+            "time_model": [
+              "staged"
+            ]
+          },
+          "family": "evidence_verification",
+          "methods": [
+            "Prueba antes de despliegue",
+            "Secreto dividido"
+          ],
+          "classes": [],
+          "source": "BLACKFORGE",
+          "mode": "optimized",
+          "prueba_concreta": null
+        },
+        {
+          "idea_id": "bf-7-01",
+          "title": "Secreto dividido x Lente de envenenamiento de dat",
+          "description": "Combinar 'data_privacy_provenance' + 'adversarial_threat'",
+          "score": 0.349,
+          "genome": {
+            "actor": [
+              "operator"
+            ],
+            "mechanism": [
+              "unknown"
+            ],
+            "topology": [
+              "centralized"
+            ],
+            "trust_model": [
+              "implicit"
+            ],
+            "time_model": [
+              "staged"
+            ]
+          },
+          "family": "data_privacy_provenance",
+          "methods": [
+            "Secreto dividido",
+            "Lente de envenenamiento de datos"
+          ],
+          "classes": [],
+          "source": "BLACKFORGE",
+          "mode": "optimized",
+          "prueba_concreta": null
+        },
+        {
+          "idea_id": "bf-7-02",
+          "title": "Lente de inversión de modelo x Fatiga de recuperación",
+          "description": "Combinar 'agents_ai_devtools' + 'human_factors'",
+          "score": 0.349,
+          "genome": {
+            "actor": [
+              "operator"
+            ],
+            "mechanism": [
+              "unknown"
+            ],
+            "topology": [
+              "centralized"
+            ],
+            "trust_model": [
+              "implicit"
+            ],
+            "time_model": [
+              "staged"
+            ]
+          },
+          "family": "agents_ai_devtools",
+          "methods": [
+            "Lente de inversión de modelo",
+            "Fatiga de recuperación"
+          ],
+          "classes": [],
+          "source": "BLACKFORGE",
+          "mode": "optimized",
+          "prueba_concreta": null
+        }
+      ],
+      "metrics": {
+        "duplication_rate": 0.0,
+        "close_variant_rate": 1.0,
+        "structural_diversity": 0.0,
+        "unique_mechanisms": 1,
+        "family_coverage": 1.0,
+        "pair_reuse_rate": 0.0,
+        "finalists": [
+          "bf-7-00",
+          "bf-7-01",
+          "bf-7-02"
+        ],
+        "pair_verdicts": [
+          [
+            "bf-7-00",
+            "bf-7-01",
+            "close_variant"
+          ],
+          [
+            "bf-7-00",
+            "bf-7-02",
+            "close_variant"
+          ],
+          [
+            "bf-7-01",
+            "bf-7-02",
+            "close_variant"
+          ]
+        ]
+      },
+      "status": "OK",
+      "nota": "loop BLACKFORGE real ejecutado via blackforge_fn",
+      "selection_report": {
+        "instrumented": false,
+        "status": "REPORT_UNAVAILABLE",
+        "reason": "criba_fn_callback_did_not_supply_selection_report"
+      },
+      "pipeline": "blackforge_fn",
+      "latencia_s": 0.0
+    },
+    {
+      "run_id": "aa618c7034494bd787f82b164ac5c042",
+      "bench_run_id": "bench-8dfb2013ee42",
+      "problem_id": "G04",
+      "condition": "A_DIRECT",
+      "seed": 7,
+      "seed_source": "explicit",
+      "prompt": "Genera 3 soluciones innovadoras para: Recuperar valor de lotes de producción defectuosos en manufactura.",
+      "candidates": [
+        {
+          "idea_id": "direct-00",
+          "title": "Respuesta directa stub 1",
+          "description": "Stub para Recuperar valor de lotes de producción defectuosos en manufactura.",
+          "score": 0.5,
+          "family": "direct_stub",
+          "methods": [
+            "direct_prompt"
+          ],
+          "classes": [
+            "stub"
+          ],
+          "genome": {
+            "mechanism": [
+              "stub"
+            ],
+            "classes": [
+              "stub"
+            ]
+          }
+        },
+        {
+          "idea_id": "direct-01",
+          "title": "Respuesta directa stub 2",
+          "description": "Stub para Recuperar valor de lotes de producción defectuosos en manufactura.",
+          "score": 0.5,
+          "family": "direct_stub",
+          "methods": [
+            "direct_prompt"
+          ],
+          "classes": [
+            "stub"
+          ],
+          "genome": {
+            "mechanism": [
+              "stub"
+            ],
+            "classes": [
+              "stub"
+            ]
+          }
+        },
+        {
+          "idea_id": "direct-02",
+          "title": "Respuesta directa stub 3",
+          "description": "Stub para Recuperar valor de lotes de producción defectuosos en manufactura.",
+          "score": 0.5,
+          "family": "direct_stub",
+          "methods": [
+            "direct_prompt"
+          ],
+          "classes": [
+            "stub"
+          ],
+          "genome": {
+            "mechanism": [
+              "stub"
+            ],
+            "classes": [
+              "stub"
+            ]
+          }
+        }
+      ],
+      "metrics": {
+        "duplication_rate": 0.0,
+        "close_variant_rate": 0.0,
+        "structural_diversity": 0.0,
+        "unique_mechanisms": 1,
+        "family_coverage": 1.0,
+        "pair_reuse_rate": 0.6667,
+        "finalists": [
+          "direct-00",
+          "direct-01",
+          "direct-02"
+        ],
+        "pair_verdicts": [
+          [
+            "direct-00",
+            "direct-01",
+            "insufficient_evidence"
+          ],
+          [
+            "direct-00",
+            "direct-02",
+            "insufficient_evidence"
+          ],
+          [
+            "direct-01",
+            "direct-02",
+            "insufficient_evidence"
+          ]
+        ]
+      },
+      "status": "OK",
+      "nota": "sin modelo configurado: comparación no ejecutada",
+      "latencia_s": 0.0
+    },
+    {
+      "run_id": "569dc52e698c4603b21e4a99ea2f9a5e",
+      "bench_run_id": "bench-e85cf731b62c",
+      "problem_id": "G04",
+      "condition": "B_STRONG_PROMPT",
+      "seed": 7,
+      "seed_source": "explicit",
+      "prompt": "Genera 3 soluciones para: Recuperar valor de lotes de producción defectuosos en manufactura.\nRequisitos: mecanismo causal explícito, qué supuesto cambias, respecto de qué solución de referencia, restricciones conservadas, y una prueba mínima con condición de fracaso.",
+      "candidates": [
+        {
+          "idea_id": "direct-00",
+          "title": "Respuesta directa stub 1",
+          "description": "Stub para Recuperar valor de lotes de producción defectuosos en manufactura.\nRequisitos: m",
+          "score": 0.5,
+          "family": "direct_stub",
+          "methods": [
+            "direct_prompt"
+          ],
+          "classes": [
+            "stub"
+          ],
+          "genome": {
+            "mechanism": [
+              "stub"
+            ],
+            "classes": [
+              "stub"
+            ]
+          }
+        },
+        {
+          "idea_id": "direct-01",
+          "title": "Respuesta directa stub 2",
+          "description": "Stub para Recuperar valor de lotes de producción defectuosos en manufactura.\nRequisitos: m",
+          "score": 0.5,
+          "family": "direct_stub",
+          "methods": [
+            "direct_prompt"
+          ],
+          "classes": [
+            "stub"
+          ],
+          "genome": {
+            "mechanism": [
+              "stub"
+            ],
+            "classes": [
+              "stub"
+            ]
+          }
+        },
+        {
+          "idea_id": "direct-02",
+          "title": "Respuesta directa stub 3",
+          "description": "Stub para Recuperar valor de lotes de producción defectuosos en manufactura.\nRequisitos: m",
+          "score": 0.5,
+          "family": "direct_stub",
+          "methods": [
+            "direct_prompt"
+          ],
+          "classes": [
+            "stub"
+          ],
+          "genome": {
+            "mechanism": [
+              "stub"
+            ],
+            "classes": [
+              "stub"
+            ]
+          }
+        }
+      ],
+      "metrics": {
+        "duplication_rate": 0.0,
+        "close_variant_rate": 0.0,
+        "structural_diversity": 0.0,
+        "unique_mechanisms": 1,
+        "family_coverage": 1.0,
+        "pair_reuse_rate": 0.6667,
+        "finalists": [
+          "direct-00",
+          "direct-01",
+          "direct-02"
+        ],
+        "pair_verdicts": [
+          [
+            "direct-00",
+            "direct-01",
+            "insufficient_evidence"
+          ],
+          [
+            "direct-00",
+            "direct-02",
+            "insufficient_evidence"
+          ],
+          [
+            "direct-01",
+            "direct-02",
+            "insufficient_evidence"
+          ]
+        ]
+      },
+      "status": "OK",
+      "nota": "sin modelo configurado: comparación no ejecutada",
+      "latencia_s": 0.0
+    },
+    {
+      "run_id": "1d37fa633ff04ea4822d0c5be2fbf2b6",
+      "bench_run_id": "bench-ea002442abdf",
+      "problem_id": "G04",
+      "condition": "C_CRIBA",
+      "seed": 7,
+      "seed_source": "explicit",
+      "prompt": "CRIBA: cruces + selector diversity-aware + evidencia para: Recuperar valor de lotes de producción defectuosos en manufactura.",
+      "candidates": [
+        {
+          "idea_id": "criba-7-00",
+          "title": "Lente de ventaja comparativa x Ética de reversibilidad",
+          "description": "Combinar 'estrategia' + 'ruptura_marco'",
+          "score": 0.349,
+          "genome": {
+            "actor": [
+              "operator"
+            ],
+            "mechanism": [
+              "unknown"
+            ],
+            "topology": [
+              "centralized"
+            ],
+            "trust_model": [
+              "implicit"
+            ],
+            "time_model": [
+              "staged"
+            ]
+          },
+          "family": "estrategia",
+          "methods": [
+            "Lente de ventaja comparativa",
+            "Ética de reversibilidad"
+          ],
+          "classes": [
+            "perspectiva",
+            "ruptura"
+          ]
+        },
+        {
+          "idea_id": "criba-7-01",
+          "title": "Prueba de abandono x Ética de reversibilidad",
+          "description": "Combinar 'general' + 'ruptura_marco'",
+          "score": 0.349,
+          "genome": {
+            "actor": [
+              "operator"
+            ],
+            "mechanism": [
+              "unknown"
+            ],
+            "topology": [
+              "centralized"
+            ],
+            "trust_model": [
+              "implicit"
+            ],
+            "time_model": [
+              "staged"
+            ]
+          },
+          "family": "general",
+          "methods": [
+            "Prueba de abandono",
+            "Ética de reversibilidad"
+          ],
+          "classes": [
+            "generacion",
+            "ruptura"
+          ]
+        },
+        {
+          "idea_id": "criba-7-02",
+          "title": "Ética de reversibilidad x Coaliciones emergentes",
+          "description": "Combinar 'ruptura_marco' + 'salto_espacio'",
+          "score": 0.349,
+          "genome": {
+            "actor": [
+              "operator"
+            ],
+            "mechanism": [
+              "unknown"
+            ],
+            "topology": [
+              "centralized"
+            ],
+            "trust_model": [
+              "implicit"
+            ],
+            "time_model": [
+              "staged"
+            ]
+          },
+          "family": "ruptura_marco",
+          "methods": [
+            "Ética de reversibilidad",
+            "Coaliciones emergentes"
+          ],
+          "classes": [
+            "ruptura",
+            "escape"
+          ]
+        }
+      ],
+      "metrics": {
+        "duplication_rate": 0.0,
+        "close_variant_rate": 1.0,
+        "structural_diversity": 0.0,
+        "unique_mechanisms": 1,
+        "family_coverage": 1.0,
+        "pair_reuse_rate": 0.0,
+        "finalists": [
+          "criba-7-00",
+          "criba-7-01",
+          "criba-7-02"
+        ],
+        "pair_verdicts": [
+          [
+            "criba-7-00",
+            "criba-7-01",
+            "close_variant"
+          ],
+          [
+            "criba-7-00",
+            "criba-7-02",
+            "close_variant"
+          ],
+          [
+            "criba-7-01",
+            "criba-7-02",
+            "close_variant"
+          ]
+        ]
+      },
+      "status": "OK",
+      "nota": "loop CRIBA real ejecutado via criba_fn",
+      "selection_report": {
+        "status": "OK",
+        "quality_floor": 0.199,
+        "pool_size": 12,
+        "valid_size": 12,
+        "picks": [
+          {
+            "idea_id": null,
+            "why": "mejor score sobre el suelo (0.349)"
+          },
+          {
+            "idea_id": null,
+            "why": "utilidad marginal -0.001 (distancia mínima a elegidos=0.00; variante cercana x1)"
+          },
+          {
+            "idea_id": null,
+            "why": "utilidad marginal -0.351 (distancia mínima a elegidos=0.00; variante cercana x2)"
+          }
+        ],
+        "tie_sets": [
+          [
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            ""
+          ],
+          [
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            ""
+          ]
+        ],
+        "tiebreak_rule": "deterministic idea_id order among equal operational utility; tie-break is not scientific superiority",
+        "finalists": [
+          null,
+          null,
+          null
+        ],
+        "discarded_by_floor": [],
+        "opportunity_accounting": {
+          "generated_candidates": 28,
+          "selection_candidates_considered": 12,
+          "initial_finalists": 3,
+          "candidate_development_attempts": 0,
+          "replacement_attempts": 0,
+          "finalists": 3,
+          "provider_model_requests": 0,
+          "provider_model_requests_authoritative": true,
+          "provider_model_requests_scope": "CANDIDATE_PROPOSAL_AND_CRITIC_ONLY",
+          "evaluation_calls_authoritative": false,
+          "budget_complete": false,
+          "scope": "LOCAL_PIPELINE_ACCOUNTING_ONLY"
+        }
+      },
+      "pipeline": "criba_fn",
+      "latencia_s": 0.094
+    },
+    {
+      "run_id": "e6e357f820e14a7298db68a22ea4f835",
+      "bench_run_id": "bench-fe9e055732d3",
+      "problem_id": "G04",
+      "condition": "D_BLACKFORGE",
+      "seed": 7,
+      "seed_source": "explicit",
+      "prompt": "BLACKFORGE: lotería + selector diversity-aware para: Recuperar valor de lotes de producción defectuosos en manufactura.",
+      "candidates": [
+        {
+          "idea_id": "bf-7-00",
+          "title": "Prueba antes de despliegue x Secreto dividido",
+          "description": "Combinar 'evidence_verification' + 'data_privacy_provenance'",
+          "score": 0.349,
+          "genome": {
+            "actor": [
+              "operator"
+            ],
+            "mechanism": [
+              "unknown"
+            ],
+            "topology": [
+              "centralized"
+            ],
+            "trust_model": [
+              "implicit"
+            ],
+            "time_model": [
+              "staged"
+            ]
+          },
+          "family": "evidence_verification",
+          "methods": [
+            "Prueba antes de despliegue",
+            "Secreto dividido"
+          ],
+          "classes": [],
+          "source": "BLACKFORGE",
+          "mode": "optimized",
+          "prueba_concreta": null
+        },
+        {
+          "idea_id": "bf-7-01",
+          "title": "Secreto dividido x Lente de envenenamiento de dat",
+          "description": "Combinar 'data_privacy_provenance' + 'adversarial_threat'",
+          "score": 0.349,
+          "genome": {
+            "actor": [
+              "operator"
+            ],
+            "mechanism": [
+              "unknown"
+            ],
+            "topology": [
+              "centralized"
+            ],
+            "trust_model": [
+              "implicit"
+            ],
+            "time_model": [
+              "staged"
+            ]
+          },
+          "family": "data_privacy_provenance",
+          "methods": [
+            "Secreto dividido",
+            "Lente de envenenamiento de datos"
+          ],
+          "classes": [],
+          "source": "BLACKFORGE",
+          "mode": "optimized",
+          "prueba_concreta": null
+        },
+        {
+          "idea_id": "bf-7-02",
+          "title": "Lente de inversión de modelo x Fatiga de recuperación",
+          "description": "Combinar 'agents_ai_devtools' + 'human_factors'",
+          "score": 0.349,
+          "genome": {
+            "actor": [
+              "operator"
+            ],
+            "mechanism": [
+              "unknown"
+            ],
+            "topology": [
+              "centralized"
+            ],
+            "trust_model": [
+              "implicit"
+            ],
+            "time_model": [
+              "staged"
+            ]
+          },
+          "family": "agents_ai_devtools",
+          "methods": [
+            "Lente de inversión de modelo",
+            "Fatiga de recuperación"
+          ],
+          "classes": [],
+          "source": "BLACKFORGE",
+          "mode": "optimized",
+          "prueba_concreta": null
+        }
+      ],
+      "metrics": {
+        "duplication_rate": 0.0,
+        "close_variant_rate": 1.0,
+        "structural_diversity": 0.0,
+        "unique_mechanisms": 1,
+        "family_coverage": 1.0,
+        "pair_reuse_rate": 0.0,
+        "finalists": [
+          "bf-7-00",
+          "bf-7-01",
+          "bf-7-02"
+        ],
+        "pair_verdicts": [
+          [
+            "bf-7-00",
+            "bf-7-01",
+            "close_variant"
+          ],
+          [
+            "bf-7-00",
+            "bf-7-02",
+            "close_variant"
+          ],
+          [
+            "bf-7-01",
+            "bf-7-02",
+            "close_variant"
+          ]
+        ]
+      },
+      "status": "OK",
+      "nota": "loop BLACKFORGE real ejecutado via blackforge_fn",
+      "selection_report": {
+        "instrumented": false,
+        "status": "REPORT_UNAVAILABLE",
+        "reason": "criba_fn_callback_did_not_supply_selection_report"
+      },
+      "pipeline": "blackforge_fn",
+      "latencia_s": 0.015
+    },
+    {
+      "run_id": "25bd8486957f48efbabb4401d9481654",
+      "bench_run_id": "bench-c97579b55024",
+      "problem_id": "G05",
+      "condition": "A_DIRECT",
+      "seed": 7,
+      "seed_source": "explicit",
+      "prompt": "Genera 3 soluciones innovadoras para: Mejorar la adopción de una herramienta interna que nadie usa.",
+      "candidates": [
+        {
+          "idea_id": "direct-00",
+          "title": "Respuesta directa stub 1",
+          "description": "Stub para Mejorar la adopción de una herramienta interna que nadie usa.",
+          "score": 0.5,
+          "family": "direct_stub",
+          "methods": [
+            "direct_prompt"
+          ],
+          "classes": [
+            "stub"
+          ],
+          "genome": {
+            "mechanism": [
+              "stub"
+            ],
+            "classes": [
+              "stub"
+            ]
+          }
+        },
+        {
+          "idea_id": "direct-01",
+          "title": "Respuesta directa stub 2",
+          "description": "Stub para Mejorar la adopción de una herramienta interna que nadie usa.",
+          "score": 0.5,
+          "family": "direct_stub",
+          "methods": [
+            "direct_prompt"
+          ],
+          "classes": [
+            "stub"
+          ],
+          "genome": {
+            "mechanism": [
+              "stub"
+            ],
+            "classes": [
+              "stub"
+            ]
+          }
+        },
+        {
+          "idea_id": "direct-02",
+          "title": "Respuesta directa stub 3",
+          "description": "Stub para Mejorar la adopción de una herramienta interna que nadie usa.",
+          "score": 0.5,
+          "family": "direct_stub",
+          "methods": [
+            "direct_prompt"
+          ],
+          "classes": [
+            "stub"
+          ],
+          "genome": {
+            "mechanism": [
+              "stub"
+            ],
+            "classes": [
+              "stub"
+            ]
+          }
+        }
+      ],
+      "metrics": {
+        "duplication_rate": 0.0,
+        "close_variant_rate": 0.0,
+        "structural_diversity": 0.0,
+        "unique_mechanisms": 1,
+        "family_coverage": 1.0,
+        "pair_reuse_rate": 0.6667,
+        "finalists": [
+          "direct-00",
+          "direct-01",
+          "direct-02"
+        ],
+        "pair_verdicts": [
+          [
+            "direct-00",
+            "direct-01",
+            "insufficient_evidence"
+          ],
+          [
+            "direct-00",
+            "direct-02",
+            "insufficient_evidence"
+          ],
+          [
+            "direct-01",
+            "direct-02",
+            "insufficient_evidence"
+          ]
+        ]
+      },
+      "status": "OK",
+      "nota": "sin modelo configurado: comparación no ejecutada",
+      "latencia_s": 0.0
+    },
+    {
+      "run_id": "53553a99282c41d1836588466a93f5c0",
+      "bench_run_id": "bench-89a65bfbaeaf",
+      "problem_id": "G05",
+      "condition": "B_STRONG_PROMPT",
+      "seed": 7,
+      "seed_source": "explicit",
+      "prompt": "Genera 3 soluciones para: Mejorar la adopción de una herramienta interna que nadie usa.\nRequisitos: mecanismo causal explícito, qué supuesto cambias, respecto de qué solución de referencia, restricciones conservadas, y una prueba mínima con condición de fracaso.",
+      "candidates": [
+        {
+          "idea_id": "direct-00",
+          "title": "Respuesta directa stub 1",
+          "description": "Stub para Mejorar la adopción de una herramienta interna que nadie usa.\nRequisitos: mecani",
+          "score": 0.5,
+          "family": "direct_stub",
+          "methods": [
+            "direct_prompt"
+          ],
+          "classes": [
+            "stub"
+          ],
+          "genome": {
+            "mechanism": [
+              "stub"
+            ],
+            "classes": [
+              "stub"
+            ]
+          }
+        },
+        {
+          "idea_id": "direct-01",
+          "title": "Respuesta directa stub 2",
+          "description": "Stub para Mejorar la adopción de una herramienta interna que nadie usa.\nRequisitos: mecani",
+          "score": 0.5,
+          "family": "direct_stub",
+          "methods": [
+            "direct_prompt"
+          ],
+          "classes": [
+            "stub"
+          ],
+          "genome": {
+            "mechanism": [
+              "stub"
+            ],
+            "classes": [
+              "stub"
+            ]
+          }
+        },
+        {
+          "idea_id": "direct-02",
+          "title": "Respuesta directa stub 3",
+          "description": "Stub para Mejorar la adopción de una herramienta interna que nadie usa.\nRequisitos: mecani",
+          "score": 0.5,
+          "family": "direct_stub",
+          "methods": [
+            "direct_prompt"
+          ],
+          "classes": [
+            "stub"
+          ],
+          "genome": {
+            "mechanism": [
+              "stub"
+            ],
+            "classes": [
+              "stub"
+            ]
+          }
+        }
+      ],
+      "metrics": {
+        "duplication_rate": 0.0,
+        "close_variant_rate": 0.0,
+        "structural_diversity": 0.0,
+        "unique_mechanisms": 1,
+        "family_coverage": 1.0,
+        "pair_reuse_rate": 0.6667,
+        "finalists": [
+          "direct-00",
+          "direct-01",
+          "direct-02"
+        ],
+        "pair_verdicts": [
+          [
+            "direct-00",
+            "direct-01",
+            "insufficient_evidence"
+          ],
+          [
+            "direct-00",
+            "direct-02",
+            "insufficient_evidence"
+          ],
+          [
+            "direct-01",
+            "direct-02",
+            "insufficient_evidence"
+          ]
+        ]
+      },
+      "status": "OK",
+      "nota": "sin modelo configurado: comparación no ejecutada",
+      "latencia_s": 0.0
+    },
+    {
+      "run_id": "26725a1f70534012aae07bd92c3cdf02",
+      "bench_run_id": "bench-b0c05cc159b3",
+      "problem_id": "G05",
+      "condition": "C_CRIBA",
+      "seed": 7,
+      "seed_source": "explicit",
+      "prompt": "CRIBA: cruces + selector diversity-aware + evidencia para: Mejorar la adopción de una herramienta interna que nadie usa.",
+      "candidates": [
+        {
+          "idea_id": "criba-7-00",
+          "title": "Lente de ventaja comparativa x Ética de reversibilidad",
+          "description": "Combinar 'estrategia' + 'ruptura_marco'",
+          "score": 0.349,
+          "genome": {
+            "actor": [
+              "operator"
+            ],
+            "mechanism": [
+              "unknown"
+            ],
+            "topology": [
+              "centralized"
+            ],
+            "trust_model": [
+              "implicit"
+            ],
+            "time_model": [
+              "staged"
+            ]
+          },
+          "family": "estrategia",
+          "methods": [
+            "Lente de ventaja comparativa",
+            "Ética de reversibilidad"
+          ],
+          "classes": [
+            "perspectiva",
+            "ruptura"
+          ]
+        },
+        {
+          "idea_id": "criba-7-01",
+          "title": "Prueba de abandono x Ética de reversibilidad",
+          "description": "Combinar 'general' + 'ruptura_marco'",
+          "score": 0.349,
+          "genome": {
+            "actor": [
+              "operator"
+            ],
+            "mechanism": [
+              "unknown"
+            ],
+            "topology": [
+              "centralized"
+            ],
+            "trust_model": [
+              "implicit"
+            ],
+            "time_model": [
+              "staged"
+            ]
+          },
+          "family": "general",
+          "methods": [
+            "Prueba de abandono",
+            "Ética de reversibilidad"
+          ],
+          "classes": [
+            "generacion",
+            "ruptura"
+          ]
+        },
+        {
+          "idea_id": "criba-7-02",
+          "title": "Ética de reversibilidad x Coaliciones emergentes",
+          "description": "Combinar 'ruptura_marco' + 'salto_espacio'",
+          "score": 0.349,
+          "genome": {
+            "actor": [
+              "operator"
+            ],
+            "mechanism": [
+              "unknown"
+            ],
+            "topology": [
+              "centralized"
+            ],
+            "trust_model": [
+              "implicit"
+            ],
+            "time_model": [
+              "staged"
+            ]
+          },
+          "family": "ruptura_marco",
+          "methods": [
+            "Ética de reversibilidad",
+            "Coaliciones emergentes"
+          ],
+          "classes": [
+            "ruptura",
+            "escape"
+          ]
+        }
+      ],
+      "metrics": {
+        "duplication_rate": 0.0,
+        "close_variant_rate": 1.0,
+        "structural_diversity": 0.0,
+        "unique_mechanisms": 1,
+        "family_coverage": 1.0,
+        "pair_reuse_rate": 0.0,
+        "finalists": [
+          "criba-7-00",
+          "criba-7-01",
+          "criba-7-02"
+        ],
+        "pair_verdicts": [
+          [
+            "criba-7-00",
+            "criba-7-01",
+            "close_variant"
+          ],
+          [
+            "criba-7-00",
+            "criba-7-02",
+            "close_variant"
+          ],
+          [
+            "criba-7-01",
+            "criba-7-02",
+            "close_variant"
+          ]
+        ]
+      },
+      "status": "OK",
+      "nota": "loop CRIBA real ejecutado via criba_fn",
+      "selection_report": {
+        "status": "OK",
+        "quality_floor": 0.199,
+        "pool_size": 12,
+        "valid_size": 12,
+        "picks": [
+          {
+            "idea_id": null,
+            "why": "mejor score sobre el suelo (0.349)"
+          },
+          {
+            "idea_id": null,
+            "why": "utilidad marginal -0.001 (distancia mínima a elegidos=0.00; variante cercana x1)"
+          },
+          {
+            "idea_id": null,
+            "why": "utilidad marginal -0.351 (distancia mínima a elegidos=0.00; variante cercana x2)"
+          }
+        ],
+        "tie_sets": [
+          [
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            ""
+          ],
+          [
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            ""
+          ]
+        ],
+        "tiebreak_rule": "deterministic idea_id order among equal operational utility; tie-break is not scientific superiority",
+        "finalists": [
+          null,
+          null,
+          null
+        ],
+        "discarded_by_floor": [],
+        "opportunity_accounting": {
+          "generated_candidates": 28,
+          "selection_candidates_considered": 12,
+          "initial_finalists": 3,
+          "candidate_development_attempts": 0,
+          "replacement_attempts": 0,
+          "finalists": 3,
+          "provider_model_requests": 0,
+          "provider_model_requests_authoritative": true,
+          "provider_model_requests_scope": "CANDIDATE_PROPOSAL_AND_CRITIC_ONLY",
+          "evaluation_calls_authoritative": false,
+          "budget_complete": false,
+          "scope": "LOCAL_PIPELINE_ACCOUNTING_ONLY"
+        }
+      },
+      "pipeline": "criba_fn",
+      "latencia_s": 0.094
+    },
+    {
+      "run_id": "24b89686cd4c45a5b6a5e7309cce6ca9",
+      "bench_run_id": "bench-9dd3868abd2f",
+      "problem_id": "G05",
+      "condition": "D_BLACKFORGE",
+      "seed": 7,
+      "seed_source": "explicit",
+      "prompt": "BLACKFORGE: lotería + selector diversity-aware para: Mejorar la adopción de una herramienta interna que nadie usa.",
+      "candidates": [
+        {
+          "idea_id": "bf-7-00",
+          "title": "Prueba antes de despliegue x Secreto dividido",
+          "description": "Combinar 'evidence_verification' + 'data_privacy_provenance'",
+          "score": 0.349,
+          "genome": {
+            "actor": [
+              "operator"
+            ],
+            "mechanism": [
+              "unknown"
+            ],
+            "topology": [
+              "centralized"
+            ],
+            "trust_model": [
+              "implicit"
+            ],
+            "time_model": [
+              "staged"
+            ]
+          },
+          "family": "evidence_verification",
+          "methods": [
+            "Prueba antes de despliegue",
+            "Secreto dividido"
+          ],
+          "classes": [],
+          "source": "BLACKFORGE",
+          "mode": "optimized",
+          "prueba_concreta": null
+        },
+        {
+          "idea_id": "bf-7-01",
+          "title": "Secreto dividido x Lente de envenenamiento de dat",
+          "description": "Combinar 'data_privacy_provenance' + 'adversarial_threat'",
+          "score": 0.349,
+          "genome": {
+            "actor": [
+              "operator"
+            ],
+            "mechanism": [
+              "unknown"
+            ],
+            "topology": [
+              "centralized"
+            ],
+            "trust_model": [
+              "implicit"
+            ],
+            "time_model": [
+              "staged"
+            ]
+          },
+          "family": "data_privacy_provenance",
+          "methods": [
+            "Secreto dividido",
+            "Lente de envenenamiento de datos"
+          ],
+          "classes": [],
+          "source": "BLACKFORGE",
+          "mode": "optimized",
+          "prueba_concreta": null
+        },
+        {
+          "idea_id": "bf-7-02",
+          "title": "Lente de inversión de modelo x Fatiga de recuperación",
+          "description": "Combinar 'agents_ai_devtools' + 'human_factors'",
+          "score": 0.349,
+          "genome": {
+            "actor": [
+              "operator"
+            ],
+            "mechanism": [
+              "unknown"
+            ],
+            "topology": [
+              "centralized"
+            ],
+            "trust_model": [
+              "implicit"
+            ],
+            "time_model": [
+              "staged"
+            ]
+          },
+          "family": "agents_ai_devtools",
+          "methods": [
+            "Lente de inversión de modelo",
+            "Fatiga de recuperación"
+          ],
+          "classes": [],
+          "source": "BLACKFORGE",
+          "mode": "optimized",
+          "prueba_concreta": null
+        }
+      ],
+      "metrics": {
+        "duplication_rate": 0.0,
+        "close_variant_rate": 1.0,
+        "structural_diversity": 0.0,
+        "unique_mechanisms": 1,
+        "family_coverage": 1.0,
+        "pair_reuse_rate": 0.0,
+        "finalists": [
+          "bf-7-00",
+          "bf-7-01",
+          "bf-7-02"
+        ],
+        "pair_verdicts": [
+          [
+            "bf-7-00",
+            "bf-7-01",
+            "close_variant"
+          ],
+          [
+            "bf-7-00",
+            "bf-7-02",
+            "close_variant"
+          ],
+          [
+            "bf-7-01",
+            "bf-7-02",
+            "close_variant"
+          ]
+        ]
+      },
+      "status": "OK",
+      "nota": "loop BLACKFORGE real ejecutado via blackforge_fn",
+      "selection_report": {
+        "instrumented": false,
+        "status": "REPORT_UNAVAILABLE",
+        "reason": "criba_fn_callback_did_not_supply_selection_report"
+      },
+      "pipeline": "blackforge_fn",
+      "latencia_s": 0.016
+    },
+    {
+      "run_id": "569f8d5657f045faad568dedfa995804",
+      "bench_run_id": "bench-21203bbe6d2f",
+      "problem_id": "B01",
+      "condition": "A_DIRECT",
+      "seed": 7,
+      "seed_source": "explicit",
+      "prompt": "Genera 3 soluciones innovadoras para: Reducir autorizaciones excesivas de un agente sin pedir aprobación por operación.",
+      "candidates": [
+        {
+          "idea_id": "direct-00",
+          "title": "Respuesta directa stub 1",
+          "description": "Stub para Reducir autorizaciones excesivas de un agente sin pedir aprobación por operación",
+          "score": 0.5,
+          "family": "direct_stub",
+          "methods": [
+            "direct_prompt"
+          ],
+          "classes": [
+            "stub"
+          ],
+          "genome": {
+            "mechanism": [
+              "stub"
+            ],
+            "classes": [
+              "stub"
+            ]
+          }
+        },
+        {
+          "idea_id": "direct-01",
+          "title": "Respuesta directa stub 2",
+          "description": "Stub para Reducir autorizaciones excesivas de un agente sin pedir aprobación por operación",
+          "score": 0.5,
+          "family": "direct_stub",
+          "methods": [
+            "direct_prompt"
+          ],
+          "classes": [
+            "stub"
+          ],
+          "genome": {
+            "mechanism": [
+              "stub"
+            ],
+            "classes": [
+              "stub"
+            ]
+          }
+        },
+        {
+          "idea_id": "direct-02",
+          "title": "Respuesta directa stub 3",
+          "description": "Stub para Reducir autorizaciones excesivas de un agente sin pedir aprobación por operación",
+          "score": 0.5,
+          "family": "direct_stub",
+          "methods": [
+            "direct_prompt"
+          ],
+          "classes": [
+            "stub"
+          ],
+          "genome": {
+            "mechanism": [
+              "stub"
+            ],
+            "classes": [
+              "stub"
+            ]
+          }
+        }
+      ],
+      "metrics": {
+        "duplication_rate": 0.0,
+        "close_variant_rate": 0.0,
+        "structural_diversity": 0.0,
+        "unique_mechanisms": 1,
+        "family_coverage": 1.0,
+        "pair_reuse_rate": 0.6667,
+        "finalists": [
+          "direct-00",
+          "direct-01",
+          "direct-02"
+        ],
+        "pair_verdicts": [
+          [
+            "direct-00",
+            "direct-01",
+            "insufficient_evidence"
+          ],
+          [
+            "direct-00",
+            "direct-02",
+            "insufficient_evidence"
+          ],
+          [
+            "direct-01",
+            "direct-02",
+            "insufficient_evidence"
+          ]
+        ]
+      },
+      "status": "OK",
+      "nota": "sin modelo configurado: comparación no ejecutada",
+      "latencia_s": 0.0
+    },
+    {
+      "run_id": "f0503b2e87b44efa95e65bfa2d5b54db",
+      "bench_run_id": "bench-9b1c6fdf4f66",
+      "problem_id": "B01",
+      "condition": "B_STRONG_PROMPT",
+      "seed": 7,
+      "seed_source": "explicit",
+      "prompt": "Genera 3 soluciones para: Reducir autorizaciones excesivas de un agente sin pedir aprobación por operación.\nRequisitos: mecanismo causal explícito, qué supuesto cambias, respecto de qué solución de referencia, restricciones conservadas, y una prueba mínima con condición de fracaso.",
+      "candidates": [
+        {
+          "idea_id": "direct-00",
+          "title": "Respuesta directa stub 1",
+          "description": "Stub para Reducir autorizaciones excesivas de un agente sin pedir aprobación por operación",
+          "score": 0.5,
+          "family": "direct_stub",
+          "methods": [
+            "direct_prompt"
+          ],
+          "classes": [
+            "stub"
+          ],
+          "genome": {
+            "mechanism": [
+              "stub"
+            ],
+            "classes": [
+              "stub"
+            ]
+          }
+        },
+        {
+          "idea_id": "direct-01",
+          "title": "Respuesta directa stub 2",
+          "description": "Stub para Reducir autorizaciones excesivas de un agente sin pedir aprobación por operación",
+          "score": 0.5,
+          "family": "direct_stub",
+          "methods": [
+            "direct_prompt"
+          ],
+          "classes": [
+            "stub"
+          ],
+          "genome": {
+            "mechanism": [
+              "stub"
+            ],
+            "classes": [
+              "stub"
+            ]
+          }
+        },
+        {
+          "idea_id": "direct-02",
+          "title": "Respuesta directa stub 3",
+          "description": "Stub para Reducir autorizaciones excesivas de un agente sin pedir aprobación por operación",
+          "score": 0.5,
+          "family": "direct_stub",
+          "methods": [
+            "direct_prompt"
+          ],
+          "classes": [
+            "stub"
+          ],
+          "genome": {
+            "mechanism": [
+              "stub"
+            ],
+            "classes": [
+              "stub"
+            ]
+          }
+        }
+      ],
+      "metrics": {
+        "duplication_rate": 0.0,
+        "close_variant_rate": 0.0,
+        "structural_diversity": 0.0,
+        "unique_mechanisms": 1,
+        "family_coverage": 1.0,
+        "pair_reuse_rate": 0.6667,
+        "finalists": [
+          "direct-00",
+          "direct-01",
+          "direct-02"
+        ],
+        "pair_verdicts": [
+          [
+            "direct-00",
+            "direct-01",
+            "insufficient_evidence"
+          ],
+          [
+            "direct-00",
+            "direct-02",
+            "insufficient_evidence"
+          ],
+          [
+            "direct-01",
+            "direct-02",
+            "insufficient_evidence"
+          ]
+        ]
+      },
+      "status": "OK",
+      "nota": "sin modelo configurado: comparación no ejecutada",
+      "latencia_s": 0.0
+    },
+    {
+      "run_id": "4f859d71b3c84394871414548c88370e",
+      "bench_run_id": "bench-1e9e3f1a608d",
+      "problem_id": "B01",
+      "condition": "C_CRIBA",
+      "seed": 7,
+      "seed_source": "explicit",
+      "prompt": "CRIBA: cruces + selector diversity-aware + evidencia para: Reducir autorizaciones excesivas de un agente sin pedir aprobación por operación.",
+      "candidates": [
+        {
+          "idea_id": "criba-7-00",
+          "title": "Lente de ventaja comparativa x Ética de reversibilidad",
+          "description": "Combinar 'estrategia' + 'ruptura_marco'",
+          "score": 0.349,
+          "genome": {
+            "actor": [
+              "operator"
+            ],
+            "mechanism": [
+              "unknown"
+            ],
+            "topology": [
+              "centralized"
+            ],
+            "trust_model": [
+              "implicit"
+            ],
+            "time_model": [
+              "staged"
+            ]
+          },
+          "family": "estrategia",
+          "methods": [
+            "Lente de ventaja comparativa",
+            "Ética de reversibilidad"
+          ],
+          "classes": [
+            "perspectiva",
+            "ruptura"
+          ]
+        },
+        {
+          "idea_id": "criba-7-01",
+          "title": "Prueba de abandono x Ética de reversibilidad",
+          "description": "Combinar 'general' + 'ruptura_marco'",
+          "score": 0.349,
+          "genome": {
+            "actor": [
+              "operator"
+            ],
+            "mechanism": [
+              "unknown"
+            ],
+            "topology": [
+              "centralized"
+            ],
+            "trust_model": [
+              "implicit"
+            ],
+            "time_model": [
+              "staged"
+            ]
+          },
+          "family": "general",
+          "methods": [
+            "Prueba de abandono",
+            "Ética de reversibilidad"
+          ],
+          "classes": [
+            "generacion",
+            "ruptura"
+          ]
+        },
+        {
+          "idea_id": "criba-7-02",
+          "title": "Ética de reversibilidad x Coaliciones emergentes",
+          "description": "Combinar 'ruptura_marco' + 'salto_espacio'",
+          "score": 0.349,
+          "genome": {
+            "actor": [
+              "operator"
+            ],
+            "mechanism": [
+              "unknown"
+            ],
+            "topology": [
+              "centralized"
+            ],
+            "trust_model": [
+              "implicit"
+            ],
+            "time_model": [
+              "staged"
+            ]
+          },
+          "family": "ruptura_marco",
+          "methods": [
+            "Ética de reversibilidad",
+            "Coaliciones emergentes"
+          ],
+          "classes": [
+            "ruptura",
+            "escape"
+          ]
+        }
+      ],
+      "metrics": {
+        "duplication_rate": 0.0,
+        "close_variant_rate": 1.0,
+        "structural_diversity": 0.0,
+        "unique_mechanisms": 1,
+        "family_coverage": 1.0,
+        "pair_reuse_rate": 0.0,
+        "finalists": [
+          "criba-7-00",
+          "criba-7-01",
+          "criba-7-02"
+        ],
+        "pair_verdicts": [
+          [
+            "criba-7-00",
+            "criba-7-01",
+            "close_variant"
+          ],
+          [
+            "criba-7-00",
+            "criba-7-02",
+            "close_variant"
+          ],
+          [
+            "criba-7-01",
+            "criba-7-02",
+            "close_variant"
+          ]
+        ]
+      },
+      "status": "OK",
+      "nota": "loop CRIBA real ejecutado via criba_fn",
+      "selection_report": {
+        "status": "OK",
+        "quality_floor": 0.199,
+        "pool_size": 12,
+        "valid_size": 12,
+        "picks": [
+          {
+            "idea_id": null,
+            "why": "mejor score sobre el suelo (0.349)"
+          },
+          {
+            "idea_id": null,
+            "why": "utilidad marginal -0.001 (distancia mínima a elegidos=0.00; variante cercana x1)"
+          },
+          {
+            "idea_id": null,
+            "why": "utilidad marginal -0.351 (distancia mínima a elegidos=0.00; variante cercana x2)"
+          }
+        ],
+        "tie_sets": [
+          [
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            ""
+          ],
+          [
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            ""
+          ]
+        ],
+        "tiebreak_rule": "deterministic idea_id order among equal operational utility; tie-break is not scientific superiority",
+        "finalists": [
+          null,
+          null,
+          null
+        ],
+        "discarded_by_floor": [],
+        "opportunity_accounting": {
+          "generated_candidates": 28,
+          "selection_candidates_considered": 12,
+          "initial_finalists": 3,
+          "candidate_development_attempts": 0,
+          "replacement_attempts": 0,
+          "finalists": 3,
+          "provider_model_requests": 0,
+          "provider_model_requests_authoritative": true,
+          "provider_model_requests_scope": "CANDIDATE_PROPOSAL_AND_CRITIC_ONLY",
+          "evaluation_calls_authoritative": false,
+          "budget_complete": false,
+          "scope": "LOCAL_PIPELINE_ACCOUNTING_ONLY"
+        }
+      },
+      "pipeline": "criba_fn",
+      "latencia_s": 0.078
+    },
+    {
+      "run_id": "62c90f2683db49b7864d5df0c345fdde",
+      "bench_run_id": "bench-e41e1bd21991",
+      "problem_id": "B01",
+      "condition": "D_BLACKFORGE",
+      "seed": 7,
+      "seed_source": "explicit",
+      "prompt": "BLACKFORGE: lotería + selector diversity-aware para: Reducir autorizaciones excesivas de un agente sin pedir aprobación por operación.",
+      "candidates": [
+        {
+          "idea_id": "bf-7-00",
+          "title": "Prueba antes de despliegue x Secreto dividido",
+          "description": "Combinar 'evidence_verification' + 'data_privacy_provenance'",
+          "score": 0.349,
+          "genome": {
+            "actor": [
+              "operator"
+            ],
+            "mechanism": [
+              "unknown"
+            ],
+            "topology": [
+              "centralized"
+            ],
+            "trust_model": [
+              "implicit"
+            ],
+            "time_model": [
+              "staged"
+            ]
+          },
+          "family": "evidence_verification",
+          "methods": [
+            "Prueba antes de despliegue",
+            "Secreto dividido"
+          ],
+          "classes": [],
+          "source": "BLACKFORGE",
+          "mode": "optimized",
+          "prueba_concreta": null
+        },
+        {
+          "idea_id": "bf-7-01",
+          "title": "Secreto dividido x Lente de envenenamiento de dat",
+          "description": "Combinar 'data_privacy_provenance' + 'adversarial_threat'",
+          "score": 0.349,
+          "genome": {
+            "actor": [
+              "operator"
+            ],
+            "mechanism": [
+              "unknown"
+            ],
+            "topology": [
+              "centralized"
+            ],
+            "trust_model": [
+              "implicit"
+            ],
+            "time_model": [
+              "staged"
+            ]
+          },
+          "family": "data_privacy_provenance",
+          "methods": [
+            "Secreto dividido",
+            "Lente de envenenamiento de datos"
+          ],
+          "classes": [],
+          "source": "BLACKFORGE",
+          "mode": "optimized",
+          "prueba_concreta": null
+        },
+        {
+          "idea_id": "bf-7-02",
+          "title": "Lente de inversión de modelo x Fatiga de recuperación",
+          "description": "Combinar 'agents_ai_devtools' + 'human_factors'",
+          "score": 0.349,
+          "genome": {
+            "actor": [
+              "operator"
+            ],
+            "mechanism": [
+              "unknown"
+            ],
+            "topology": [
+              "centralized"
+            ],
+            "trust_model": [
+              "implicit"
+            ],
+            "time_model": [
+              "staged"
+            ]
+          },
+          "family": "agents_ai_devtools",
+          "methods": [
+            "Lente de inversión de modelo",
+            "Fatiga de recuperación"
+          ],
+          "classes": [],
+          "source": "BLACKFORGE",
+          "mode": "optimized",
+          "prueba_concreta": null
+        }
+      ],
+      "metrics": {
+        "duplication_rate": 0.0,
+        "close_variant_rate": 1.0,
+        "structural_diversity": 0.0,
+        "unique_mechanisms": 1,
+        "family_coverage": 1.0,
+        "pair_reuse_rate": 0.0,
+        "finalists": [
+          "bf-7-00",
+          "bf-7-01",
+          "bf-7-02"
+        ],
+        "pair_verdicts": [
+          [
+            "bf-7-00",
+            "bf-7-01",
+            "close_variant"
+          ],
+          [
+            "bf-7-00",
+            "bf-7-02",
+            "close_variant"
+          ],
+          [
+            "bf-7-01",
+            "bf-7-02",
+            "close_variant"
+          ]
+        ]
+      },
+      "status": "OK",
+      "nota": "loop BLACKFORGE real ejecutado via blackforge_fn",
+      "selection_report": {
+        "instrumented": false,
+        "status": "REPORT_UNAVAILABLE",
+        "reason": "criba_fn_callback_did_not_supply_selection_report"
+      },
+      "pipeline": "blackforge_fn",
+      "latencia_s": 0.015
+    },
+    {
+      "run_id": "6ec3b5b0473e436eb036d39e1fc4c7ba",
+      "bench_run_id": "bench-1ade3ffd01a7",
+      "problem_id": "B02",
+      "condition": "A_DIRECT",
+      "seed": 7,
+      "seed_source": "explicit",
+      "prompt": "Genera 3 soluciones innovadoras para: Detectar exfiltración de datos vía DNS en una red corporativa monitorizada.",
+      "candidates": [
+        {
+          "idea_id": "direct-00",
+          "title": "Respuesta directa stub 1",
+          "description": "Stub para Detectar exfiltración de datos vía DNS en una red corporativa monitorizada.",
+          "score": 0.5,
+          "family": "direct_stub",
+          "methods": [
+            "direct_prompt"
+          ],
+          "classes": [
+            "stub"
+          ],
+          "genome": {
+            "mechanism": [
+              "stub"
+            ],
+            "classes": [
+              "stub"
+            ]
+          }
+        },
+        {
+          "idea_id": "direct-01",
+          "title": "Respuesta directa stub 2",
+          "description": "Stub para Detectar exfiltración de datos vía DNS en una red corporativa monitorizada.",
+          "score": 0.5,
+          "family": "direct_stub",
+          "methods": [
+            "direct_prompt"
+          ],
+          "classes": [
+            "stub"
+          ],
+          "genome": {
+            "mechanism": [
+              "stub"
+            ],
+            "classes": [
+              "stub"
+            ]
+          }
+        },
+        {
+          "idea_id": "direct-02",
+          "title": "Respuesta directa stub 3",
+          "description": "Stub para Detectar exfiltración de datos vía DNS en una red corporativa monitorizada.",
+          "score": 0.5,
+          "family": "direct_stub",
+          "methods": [
+            "direct_prompt"
+          ],
+          "classes": [
+            "stub"
+          ],
+          "genome": {
+            "mechanism": [
+              "stub"
+            ],
+            "classes": [
+              "stub"
+            ]
+          }
+        }
+      ],
+      "metrics": {
+        "duplication_rate": 0.0,
+        "close_variant_rate": 0.0,
+        "structural_diversity": 0.0,
+        "unique_mechanisms": 1,
+        "family_coverage": 1.0,
+        "pair_reuse_rate": 0.6667,
+        "finalists": [
+          "direct-00",
+          "direct-01",
+          "direct-02"
+        ],
+        "pair_verdicts": [
+          [
+            "direct-00",
+            "direct-01",
+            "insufficient_evidence"
+          ],
+          [
+            "direct-00",
+            "direct-02",
+            "insufficient_evidence"
+          ],
+          [
+            "direct-01",
+            "direct-02",
+            "insufficient_evidence"
+          ]
+        ]
+      },
+      "status": "OK",
+      "nota": "sin modelo configurado: comparación no ejecutada",
+      "latencia_s": 0.0
+    },
+    {
+      "run_id": "2cf3f1cc32014dd9996a514129ed1c80",
+      "bench_run_id": "bench-b36d974304fc",
+      "problem_id": "B02",
+      "condition": "B_STRONG_PROMPT",
+      "seed": 7,
+      "seed_source": "explicit",
+      "prompt": "Genera 3 soluciones para: Detectar exfiltración de datos vía DNS en una red corporativa monitorizada.\nRequisitos: mecanismo causal explícito, qué supuesto cambias, respecto de qué solución de referencia, restricciones conservadas, y una prueba mínima con condición de fracaso.",
+      "candidates": [
+        {
+          "idea_id": "direct-00",
+          "title": "Respuesta directa stub 1",
+          "description": "Stub para Detectar exfiltración de datos vía DNS en una red corporativa monitorizada.\nRequ",
+          "score": 0.5,
+          "family": "direct_stub",
+          "methods": [
+            "direct_prompt"
+          ],
+          "classes": [
+            "stub"
+          ],
+          "genome": {
+            "mechanism": [
+              "stub"
+            ],
+            "classes": [
+              "stub"
+            ]
+          }
+        },
+        {
+          "idea_id": "direct-01",
+          "title": "Respuesta directa stub 2",
+          "description": "Stub para Detectar exfiltración de datos vía DNS en una red corporativa monitorizada.\nRequ",
+          "score": 0.5,
+          "family": "direct_stub",
+          "methods": [
+            "direct_prompt"
+          ],
+          "classes": [
+            "stub"
+          ],
+          "genome": {
+            "mechanism": [
+              "stub"
+            ],
+            "classes": [
+              "stub"
+            ]
+          }
+        },
+        {
+          "idea_id": "direct-02",
+          "title": "Respuesta directa stub 3",
+          "description": "Stub para Detectar exfiltración de datos vía DNS en una red corporativa monitorizada.\nRequ",
+          "score": 0.5,
+          "family": "direct_stub",
+          "methods": [
+            "direct_prompt"
+          ],
+          "classes": [
+            "stub"
+          ],
+          "genome": {
+            "mechanism": [
+              "stub"
+            ],
+            "classes": [
+              "stub"
+            ]
+          }
+        }
+      ],
+      "metrics": {
+        "duplication_rate": 0.0,
+        "close_variant_rate": 0.0,
+        "structural_diversity": 0.0,
+        "unique_mechanisms": 1,
+        "family_coverage": 1.0,
+        "pair_reuse_rate": 0.6667,
+        "finalists": [
+          "direct-00",
+          "direct-01",
+          "direct-02"
+        ],
+        "pair_verdicts": [
+          [
+            "direct-00",
+            "direct-01",
+            "insufficient_evidence"
+          ],
+          [
+            "direct-00",
+            "direct-02",
+            "insufficient_evidence"
+          ],
+          [
+            "direct-01",
+            "direct-02",
+            "insufficient_evidence"
+          ]
+        ]
+      },
+      "status": "OK",
+      "nota": "sin modelo configurado: comparación no ejecutada",
+      "latencia_s": 0.0
+    },
+    {
+      "run_id": "fc876c8ed4524cf2ab155767258c92f3",
+      "bench_run_id": "bench-b271e17d6011",
+      "problem_id": "B02",
+      "condition": "C_CRIBA",
+      "seed": 7,
+      "seed_source": "explicit",
+      "prompt": "CRIBA: cruces + selector diversity-aware + evidencia para: Detectar exfiltración de datos vía DNS en una red corporativa monitorizada.",
+      "candidates": [
+        {
+          "idea_id": "criba-7-00",
+          "title": "Lente de ventaja comparativa x Ética de reversibilidad",
+          "description": "Combinar 'estrategia' + 'ruptura_marco'",
+          "score": 0.349,
+          "genome": {
+            "actor": [
+              "operator"
+            ],
+            "mechanism": [
+              "unknown"
+            ],
+            "topology": [
+              "centralized"
+            ],
+            "trust_model": [
+              "implicit"
+            ],
+            "time_model": [
+              "staged"
+            ]
+          },
+          "family": "estrategia",
+          "methods": [
+            "Lente de ventaja comparativa",
+            "Ética de reversibilidad"
+          ],
+          "classes": [
+            "perspectiva",
+            "ruptura"
+          ]
+        },
+        {
+          "idea_id": "criba-7-01",
+          "title": "Prueba de abandono x Ética de reversibilidad",
+          "description": "Combinar 'general' + 'ruptura_marco'",
+          "score": 0.349,
+          "genome": {
+            "actor": [
+              "operator"
+            ],
+            "mechanism": [
+              "unknown"
+            ],
+            "topology": [
+              "centralized"
+            ],
+            "trust_model": [
+              "implicit"
+            ],
+            "time_model": [
+              "staged"
+            ]
+          },
+          "family": "general",
+          "methods": [
+            "Prueba de abandono",
+            "Ética de reversibilidad"
+          ],
+          "classes": [
+            "generacion",
+            "ruptura"
+          ]
+        },
+        {
+          "idea_id": "criba-7-02",
+          "title": "Ética de reversibilidad x Coaliciones emergentes",
+          "description": "Combinar 'ruptura_marco' + 'salto_espacio'",
+          "score": 0.349,
+          "genome": {
+            "actor": [
+              "operator"
+            ],
+            "mechanism": [
+              "unknown"
+            ],
+            "topology": [
+              "centralized"
+            ],
+            "trust_model": [
+              "implicit"
+            ],
+            "time_model": [
+              "staged"
+            ]
+          },
+          "family": "ruptura_marco",
+          "methods": [
+            "Ética de reversibilidad",
+            "Coaliciones emergentes"
+          ],
+          "classes": [
+            "ruptura",
+            "escape"
+          ]
+        }
+      ],
+      "metrics": {
+        "duplication_rate": 0.0,
+        "close_variant_rate": 1.0,
+        "structural_diversity": 0.0,
+        "unique_mechanisms": 1,
+        "family_coverage": 1.0,
+        "pair_reuse_rate": 0.0,
+        "finalists": [
+          "criba-7-00",
+          "criba-7-01",
+          "criba-7-02"
+        ],
+        "pair_verdicts": [
+          [
+            "criba-7-00",
+            "criba-7-01",
+            "close_variant"
+          ],
+          [
+            "criba-7-00",
+            "criba-7-02",
+            "close_variant"
+          ],
+          [
+            "criba-7-01",
+            "criba-7-02",
+            "close_variant"
+          ]
+        ]
+      },
+      "status": "OK",
+      "nota": "loop CRIBA real ejecutado via criba_fn",
+      "selection_report": {
+        "status": "OK",
+        "quality_floor": 0.199,
+        "pool_size": 12,
+        "valid_size": 12,
+        "picks": [
+          {
+            "idea_id": null,
+            "why": "mejor score sobre el suelo (0.349)"
+          },
+          {
+            "idea_id": null,
+            "why": "utilidad marginal -0.001 (distancia mínima a elegidos=0.00; variante cercana x1)"
+          },
+          {
+            "idea_id": null,
+            "why": "utilidad marginal -0.351 (distancia mínima a elegidos=0.00; variante cercana x2)"
+          }
+        ],
+        "tie_sets": [
+          [
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            ""
+          ],
+          [
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            ""
+          ]
+        ],
+        "tiebreak_rule": "deterministic idea_id order among equal operational utility; tie-break is not scientific superiority",
+        "finalists": [
+          null,
+          null,
+          null
+        ],
+        "discarded_by_floor": [],
+        "opportunity_accounting": {
+          "generated_candidates": 28,
+          "selection_candidates_considered": 12,
+          "initial_finalists": 3,
+          "candidate_development_attempts": 0,
+          "replacement_attempts": 0,
+          "finalists": 3,
+          "provider_model_requests": 0,
+          "provider_model_requests_authoritative": true,
+          "provider_model_requests_scope": "CANDIDATE_PROPOSAL_AND_CRITIC_ONLY",
+          "evaluation_calls_authoritative": false,
+          "budget_complete": false,
+          "scope": "LOCAL_PIPELINE_ACCOUNTING_ONLY"
+        }
+      },
+      "pipeline": "criba_fn",
+      "latencia_s": 0.094
+    },
+    {
+      "run_id": "608db455f8d24da69cf667801507c74a",
+      "bench_run_id": "bench-28084d69918a",
+      "problem_id": "B02",
+      "condition": "D_BLACKFORGE",
+      "seed": 7,
+      "seed_source": "explicit",
+      "prompt": "BLACKFORGE: lotería + selector diversity-aware para: Detectar exfiltración de datos vía DNS en una red corporativa monitorizada.",
+      "candidates": [
+        {
+          "idea_id": "bf-7-00",
+          "title": "Prueba antes de despliegue x Secreto dividido",
+          "description": "Combinar 'evidence_verification' + 'data_privacy_provenance'",
+          "score": 0.349,
+          "genome": {
+            "actor": [
+              "operator"
+            ],
+            "mechanism": [
+              "unknown"
+            ],
+            "topology": [
+              "centralized"
+            ],
+            "trust_model": [
+              "implicit"
+            ],
+            "time_model": [
+              "staged"
+            ]
+          },
+          "family": "evidence_verification",
+          "methods": [
+            "Prueba antes de despliegue",
+            "Secreto dividido"
+          ],
+          "classes": [],
+          "source": "BLACKFORGE",
+          "mode": "optimized",
+          "prueba_concreta": null
+        },
+        {
+          "idea_id": "bf-7-01",
+          "title": "Secreto dividido x Lente de envenenamiento de dat",
+          "description": "Combinar 'data_privacy_provenance' + 'adversarial_threat'",
+          "score": 0.349,
+          "genome": {
+            "actor": [
+              "operator"
+            ],
+            "mechanism": [
+              "unknown"
+            ],
+            "topology": [
+              "centralized"
+            ],
+            "trust_model": [
+              "implicit"
+            ],
+            "time_model": [
+              "staged"
+            ]
+          },
+          "family": "data_privacy_provenance",
+          "methods": [
+            "Secreto dividido",
+            "Lente de envenenamiento de datos"
+          ],
+          "classes": [],
+          "source": "BLACKFORGE",
+          "mode": "optimized",
+          "prueba_concreta": null
+        },
+        {
+          "idea_id": "bf-7-02",
+          "title": "Lente de inversión de modelo x Fatiga de recuperación",
+          "description": "Combinar 'agents_ai_devtools' + 'human_factors'",
+          "score": 0.349,
+          "genome": {
+            "actor": [
+              "operator"
+            ],
+            "mechanism": [
+              "unknown"
+            ],
+            "topology": [
+              "centralized"
+            ],
+            "trust_model": [
+              "implicit"
+            ],
+            "time_model": [
+              "staged"
+            ]
+          },
+          "family": "agents_ai_devtools",
+          "methods": [
+            "Lente de inversión de modelo",
+            "Fatiga de recuperación"
+          ],
+          "classes": [],
+          "source": "BLACKFORGE",
+          "mode": "optimized",
+          "prueba_concreta": null
+        }
+      ],
+      "metrics": {
+        "duplication_rate": 0.0,
+        "close_variant_rate": 1.0,
+        "structural_diversity": 0.0,
+        "unique_mechanisms": 1,
+        "family_coverage": 1.0,
+        "pair_reuse_rate": 0.0,
+        "finalists": [
+          "bf-7-00",
+          "bf-7-01",
+          "bf-7-02"
+        ],
+        "pair_verdicts": [
+          [
+            "bf-7-00",
+            "bf-7-01",
+            "close_variant"
+          ],
+          [
+            "bf-7-00",
+            "bf-7-02",
+            "close_variant"
+          ],
+          [
+            "bf-7-01",
+            "bf-7-02",
+            "close_variant"
+          ]
+        ]
+      },
+      "status": "OK",
+      "nota": "loop BLACKFORGE real ejecutado via blackforge_fn",
+      "selection_report": {
+        "instrumented": false,
+        "status": "REPORT_UNAVAILABLE",
+        "reason": "criba_fn_callback_did_not_supply_selection_report"
+      },
+      "pipeline": "blackforge_fn",
+      "latencia_s": 0.031
+    },
+    {
+      "run_id": "6f356440578749edad09ef7f60868f5c",
+      "bench_run_id": "bench-7c8fa908497d",
+      "problem_id": "B03",
+      "condition": "A_DIRECT",
+      "seed": 7,
+      "seed_source": "explicit",
+      "prompt": "Genera 3 soluciones innovadoras para: Priorizar el parcheado de vulnerabilidades con superficie expuesta limitada.",
+      "candidates": [
+        {
+          "idea_id": "direct-00",
+          "title": "Respuesta directa stub 1",
+          "description": "Stub para Priorizar el parcheado de vulnerabilidades con superficie expuesta limitada.",
+          "score": 0.5,
+          "family": "direct_stub",
+          "methods": [
+            "direct_prompt"
+          ],
+          "classes": [
+            "stub"
+          ],
+          "genome": {
+            "mechanism": [
+              "stub"
+            ],
+            "classes": [
+              "stub"
+            ]
+          }
+        },
+        {
+          "idea_id": "direct-01",
+          "title": "Respuesta directa stub 2",
+          "description": "Stub para Priorizar el parcheado de vulnerabilidades con superficie expuesta limitada.",
+          "score": 0.5,
+          "family": "direct_stub",
+          "methods": [
+            "direct_prompt"
+          ],
+          "classes": [
+            "stub"
+          ],
+          "genome": {
+            "mechanism": [
+              "stub"
+            ],
+            "classes": [
+              "stub"
+            ]
+          }
+        },
+        {
+          "idea_id": "direct-02",
+          "title": "Respuesta directa stub 3",
+          "description": "Stub para Priorizar el parcheado de vulnerabilidades con superficie expuesta limitada.",
+          "score": 0.5,
+          "family": "direct_stub",
+          "methods": [
+            "direct_prompt"
+          ],
+          "classes": [
+            "stub"
+          ],
+          "genome": {
+            "mechanism": [
+              "stub"
+            ],
+            "classes": [
+              "stub"
+            ]
+          }
+        }
+      ],
+      "metrics": {
+        "duplication_rate": 0.0,
+        "close_variant_rate": 0.0,
+        "structural_diversity": 0.0,
+        "unique_mechanisms": 1,
+        "family_coverage": 1.0,
+        "pair_reuse_rate": 0.6667,
+        "finalists": [
+          "direct-00",
+          "direct-01",
+          "direct-02"
+        ],
+        "pair_verdicts": [
+          [
+            "direct-00",
+            "direct-01",
+            "insufficient_evidence"
+          ],
+          [
+            "direct-00",
+            "direct-02",
+            "insufficient_evidence"
+          ],
+          [
+            "direct-01",
+            "direct-02",
+            "insufficient_evidence"
+          ]
+        ]
+      },
+      "status": "OK",
+      "nota": "sin modelo configurado: comparación no ejecutada",
+      "latencia_s": 0.0
+    },
+    {
+      "run_id": "9d46f426121e44129bc2a13679fdc556",
+      "bench_run_id": "bench-212abd1d667c",
+      "problem_id": "B03",
+      "condition": "B_STRONG_PROMPT",
+      "seed": 7,
+      "seed_source": "explicit",
+      "prompt": "Genera 3 soluciones para: Priorizar el parcheado de vulnerabilidades con superficie expuesta limitada.\nRequisitos: mecanismo causal explícito, qué supuesto cambias, respecto de qué solución de referencia, restricciones conservadas, y una prueba mínima con condición de fracaso.",
+      "candidates": [
+        {
+          "idea_id": "direct-00",
+          "title": "Respuesta directa stub 1",
+          "description": "Stub para Priorizar el parcheado de vulnerabilidades con superficie expuesta limitada.\nReq",
+          "score": 0.5,
+          "family": "direct_stub",
+          "methods": [
+            "direct_prompt"
+          ],
+          "classes": [
+            "stub"
+          ],
+          "genome": {
+            "mechanism": [
+              "stub"
+            ],
+            "classes": [
+              "stub"
+            ]
+          }
+        },
+        {
+          "idea_id": "direct-01",
+          "title": "Respuesta directa stub 2",
+          "description": "Stub para Priorizar el parcheado de vulnerabilidades con superficie expuesta limitada.\nReq",
+          "score": 0.5,
+          "family": "direct_stub",
+          "methods": [
+            "direct_prompt"
+          ],
+          "classes": [
+            "stub"
+          ],
+          "genome": {
+            "mechanism": [
+              "stub"
+            ],
+            "classes": [
+              "stub"
+            ]
+          }
+        },
+        {
+          "idea_id": "direct-02",
+          "title": "Respuesta directa stub 3",
+          "description": "Stub para Priorizar el parcheado de vulnerabilidades con superficie expuesta limitada.\nReq",
+          "score": 0.5,
+          "family": "direct_stub",
+          "methods": [
+            "direct_prompt"
+          ],
+          "classes": [
+            "stub"
+          ],
+          "genome": {
+            "mechanism": [
+              "stub"
+            ],
+            "classes": [
+              "stub"
+            ]
+          }
+        }
+      ],
+      "metrics": {
+        "duplication_rate": 0.0,
+        "close_variant_rate": 0.0,
+        "structural_diversity": 0.0,
+        "unique_mechanisms": 1,
+        "family_coverage": 1.0,
+        "pair_reuse_rate": 0.6667,
+        "finalists": [
+          "direct-00",
+          "direct-01",
+          "direct-02"
+        ],
+        "pair_verdicts": [
+          [
+            "direct-00",
+            "direct-01",
+            "insufficient_evidence"
+          ],
+          [
+            "direct-00",
+            "direct-02",
+            "insufficient_evidence"
+          ],
+          [
+            "direct-01",
+            "direct-02",
+            "insufficient_evidence"
+          ]
+        ]
+      },
+      "status": "OK",
+      "nota": "sin modelo configurado: comparación no ejecutada",
+      "latencia_s": 0.0
+    },
+    {
+      "run_id": "9424fa508a1d49de8ec165565b8b6b13",
+      "bench_run_id": "bench-d0d8fc866b7b",
+      "problem_id": "B03",
+      "condition": "C_CRIBA",
+      "seed": 7,
+      "seed_source": "explicit",
+      "prompt": "CRIBA: cruces + selector diversity-aware + evidencia para: Priorizar el parcheado de vulnerabilidades con superficie expuesta limitada.",
+      "candidates": [
+        {
+          "idea_id": "criba-7-00",
+          "title": "Lente de ventaja comparativa x Ética de reversibilidad",
+          "description": "Combinar 'estrategia' + 'ruptura_marco'",
+          "score": 0.349,
+          "genome": {
+            "actor": [
+              "operator"
+            ],
+            "mechanism": [
+              "unknown"
+            ],
+            "topology": [
+              "centralized"
+            ],
+            "trust_model": [
+              "implicit"
+            ],
+            "time_model": [
+              "staged"
+            ]
+          },
+          "family": "estrategia",
+          "methods": [
+            "Lente de ventaja comparativa",
+            "Ética de reversibilidad"
+          ],
+          "classes": [
+            "perspectiva",
+            "ruptura"
+          ]
+        },
+        {
+          "idea_id": "criba-7-01",
+          "title": "Prueba de abandono x Ética de reversibilidad",
+          "description": "Combinar 'general' + 'ruptura_marco'",
+          "score": 0.349,
+          "genome": {
+            "actor": [
+              "operator"
+            ],
+            "mechanism": [
+              "unknown"
+            ],
+            "topology": [
+              "centralized"
+            ],
+            "trust_model": [
+              "implicit"
+            ],
+            "time_model": [
+              "staged"
+            ]
+          },
+          "family": "general",
+          "methods": [
+            "Prueba de abandono",
+            "Ética de reversibilidad"
+          ],
+          "classes": [
+            "generacion",
+            "ruptura"
+          ]
+        },
+        {
+          "idea_id": "criba-7-02",
+          "title": "Ética de reversibilidad x Coaliciones emergentes",
+          "description": "Combinar 'ruptura_marco' + 'salto_espacio'",
+          "score": 0.349,
+          "genome": {
+            "actor": [
+              "operator"
+            ],
+            "mechanism": [
+              "unknown"
+            ],
+            "topology": [
+              "centralized"
+            ],
+            "trust_model": [
+              "implicit"
+            ],
+            "time_model": [
+              "staged"
+            ]
+          },
+          "family": "ruptura_marco",
+          "methods": [
+            "Ética de reversibilidad",
+            "Coaliciones emergentes"
+          ],
+          "classes": [
+            "ruptura",
+            "escape"
+          ]
+        }
+      ],
+      "metrics": {
+        "duplication_rate": 0.0,
+        "close_variant_rate": 1.0,
+        "structural_diversity": 0.0,
+        "unique_mechanisms": 1,
+        "family_coverage": 1.0,
+        "pair_reuse_rate": 0.0,
+        "finalists": [
+          "criba-7-00",
+          "criba-7-01",
+          "criba-7-02"
+        ],
+        "pair_verdicts": [
+          [
+            "criba-7-00",
+            "criba-7-01",
+            "close_variant"
+          ],
+          [
+            "criba-7-00",
+            "criba-7-02",
+            "close_variant"
+          ],
+          [
+            "criba-7-01",
+            "criba-7-02",
+            "close_variant"
+          ]
+        ]
+      },
+      "status": "OK",
+      "nota": "loop CRIBA real ejecutado via criba_fn",
+      "selection_report": {
+        "status": "OK",
+        "quality_floor": 0.199,
+        "pool_size": 12,
+        "valid_size": 12,
+        "picks": [
+          {
+            "idea_id": null,
+            "why": "mejor score sobre el suelo (0.349)"
+          },
+          {
+            "idea_id": null,
+            "why": "utilidad marginal -0.001 (distancia mínima a elegidos=0.00; variante cercana x1)"
+          },
+          {
+            "idea_id": null,
+            "why": "utilidad marginal -0.351 (distancia mínima a elegidos=0.00; variante cercana x2)"
+          }
+        ],
+        "tie_sets": [
+          [
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            ""
+          ],
+          [
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            ""
+          ]
+        ],
+        "tiebreak_rule": "deterministic idea_id order among equal operational utility; tie-break is not scientific superiority",
+        "finalists": [
+          null,
+          null,
+          null
+        ],
+        "discarded_by_floor": [],
+        "opportunity_accounting": {
+          "generated_candidates": 28,
+          "selection_candidates_considered": 12,
+          "initial_finalists": 3,
+          "candidate_development_attempts": 0,
+          "replacement_attempts": 0,
+          "finalists": 3,
+          "provider_model_requests": 0,
+          "provider_model_requests_authoritative": true,
+          "provider_model_requests_scope": "CANDIDATE_PROPOSAL_AND_CRITIC_ONLY",
+          "evaluation_calls_authoritative": false,
+          "budget_complete": false,
+          "scope": "LOCAL_PIPELINE_ACCOUNTING_ONLY"
+        }
+      },
+      "pipeline": "criba_fn",
+      "latencia_s": 0.078
+    },
+    {
+      "run_id": "934af65a6a704f0cba54b0032f968c51",
+      "bench_run_id": "bench-d9b9c43371c3",
+      "problem_id": "B03",
+      "condition": "D_BLACKFORGE",
+      "seed": 7,
+      "seed_source": "explicit",
+      "prompt": "BLACKFORGE: lotería + selector diversity-aware para: Priorizar el parcheado de vulnerabilidades con superficie expuesta limitada.",
+      "candidates": [
+        {
+          "idea_id": "bf-7-00",
+          "title": "Prueba antes de despliegue x Secreto dividido",
+          "description": "Combinar 'evidence_verification' + 'data_privacy_provenance'",
+          "score": 0.349,
+          "genome": {
+            "actor": [
+              "operator"
+            ],
+            "mechanism": [
+              "unknown"
+            ],
+            "topology": [
+              "centralized"
+            ],
+            "trust_model": [
+              "implicit"
+            ],
+            "time_model": [
+              "staged"
+            ]
+          },
+          "family": "evidence_verification",
+          "methods": [
+            "Prueba antes de despliegue",
+            "Secreto dividido"
+          ],
+          "classes": [],
+          "source": "BLACKFORGE",
+          "mode": "optimized",
+          "prueba_concreta": null
+        },
+        {
+          "idea_id": "bf-7-01",
+          "title": "Secreto dividido x Lente de envenenamiento de dat",
+          "description": "Combinar 'data_privacy_provenance' + 'adversarial_threat'",
+          "score": 0.349,
+          "genome": {
+            "actor": [
+              "operator"
+            ],
+            "mechanism": [
+              "unknown"
+            ],
+            "topology": [
+              "centralized"
+            ],
+            "trust_model": [
+              "implicit"
+            ],
+            "time_model": [
+              "staged"
+            ]
+          },
+          "family": "data_privacy_provenance",
+          "methods": [
+            "Secreto dividido",
+            "Lente de envenenamiento de datos"
+          ],
+          "classes": [],
+          "source": "BLACKFORGE",
+          "mode": "optimized",
+          "prueba_concreta": null
+        },
+        {
+          "idea_id": "bf-7-02",
+          "title": "Lente de inversión de modelo x Fatiga de recuperación",
+          "description": "Combinar 'agents_ai_devtools' + 'human_factors'",
+          "score": 0.349,
+          "genome": {
+            "actor": [
+              "operator"
+            ],
+            "mechanism": [
+              "unknown"
+            ],
+            "topology": [
+              "centralized"
+            ],
+            "trust_model": [
+              "implicit"
+            ],
+            "time_model": [
+              "staged"
+            ]
+          },
+          "family": "agents_ai_devtools",
+          "methods": [
+            "Lente de inversión de modelo",
+            "Fatiga de recuperación"
+          ],
+          "classes": [],
+          "source": "BLACKFORGE",
+          "mode": "optimized",
+          "prueba_concreta": null
+        }
+      ],
+      "metrics": {
+        "duplication_rate": 0.0,
+        "close_variant_rate": 1.0,
+        "structural_diversity": 0.0,
+        "unique_mechanisms": 1,
+        "family_coverage": 1.0,
+        "pair_reuse_rate": 0.0,
+        "finalists": [
+          "bf-7-00",
+          "bf-7-01",
+          "bf-7-02"
+        ],
+        "pair_verdicts": [
+          [
+            "bf-7-00",
+            "bf-7-01",
+            "close_variant"
+          ],
+          [
+            "bf-7-00",
+            "bf-7-02",
+            "close_variant"
+          ],
+          [
+            "bf-7-01",
+            "bf-7-02",
+            "close_variant"
+          ]
+        ]
+      },
+      "status": "OK",
+      "nota": "loop BLACKFORGE real ejecutado via blackforge_fn",
+      "selection_report": {
+        "instrumented": false,
+        "status": "REPORT_UNAVAILABLE",
+        "reason": "criba_fn_callback_did_not_supply_selection_report"
+      },
+      "pipeline": "blackforge_fn",
+      "latencia_s": 0.016
+    },
+    {
+      "run_id": "882896a216df4e989c77f123bc0289f9",
+      "bench_run_id": "bench-8b43d3d07f12",
+      "problem_id": "B04",
+      "condition": "A_DIRECT",
+      "seed": 7,
+      "seed_source": "explicit",
+      "prompt": "Genera 3 soluciones innovadoras para: Endurecer pipelines de CI sin bloquear la entrega de los equipos.",
+      "candidates": [
+        {
+          "idea_id": "direct-00",
+          "title": "Respuesta directa stub 1",
+          "description": "Stub para Endurecer pipelines de CI sin bloquear la entrega de los equipos.",
+          "score": 0.5,
+          "family": "direct_stub",
+          "methods": [
+            "direct_prompt"
+          ],
+          "classes": [
+            "stub"
+          ],
+          "genome": {
+            "mechanism": [
+              "stub"
+            ],
+            "classes": [
+              "stub"
+            ]
+          }
+        },
+        {
+          "idea_id": "direct-01",
+          "title": "Respuesta directa stub 2",
+          "description": "Stub para Endurecer pipelines de CI sin bloquear la entrega de los equipos.",
+          "score": 0.5,
+          "family": "direct_stub",
+          "methods": [
+            "direct_prompt"
+          ],
+          "classes": [
+            "stub"
+          ],
+          "genome": {
+            "mechanism": [
+              "stub"
+            ],
+            "classes": [
+              "stub"
+            ]
+          }
+        },
+        {
+          "idea_id": "direct-02",
+          "title": "Respuesta directa stub 3",
+          "description": "Stub para Endurecer pipelines de CI sin bloquear la entrega de los equipos.",
+          "score": 0.5,
+          "family": "direct_stub",
+          "methods": [
+            "direct_prompt"
+          ],
+          "classes": [
+            "stub"
+          ],
+          "genome": {
+            "mechanism": [
+              "stub"
+            ],
+            "classes": [
+              "stub"
+            ]
+          }
+        }
+      ],
+      "metrics": {
+        "duplication_rate": 0.0,
+        "close_variant_rate": 0.0,
+        "structural_diversity": 0.0,
+        "unique_mechanisms": 1,
+        "family_coverage": 1.0,
+        "pair_reuse_rate": 0.6667,
+        "finalists": [
+          "direct-00",
+          "direct-01",
+          "direct-02"
+        ],
+        "pair_verdicts": [
+          [
+            "direct-00",
+            "direct-01",
+            "insufficient_evidence"
+          ],
+          [
+            "direct-00",
+            "direct-02",
+            "insufficient_evidence"
+          ],
+          [
+            "direct-01",
+            "direct-02",
+            "insufficient_evidence"
+          ]
+        ]
+      },
+      "status": "OK",
+      "nota": "sin modelo configurado: comparación no ejecutada",
+      "latencia_s": 0.0
+    },
+    {
+      "run_id": "8446af37aead4812bca1f25a6bf9adbe",
+      "bench_run_id": "bench-b7495fde343d",
+      "problem_id": "B04",
+      "condition": "B_STRONG_PROMPT",
+      "seed": 7,
+      "seed_source": "explicit",
+      "prompt": "Genera 3 soluciones para: Endurecer pipelines de CI sin bloquear la entrega de los equipos.\nRequisitos: mecanismo causal explícito, qué supuesto cambias, respecto de qué solución de referencia, restricciones conservadas, y una prueba mínima con condición de fracaso.",
+      "candidates": [
+        {
+          "idea_id": "direct-00",
+          "title": "Respuesta directa stub 1",
+          "description": "Stub para Endurecer pipelines de CI sin bloquear la entrega de los equipos.\nRequisitos: me",
+          "score": 0.5,
+          "family": "direct_stub",
+          "methods": [
+            "direct_prompt"
+          ],
+          "classes": [
+            "stub"
+          ],
+          "genome": {
+            "mechanism": [
+              "stub"
+            ],
+            "classes": [
+              "stub"
+            ]
+          }
+        },
+        {
+          "idea_id": "direct-01",
+          "title": "Respuesta directa stub 2",
+          "description": "Stub para Endurecer pipelines de CI sin bloquear la entrega de los equipos.\nRequisitos: me",
+          "score": 0.5,
+          "family": "direct_stub",
+          "methods": [
+            "direct_prompt"
+          ],
+          "classes": [
+            "stub"
+          ],
+          "genome": {
+            "mechanism": [
+              "stub"
+            ],
+            "classes": [
+              "stub"
+            ]
+          }
+        },
+        {
+          "idea_id": "direct-02",
+          "title": "Respuesta directa stub 3",
+          "description": "Stub para Endurecer pipelines de CI sin bloquear la entrega de los equipos.\nRequisitos: me",
+          "score": 0.5,
+          "family": "direct_stub",
+          "methods": [
+            "direct_prompt"
+          ],
+          "classes": [
+            "stub"
+          ],
+          "genome": {
+            "mechanism": [
+              "stub"
+            ],
+            "classes": [
+              "stub"
+            ]
+          }
+        }
+      ],
+      "metrics": {
+        "duplication_rate": 0.0,
+        "close_variant_rate": 0.0,
+        "structural_diversity": 0.0,
+        "unique_mechanisms": 1,
+        "family_coverage": 1.0,
+        "pair_reuse_rate": 0.6667,
+        "finalists": [
+          "direct-00",
+          "direct-01",
+          "direct-02"
+        ],
+        "pair_verdicts": [
+          [
+            "direct-00",
+            "direct-01",
+            "insufficient_evidence"
+          ],
+          [
+            "direct-00",
+            "direct-02",
+            "insufficient_evidence"
+          ],
+          [
+            "direct-01",
+            "direct-02",
+            "insufficient_evidence"
+          ]
+        ]
+      },
+      "status": "OK",
+      "nota": "sin modelo configurado: comparación no ejecutada",
+      "latencia_s": 0.0
+    },
+    {
+      "run_id": "b49edc4bfefa46d9b4e28f1fe111d742",
+      "bench_run_id": "bench-855ee9e8d566",
+      "problem_id": "B04",
+      "condition": "C_CRIBA",
+      "seed": 7,
+      "seed_source": "explicit",
+      "prompt": "CRIBA: cruces + selector diversity-aware + evidencia para: Endurecer pipelines de CI sin bloquear la entrega de los equipos.",
+      "candidates": [
+        {
+          "idea_id": "criba-7-00",
+          "title": "Lente de ventaja comparativa x Ética de reversibilidad",
+          "description": "Combinar 'estrategia' + 'ruptura_marco'",
+          "score": 0.349,
+          "genome": {
+            "actor": [
+              "operator"
+            ],
+            "mechanism": [
+              "unknown"
+            ],
+            "topology": [
+              "centralized"
+            ],
+            "trust_model": [
+              "implicit"
+            ],
+            "time_model": [
+              "staged"
+            ]
+          },
+          "family": "estrategia",
+          "methods": [
+            "Lente de ventaja comparativa",
+            "Ética de reversibilidad"
+          ],
+          "classes": [
+            "perspectiva",
+            "ruptura"
+          ]
+        },
+        {
+          "idea_id": "criba-7-01",
+          "title": "Prueba de abandono x Ética de reversibilidad",
+          "description": "Combinar 'general' + 'ruptura_marco'",
+          "score": 0.349,
+          "genome": {
+            "actor": [
+              "operator"
+            ],
+            "mechanism": [
+              "unknown"
+            ],
+            "topology": [
+              "centralized"
+            ],
+            "trust_model": [
+              "implicit"
+            ],
+            "time_model": [
+              "staged"
+            ]
+          },
+          "family": "general",
+          "methods": [
+            "Prueba de abandono",
+            "Ética de reversibilidad"
+          ],
+          "classes": [
+            "generacion",
+            "ruptura"
+          ]
+        },
+        {
+          "idea_id": "criba-7-02",
+          "title": "Ética de reversibilidad x Coaliciones emergentes",
+          "description": "Combinar 'ruptura_marco' + 'salto_espacio'",
+          "score": 0.349,
+          "genome": {
+            "actor": [
+              "operator"
+            ],
+            "mechanism": [
+              "unknown"
+            ],
+            "topology": [
+              "centralized"
+            ],
+            "trust_model": [
+              "implicit"
+            ],
+            "time_model": [
+              "staged"
+            ]
+          },
+          "family": "ruptura_marco",
+          "methods": [
+            "Ética de reversibilidad",
+            "Coaliciones emergentes"
+          ],
+          "classes": [
+            "ruptura",
+            "escape"
+          ]
+        }
+      ],
+      "metrics": {
+        "duplication_rate": 0.0,
+        "close_variant_rate": 1.0,
+        "structural_diversity": 0.0,
+        "unique_mechanisms": 1,
+        "family_coverage": 1.0,
+        "pair_reuse_rate": 0.0,
+        "finalists": [
+          "criba-7-00",
+          "criba-7-01",
+          "criba-7-02"
+        ],
+        "pair_verdicts": [
+          [
+            "criba-7-00",
+            "criba-7-01",
+            "close_variant"
+          ],
+          [
+            "criba-7-00",
+            "criba-7-02",
+            "close_variant"
+          ],
+          [
+            "criba-7-01",
+            "criba-7-02",
+            "close_variant"
+          ]
+        ]
+      },
+      "status": "OK",
+      "nota": "loop CRIBA real ejecutado via criba_fn",
+      "selection_report": {
+        "status": "OK",
+        "quality_floor": 0.199,
+        "pool_size": 12,
+        "valid_size": 12,
+        "picks": [
+          {
+            "idea_id": null,
+            "why": "mejor score sobre el suelo (0.349)"
+          },
+          {
+            "idea_id": null,
+            "why": "utilidad marginal -0.001 (distancia mínima a elegidos=0.00; variante cercana x1)"
+          },
+          {
+            "idea_id": null,
+            "why": "utilidad marginal -0.351 (distancia mínima a elegidos=0.00; variante cercana x2)"
+          }
+        ],
+        "tie_sets": [
+          [
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            ""
+          ],
+          [
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            ""
+          ]
+        ],
+        "tiebreak_rule": "deterministic idea_id order among equal operational utility; tie-break is not scientific superiority",
+        "finalists": [
+          null,
+          null,
+          null
+        ],
+        "discarded_by_floor": [],
+        "opportunity_accounting": {
+          "generated_candidates": 28,
+          "selection_candidates_considered": 12,
+          "initial_finalists": 3,
+          "candidate_development_attempts": 0,
+          "replacement_attempts": 0,
+          "finalists": 3,
+          "provider_model_requests": 0,
+          "provider_model_requests_authoritative": true,
+          "provider_model_requests_scope": "CANDIDATE_PROPOSAL_AND_CRITIC_ONLY",
+          "evaluation_calls_authoritative": false,
+          "budget_complete": false,
+          "scope": "LOCAL_PIPELINE_ACCOUNTING_ONLY"
+        }
+      },
+      "pipeline": "criba_fn",
+      "latencia_s": 0.109
+    },
+    {
+      "run_id": "e0002f7ddb0d42a6a53cf083da212609",
+      "bench_run_id": "bench-7b6454435677",
+      "problem_id": "B04",
+      "condition": "D_BLACKFORGE",
+      "seed": 7,
+      "seed_source": "explicit",
+      "prompt": "BLACKFORGE: lotería + selector diversity-aware para: Endurecer pipelines de CI sin bloquear la entrega de los equipos.",
+      "candidates": [
+        {
+          "idea_id": "bf-7-00",
+          "title": "Prueba antes de despliegue x Secreto dividido",
+          "description": "Combinar 'evidence_verification' + 'data_privacy_provenance'",
+          "score": 0.349,
+          "genome": {
+            "actor": [
+              "operator"
+            ],
+            "mechanism": [
+              "unknown"
+            ],
+            "topology": [
+              "centralized"
+            ],
+            "trust_model": [
+              "implicit"
+            ],
+            "time_model": [
+              "staged"
+            ]
+          },
+          "family": "evidence_verification",
+          "methods": [
+            "Prueba antes de despliegue",
+            "Secreto dividido"
+          ],
+          "classes": [],
+          "source": "BLACKFORGE",
+          "mode": "optimized",
+          "prueba_concreta": null
+        },
+        {
+          "idea_id": "bf-7-01",
+          "title": "Secreto dividido x Lente de envenenamiento de dat",
+          "description": "Combinar 'data_privacy_provenance' + 'adversarial_threat'",
+          "score": 0.349,
+          "genome": {
+            "actor": [
+              "operator"
+            ],
+            "mechanism": [
+              "unknown"
+            ],
+            "topology": [
+              "centralized"
+            ],
+            "trust_model": [
+              "implicit"
+            ],
+            "time_model": [
+              "staged"
+            ]
+          },
+          "family": "data_privacy_provenance",
+          "methods": [
+            "Secreto dividido",
+            "Lente de envenenamiento de datos"
+          ],
+          "classes": [],
+          "source": "BLACKFORGE",
+          "mode": "optimized",
+          "prueba_concreta": null
+        },
+        {
+          "idea_id": "bf-7-02",
+          "title": "Lente de inversión de modelo x Fatiga de recuperación",
+          "description": "Combinar 'agents_ai_devtools' + 'human_factors'",
+          "score": 0.349,
+          "genome": {
+            "actor": [
+              "operator"
+            ],
+            "mechanism": [
+              "unknown"
+            ],
+            "topology": [
+              "centralized"
+            ],
+            "trust_model": [
+              "implicit"
+            ],
+            "time_model": [
+              "staged"
+            ]
+          },
+          "family": "agents_ai_devtools",
+          "methods": [
+            "Lente de inversión de modelo",
+            "Fatiga de recuperación"
+          ],
+          "classes": [],
+          "source": "BLACKFORGE",
+          "mode": "optimized",
+          "prueba_concreta": null
+        }
+      ],
+      "metrics": {
+        "duplication_rate": 0.0,
+        "close_variant_rate": 1.0,
+        "structural_diversity": 0.0,
+        "unique_mechanisms": 1,
+        "family_coverage": 1.0,
+        "pair_reuse_rate": 0.0,
+        "finalists": [
+          "bf-7-00",
+          "bf-7-01",
+          "bf-7-02"
+        ],
+        "pair_verdicts": [
+          [
+            "bf-7-00",
+            "bf-7-01",
+            "close_variant"
+          ],
+          [
+            "bf-7-00",
+            "bf-7-02",
+            "close_variant"
+          ],
+          [
+            "bf-7-01",
+            "bf-7-02",
+            "close_variant"
+          ]
+        ]
+      },
+      "status": "OK",
+      "nota": "loop BLACKFORGE real ejecutado via blackforge_fn",
+      "selection_report": {
+        "instrumented": false,
+        "status": "REPORT_UNAVAILABLE",
+        "reason": "criba_fn_callback_did_not_supply_selection_report"
+      },
+      "pipeline": "blackforge_fn",
+      "latencia_s": 0.016
+    },
+    {
+      "run_id": "baa75c39530544759c5f03d8e2734b45",
+      "bench_run_id": "bench-b978c9d1450e",
+      "problem_id": "B05",
+      "condition": "A_DIRECT",
+      "seed": 7,
+      "seed_source": "explicit",
+      "prompt": "Genera 3 soluciones innovadoras para: Detectar credenciales reutilizadas entre servicios internos autorizados.",
+      "candidates": [
+        {
+          "idea_id": "direct-00",
+          "title": "Respuesta directa stub 1",
+          "description": "Stub para Detectar credenciales reutilizadas entre servicios internos autorizados.",
+          "score": 0.5,
+          "family": "direct_stub",
+          "methods": [
+            "direct_prompt"
+          ],
+          "classes": [
+            "stub"
+          ],
+          "genome": {
+            "mechanism": [
+              "stub"
+            ],
+            "classes": [
+              "stub"
+            ]
+          }
+        },
+        {
+          "idea_id": "direct-01",
+          "title": "Respuesta directa stub 2",
+          "description": "Stub para Detectar credenciales reutilizadas entre servicios internos autorizados.",
+          "score": 0.5,
+          "family": "direct_stub",
+          "methods": [
+            "direct_prompt"
+          ],
+          "classes": [
+            "stub"
+          ],
+          "genome": {
+            "mechanism": [
+              "stub"
+            ],
+            "classes": [
+              "stub"
+            ]
+          }
+        },
+        {
+          "idea_id": "direct-02",
+          "title": "Respuesta directa stub 3",
+          "description": "Stub para Detectar credenciales reutilizadas entre servicios internos autorizados.",
+          "score": 0.5,
+          "family": "direct_stub",
+          "methods": [
+            "direct_prompt"
+          ],
+          "classes": [
+            "stub"
+          ],
+          "genome": {
+            "mechanism": [
+              "stub"
+            ],
+            "classes": [
+              "stub"
+            ]
+          }
+        }
+      ],
+      "metrics": {
+        "duplication_rate": 0.0,
+        "close_variant_rate": 0.0,
+        "structural_diversity": 0.0,
+        "unique_mechanisms": 1,
+        "family_coverage": 1.0,
+        "pair_reuse_rate": 0.6667,
+        "finalists": [
+          "direct-00",
+          "direct-01",
+          "direct-02"
+        ],
+        "pair_verdicts": [
+          [
+            "direct-00",
+            "direct-01",
+            "insufficient_evidence"
+          ],
+          [
+            "direct-00",
+            "direct-02",
+            "insufficient_evidence"
+          ],
+          [
+            "direct-01",
+            "direct-02",
+            "insufficient_evidence"
+          ]
+        ]
+      },
+      "status": "OK",
+      "nota": "sin modelo configurado: comparación no ejecutada",
+      "latencia_s": 0.0
+    },
+    {
+      "run_id": "7ac3993324f14334beb2cfe3d48d599d",
+      "bench_run_id": "bench-0cf7eecbb833",
+      "problem_id": "B05",
+      "condition": "B_STRONG_PROMPT",
+      "seed": 7,
+      "seed_source": "explicit",
+      "prompt": "Genera 3 soluciones para: Detectar credenciales reutilizadas entre servicios internos autorizados.\nRequisitos: mecanismo causal explícito, qué supuesto cambias, respecto de qué solución de referencia, restricciones conservadas, y una prueba mínima con condición de fracaso.",
+      "candidates": [
+        {
+          "idea_id": "direct-00",
+          "title": "Respuesta directa stub 1",
+          "description": "Stub para Detectar credenciales reutilizadas entre servicios internos autorizados.\nRequisi",
+          "score": 0.5,
+          "family": "direct_stub",
+          "methods": [
+            "direct_prompt"
+          ],
+          "classes": [
+            "stub"
+          ],
+          "genome": {
+            "mechanism": [
+              "stub"
+            ],
+            "classes": [
+              "stub"
+            ]
+          }
+        },
+        {
+          "idea_id": "direct-01",
+          "title": "Respuesta directa stub 2",
+          "description": "Stub para Detectar credenciales reutilizadas entre servicios internos autorizados.\nRequisi",
+          "score": 0.5,
+          "family": "direct_stub",
+          "methods": [
+            "direct_prompt"
+          ],
+          "classes": [
+            "stub"
+          ],
+          "genome": {
+            "mechanism": [
+              "stub"
+            ],
+            "classes": [
+              "stub"
+            ]
+          }
+        },
+        {
+          "idea_id": "direct-02",
+          "title": "Respuesta directa stub 3",
+          "description": "Stub para Detectar credenciales reutilizadas entre servicios internos autorizados.\nRequisi",
+          "score": 0.5,
+          "family": "direct_stub",
+          "methods": [
+            "direct_prompt"
+          ],
+          "classes": [
+            "stub"
+          ],
+          "genome": {
+            "mechanism": [
+              "stub"
+            ],
+            "classes": [
+              "stub"
+            ]
+          }
+        }
+      ],
+      "metrics": {
+        "duplication_rate": 0.0,
+        "close_variant_rate": 0.0,
+        "structural_diversity": 0.0,
+        "unique_mechanisms": 1,
+        "family_coverage": 1.0,
+        "pair_reuse_rate": 0.6667,
+        "finalists": [
+          "direct-00",
+          "direct-01",
+          "direct-02"
+        ],
+        "pair_verdicts": [
+          [
+            "direct-00",
+            "direct-01",
+            "insufficient_evidence"
+          ],
+          [
+            "direct-00",
+            "direct-02",
+            "insufficient_evidence"
+          ],
+          [
+            "direct-01",
+            "direct-02",
+            "insufficient_evidence"
+          ]
+        ]
+      },
+      "status": "OK",
+      "nota": "sin modelo configurado: comparación no ejecutada",
+      "latencia_s": 0.0
+    },
+    {
+      "run_id": "0239932d10d14b6d8ba18c4f6950aea6",
+      "bench_run_id": "bench-b7e4c7fde2ac",
+      "problem_id": "B05",
+      "condition": "C_CRIBA",
+      "seed": 7,
+      "seed_source": "explicit",
+      "prompt": "CRIBA: cruces + selector diversity-aware + evidencia para: Detectar credenciales reutilizadas entre servicios internos autorizados.",
+      "candidates": [
+        {
+          "idea_id": "criba-7-00",
+          "title": "Lente de ventaja comparativa x Ética de reversibilidad",
+          "description": "Combinar 'estrategia' + 'ruptura_marco'",
+          "score": 0.349,
+          "genome": {
+            "actor": [
+              "operator"
+            ],
+            "mechanism": [
+              "unknown"
+            ],
+            "topology": [
+              "centralized"
+            ],
+            "trust_model": [
+              "implicit"
+            ],
+            "time_model": [
+              "staged"
+            ]
+          },
+          "family": "estrategia",
+          "methods": [
+            "Lente de ventaja comparativa",
+            "Ética de reversibilidad"
+          ],
+          "classes": [
+            "perspectiva",
+            "ruptura"
+          ]
+        },
+        {
+          "idea_id": "criba-7-01",
+          "title": "Prueba de abandono x Ética de reversibilidad",
+          "description": "Combinar 'general' + 'ruptura_marco'",
+          "score": 0.349,
+          "genome": {
+            "actor": [
+              "operator"
+            ],
+            "mechanism": [
+              "unknown"
+            ],
+            "topology": [
+              "centralized"
+            ],
+            "trust_model": [
+              "implicit"
+            ],
+            "time_model": [
+              "staged"
+            ]
+          },
+          "family": "general",
+          "methods": [
+            "Prueba de abandono",
+            "Ética de reversibilidad"
+          ],
+          "classes": [
+            "generacion",
+            "ruptura"
+          ]
+        },
+        {
+          "idea_id": "criba-7-02",
+          "title": "Ética de reversibilidad x Coaliciones emergentes",
+          "description": "Combinar 'ruptura_marco' + 'salto_espacio'",
+          "score": 0.349,
+          "genome": {
+            "actor": [
+              "operator"
+            ],
+            "mechanism": [
+              "unknown"
+            ],
+            "topology": [
+              "centralized"
+            ],
+            "trust_model": [
+              "implicit"
+            ],
+            "time_model": [
+              "staged"
+            ]
+          },
+          "family": "ruptura_marco",
+          "methods": [
+            "Ética de reversibilidad",
+            "Coaliciones emergentes"
+          ],
+          "classes": [
+            "ruptura",
+            "escape"
+          ]
+        }
+      ],
+      "metrics": {
+        "duplication_rate": 0.0,
+        "close_variant_rate": 1.0,
+        "structural_diversity": 0.0,
+        "unique_mechanisms": 1,
+        "family_coverage": 1.0,
+        "pair_reuse_rate": 0.0,
+        "finalists": [
+          "criba-7-00",
+          "criba-7-01",
+          "criba-7-02"
+        ],
+        "pair_verdicts": [
+          [
+            "criba-7-00",
+            "criba-7-01",
+            "close_variant"
+          ],
+          [
+            "criba-7-00",
+            "criba-7-02",
+            "close_variant"
+          ],
+          [
+            "criba-7-01",
+            "criba-7-02",
+            "close_variant"
+          ]
+        ]
+      },
+      "status": "OK",
+      "nota": "loop CRIBA real ejecutado via criba_fn",
+      "selection_report": {
+        "status": "OK",
+        "quality_floor": 0.199,
+        "pool_size": 12,
+        "valid_size": 12,
+        "picks": [
+          {
+            "idea_id": null,
+            "why": "mejor score sobre el suelo (0.349)"
+          },
+          {
+            "idea_id": null,
+            "why": "utilidad marginal -0.001 (distancia mínima a elegidos=0.00; variante cercana x1)"
+          },
+          {
+            "idea_id": null,
+            "why": "utilidad marginal -0.351 (distancia mínima a elegidos=0.00; variante cercana x2)"
+          }
+        ],
+        "tie_sets": [
+          [
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            ""
+          ],
+          [
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            ""
+          ]
+        ],
+        "tiebreak_rule": "deterministic idea_id order among equal operational utility; tie-break is not scientific superiority",
+        "finalists": [
+          null,
+          null,
+          null
+        ],
+        "discarded_by_floor": [],
+        "opportunity_accounting": {
+          "generated_candidates": 28,
+          "selection_candidates_considered": 12,
+          "initial_finalists": 3,
+          "candidate_development_attempts": 0,
+          "replacement_attempts": 0,
+          "finalists": 3,
+          "provider_model_requests": 0,
+          "provider_model_requests_authoritative": true,
+          "provider_model_requests_scope": "CANDIDATE_PROPOSAL_AND_CRITIC_ONLY",
+          "evaluation_calls_authoritative": false,
+          "budget_complete": false,
+          "scope": "LOCAL_PIPELINE_ACCOUNTING_ONLY"
+        }
+      },
+      "pipeline": "criba_fn",
+      "latencia_s": 0.094
+    },
+    {
+      "run_id": "90c973db23464d018d302f4481bda97d",
+      "bench_run_id": "bench-a7b056677979",
+      "problem_id": "B05",
+      "condition": "D_BLACKFORGE",
+      "seed": 7,
+      "seed_source": "explicit",
+      "prompt": "BLACKFORGE: lotería + selector diversity-aware para: Detectar credenciales reutilizadas entre servicios internos autorizados.",
+      "candidates": [
+        {
+          "idea_id": "bf-7-00",
+          "title": "Prueba antes de despliegue x Secreto dividido",
+          "description": "Combinar 'evidence_verification' + 'data_privacy_provenance'",
+          "score": 0.349,
+          "genome": {
+            "actor": [
+              "operator"
+            ],
+            "mechanism": [
+              "unknown"
+            ],
+            "topology": [
+              "centralized"
+            ],
+            "trust_model": [
+              "implicit"
+            ],
+            "time_model": [
+              "staged"
+            ]
+          },
+          "family": "evidence_verification",
+          "methods": [
+            "Prueba antes de despliegue",
+            "Secreto dividido"
+          ],
+          "classes": [],
+          "source": "BLACKFORGE",
+          "mode": "optimized",
+          "prueba_concreta": null
+        },
+        {
+          "idea_id": "bf-7-01",
+          "title": "Secreto dividido x Lente de envenenamiento de dat",
+          "description": "Combinar 'data_privacy_provenance' + 'adversarial_threat'",
+          "score": 0.349,
+          "genome": {
+            "actor": [
+              "operator"
+            ],
+            "mechanism": [
+              "unknown"
+            ],
+            "topology": [
+              "centralized"
+            ],
+            "trust_model": [
+              "implicit"
+            ],
+            "time_model": [
+              "staged"
+            ]
+          },
+          "family": "data_privacy_provenance",
+          "methods": [
+            "Secreto dividido",
+            "Lente de envenenamiento de datos"
+          ],
+          "classes": [],
+          "source": "BLACKFORGE",
+          "mode": "optimized",
+          "prueba_concreta": null
+        },
+        {
+          "idea_id": "bf-7-02",
+          "title": "Lente de inversión de modelo x Fatiga de recuperación",
+          "description": "Combinar 'agents_ai_devtools' + 'human_factors'",
+          "score": 0.349,
+          "genome": {
+            "actor": [
+              "operator"
+            ],
+            "mechanism": [
+              "unknown"
+            ],
+            "topology": [
+              "centralized"
+            ],
+            "trust_model": [
+              "implicit"
+            ],
+            "time_model": [
+              "staged"
+            ]
+          },
+          "family": "agents_ai_devtools",
+          "methods": [
+            "Lente de inversión de modelo",
+            "Fatiga de recuperación"
+          ],
+          "classes": [],
+          "source": "BLACKFORGE",
+          "mode": "optimized",
+          "prueba_concreta": null
+        }
+      ],
+      "metrics": {
+        "duplication_rate": 0.0,
+        "close_variant_rate": 1.0,
+        "structural_diversity": 0.0,
+        "unique_mechanisms": 1,
+        "family_coverage": 1.0,
+        "pair_reuse_rate": 0.0,
+        "finalists": [
+          "bf-7-00",
+          "bf-7-01",
+          "bf-7-02"
+        ],
+        "pair_verdicts": [
+          [
+            "bf-7-00",
+            "bf-7-01",
+            "close_variant"
+          ],
+          [
+            "bf-7-00",
+            "bf-7-02",
+            "close_variant"
+          ],
+          [
+            "bf-7-01",
+            "bf-7-02",
+            "close_variant"
+          ]
+        ]
+      },
+      "status": "OK",
+      "nota": "loop BLACKFORGE real ejecutado via blackforge_fn",
+      "selection_report": {
+        "instrumented": false,
+        "status": "REPORT_UNAVAILABLE",
+        "reason": "criba_fn_callback_did_not_supply_selection_report"
+      },
+      "pipeline": "blackforge_fn",
+      "latencia_s": 0.015
+    }
+  ],
+  "advertencia": "smoke funcional; NO concluye superioridad (§53)",
+  "generado_at": "2026-11-03T02:09:15Z"
+}

@@ -32,3 +32,30 @@ repos:
         types: [text]
         exclude: \.(lock|json)$
         stages: [commit]
+
+      # EEIMC-001 Art. 23.3 — controles observables en el punto de escritura.
+      # Las rutas suben un nivel porque este fichero vive en criba-blackforge/
+      # mientras la política canónica vive en la raíz del repositorio.
+      - id: eeimc-001-policy-presence
+        name: EEIMC-001 Policy Presence Check
+        entry: sh ../scripts/check_eeimc_policy.sh
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [commit]
+
+      - id: eeimc-001-state-check
+        name: EEIMC-001 State Reconciliation Check
+        entry: sh ../scripts/check_eeimc_state.sh
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [commit]
+
+      - id: eeimc-001-secrets
+        name: EEIMC-001 Secret Detection
+        entry: sh ../scripts/check_eeimc_secrets.sh
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [commit]

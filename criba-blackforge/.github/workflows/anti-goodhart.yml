@@ -1,0 +1,74 @@
+name: Anti-Goodhart RETRYBOX Gate
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  anti-goodhart:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Validate evidence case oracles
+        run: |
+          python -c "
+          import json, sys
+          from pathlib import Path
+          from criba.verification.retrybox_contract import validate_oracle_file
+
+          base = Path('tests/fixtures/evidence_cases')
+          ok = True
+          for oracle_file in sorted((base).rglob('case.oracle.json')):
+              passed, reason = validate_oracle_file(oracle_file)
+              if not passed:
+                  print(f'FAIL: {oracle_file}: {reason}')
+                  ok = False
+              else:
+                  print(f'PASS: {oracle_file.name}')
+          if not ok:
+              sys.exit(1)
+          print('All oracle files validated.')
+          " || exit 1
+
+      - name: Run RetryBox evidence contract tests (deterministic)
+        run: |
+          python -m pytest \
+            tests/integration/test_retrybox_evidence_contract.py \
+            -p no:cacheprovider \
+            --strict-markers \
+            -ra \
+            -v \
+            --timeout=30
+
+      - name: Run retry ledger unit tests
+        run: |
+          python -m pytest \
+            tests/unit/test_retry_ledger.py \
+            -p no:cacheprovider \
+            --strict-markers \
+            -ra \
+            -v \
+            --timeout=30
+
+      - name: Upload evidence fixtures on failure
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: evidence_fixtures
+          path: tests/fixtures/evidence_cases/
+          retention-days: 7

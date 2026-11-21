@@ -9,11 +9,13 @@ from __future__ import annotations
 
 import json
 import math
+import os
 import random
 from pathlib import Path
 from typing import Any
 
 import criba.ui.actions as actions
+from criba.interprete.diagnostico import CRITIQUE_REJECTED
 from criba.ui.i18n import on_change as _i18n_on_change
 from criba.ui.i18n import t as _t
 from criba.ui.i18n import toggle as _i18n_toggle
@@ -23,6 +25,7 @@ from loading_indicator import LoadingIndicator
 from PySide6.QtCore import QPoint, QPointF, QRectF, QSize, Qt
 from PySide6.QtGui import (
     QColor,
+    QGuiApplication,
     QIcon,
     QLinearGradient,
     QPainter,
@@ -147,6 +150,7 @@ WARNING = "#CC9922"
 INFO = "#4488CC"
 BADGE_GREEN_BG = "#0A2820"
 BADGE_BLUE_BG = "#0A1828"
+BG_INTERPRETACION = "#0B1C25"
 
 NAV_ITEMS = [
     ("navRed", "⬡", "shadow.nav.red", "shadow.nav.red.sub"),
@@ -219,7 +223,22 @@ def build_shadow_qss() -> str:
         border-radius: 8px; padding: 7px 12px;
     }}
     QPlainTextEdit[interpretation_active="true"] {{
-        background: #0B1C25; border: 1px solid #1B5665; color: #D4EAF0;
+        background: {BG_INTERPRETACION}; border: 1px solid #1B5665; color: #D4EAF0;
+        font-size: 16px; font-family: 'Segoe UI', sans-serif;
+        padding: 16px; line-height: 1.6;
+    }}
+    QLabel[interpretation_title="true"] {{
+        color: {TEXT}; font-size: 24px; font-weight: 700; background: transparent;
+    }}
+    QLabel[interpretation_hint="true"] {{
+        color: {TEXT_SUB}; font-size: 14px; font-weight: 400;
+        background: transparent;
+    }}
+    QFrame[interpretation_card="true"] {{
+        background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+            stop:0 #0B1C25, stop:1 #0A141E);
+        border: 1px solid #1B5665;
+        border-radius: 14px;
     }}
     QComboBox {{
         background: {BG_INPUT}; border: 1px solid {BORDER}; border-radius: 6px;
@@ -518,7 +537,7 @@ class SidebarWidget(QWidget):
     def __init__(self, win: ShadowWindow) -> None:
         super().__init__()
         self.win = win
-        self.setFixedWidth(264)
+        self.setFixedWidth(194 if getattr(win, "_compact_layout", False) else 264)
         lay = QVBoxLayout(self)
         lay.setContentsMargins(0, 0, 0, 0)
         lay.setSpacing(0)
@@ -581,12 +600,15 @@ class SidebarWidget(QWidget):
         # Paisaje real (recorte de la referencia) + tarjeta BLACKFORGE encima,
         # abajo: composición exacta de la referencia.
         bottom = QWidget()
-        bottom.setFixedHeight(381)
+        bottom.setFixedHeight(215 if getattr(self.win, "_compact_layout", False) else 381)
         bottom_lay = QGridLayout(bottom)
         bottom_lay.setContentsMargins(0, 0, 0, 0)
         bottom_lay.setSpacing(0)
         landscape = QLabel()
-        landscape.setPixmap(_landscape_pixmap(264, 381))
+        compact = getattr(self.win, "_compact_layout", False)
+        landscape.setPixmap(
+            _landscape_pixmap(194, 215) if compact else _landscape_pixmap(264, 381)
+        )
         landscape.setScaledContents(True)
         bottom_lay.addWidget(landscape, 0, 0)
 
@@ -626,6 +648,19 @@ class SidebarWidget(QWidget):
 # ---------------------------------------------------------------------------
 # Header — input problema + modelo + ES + notificaciones
 # ---------------------------------------------------------------------------
+
+def _selected_interpreter_label(win: Any) -> str:
+    """Configuration is not availability; never contact a model for a label."""
+    from criba.interprete.openai_compatible import OpenAICompatibleInterpreter
+    from criba.model_config import active_model_label
+
+    selector = getattr(getattr(win, "topcards", None), "interpreter_selector", None)
+    data = selector.currentData() if selector is not None else "openai_compatible"
+    backend, model = data if isinstance(data, (tuple, list)) else (data, None)
+    if backend == "local_llama":
+        return active_model_label()
+    return OpenAICompatibleInterpreter(model=model or None).model
+
 
 class HeaderWidget(QWidget):
     def __init__(self, win: ShadowWindow) -> None:
@@ -709,28 +744,14 @@ class HeaderWidget(QWidget):
 
     # ------------------------------------------------- modelo local (real)
     def refresh_model_label(self) -> None:
-        """Etiqueta REAL del modelo activo, no el texto fijo de la maqueta.
-
-        La composición mostraba "Modelo local · Desactivado" hardcodeado aunque
-        hubiera perfil activo. Aquí se lee la misma fuente que el footer clásico
-        (model_config.active_model_label) y el botón queda clicable hacia el
-        gestor compartido de modelos (actions.on_modelos).
-        """
-        label = _t("shadow.desactivado")
+        """Reflect the selected interpreter without pretending it is connected."""
+        label = "Configuración no disponible"
         try:
-            from criba.model_config import active_model_label, load_model_settings
-
-            settings = load_model_settings()
-            if settings.enabled and settings.active_profile() is not None:
-                label = active_model_label(settings)
+            label = _selected_interpreter_label(self.win)
         except Exception:
-            label = _t("shadow.desactivado")
+            pass
         self.model_btn.setText(f"  {_t('shadow.modelo')} · {label}")
-        if label == _t("shadow.desactivado"):
-            self.model_btn.setToolTip(_t("shadow.modelo.tip_off"))
-        else:
-            self.model_btn.setToolTip(
-                f"Modelo activo: {label} — clic para gestionar perfiles (Modelos IA)")
+        self.model_btn.setToolTip(f"Modelo seleccionado: {label}; disponibilidad al generar")
 
     def _open_modelos(self) -> None:
         """Clic en la cabecera → gestor de modelos compartido y refresco real."""
@@ -825,11 +846,71 @@ class TopCardsWidget(QWidget):
         self.interpreter_selector.addItem(
             "Nous/Hermes OAuth · Space Bunny", "openai_compatible"
         )
+        # Modelos gratuitos del proxy Hermes (suscripción Nous). Se listan por
+        # ejecución real contra el proxy; el operador elige uno concreto. El
+        # userData lleva (backend, model) para que el run use ese modelo.
+        from criba.interprete.seleccion import FREE_MODELS
+
+        for model_id, label in FREE_MODELS:
+            self.interpreter_selector.addItem(
+                f"{label} · free", ("openai_compatible", model_id)
+            )
         self.interpreter_selector.addItem(
-            _t("shadow.interpreter.local"), "local_llama"
+            "Cargar modelo", "local_llama"
+        )
+        self.interpreter_selector.currentIndexChanged.connect(
+            lambda idx: actions._on_interpreter_changed(win, idx)
         )
         selector_row.addWidget(self.interpreter_selector, stretch=1)
         l2.addLayout(selector_row)
+
+        controls_row = QHBoxLayout()
+        controls_row.setSpacing(6)
+        mode_label = QLabel("Sorteo:")
+        mode_label.setProperty("caption", True)
+        controls_row.addWidget(mode_label)
+        self.mode_selector = QComboBox()
+        for key, label in (
+            ("optimized", "Optimizado"),
+            ("associative", "Asociativo"),
+            ("pure", "Puro"),
+            ("alternating", "Alternando"),
+            ("stratified", "Estratificado"),
+        ):
+            self.mode_selector.addItem(label, key)
+        self.mode_selector.setCurrentIndex(self.mode_selector.findData("stratified"))
+        self.mode_selector.setToolTip("Modo del sorteo de métodos para esta ejecución.")
+        controls_row.addWidget(self.mode_selector, stretch=1)
+        seed_label = QLabel("Semilla:")
+        seed_label.setProperty("caption", True)
+        controls_row.addWidget(seed_label)
+        self.seed_input = QLineEdit()
+        self.seed_input.setPlaceholderText("auto")
+        self.seed_input.setMaximumWidth(110)
+        self.seed_input.setToolTip("Vacío = semilla nueva; entero = ejecución reproducible.")
+        controls_row.addWidget(self.seed_input)
+        l2.addLayout(controls_row)
+
+        evidence_row = QHBoxLayout()
+        evidence_row.setSpacing(6)
+        evidence_label = QLabel("Evidencia:")
+        evidence_label.setProperty("caption", True)
+        evidence_row.addWidget(evidence_label)
+        self.evidence_mode_selector = QComboBox()
+        from criba.evidence_modes import EVIDENCE_MODES
+
+        for key, spec in EVIDENCE_MODES.items():
+            self.evidence_mode_selector.addItem(f"{spec.label} · {spec.status}", key)
+        self.evidence_mode_selector.setCurrentIndex(
+            self.evidence_mode_selector.findData("creative")
+        )
+        self.evidence_mode_selector.setToolTip(
+            "Creativo/Exploratorio: propuesta NO validada. "
+            "Validado: exige verification PASS de SUPRA; sin PASS queda pendiente."
+        )
+        evidence_row.addWidget(self.evidence_mode_selector, stretch=1)
+        l2.addLayout(evidence_row)
+
         self.interpreter_status = QLabel(
             _t("shadow.interpreter.status")
         )
@@ -849,7 +930,7 @@ class TopCardsWidget(QWidget):
         self.cand_label.setProperty("count", 0)
         bind_text(self.cand_label, "shadow.candidatos")
         l2.addWidget(self.cand_label)
-        btn_row = QHBoxLayout()
+        btn_row = QVBoxLayout() if getattr(win, "_compact_layout", False) else QHBoxLayout()
         btn_gen = QPushButton("✦ Generar ideas")
         bind_text(btn_gen, "shadow.generar")
         btn_gen.setStyleSheet(f"""
@@ -864,7 +945,7 @@ class TopCardsWidget(QWidget):
             QPushButton:disabled {{ background: #0A1A18; border-color: #1E3A30; color: #3A6A58; }}
         """)
         self.btn_gen = btn_gen
-        btn_gen.clicked.connect(lambda: actions.on_generar(win))
+        btn_gen.clicked.connect(lambda: actions.on_inventar(win))
         _glow(btn_gen, SUCCESS, 26)
         btn_row.addWidget(btn_gen, stretch=1)
         btn_inv = QPushButton("⚗ Inventar")
@@ -883,8 +964,9 @@ class TopCardsWidget(QWidget):
         bind_text(score_label, "shadow.mejor_score")
         score_row.addWidget(score_label)
         score_val = QLabel("")
+        score_size = 19 if getattr(win, "_compact_layout", False) else 28
         score_val.setStyleSheet(
-            f"font-size: 28px; font-weight: 800; color: {ACCENT}; "
+            f"font-size: {score_size}px; font-weight: 800; color: {ACCENT}; "
             "background: transparent;"
         )
         self.score_val = score_val
@@ -961,111 +1043,42 @@ class CandidatesWidget(QWidget):
         lay.setSpacing(10)
 
         self.lay = lay
-        title = QLabel("Candidatos y evaluación")
-        title.setProperty("h2", True)
-        title.setWordWrap(True)
-        bind_text(title, "shadow.candidatos_titulo")
-        sub = QLabel("Propuestas para el problema actual")
-        sub.setProperty("caption", True)
-        sub.setWordWrap(True)
-        bind_text(sub, "shadow.candidatos_sub")
-        self.title = title
-        self.sub = sub
-        lay.addWidget(title)
-        lay.addWidget(sub)
 
-        tabs = QTabWidget()
-        tabs.setDocumentMode(True)
-        for key in ("shadow.tab.ranking", "shadow.tab.top", "shadow.tab.eval",
-                    "shadow.tab.exploracion"):
-            tabs.addTab(QWidget(), _t(key))
-        # Las pestañas no exponen setText por clave: se re-etiquetan al cambiar
-        # de idioma (QTabWidget.setTabText).
-        def _retitle_tabs() -> None:
-            for i, key in enumerate(("shadow.tab.ranking", "shadow.tab.top",
-                                     "shadow.tab.eval", "shadow.tab.exploracion")):
-                if i < tabs.count():
-                    tabs.setTabText(i, _t(key))
+        # ── ZONA CENTRAL: INTERPRETACIÓN DOMINANTE ──────────────────────
+        # La interpretación es el elemento principal de la aplicación.
+        # Se muestra en un panel grande, legible y dominante, no en una
+        # pestaña secundaria.
+        interp_frame = QFrame()
+        interp_frame.setProperty("interpretation_card", True)
+        interp_lay = QVBoxLayout(interp_frame)
+        interp_lay.setContentsMargins(20, 16, 20, 16)
+        interp_lay.setSpacing(12)
 
-        _I18N_CALLBACKS.append(_retitle_tabs)
-        tabs.currentChanged.connect(lambda i: actions.on_tab_changed(win, i))
-        self.tabs = tabs
-        lay.addWidget(tabs)
+        interp_title = QLabel("Interpretación")
+        interp_title.setProperty("interpretation_title", True)
+        bind_text(interp_title, "shadow.interpretacion.titulo")
+        interp_lay.addWidget(interp_title)
 
-        # Tabla REAL: RankingModel canónico + proxy shadow (cabeceras de la
-        # composición) + QTableView. Selección → mapToSource → candidate ID.
-        self.model = RankingModel()
-        # §13: la tabla arranca vacía; sólo datos reales tras generar/evaluar.
-        self.model.set_rows([])
-        self.proxy = ShadowRankingProxy()
-        self.proxy.setSourceModel(self.model)
-        table = QTableView()
-        table.setModel(self.proxy)
-        table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
-        table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
-        table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
-        table.setShowGrid(False)
-        table.verticalHeader().setVisible(False)
-        table.horizontalHeader().setHighlightSections(False)
-        table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
-        self.view = table
-        lay.addWidget(table)
-
-        # Detalle seleccionado
-        detail = QFrame()
-        detail.setProperty("card", True)
-        d_lay = QVBoxLayout(detail)
-        d_lay.setContentsMargins(14, 10, 14, 10)
-        d_header = QHBoxLayout()
-        icon = _icon_label("doc", 18)
-        d_header.addWidget(icon)
-        d_info = QVBoxLayout()
-        sel_label = QLabel("Idea seleccionada")
-        sel_label.setStyleSheet(
-            f"color: {SUCCESS}; font-size: 10px; font-weight: 600; "
-            "background: transparent;"
-        )
-        bind_text(sel_label, "shadow.idea_sel")
-        self.detail_caption = sel_label
-        d_info.addWidget(sel_label)
-        d_title = QLabel("")
-        d_title.setProperty("h2", True)
-        d_title.setWordWrap(True)
-        self.detail_title = d_title
-        d_info.addWidget(d_title)
-        d_header.addLayout(d_info, stretch=1)
-        self.detail_chip = _badge("● En evaluación", SUCCESS, BADGE_GREEN_BG)
-        self.detail_chip.setWordWrap(True)
-        d_header.addWidget(self.detail_chip)
-        chip_ev = _badge("⚠ Evidencia pendiente", WARNING, "#282008")
-        chip_ev.setWordWrap(True)
-        self.detail_chip_ev = chip_ev
-        d_header.addWidget(chip_ev)
-        d_lay.addLayout(d_header)
-        d_desc = QLabel("")
-        d_desc.setWordWrap(True)
-        d_desc.setProperty("sub", True)
-        self.detail_desc = d_desc
-        # Ficha técnica en monoespaciada (la referencia usa Cascadia Code).
-        # Va por QSS: el QSS global pisa cualquier setFont() del widget.
-        mono_qss = ("font-family: 'Cascadia Code', 'Consolas', 'Courier New', monospace;"
-                    " background: transparent;")
-        d_title.setStyleSheet(mono_qss)
-        d_desc.setStyleSheet(mono_qss + f" color: {TEXT_SUB};")
-        d_lay.addWidget(d_desc)
+        interp_sub = QLabel("Propuesta seleccionada")
+        interp_sub.setProperty("interpretation_hint", True)
+        bind_text(interp_sub, "shadow.interpretacion.sub")
+        interp_lay.addWidget(interp_sub)
 
         # Resultados completos y copiables. La navegación muestra UNA
         # interpretación por vez: juntar todas las propuestas en un blob JSON
         # hacía que parecieran repetidas y ocultaba la lectura importante.
+        # La pestaña "Interpretación" es la primera y la visible por defecto.
         self.output_tabs = QTabWidget()
         self.output_tabs.setDocumentMode(True)
-        self.raw_output = QPlainTextEdit()
-        self.raw_output.setReadOnly(True)
-        self.raw_output.setPlaceholderText("Sin salida bruta todavía")
         self.interpretation_output = QPlainTextEdit()
         self.interpretation_output.setReadOnly(True)
         self.interpretation_output.setProperty("interpretation_active", True)
-        self.interpretation_output.setPlaceholderText("Sin interpretación todavía")
+        self.interpretation_output.setPlaceholderText(
+            "Aún no hay interpretación. Pulsa Generar o Inventar."
+        )
+        self.raw_output = QPlainTextEdit()
+        self.raw_output.setReadOnly(True)
+        self.raw_output.setPlaceholderText("Sin salida bruta todavía")
         self.dossier_output = QPlainTextEdit()
         self.dossier_output.setReadOnly(True)
         self.dossier_output.setPlaceholderText("Sin dossier todavía")
@@ -1073,12 +1086,12 @@ class CandidatesWidget(QWidget):
         self.supra_output.setReadOnly(True)
         self.supra_output.setPlaceholderText("Sin estado SUPRA recuperado todavía")
         for label, widget in (
-            ("Salida bruta", self.raw_output),
             ("Interpretación", self.interpretation_output),
+            ("Salida bruta", self.raw_output),
             ("Dossier", self.dossier_output),
             ("SUPRA / GET", self.supra_output),
         ):
-            widget.setMinimumHeight(150)
+            widget.setMinimumHeight(300)
             self.output_tabs.addTab(widget, label)
 
         # Controles de lectura: las flechas son cuadrados translúcidos y el
@@ -1122,8 +1135,104 @@ class CandidatesWidget(QWidget):
         self.save_idea = save_idea
         save_idea.clicked.connect(lambda: actions.on_guardar(win))
         d_btn.addWidget(save_idea)
-        d_lay.addLayout(d_btn)
-        d_lay.addWidget(self.output_tabs)
+        interp_lay.addLayout(d_btn)
+        interp_lay.addWidget(self.output_tabs)
+
+        # Botón "Más/Expandir" para detalles secundarios
+        self.details_expanded = False
+        for tab_index in (1, 2, 3):
+            self.output_tabs.setTabVisible(tab_index, False)
+        self.mas_expandir_btn = QPushButton("Más ▼")
+        self.mas_expandir_btn.setProperty("ghost", True)
+        self.mas_expandir_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.mas_expandir_btn.clicked.connect(self._toggle_details)
+        bind_text(self.mas_expandir_btn, "shadow.mas_expandir")
+        interp_lay.addWidget(self.mas_expandir_btn)
+
+        lay.addWidget(interp_frame, stretch=3)
+
+        # ── ZONA INFERIOR: TABLA DE RANKING ────────────────────────────
+        # La tabla de ranking es secundaria: va en un panel más pequeño,
+        # debajo de la interpretación, accesible pero no dominante.
+        detail = QFrame()
+        detail.setProperty("card", True)
+        d_lay = QVBoxLayout(detail)
+        d_lay.setContentsMargins(14, 10, 14, 10)
+        d_header = QHBoxLayout()
+        icon = _icon_label("doc", 18)
+        d_header.addWidget(icon)
+        d_info = QVBoxLayout()
+        sel_label = QLabel("Candidatos y evaluación")
+        sel_label.setStyleSheet(
+            f"color: {TEXT_SUB}; font-size: 10px; font-weight: 600; "
+            "background: transparent;"
+        )
+        bind_text(sel_label, "shadow.candidatos_titulo")
+        self.detail_caption = sel_label
+        d_info.addWidget(sel_label)
+        d_title = QLabel("")
+        d_title.setProperty("h2", True)
+        d_title.setWordWrap(True)
+        self.detail_title = d_title
+        d_info.addWidget(d_title)
+        d_header.addLayout(d_info, stretch=1)
+        self.detail_chip = _badge("● En evaluación", SUCCESS, BADGE_GREEN_BG)
+        self.detail_chip.setWordWrap(True)
+        d_header.addWidget(self.detail_chip)
+        chip_ev = _badge("⚠ Evidencia pendiente", WARNING, "#282008")
+        chip_ev.setWordWrap(True)
+        self.detail_chip_ev = chip_ev
+        d_header.addWidget(chip_ev)
+        d_lay.addLayout(d_header)
+        d_desc = QLabel("")
+        d_desc.setWordWrap(True)
+        d_desc.setProperty("sub", True)
+        self.detail_desc = d_desc
+        # Ficha técnica en monoespaciada (la referencia usa Cascadia Code).
+        # Va por QSS: el QSS global pisa cualquier setFont() del widget.
+        mono_qss = ("font-family: 'Cascadia Code', 'Consolas', 'Courier New', monospace;"
+                    " background: transparent;")
+        d_title.setStyleSheet(mono_qss)
+        d_desc.setStyleSheet(mono_qss + f" color: {TEXT_SUB};")
+        d_lay.addWidget(d_desc)
+
+        # Tabla REAL: RankingModel canónico + proxy shadow (cabeceras de la
+        # composición) + QTableView. Selección → mapToSource → candidate ID.
+        self.model = RankingModel()
+        # §13: la tabla arranca vacía; sólo datos reales tras generar/evaluar.
+        self.model.set_rows([])
+        self.proxy = ShadowRankingProxy()
+        self.proxy.setSourceModel(self.model)
+        table = QTableView()
+        table.setModel(self.proxy)
+        table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
+        table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        table.setShowGrid(False)
+        table.verticalHeader().setVisible(False)
+        table.horizontalHeader().setHighlightSections(False)
+        table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
+        self.view = table
+        d_lay.addWidget(table)
+
+        tabs = QTabWidget()
+        tabs.setDocumentMode(True)
+        for key in ("shadow.tab.ranking", "shadow.tab.top", "shadow.tab.eval",
+                    "shadow.tab.exploracion"):
+            tabs.addTab(QWidget(), _t(key))
+        # Las pestañas no exponen setText por clave: se re-etiquetan al cambiar
+        # de idioma (QTabWidget.setTabText).
+        def _retitle_tabs() -> None:
+            for i, key in enumerate(("shadow.tab.ranking", "shadow.tab.top",
+                                     "shadow.tab.eval", "shadow.tab.exploracion")):
+                if i < tabs.count():
+                    tabs.setTabText(i, _t(key))
+
+        _I18N_CALLBACKS.append(_retitle_tabs)
+        tabs.currentChanged.connect(lambda i: actions.on_tab_changed(win, i))
+        self.tabs = tabs
+        d_lay.addWidget(tabs)
+
         footer_actions = QHBoxLayout()
         footer_actions.addStretch()
         ver_todas = QPushButton("Ver todas las ideas  →")
@@ -1133,8 +1242,7 @@ class CandidatesWidget(QWidget):
         ver_todas.clicked.connect(lambda: actions.on_ver_todas(win))
         footer_actions.addWidget(ver_todas)
         d_lay.addLayout(footer_actions)
-        lay.addWidget(detail)
-        lay.addStretch()
+        lay.addWidget(detail, stretch=2)
 
         # §12: arranque honesto — sin candidato seleccionado.
         self.set_detail_empty(True)
@@ -1183,6 +1291,10 @@ class CandidatesWidget(QWidget):
         return text or "No declarado"
 
     def _format_interpretation(self, entry: dict[str, Any], index: int) -> str:
+        if not self.details_expanded:
+            from criba.ui.proposal_view import format_proposal
+
+            return format_proposal(entry, index, len(self.interpretation_entries))
         title = str(entry.get("title") or f"candidato {index}").strip()
         state = str(entry.get("estado_interpretacion") or "PENDIENTE_INTERPRETACION")
         error = str(entry.get("interpretacion_error") or "").strip()
@@ -1207,10 +1319,35 @@ class CandidatesWidget(QWidget):
                 + json.dumps(entry.get("prueba") or {}, ensure_ascii=False, indent=2),
             ))
         else:
+            diagnostic = entry.get("interpretacion_diagnostico")
+            rejected = (
+                isinstance(diagnostic, dict)
+                and diagnostic.get("error_code") == CRITIQUE_REJECTED
+            )
+            if rejected:
+                sections.append("RESULTADO\nPropuesta rechazada por la crítica")
             sections.append(f"MOTIVO\n{error or 'sin motivo declarado'}")
             route = str(entry.get("ruta_desbloqueo") or "").strip()
             if route:
                 sections.append(f"RUTA DE DESBLOQUEO\n{route}")
+            if isinstance(diagnostic, dict) and diagnostic:
+                code = str(diagnostic.get("error_code") or "").strip()
+                phase = str(diagnostic.get("phase") or "").strip()
+                http_status = diagnostic.get("http_status")
+                retryable = diagnostic.get("retryable")
+                next_action = str(diagnostic.get("next_action") or "").strip()
+                detail = [
+                    f"Código: {code}" if code else "",
+                    f"Fase: {phase}" if phase else "",
+                    f"HTTP: {http_status}" if http_status is not None else "",
+                    (
+                        "Reintentable: sí" if retryable else "Reintentable: no"
+                    ) if retryable is not None else "",
+                    f"Siguiente acción: {next_action}" if next_action else "",
+                ]
+                detail = [part for part in detail if part]
+                if detail:
+                    sections.append("DIAGNÓSTICO\n" + "\n".join(detail))
         critica = entry.get("critica")
         if isinstance(critica, dict) and critica:
             sections.append(_t("shadow.interpreter.critica") + "\n"
@@ -1255,6 +1392,10 @@ class CandidatesWidget(QWidget):
             f"SALIDA BRUTA · Propuesta {position} de {total}\n{title}\n\n{raw_body}"
         )
         self.interpretation_output.setPlainText(self._format_interpretation(entry, position))
+        self.save_idea.setEnabled(
+            entry.get("estado_interpretacion") == "PROPUESTA"
+            and bool(str(entry.get("mecanismo") or "").strip())
+        )
         self.interpreter_position.setText(f"Interpretación {position} de {total}")
         self.interpreter_previous.setEnabled(position > 1)
         self.interpreter_next.setEnabled(position < total)
@@ -1272,6 +1413,27 @@ class CandidatesWidget(QWidget):
         self.detail_empty = False
         self.detail_caption.setVisible(False)
         self.detail_chip.setVisible(True)
+
+    def _toggle_details(self) -> None:
+        """Alterna la visibilidad de los detalles secundarios (Más/Expandir)."""
+        self.details_expanded = not self.details_expanded
+        if self.details_expanded:
+            self.mas_expandir_btn.setText("Menos ▲")
+            # Mostrar todas las pestañas
+            self.output_tabs.setTabVisible(1, True)  # Salida bruta
+            self.output_tabs.setTabVisible(2, True)  # Dossier
+            self.output_tabs.setTabVisible(3, True)  # SUPRA / GET
+        else:
+            self.mas_expandir_btn.setText("Más ▼")
+            # Ocultar pestañas secundarias, mantener solo Interpretación
+            self.output_tabs.setTabVisible(1, False)
+            self.output_tabs.setTabVisible(2, False)
+            self.output_tabs.setTabVisible(3, False)
+            # Volver a la pestaña de interpretación
+            self.output_tabs.setCurrentIndex(0)
+
+        if self.interpretation_entries:
+            self.show_interpreter_entry(self.interpretation_index)
 
 
 # ---------------------------------------------------------------------------
@@ -1342,6 +1504,23 @@ class RightPanelWidget(QWidget):
         note.setAlignment(Qt.AlignmentFlag.AlignCenter)
         bind_text(note, "shadow.supra_nota")
         l1.addWidget(note)
+        # Refinamiento operativo: segunda pasada del intérprete sobre la
+        # propuesta y su crítica. No valida: produce un plan medible.
+        protocolo = QPushButton("🧪 Protocolo operativo")
+        protocolo.setFixedHeight(34)
+        protocolo.setToolTip(
+            "Convierte la propuesta en un protocolo medible y falsable. "
+            "No equivale a validación."
+        )
+        self.protocolo = protocolo
+        protocolo.setEnabled(False)
+        protocolo.clicked.connect(lambda: actions.on_protocolo_operativo(win))
+        l1.addWidget(protocolo)
+        nota_protocolo = QLabel("Propuesta → protocolo operativo · NO VALIDADO")
+        nota_protocolo.setWordWrap(True)
+        nota_protocolo.setProperty("caption", True)
+        nota_protocolo.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        l1.addWidget(nota_protocolo)
         # M2 · slice vertical REAL: núcleo determinista -> dossier -> SUPRA real
         # -> persistencia -> GET -> esta ventana. Botón propio para que la
         # ruta real no compita con la preparación de dossiers de sesión.
@@ -1358,6 +1537,14 @@ class RightPanelWidget(QWidget):
         note_e2e.setAlignment(Qt.AlignmentFlag.AlignCenter)
         bind_text(note_e2e, "shadow.supra_e2e_nota")
         l1.addWidget(note_e2e)
+        # Distinct visible GET status on the action panel: the long dossier
+        # below the candidate table can be scrolled out of view.
+        self.supra_result_status = QLabel("SUPRA · sin lectura todavía")
+        self.supra_result_status.setWordWrap(True)
+        self.supra_result_status.setStyleSheet(
+            f"font-size: 11px; color: {ACCENT}; background: transparent;"
+        )
+        l1.addWidget(self.supra_result_status)
         lay.addWidget(f1)
 
         # Actividad reciente
@@ -1382,20 +1569,51 @@ class RightPanelWidget(QWidget):
         l2.addWidget(ver_hist)
         lay.addWidget(f2)
 
+        # Experimentos Causales (ASTRA: comparación de representaciones)
+        f3, l3 = _card("Experimentos Causales", "chart")
+        self.exp_bf_btn = _icon_label("chart", 16)
+        l3.addWidget(self.exp_bf_btn)
+        self.exp_result = QLabel("Pulsa para ejecutar")
+        self.exp_result.setProperty("caption", True)
+        self.exp_result.setWordWrap(True)
+        bind_text(self.exp_result, "shadow.exp_result")
+        l3.addWidget(self.exp_result)
+        exp_btn = QPushButton("Ejecutar experimento")
+        exp_btn.setProperty("ghost", True)
+        exp_btn.clicked.connect(lambda: self._run_experiment(win))
+        self.exp_btn = exp_btn
+        l3.addWidget(exp_btn)
         # BLACKFORGE
-        f3, l3 = _card("BLACKFORGE", "mountain")
+        f4, l4 = _card("BLACKFORGE", "mountain")
         bf_desc = QLabel("Aplicación independiente")
         bf_desc.setProperty("caption", True)
         bind_text(bf_desc, "shadow.bf_indep")
-        l3.addWidget(bf_desc)
+        l4.addWidget(bf_desc)
         ir_bf = QPushButton("Ir a Blackforge  →")
         ir_bf.setProperty("accent", True)
         bind_text(ir_bf, "shadow.ir_bf")
         self.ir_bf = ir_bf
         ir_bf.clicked.connect(lambda: actions.on_blackforge(win))
-        l3.addWidget(ir_bf)
+        l4.addWidget(ir_bf)
         lay.addWidget(f3)
+        lay.addWidget(f4)
         lay.addStretch()
+
+    def _run_experiment(self, win: Any) -> None:
+        """Ejecuta el experimento de representaciones causales (ASTRA)."""
+        try:
+            from criba.experimentos_causales import main
+            resultado = main()
+            n_repr = len(resultado["representaciones"])
+            n_unif = len(resultado["comparacion"]["unificables"])
+            n_coex = len(resultado["comparacion"]["coexistentes"])
+            n_casos = len(resultado["casos_testigo"])
+            self.exp_result.setText(
+                f"{n_repr} representaciones · {n_unif} unificables · "
+                f"{n_coex} coexistentes · {n_casos} casos testigo"
+            )
+        except Exception as exc:
+            self.exp_result.setText(f"Error: {exc}")
 
 
 # ---------------------------------------------------------------------------
@@ -1454,15 +1672,10 @@ class FooterWidget(QWidget):
                           else _t("shadow.footer.sin_sesion"))
 
     def refresh_model_state(self) -> None:
-        """Pie real: refleja el perfil activo (la maqueta decía 'desactivado' fijo)."""
-        label, sub = _t("shadow.footer.modelo_off"), _t("shadow.footer.modelo_off.sub")
+        """Same selection as the run, not the unrelated legacy enhancer profile."""
+        label, sub = "Configuración no disponible", "Disponibilidad al generar"
         try:
-            from criba.model_config import active_model_label, load_model_settings
-
-            settings = load_model_settings()
-            if settings.enabled and settings.active_profile() is not None:
-                label = active_model_label(settings)
-                sub = _t("shadow.footer.gen_local")
+            label = _selected_interpreter_label(self.win)
         except Exception:
             pass
         title = getattr(self.model_block, "_title_label", None)
@@ -1484,8 +1697,20 @@ class ShadowWindow(QMainWindow):
         super().__init__()
         self.setWindowTitle(_t("shadow.title"))
         bind_callback(lambda: self.setWindowTitle(_t("shadow.title")))
-        self.setMinimumSize(1360, 768)
-        self.resize(1680, 1050)
+        screen = QGuiApplication.primaryScreen()
+        available_width = screen.availableGeometry().width() if screen else 1680
+        # A Windows CI desktop may actually have only 1024px. Avoid a forced
+        # 1360px minimum that silently clips the only results panel.
+        self._compact_layout = (
+            os.environ.get("QT_QPA_PLATFORM") != "offscreen"
+            and available_width < 1360
+        )
+        if self._compact_layout:
+            self.setMinimumSize(980, 650)
+            self.resize(1024, 700)
+        else:
+            self.setMinimumSize(1360, 768)
+            self.resize(1680, 1050)
         self.setStyleSheet(build_shadow_qss())
 
         # Campana de notificaciones: estado REAL de la sesión (la actividad de
@@ -1541,24 +1766,25 @@ class ShadowWindow(QMainWindow):
         center_scroll.setWidgetResizable(True)
         self.candidates = CandidatesWidget(self)
         center_scroll.setWidget(self.candidates)
+        self.candidates_scroll = center_scroll
         content_splitter.addWidget(center_scroll)
         right_scroll = QScrollArea()
         right_scroll.setWidgetResizable(True)
         self.right_panel = RightPanelWidget(self)
         right_scroll.setWidget(self.right_panel)
+        self.right_panel_scroll = right_scroll
         content_splitter.addWidget(right_scroll)
-        content_splitter.setSizes([880, 500])
-        # Proporción de la referencia: centro ancho, panel derecho acotado
-        # (si no, el panel derecho se queda con el espacio y el centro desborda).
+        content_splitter.setSizes([520, 280] if self._compact_layout else [920, 480])
+        # Proporción: centro ancho (interpretación dominante), panel derecho acotado.
         content_splitter.setStretchFactor(0, 1)
         content_splitter.setStretchFactor(1, 0)
-        right_scroll.setMaximumWidth(520)
+        right_scroll.setMaximumWidth(360 if self._compact_layout else 480)
         right_lay.addWidget(content_splitter, stretch=1)
 
         self.footer = FooterWidget(self)
         right_lay.addWidget(self.footer)
         main_splitter.addWidget(right_side)
-        main_splitter.setSizes([200, 1160])
+        main_splitter.setSizes([194, 830] if self._compact_layout else [200, 1160])
         self.setCentralWidget(main_splitter)
 
         # Adaptador de compatibilidad (capa permitida):
@@ -1568,6 +1794,12 @@ class ShadowWindow(QMainWindow):
         self._ctx.apply_initial_state()
         # §12: arranque limpio y honesto (0 candidatos, sin score, sin sesión).
         self.refresh_runtime_state()
+        # Reflect the active local model in the interpreter selector on startup.
+        try:
+            from criba.ui.actions import _refresh_interpreter_selector
+            _refresh_interpreter_selector(self)
+        except Exception:
+            pass
 
     # ------------------------------------------------------------------
     # Notificaciones (campana): actividad real de la sesión
@@ -1584,6 +1816,11 @@ class ShadowWindow(QMainWindow):
     # ------------------------------------------------------------------
     # Estado real del modelo (cabecera + pie)
     # ------------------------------------------------------------------
+    @property
+    def interpreter_selector(self) -> QComboBox:
+        """Expose the real selector to the shared action contract."""
+        return self.topcards.interpreter_selector
+
     def refresh_model_state(self) -> None:
         """Refresca cabecera y pie con el perfil real (una sola fuente)."""
         self.header.refresh_model_label()
@@ -1626,8 +1863,8 @@ class ShadowWindow(QMainWindow):
     # ------------------------------------------------------------------
     _SHADOW_STATE = frozenset({
         "store", "packet", "problem", "saved_ids", "sources_updated_at",
-        "invent_sheet", "sources_report", "_live_workers", "_progress_label",
-        "interpreter_cancel_requested",
+        "invent_sheet", "evidence_mode", "sources_report", "_live_workers",
+        "_progress_label", "interpreter_cancel_requested",
     })
 
     def __setattr__(self, name: str, value: Any) -> None:

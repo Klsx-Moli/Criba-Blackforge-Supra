@@ -1,0 +1,88 @@
+AUTORIZACIÓN LOCAL EFECTIVA — ACADEMICO-TRIZ-INVENTIVA
+Fecha: 2026-10-28. Registro de la orden textual del propietario en esta sesión.
+Candidato: C:\ASTRA_WORK\cbs-candidate
+Rama observada: hermes/cbs-t00-candidate-20261025
+HEAD de reanudación: acaace748788ef465b4b43178424a76c1ee3cb31
+
+La pausa por ausencia queda levantada. Se continúa la campaña existente, sin
+reiniciar T00, abrir otra campaña ni repetir auditorías generales.
+
+ALCANCE
+Preparación documental e implementación aislada local: conservar las 70 tarjetas,
+35 fuentes y 8 operadores padres; incorporar A3 y A4 como incrementos separados,
+sin renumerar ni alterar los conteos del padre. Crear fichas, operadores como
+datos, plantillas, mappings, fixtures y validadores de laboratorio. Ejecutar
+pruebas locales sin red con dependencias disponibles y almacenamiento temporal
+separado. Preparar parches concretos NO APLICADOS para IMP-10. Integrar la
+dirección de producto en los arranques pertinentes del candidato.
+
+OBJETIVO
+Problema -> contenido operativo de lentes y técnicas -> cruce inventivo ->
+intérprete existente -> propuestas comprensibles -> conservar y desarrollar.
+Preservar azar, asociaciones inesperadas, límites y procedencia. No sustituir
+el motor por un chatbot ni por un gestor de informes. Shadow principal y
+BLACKFORGE alternativa/especializada comparten capacidades autorizadas, sin
+bypass. JSON, puntuaciones y explicación del proceso no son requisito de la
+experiencia normal; diagnóstico avanzado opcional.
+
+LÍMITES VIGENTES
+La autorización inicial limita el lote a preparación local, salvo la excepción
+posterior IMP-10-A aprobada expresamente al final de este registro.
+Fuera de esa excepción, NO aplicar cambios al runtime, persistencia productiva
+ni Shadow operativa.
+NO ejecutar BLACKFORGE, registrar grants, dispatch ni operaciones sensibles.
+NO modificar RNG, selector, priors, scoring, aprendizaje, gates ni STANDARD.
+NO llamar modelos o servicios reales del producto, transmitir corpus, secretos
+o código privado, instalar, gastar, publicar, commit/push/PR/merge.
+NO cambiar proveedor silenciosamente ni configuración global, memoria o skills.
+IMP-10 exige presentar diff exacto, contratos, pruebas, riesgos, backup y rollback
+y obtener aprobación específica antes de aplicar ese cambio.
+
+PRESERVACIÓN Y EVIDENCIA
+Originales Downloads inmutables. WIP medido al reanudar: 18 tracked modificados
+(incluye tres documentos de arranque y CribaShadow.spec) + 10 archivos untracked.
+No se atribuye esa diferencia al último agente ni se infiere su causa.
+Baseline con hashes y backup byte-exacto de documentos a modificar:
+evidence/resume_20261028/baseline.json y evidence/resume_20261028/before/.
+Mutex Windows cooperativo: Local/HermesCBS_TRIZ_Candidate_20261028.
+Exclusión frente a editores no participantes no demostrable: comparar hashes de
+WIP y objetivos antes/después; detener escrituras si aparece concurrencia.
+No confundir ausencia de pytest o lista de procesos con prueba de writer único.
+
+bind_language queda resuelto por la inspección previa reportada en el checkpoint:
+apply_dossier_report llama bind_language; no se reabre sin evidencia contraria.
+Los 35 tests de la sesión anterior son REPORTED_BY_PRIOR_RUN, no ejecución propia.
+La preparación no demuestra integración, creatividad, novedad ni viabilidad.
+La preparación A3/A4 sigue PREPARED_NOT_INTEGRATED y el beneficio sigue
+SCIENTIFIC_BENEFIT_NOT_ESTABLISHED.
+
+EXCEPCIÓN POSTERIOR APROBADA — IMP-10-A
+El propietario respondió «adelante tienes yolo» a la recomendación de aplicar el
+diff exacto imp10_integration/lossless_operations.diff. Se autoriza ese cambio
+local en src/criba/lottery.py y src/criba/interprete/contrato.py, sus regresiones
+y actualización de continuidad. Revoca solo para ese diff el límite de no tocar
+runtime. No autoriza merge, publicación, gasto, servicios, llamadas cloud,
+instalaciones ni cambios de RNG, selector, scoring o garantías de seguridad.
+Resultado: APPLIED_VERIFIED_SCOPED. Evidencia: evidence/imp10a_apply/applied_report.json.
+No equivale a integración completa de A3/A4 ni a producto funcional E2E.
+
+AUTORIZACIÓN POSTERIOR — INTEGRACIÓN FUNCIONAL Y PUBLICACIÓN DE RAMA
+Orden textual: «continua hasta una integracion funcional y la acreditacion de
+que funcione, y puedas hacer un push por que ya funciona».
+Confirmación posterior: «autorizo las pruebas, cambios, necesarias.»
+Esta orden amplía el permiso anterior de preparación/diff exacto a los cambios
+locales necesarios para conectar conocimiento operativo, intérprete compartido,
+propuestas legibles y conservación/recuperación en las interfaces existentes.
+Permite pruebas reales del recorrido y commit/push normal de la rama de trabajo
+cuando los criterios funcionales estén comprobados. No autoriza merge a main,
+force-push, publicación de secretos/datos privados, despliegue ni gasto.
+Prueba cloud específica confirmada por el propietario: hasta 12 peticiones al
+modelo :free ya configurado en CRIBA mediante el proxy local Nous/Hermes.
+Solo problema sintético y operaciones pertinentes; no corpus completo, código
+privado, secretos, modelos pagados ni cambio silencioso de proveedor/modelo.
+Detener esas llamadas si aparece cobro, modelo no gratuito o configuración ausente.
+Se preservan seguridad/authorization/scope de BLACKFORGE, RNG, scoring, priors,
+memoria adaptativa y los estados científicos/gobernanza no acreditados.
+Baseline de esta ampliación: evidence/functional_integration/baseline.json;
+backup byte-exacto: evidence/functional_integration/before/.
+La evidencia funcional no establece beneficio científico, novedad o viabilidad.

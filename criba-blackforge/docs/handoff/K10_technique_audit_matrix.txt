@@ -1,0 +1,132 @@
+| ID | Status | Module | HasModule | TestFile | HasTest | Adapter | Consumer |
+|-----|--------|--------|-----------|----------|---------|---------|----------|
+| T001 | PLANNED | Patent keyword/title/abstract/claim sear | Sí | No | No | — |
+| T002 | PLANNED | Patent metadata filters (inventor/assign | No | No | No | — |
+| T003 | PLANNED | CPC/IPC hierarchical classification sear | No | No | No | — |
+| T004 | PLANNED | Patent families/equivalents/legal state | No | No | No | — |
+| T005 | PLANNED | Patent citations + non-patent literature | Sí | No | No | — |
+| T006 | PLANNED | Patent similarity/clustering | Sí | No | No | — |
+| T007 | PLANNED | Patent temporal evolution/entrants/burst | Sí | No | No | — |
+| T008 | PLANNED | Rare CPC combinations | Sí | No | No | — |
+| T009 | PLANNED | Semantic claim analysis | No | No | No | — |
+| T010 | PLANNED | Scientific literature/papers/preprints/t | No | No | No | — |
+| T011 | PLANNED | Scientific metadata graph | Sí | No | No | — |
+| T012 | PLANNED | Funding/grant/project intelligence | No | No | No | — |
+| T013 | PLANNED | Clinical/experimental registry monitorin | No | No | No | — |
+| T014 | PLANNED | GitHub innovation radar | No | No | No | — |
+| T015 | PLANNED | Repository velocity | Sí | No | No | — |
+| T016 | PLANNED | AI model/dataset/Space intelligence | No | No | No | — |
+| T017 | PLANNED | Product/startup radar | No | No | No | — |
+| T018 | PLANNED | Search trend intelligence | Sí | No | No | — |
+| T019 | IMPLEMENTED | Trend acceleration | Sí | No | Sí | — |
+| T020 | PLANNED | Social weak signals | Sí | No | No | — |
+| T021 | PLANNED | Problem mining | No | No | No | — |
+| T022 | PLANNED | Job-posting intelligence | No | No | No | — |
+| T023 | PLANNED | Supply-chain intelligence | No | No | No | — |
+| T024 | PLANNED | Regulatory intelligence | No | No | No | — |
+| T025 | PLANNED | Standards mining | No | No | No | — |
+| T026 | PLANNED | Procurement mining | No | No | No | — |
+| T027 | PLANNED | News intelligence | No | No | No | — |
+| T028 | PLANNED | Vertical crawling | No | No | No | — |
+| T029 | PLANNED | Page-diff monitoring | No | No | No | — |
+| T030 | PLANNED | Release-note mining | No | No | No | — |
+| T031 | PLANNED | Semantic search | No | No | No | — |
+| T032 | PLANNED | Hybrid search | Sí | No | No | — |
+| T033 | PLANNED | Query expansion | Sí | No | No | — |
+| T034 | PLANNED | Ontology expansion | Sí | No | No | — |
+| T035 | PLANNED | Multilingual search | No | No | No | — |
+| T036 | PLANNED | Query decomposition | No | No | No | — |
+| T037 | PLANNED | Recursive search | Sí | No | No | — |
+| T038 | PLANNED | Backward citation chasing | No | No | No | — |
+| T039 | PLANNED | Forward citation chasing | No | No | No | — |
+| T040 | PLANNED | Citation graph analysis | Sí | No | No | — |
+| T041 | PLANNED | Co-citation analysis | Sí | No | No | — |
+| T042 | PLANNED | Bibliographic coupling | Sí | No | No | — |
+| T043 | PLANNED | Co-authorship networks | Sí | No | No | — |
+| T044 | PLANNED | Inventor networks | Sí | No | No | — |
+| T045 | PLANNED | Company migration detection | Sí | No | No | — |
+| T046 | PLANNED | Topic modeling | No | No | No | — |
+| T047 | PLANNED | Emerging topic detection | Sí | No | No | — |
+| T048 | IMPLEMENTED | Topic velocity | Sí | No | Sí | — |
+| T049 | IMPLEMENTED | Topic acceleration | Sí | No | Sí | — |
+| T050 | PLANNED | Topic birth | No | No | No | — |
+| T051 | PLANNED | Topic splitting | No | No | No | — |
+| T052 | PLANNED | Topic convergence | No | No | No | — |
+| T053 | IMPLEMENTED | Rare-combination detection | Sí | No | Sí | — |
+| T054 | PLANNED | Technological recombination | Sí | Sí | Sí | execute_technique rechaza (PLANNED) |
+| T055 | IMPLEMENTED | Cross-domain analogy | Sí | No | Sí | — |
+| T056 | PLANNED | Biomimicry | No | No | No | — |
+| T057 | IMPLEMENTED | TRIZ | Sí | No | Sí | — |
+| T058 | PLANNED | TRIZ contradiction mining | Sí | No | No | — |
+| T059 | IMPLEMENTED | Morphological analysis | Sí | No | Sí | — |
+| T060 | IMPLEMENTED | SCAMPER | Sí | No | Sí | — |
+| T061 | PLANNED | Attribute substitution | Sí | Sí | Sí | execute_technique rechaza (PLANNED) |
+| T062 | IMPLEMENTED | Functional decomposition | Sí | No | Sí | — |
+| T063 | IMPLEMENTED | Function-to-mechanism search | Sí | No | Sí | execute_technique (IMPLEMENTED) |
+| T064 | IMPLEMENTED | First-principles decomposition | Sí | No | Sí | — |
+| T065 | IMPLEMENTED | Constraint inversion | Sí | No | Sí | — |
+| T066 | PLANNED | Assumption mining | Sí | No | No | — |
+| T067 | IMPLEMENTED | Contradiction mining | Sí | No | Sí | — |
+| T068 | IMPLEMENTED | Research-gap extraction | Sí | No | Sí | — |
+| T069 | IMPLEMENTED | Limitation mining | Sí | No | Sí | — |
+| T070 | IMPLEMENTED | Failure mining | Sí | No | Sí | — |
+| T071 | IMPLEMENTED | Technology resurrection | Sí | No | Sí | — |
+| T072 | PLANNED | Capability unlock detection | Sí | No | No | — |
+| T073 | PLANNED | Cost-curve mining | Sí | No | No | — |
+| T074 | PLANNED | Performance-threshold detection | Sí | No | No | — |
+| T075 | PLANNED | Miniaturization detection | Sí | No | No | — |
+| T076 | PLANNED | Energy-efficiency unlock | No | No | No | — |
+| T077 | PLANNED | Latency unlock | No | No | No | — |
+| T078 | PLANNED | Material substitution | Sí | No | No | — |
+| T079 | PLANNED | Technology convergence score | No | No | No | — |
+| T080 | PLANNED | Global novelty search | Sí | No | No | — |
+| T081 | PLANNED | Local novelty | Sí | No | No | — |
+| T082 | PLANNED | Global novelty | No | No | No | — |
+| T083 | PLANNED | Temporal novelty | No | No | No | — |
+| T084 | PLANNED | Semantic distance | No | No | No | — |
+| T085 | PLANNED | Density estimation | No | No | No | — |
+| T086 | IMPLEMENTED | White-space analysis | Sí | No | Sí | — |
+| T087 | PLANNED | Patent landscape white spaces | Sí | No | No | — |
+| T088 | PLANNED | Research landscape white spaces | Sí | No | No | — |
+| T089 | PLANNED | Market white spaces | Sí | No | No | — |
+| T090 | PLANNED | Knowledge graph | Sí | No | No | — |
+| T091 | IMPLEMENTED | Link prediction | Sí | No | Sí | — |
+| T092 | PLANNED | Missing-link discovery | Sí | No | No | — |
+| T093 | PLANNED | Graph embeddings | No | No | No | — |
+| T094 | IMPLEMENTED | Community detection | Sí | No | No | — |
+| T095 | IMPLEMENTED | Bridge-node detection | Sí | No | No | — |
+| T096 | IMPLEMENTED | Burst detection | Sí | No | Sí | — |
+| T097 | IMPLEMENTED | Change-point detection | Sí | No | Sí | — |
+| T098 | IMPLEMENTED | Anomaly detection | Sí | No | Sí | — |
+| T099 | IMPLEMENTED | Weak-signal detection | Sí | No | Sí | — |
+| T100 | PLANNED | Multi-source confirmation | Sí | No | No | — |
+| T101 | IMPLEMENTED | Cross-source lead/lag | Sí | No | Sí | — |
+| T102 | PLANNED | TRL estimation | No | No | No | — |
+| T103 | PLANNED | Evidence scoring | Sí | No | No | — |
+| T104 | PLANNED | Confidence scoring | Sí | No | No | actions.py:670-672 (Shadow bypass) |
+| T105 | PLANNED | Hype detection | No | No | No | — |
+| T106 | PLANNED | Underhype detection | No | No | No | — |
+| T107 | PLANNED | Opportunity scoring | No | No | No | — |
+| T108 | PLANNED | Saturation score | No | No | No | — |
+| T109 | PLANNED | Competitive density | No | No | No | — |
+| T110 | PLANNED | Patent blocking | No | No | No | — |
+| T111 | PLANNED | Feasibility estimation | Sí | No | No | actions.py:670-672 (Shadow bypass) |
+| T112 | PLANNED | Prototypeability | No | No | No | — |
+| T113 | PLANNED | Time-to-market | No | No | No | — |
+| T114 | PLANNED | Cost-to-test | No | No | No | — |
+| T115 | PLANNED | Falsifiability | No | No | No | — |
+| T116 | IMPLEMENTED | Adjacent Possible | Sí | No | Sí | — |
+| T117 | PLANNED | Combinatorial invention engine | Sí | No | No | — |
+| T118 | PLANNED | Generate-Search-Reject-Mutate | No | No | No | — |
+| T119 | PLANNED | Adversarial novelty checking (skeptic) | Sí | No | No | — |
+| T120 | PLANNED | Independent search scouts | No | No | No | — |
+| T121 | PLANNED | Search diversity (query lattice) | No | No | No | — |
+| T122 | PLANNED | Query mutation | No | No | No | — |
+| T123 | PLANNED | Negative search | Sí | No | No | — |
+| T124 | PLANNED | Reverse innovation search | Sí | No | No | — |
+| T125 | PLANNED | Pain-point graph | Sí | No | No | — |
+| T126 | PLANNED | Unmet needs/reviews/workarounds/workflow | No | No | No | — |
+| T127 | PLANNED | Human bottlenecks + API/hardware/dataset | No | No | No | — |
+| T128 | IMPLEMENTED | Patent expiration/abandoned IP/dormant r | Sí | No | Sí | — |
+| T129 | IMPLEMENTED | Second/N-th order/counterfactual/future- | Sí | No | Sí | — |
+| T130 | PLANNED | S-curves/substitution curves/innovation  | Sí | No | No | — |

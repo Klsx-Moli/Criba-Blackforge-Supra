@@ -13,12 +13,20 @@ Reglas de honestidad (mismas del resto del sistema):
 - Determinista: nada de aleatoriedad ni llamadas a modelos.
 - Determina ORDEN de exploración; nunca afirma calidad absoluta (§CRIBA:
   la evidencia desmiente, el score no).
+
+Este módulo también re-exporta los métodos de ranking alternativos
+(TOPSIS, AHP, PROMETHEE) desde scoring/mcda.py para que estén disponibles
+en el código vivo.
 """
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
+
+# Re-exportar métodos de ranking alternativos desde scoring/mcda.py
+# para que estén disponibles en el código vivo (ASTRA: un solo módulo canónico)
+from .scoring.mcda import MCDAAnalyzer  # noqa: F401
 
 # Las 11 dimensiones canónicas del DOMAIN 11, con peso por defecto y origen
 # de evidencia. Peso = relevancia relativa explícita; validado suma ≈ 1.

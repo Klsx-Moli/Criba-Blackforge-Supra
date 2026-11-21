@@ -71,8 +71,11 @@ def _transport(monkeypatch):
             data = propuesta() if len(sent) % 2 else critica()
             if len(sent) % 2:
                 data["evidencia_citada"] = [1]
+            # httpx >= 0.28 exige `request` en Response: sin él,
+            # raise_for_status() lanza RuntimeError en vez del error real.
             return httpx.Response(
                 200,
+                request=httpx.Request("POST", url or "http://test.local/v1/chat/completions"),
                 json={
                     "model": "test-model",
                     "choices": [

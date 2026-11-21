@@ -200,8 +200,6 @@ def slice_result(qapp):
     os.environ["CRIBA_MODEL_CONFIG"] = str(storage / "models.json")
 
     from criba.ui import actions
-    from PySide6.QtCore import Qt
-    from PySide6.QtTest import QTest
     from shadow_window import ShadowWindow
 
     window = ShadowWindow()
@@ -242,13 +240,7 @@ def slice_result(qapp):
 
         actions._execute_supra_vertical = _capturing
         try:
-            QTest.mouseClick(window.right_panel.supra_e2e, Qt.MouseButton.LeftButton)
-            qapp.processEvents()
-            deadline = time.time() + 240
-            while time.time() < deadline and getattr(window, "_live_workers", []):
-                qapp.processEvents()
-                time.sleep(0.05)
-            qapp.processEvents()
+            QTestClick(window, qapp)
         finally:
             actions._execute_supra_vertical = real_execute
 
@@ -382,14 +374,15 @@ def test_persisted_state_survives_a_server_restart(slice_result: _Slice) -> None
         "criba_dossier_id") == slice_result.dossier["dossier_id"]
 
 
-def test_slice_fails_closed_when_supra_is_unreachable(qapp) -> None:
+def test_slice_fails_closed_when_supra_is_unreachable(qapp, tmp_path, monkeypatch) -> None:
     """No SUPRA means "not confirmed", never a fabricated success."""
+    monkeypatch.setenv("CRIBA_MODEL_CONFIG", str(tmp_path / "no-local-model.json"))
     dead_port = _free_port()
     os.environ["SUPRA_ENDPOINT"] = f"http://127.0.0.1:{dead_port}"
     from criba.ui import actions
     from shadow_window import ShadowWindow
 
-    window = ShadowWindow()
+    window = ShadowWindow(database=str(tmp_path / "unreachable.sqlite3"))
     window.show()
     qapp.processEvents()
     try:
@@ -415,13 +408,80 @@ def test_slice_fails_closed_when_supra_is_unreachable(qapp) -> None:
 
 def QTestClick(window, qapp) -> None:  # noqa: N802 - test helper, not an API
     """Click the real button and wait for the real worker to finish."""
-    from PySide6.QtCore import Qt
+    from PySide6.QtCore import QEventLoop, QTimer, Qt
     from PySide6.QtTest import QTest
 
-    QTest.mouseClick(window.right_panel.supra_e2e, Qt.MouseButton.LeftButton)
-    qapp.processEvents()
-    deadline = time.time() + 120
-    while time.time() < deadline and getattr(window, "_live_workers", []):
+    # Local SUPRA has no model: health + POST + GET have a test-only 5s HTTP
+    # budget each. A 30s callback guard diagnoses failure before pytest's 60s
+    # outer guard; production deadlines are not increased or changed.
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setenv("SUPRA_TIMEOUT_SECONDS", "5")
+        QTest.mouseClick(window.right_panel.supra_e2e, Qt.MouseButton.LeftButton)
+        loop = QEventLoop()
+        timer = QTimer()
+        timer.timeout.connect(lambda: loop.quit() if not window._live_workers else None)
+        timer.start(20)
+        QTimer.singleShot(30_000, loop.quit)
+        try:
+            if window._live_workers:
+                loop.exec()
+        finally:
+            timer.stop()
+        assert not window._live_workers, "Local SUPRA callback exceeded its 30s test budget"
         qapp.processEvents()
-        time.sleep(0.05)
-    qapp.processEvents()
+
+
+def test_displayed_interpretation_crosses_real_button_tcp_and_restart(qapp, monkeypatch, tmp_path):
+    """Synthetic proposal tests transport, NOT LLM quality or mechanism execution."""
+    import json
+
+    from criba.integrations import SupraClient, SupraClientConfig
+    from criba.ui import actions
+    from shadow_window import ShadowWindow
+
+    from verification.interpreter_cases import resultado
+
+    server = _RealSupra(tmp_path / "storage")
+    server.start()
+    monkeypatch.setenv("SUPRA_ENDPOINT", server.endpoint)
+    monkeypatch.setenv("CRIBASHADOW_HOME", str(tmp_path / "shadow-home"))
+    window = ShadowWindow(database=str(tmp_path / "shadow.sqlite3"))
+    window.show()
+    query = "Reducir retornos por registros incompletos"
+    entries = [
+        {**resultado().to_campos(), "candidate_id": f"synthetic-selected-{i}",
+         "estado_interpretacion": "PROPUESTA"}
+        for i in range(2)
+    ]
+    try:
+        window.header.problem_input.setText(query)
+        window.header.problem_input.returnPressed.emit()
+        window.packet = actions.activate(query)
+        window.invent_sheet = {"query": query, "entries": entries}
+        window.candidates.set_interpreter_entries(entries)
+        window.candidates.interpreter_next.click()
+        qapp.processEvents()
+        assert window.candidates.interpretation_index == 1
+        QTestClick(window, qapp)
+        dossier = json.loads(window.candidates.dossier_output.toPlainText())
+        assert dossier["candidate_id"] == "synthetic-selected-1"
+        assert dossier["mecanismo"] == entries[1]["mecanismo"]
+        report = json.loads(window.candidates.supra_output.toPlainText())
+        assert window.candidates.supra_output.isVisibleTo(window)
+        assert "pertinencia UNKNOWN" in window.refs["ideaSummary"].text()
+        project_id = report["project_id"]
+        receipt_before = report["read"]["receipt"]
+        server.stop()
+        server.start()
+        with SupraClient(SupraClientConfig(endpoint=server.endpoint)) as client:
+            lookup = client.get_project(project_id)
+        receipt = lookup.posture.criba_dossier_receipt.model_dump()
+        assert receipt == receipt_before
+        assert receipt["criba_candidate_id"] == dossier["candidate_id"]
+        assert receipt["interpretacion"] == dossier["interpretacion"]
+        assert receipt["execution_status"] == "NOT_EXECUTED"
+        assert lookup.scientific_status == "NOT_VALIDATED"
+    finally:
+        window.close()
+        qapp.processEvents()
+        server.stop()

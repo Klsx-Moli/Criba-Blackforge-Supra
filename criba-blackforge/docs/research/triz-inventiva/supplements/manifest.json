@@ -1,0 +1,337 @@
+{
+  "campaign_id": "ACADEMICO-TRIZ-INVENTIVA",
+  "parent_bundle_id": "FUSION-TRIZ-KOESTLER-CBS-SHADOW-20261028-02",
+  "status": "OPERATIONAL_RECORDS_INTEGRATED_SCOPED",
+  "runtime": "CATALOG_PROMPT_SQLITE_TRANSPORT_VERIFIED_NOT_SCIENTIFIC_EXECUTION",
+  "parent_counts_unchanged": {
+    "sources": 35,
+    "operators": 8,
+    "cards": 70
+  },
+  "field_mapping_design_only": {
+    "source_id": "CRUCE.cross_operational_records[*].operator_record.source_ids; source sidecar",
+    "operator_id": "CRUCE.cross_operational_records[*].operator_record.operator_id",
+    "transformation_steps": "CRUCE.cross_operational_records[*].description / operator_record.transformation_steps",
+    "preconditions": "operator_record.preconditions (kept as data; not attested)",
+    "hard_invariants": "operator_record.hard_invariants (no permission promotion)",
+    "abstention_or_failure": "operator_record.abstention_or_failure",
+    "counterexample": "operator_record.counterexample",
+    "rival_explanation": "operator_record.rival_explanation",
+    "discriminating_test": "operator_record.discriminating_test",
+    "execution_status": "operator_record.execution_status, unchanged",
+    "scientific_status": "operator_record.scientific_status, unchanged"
+  },
+  "supplements": {
+    "a3": {
+      "bundle_id": "A3-GENTNER-BODEN-GENEPLORE-20261028",
+      "source_path": "C:/Users/KLSX/Downloads/HERMES_A3_GENTNER_BODEN_GENEPLORE_ACOPLATIVO.txt",
+      "payload_path": "a3/payload_a3.json",
+      "checker_path": "a3/check_a3.py",
+      "payload_sha256": "1a9f7afe7bce417eac9d802127d835f7d935cd155ac83ea22b1145d98d9d55d1",
+      "checker_sha256": "2412424209aa5823724132446a6e4b697fd45aecf3c0c775dbdc4b18a2f089c3",
+      "hash_note": "Payload excludes final LF exactly as supplied digest; checker includes it.",
+      "counts": {
+        "sources": 7,
+        "claims": 10,
+        "operators": 9,
+        "cards": 6,
+        "examples": 3
+      },
+      "ids": {
+        "sources": [
+          "A3-S01",
+          "A3-S02",
+          "A3-S03",
+          "A3-S04",
+          "A3-S05",
+          "A3-S06",
+          "A3-S07"
+        ],
+        "claims": [
+          "A3-CL-01",
+          "A3-CL-02",
+          "A3-CL-03",
+          "A3-CL-04",
+          "A3-CL-05",
+          "A3-CL-06",
+          "A3-CL-07",
+          "A3-CL-08",
+          "A3-CL-09",
+          "A3-CL-10"
+        ],
+        "operators": [
+          "A3-OP-GEN-01",
+          "A3-OP-GEN-02",
+          "A3-OP-GEN-03",
+          "A3-OP-BOD-01",
+          "A3-OP-BOD-02",
+          "A3-OP-BOD-03",
+          "A3-OP-GPL-01",
+          "A3-OP-GPL-02",
+          "A3-OP-GPL-03"
+        ],
+        "cards": [
+          "A3-T00",
+          "A3-T01",
+          "A3-T02",
+          "A3-T03",
+          "A3-T04",
+          "A3-T05"
+        ],
+        "examples": [
+          "A3-EX-01",
+          "A3-EX-02",
+          "A3-EX-03"
+        ]
+      },
+      "checker_execution": {
+        "self_tests": 24,
+        "self_test_exit": 0,
+        "payload_exit": 0,
+        "rights_warnings": 7,
+        "logs": "../evidence/resume_20261028/a3_*.log"
+      },
+      "operator_mapping": {
+        "A3-OP-GEN-01": {
+          "decision": "EXTEND",
+          "reason": "Refina OP-BIS y campos cross_domain; no segundo motor.",
+          "consumer": "catalog.methods -> invent selected cross -> prompt_propuesta -> Storage.save_invention/readback; synthetic proposer in transport tests, no scientific execution attested",
+          "state": "RECORD_TRANSPORT_VERIFIED_TECHNIQUE_NOT_EXECUTED"
+        },
+        "A3-OP-GEN-02": {
+          "decision": "EXTEND",
+          "reason": "Añade breakpoint/contraejemplo al cruce existente.",
+          "consumer": "catalog.methods -> invent selected cross -> prompt_propuesta -> Storage.save_invention/readback; synthetic proposer in transport tests, no scientific execution attested",
+          "state": "RECORD_TRANSPORT_VERIFIED_TECHNIQUE_NOT_EXECUTED"
+        },
+        "A3-OP-GEN-03": {
+          "decision": "EXTEND",
+          "reason": "Amplía ficha de antecedentes; sin escribir memoria adaptativa.",
+          "consumer": "catalog.methods -> invent selected cross -> prompt_propuesta -> Storage.save_invention/readback; synthetic proposer in transport tests, no scientific execution attested",
+          "state": "RECORD_TRANSPORT_VERIFIED_TECHNIQUE_NOT_EXECUTED"
+        },
+        "A3-OP-BOD-01": {
+          "decision": "EXTEND",
+          "reason": "Refina bisociación, no añade predictor de novedad.",
+          "consumer": "catalog.methods -> invent selected cross -> prompt_propuesta -> Storage.save_invention/readback; synthetic proposer in transport tests, no scientific execution attested",
+          "state": "RECORD_TRANSPORT_VERIFIED_TECHNIQUE_NOT_EXECUTED"
+        },
+        "A3-OP-BOD-02": {
+          "decision": "EXTEND",
+          "reason": "Complementa OP-EXP; no altera lottery ni selector.",
+          "consumer": "catalog.methods -> invent selected cross -> prompt_propuesta -> Storage.save_invention/readback; synthetic proposer in transport tests, no scientific execution attested",
+          "state": "RECORD_TRANSPORT_VERIFIED_TECHNIQUE_NOT_EXECUTED"
+        },
+        "A3-OP-BOD-03": {
+          "decision": "EXTEND",
+          "reason": "Documenta residuo de representación; no activa H2 ni metaevolución.",
+          "consumer": "catalog.methods -> invent selected cross -> prompt_propuesta -> Storage.save_invention/readback; synthetic proposer in transport tests, no scientific execution attested",
+          "state": "RECORD_TRANSPORT_VERIFIED_TECHNIQUE_NOT_EXECUTED"
+        },
+        "A3-OP-GPL-01": {
+          "decision": "EXTEND",
+          "reason": "Secuencia de ideación que reutiliza generación e interpretación existentes.",
+          "consumer": "catalog.methods -> invent selected cross -> prompt_propuesta -> Storage.save_invention/readback; synthetic proposer in transport tests, no scientific execution attested",
+          "state": "RECORD_TRANSPORT_VERIFIED_TECHNIQUE_NOT_EXECUTED"
+        },
+        "A3-OP-GPL-02": {
+          "decision": "EXTEND",
+          "reason": "Añade función alternativa en sidecar; no duplica memoria.",
+          "consumer": "catalog.methods -> invent selected cross -> prompt_propuesta -> Storage.save_invention/readback; synthetic proposer in transport tests, no scientific execution attested",
+          "state": "RECORD_TRANSPORT_VERIFIED_TECHNIQUE_NOT_EXECUTED"
+        },
+        "A3-OP-GPL-03": {
+          "decision": "EXTEND",
+          "reason": "Complementa crítica y cierre; no aprendizaje online.",
+          "consumer": "catalog.methods -> invent selected cross -> prompt_propuesta -> Storage.save_invention/readback; synthetic proposer in transport tests, no scientific execution attested",
+          "state": "RECORD_TRANSPORT_VERIFIED_TECHNIQUE_NOT_EXECUTED"
+        }
+      },
+      "task_status": {
+        "A3-T00": {
+          "status": "PREPARED",
+          "evidence": "Canonical data preserved and local checker executed"
+        },
+        "A3-T01": {
+          "status": "PREPARED",
+          "evidence": "Canonical data preserved and local checker executed"
+        },
+        "A3-T02": {
+          "status": "PREPARED",
+          "evidence": "Canonical data preserved and local checker executed"
+        },
+        "A3-T03": {
+          "status": "PREPARED",
+          "evidence": "Canonical data preserved and local checker executed"
+        },
+        "A3-T04": {
+          "status": "PENDING",
+          "evidence": "Full content producer/consumer/durable round-trip for the supplement not yet exercised"
+        },
+        "A3-T05": {
+          "status": "PENDING",
+          "evidence": "Full content producer/consumer/durable round-trip for the supplement not yet exercised"
+        }
+      }
+    },
+    "a4": {
+      "bundle_id": "A4-ZWICKY-CK-FIXATION-FBS-DBA-20261028",
+      "source_path": "C:/Users/KLSX/Downloads/HERMES_A4_MORFOLOGIA_CK_FIJACION_FBS_ACOPLATIVO.txt",
+      "payload_path": "a4/payload_a4.json",
+      "checker_path": "a4/check_a4.py",
+      "payload_sha256": "15df24e94a6a66d9b39b7d33909c40594d8ca2c6aa255c8c44ffd60037186bd8",
+      "checker_sha256": "7afbe0cbcb53ef925ae5f587c9608cb1668f117bf61d9c128300f64221edfbd5",
+      "hash_note": "Payload excludes final LF exactly as supplied digest; checker includes it.",
+      "counts": {
+        "sources": 8,
+        "claims": 9,
+        "operators": 10,
+        "cards": 6,
+        "examples": 3
+      },
+      "ids": {
+        "sources": [
+          "A4-S01",
+          "A4-S02",
+          "A4-S03",
+          "A4-S04",
+          "A4-S05",
+          "A4-S06",
+          "A4-S07",
+          "A4-S08"
+        ],
+        "claims": [
+          "A4-CL-01",
+          "A4-CL-02",
+          "A4-CL-03",
+          "A4-CL-04",
+          "A4-CL-05",
+          "A4-CL-06",
+          "A4-CL-07",
+          "A4-CL-08",
+          "A4-CL-09"
+        ],
+        "operators": [
+          "A4-OP-MOR-01",
+          "A4-OP-MOR-02",
+          "A4-OP-MOR-03",
+          "A4-OP-CK-01",
+          "A4-OP-CK-02",
+          "A4-OP-CK-03",
+          "A4-OP-FIX-01",
+          "A4-OP-FIX-02",
+          "A4-OP-FBS-01",
+          "A4-OP-DBA-01"
+        ],
+        "cards": [
+          "A4-T00",
+          "A4-T01",
+          "A4-T02",
+          "A4-T03",
+          "A4-T04",
+          "A4-T05"
+        ],
+        "examples": [
+          "A4-EX-01",
+          "A4-EX-02",
+          "A4-EX-03"
+        ]
+      },
+      "checker_execution": {
+        "self_tests": 28,
+        "self_test_exit": 0,
+        "payload_exit": 0,
+        "rights_warnings": 8,
+        "logs": "../evidence/resume_20261028/a4_*.log"
+      },
+      "operator_mapping": {
+        "A4-OP-MOR-01": {
+          "decision": "EXTEND",
+          "reason": "Refina OP-EXP sin tocar lottery/selector.",
+          "consumer": "catalog.methods -> invent selected cross -> prompt_propuesta -> Storage.save_invention/readback; synthetic proposer in transport tests, no scientific execution attested",
+          "state": "RECORD_TRANSPORT_VERIFIED_TECHNIQUE_NOT_EXECUTED"
+        },
+        "A4-OP-MOR-02": {
+          "decision": "EXTEND",
+          "reason": "Alimenta ruptura/restricciones del cruce.",
+          "consumer": "catalog.methods -> invent selected cross -> prompt_propuesta -> Storage.save_invention/readback; synthetic proposer in transport tests, no scientific execution attested",
+          "state": "RECORD_TRANSPORT_VERIFIED_TECHNIQUE_NOT_EXECUTED"
+        },
+        "A4-OP-MOR-03": {
+          "decision": "EXTEND",
+          "reason": "Complementa diversidad; no modifica selector.",
+          "consumer": "catalog.methods -> invent selected cross -> prompt_propuesta -> Storage.save_invention/readback; synthetic proposer in transport tests, no scientific execution attested",
+          "state": "RECORD_TRANSPORT_VERIFIED_TECHNIQUE_NOT_EXECUTED"
+        },
+        "A4-OP-CK-01": {
+          "decision": "EXTEND",
+          "reason": "Mapa a supuestos/EVIDENCIA; no nuevo motor.",
+          "consumer": "catalog.methods -> invent selected cross -> prompt_propuesta -> Storage.save_invention/readback; synthetic proposer in transport tests, no scientific execution attested",
+          "state": "RECORD_TRANSPORT_VERIFIED_TECHNIQUE_NOT_EXECUTED"
+        },
+        "A4-OP-CK-02": {
+          "decision": "EXTEND",
+          "reason": "Etiqueta de modo creativo, sin scoring.",
+          "consumer": "catalog.methods -> invent selected cross -> prompt_propuesta -> Storage.save_invention/readback; synthetic proposer in transport tests, no scientific execution attested",
+          "state": "RECORD_TRANSPORT_VERIFIED_TECHNIQUE_NOT_EXECUTED"
+        },
+        "A4-OP-CK-03": {
+          "decision": "EXTEND",
+          "reason": "Alimenta prueba y protocolo; sin ejecución.",
+          "consumer": "catalog.methods -> invent selected cross -> prompt_propuesta -> Storage.save_invention/readback; synthetic proposer in transport tests, no scientific execution attested",
+          "state": "RECORD_TRANSPORT_VERIFIED_TECHNIQUE_NOT_EXECUTED"
+        },
+        "A4-OP-FIX-01": {
+          "decision": "EXTEND",
+          "reason": "Control del contexto recuperado.",
+          "consumer": "catalog.methods -> invent selected cross -> prompt_propuesta -> Storage.save_invention/readback; synthetic proposer in transport tests, no scientific execution attested",
+          "state": "RECORD_TRANSPORT_VERIFIED_TECHNIQUE_NOT_EXECUTED"
+        },
+        "A4-OP-FIX-02": {
+          "decision": "EXTEND",
+          "reason": "Pruebas negativas de IMP-08.",
+          "consumer": "catalog.methods -> invent selected cross -> prompt_propuesta -> Storage.save_invention/readback; synthetic proposer in transport tests, no scientific execution attested",
+          "state": "RECORD_TRANSPORT_VERIFIED_TECHNIQUE_NOT_EXECUTED"
+        },
+        "A4-OP-FBS-01": {
+          "decision": "EXTEND",
+          "reason": "Mapa a hipótesis/mecanismo/prueba.",
+          "consumer": "catalog.methods -> invent selected cross -> prompt_propuesta -> Storage.save_invention/readback; synthetic proposer in transport tests, no scientific execution attested",
+          "state": "RECORD_TRANSPORT_VERIFIED_TECHNIQUE_NOT_EXECUTED"
+        },
+        "A4-OP-DBA-01": {
+          "decision": "EXTEND",
+          "reason": "Extiende A3-OP-GEN-01 y recuperación por función.",
+          "consumer": "catalog.methods -> invent selected cross -> prompt_propuesta -> Storage.save_invention/readback; synthetic proposer in transport tests, no scientific execution attested",
+          "state": "RECORD_TRANSPORT_VERIFIED_TECHNIQUE_NOT_EXECUTED"
+        }
+      },
+      "task_status": {
+        "A4-T00": {
+          "status": "PREPARED",
+          "evidence": "Canonical data preserved and local checker executed"
+        },
+        "A4-T01": {
+          "status": "PREPARED",
+          "evidence": "Canonical data preserved and local checker executed"
+        },
+        "A4-T02": {
+          "status": "PREPARED",
+          "evidence": "Canonical data preserved and local checker executed"
+        },
+        "A4-T03": {
+          "status": "PREPARED",
+          "evidence": "Canonical data preserved and local checker executed"
+        },
+        "A4-T04": {
+          "status": "PENDING",
+          "evidence": "Full content producer/consumer/durable round-trip for the supplement not yet exercised"
+        },
+        "A4-T05": {
+          "status": "PENDING",
+          "evidence": "Full content producer/consumer/durable round-trip for the supplement not yet exercised"
+        }
+      }
+    }
+  }
+}

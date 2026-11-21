@@ -20,6 +20,26 @@ SYSTEM = (
     "resultados experimentales, scores, permisos ni novedad verificada."
 )
 INSTRUCCIONES = """Aplica el cruce a ESTE problema, o abstente explícitamente.
+IDEACIÓN EXPLORATORIA: formula una hipótesis condicional, no una solución validada.
+Un objetivo de diseño o mejora es un problema legítimo: no exijas una anomalía observada.
+La ausencia de evidencia local no es, por sí sola, motivo de abstención.
+Usa conocimiento_previo y supuestos explícitos; sin documentos, evidencia_citada=[].
+El CRUCE no es decorativo: usa al menos una operación concreta de cada técnica y explica
+cómo cambia el mecanismo del dominio.
+Las etiquetas heurísticas del cruce no son veredictos científicos.
+Intenta trasladar las operaciones al dominio del problema aunque el cruce sea extraño.
+Antes de ABSTENER, busca una analogía operativa concreta entre las operaciones y el problema.
+Abstente solo si, tras ese intento, no puedes construir un mecanismo específico pertinente.
+Si RESTRICCIONES OBLIGATORIAS está vacío, no hay restricciones formales adicionales:
+no te abstengas por ese motivo; respeta las restricciones explícitas del PROBLEMA
+y declara supuestos.
+El DOMINIO es un acoplamiento opcional; si no aporta al mecanismo, ignóralo.
+STORE_UNAVAILABLE o cobertura UNKNOWN describen la búsqueda, no la validez de la idea.
+No presentes el mecanismo propuesto como causalidad demostrada; su prueba sigue pendiente.
+BREVEDAD: cada campo de texto debe ser conciso. motivo_abstencion, hipotesis,
+incertidumbre, novedad, prueba_concreta y los 7 campos de prueba: máximo 600
+caracteres. mecanismo: máximo 1200. elementos de lista: máximo 300. Si tu
+respuesta natural es más larga, resume; no la cortes a la fuerza.
 Responde con este contrato JSON:
 {
   "pertinencia": "PERTINENTE o ABSTENER",
@@ -58,11 +78,26 @@ documentos o actualización exitosa no demuestra ausencia de antecedentes ni nov
 Si una fuente contradice el mecanismo, explica el límite o abstente; no fuerces su apoyo.
 Si intercambiar A y B deja igual el mecanismo, explica operaciones específicas o abstente.
 No eludas restricciones obligatorias; si no puedes justificar su respeto, abstente.
+En mecanismo explica el proceso causal, sin los nombres literales de las técnicas;
+describe sus operaciones únicamente en aportacion_por_tecnica.
+En comprobacion_restricciones copia RESTRICCIONES OBLIGATORIAS con el mismo texto,
+orden y cantidad; si la lista está vacía, responde []. Solo marca CUMPLE si la
+justificación demuestra cada una; si alguna se viola o no puedes justificarla,
+ABSTENER. No marques CUMPLE por defecto.
+Antes de PERTINENTE comprueba los siete campos de prueba, incluida alternativa_explicativa,
+y que las predicciones favorables a H1 y H2 sean distintas.
 ABSTENER solo requiere pertinencia y motivo_abstencion; no rellenes el resto.
 Interroga la propuesta con las preguntas epistemológicas adjuntas, también sobre
 alternativas explicativas, riesgos sistémicos y falsación. Contención ausente = desconocida.
 """
 CRITICA_INSTRUCCIONES = """Ataca la propuesta sin darte ni darle una nota numérica.
+Una hipótesis condicional no exige un experimento ya realizado.
+Comprueba la coherencia del mecanismo, los supuestos declarados y la prueba discriminante.
+Sin documentos, fiel_evidencia exige no inventar citas ni presentar supuestos como observaciones;
+no exige evidencia_citada no vacía. Conserva las objeciones reales; no fuerces un dictamen positivo.
+Un objetivo de diseño o mejora es legítimo; no exijas una anomalía observada.
+Una objeción que no invalide el mecanismo ni la prueba es una limitación, no un rechazo.
+Usa false solo si el requisito no se cumple; no conviertas mejoras opcionales en rechazo.
 Responde JSON con:
 {
  "pertinente": true, "mecanismo_especifico": true, "falsable": true,
@@ -98,25 +133,74 @@ def restricciones_de(idea: dict[str, Any]) -> list[str]:
     return raw
 
 
+_CRUCE_PROMPT_KEYS = (
+    "title",
+    "method1",
+    "method1_desc",
+    "method2",
+    "method2_desc",
+    "cross_operational_records",
+    "evidence_context",
+)
+
+
+def cruce_para_prompt(idea: dict[str, Any]) -> dict[str, Any]:
+    """Contenido operativo del cruce, sin etiquetas heurísticas internas.
+
+    ``quality``, ``score``, ``convergence`` y ``genome`` son señales del motor
+    local, no veredictos científicos. Enviarlas al modelo sesga la abstención
+    (p. ej. ``quality='BASURA'``) y contradice el contrato de ideación.
+    """
+    return {key: idea[key] for key in _CRUCE_PROMPT_KEYS if key in idea}
+
+
+def _datos_prompt(
+    query: str,
+    idea: dict[str, Any],
+    domain: dict[str, Any] | None,
+    evidence: list[dict[str, Any]] | None,
+) -> dict[str, Any]:
+    return {
+        "PROBLEMA": query,
+        "DOMINIO": domain or {},
+        "CRUCE": cruce_para_prompt(idea),
+        "BLOQUEO IDENTIFICADO": idea.get("bloqueo") or {},
+        "RESTRICCIONES OBLIGATORIAS": restricciones_de(idea),
+        "EVIDENCIA LOCAL PERTINENTE": [
+            {**ev, "indice": i} for i, ev in enumerate(evidencia_entregada(evidence), 1)
+        ],
+        "CONTENCION_DECLARADA": idea.get("containment_class", "DESCONOCIDA"),
+    }
+
+
 def prompt_propuesta(
     query: str,
     idea: dict[str, Any],
     domain: dict[str, Any] | None,
     evidence: list[dict[str, Any]] | None,
 ) -> str:
-    datos = {
-        "PROBLEMA": query,
-        "DOMINIO": domain or {},
-        "CRUCE": idea,
-        "BLOQUEO IDENTIFICADO": idea.get("bloqueo") or {},
-        "EVIDENCIA LOCAL PERTINENTE": [
-            {**ev, "indice": i} for i, ev in enumerate(evidencia_entregada(evidence), 1)
-        ],
-        "CONTENCION_DECLARADA": idea.get("containment_class", "DESCONOCIDA"),
-    }
-    restricciones_de(idea)
+    datos = _datos_prompt(query, idea, domain, evidence)
     return (
         INSTRUCCIONES
+        + "\n"
+        + PREGUNTAS_TEXTO
+        + "\nDATOS:\n"
+        + json.dumps(datos, ensure_ascii=False, sort_keys=True)
+    )
+
+
+def prompt_critica(
+    query: str,
+    idea: dict[str, Any],
+    domain: dict[str, Any] | None,
+    evidence: list[dict[str, Any]] | None,
+    propuesta: dict[str, Any],
+) -> str:
+    """Crítica compacta: datos del caso y propuesta, sin repetir el contrato de ideación."""
+    datos = _datos_prompt(query, idea, domain, evidence)
+    datos["PROPUESTA A CRITICAR"] = propuesta
+    return (
+        CRITICA_INSTRUCCIONES
         + "\n"
         + PREGUNTAS_TEXTO
         + "\nDATOS:\n"
@@ -128,48 +212,65 @@ def texto(value: Any) -> TypeGuard[str]:
     return isinstance(value, str) and bool(value.strip())
 
 
-def validar_propuesta(
+KIND_SCHEMA = "schema"
+KIND_DOMAIN = "domain"
+
+
+def validar_propuesta_estructurada(
     parsed: dict[str, Any], idea: dict[str, Any], evidence: list[dict[str, Any]] | None
-) -> list[str]:
-    errores: list[str] = []
+) -> list[tuple[str, str]]:
+    """Errores de contrato como (kind, mensaje). Una sola fuente de verdad.
+
+    ``kind`` es ``KIND_SCHEMA`` si el fallo es de forma (campo ausente o de tipo
+    incorrecto) y ``KIND_DOMAIN`` si el JSON tiene la forma correcta pero su
+    contenido incumple una regla científica. El banco consume este ``kind`` sin
+    volver a interpretar el texto del mensaje.
+    """
+    errores: list[tuple[str, str]] = []
     if any(campo in parsed for campo in ("score", "epistemic_score", "veredicto")):
-        errores.append("autoevaluacion numérica o veredicto del modelo no permitidos")
+        errores.append(
+            (KIND_DOMAIN, "autoevaluacion numérica o veredicto del modelo no permitidos")
+        )
     if parsed.get("pertinencia") == "ABSTENER":
         motivo = parsed.get("motivo_abstencion")
-        return errores + (["abstencion:" + motivo] if texto(motivo) else ["abstencion_sin_motivo"])
+        if texto(motivo):
+            return errores + [(KIND_DOMAIN, "abstencion:" + motivo)]
+        return errores + [(KIND_SCHEMA, "abstencion_sin_motivo")]
     if parsed.get("pertinencia") != "PERTINENTE":
-        errores.append("pertinencia ausente o inválida")
+        errores.append((KIND_SCHEMA, "pertinencia ausente o inválida"))
     if "ruta_desbloqueo" in parsed and not isinstance(parsed["ruta_desbloqueo"], str):
-        errores.append("ruta_desbloqueo debe ser texto")
+        errores.append((KIND_SCHEMA, "ruta_desbloqueo debe ser texto"))
     for campo in ("hipotesis", "mecanismo", "prueba_concreta", "incertidumbre", "novedad"):
         if not texto(parsed.get(campo)):
-            errores.append(f"sin {campo}")
+            errores.append((KIND_SCHEMA, f"sin {campo}"))
         elif len(parsed[campo]) > 12000:
-            errores.append(f"{campo} demasiado largo")
+            errores.append((KIND_SCHEMA, f"{campo} demasiado largo"))
     for campo in ("aportacion_por_tecnica", "supuestos", "cadena_causal", "conocimiento_previo"):
         valor = parsed.get(campo)
         if not isinstance(valor, list) or any(not texto(x) for x in valor):
-            errores.append(f"{campo} debe ser una lista de textos no vacíos")
+            errores.append((KIND_SCHEMA, f"{campo} debe ser una lista de textos no vacíos"))
         elif campo in ("aportacion_por_tecnica", "cadena_causal") and len(valor) < 2:
-            errores.append(f"{campo} requiere al menos dos elementos")
+            errores.append((KIND_SCHEMA, f"{campo} requiere al menos dos elementos"))
     if (
         isinstance(parsed.get("aportacion_por_tecnica"), list)
         and len(parsed["aportacion_por_tecnica"]) != 2
     ):
-        errores.append("aportacion_por_tecnica requiere exactamente dos operaciones")
+        errores.append((KIND_SCHEMA, "aportacion_por_tecnica requiere exactamente dos operaciones"))
     mecanismo = parsed.get("mecanismo")
     if texto(mecanismo):
         if len(mecanismo.split()) < 8:
-            errores.append("mecanismo insuficientemente específico")
+            errores.append((KIND_DOMAIN, "mecanismo insuficientemente específico"))
         for nombre in (idea.get("method1"), idea.get("method2")):
             if texto(nombre) and re.search(
                 r"(?<!\w)" + re.escape(nombre) + r"(?!\w)", mecanismo, re.IGNORECASE
             ):
-                errores.append("mecanismo repite nombres de técnicas")
+                errores.append((KIND_DOMAIN, "mecanismo repite nombres de técnicas"))
                 break
     prueba = parsed.get("prueba")
     if not isinstance(prueba, dict):
-        errores.append("prueba debe ser un objeto con métrica, baseline, umbral y fracaso")
+        errores.append(
+            (KIND_SCHEMA, "prueba debe ser un objeto con métrica, baseline, umbral y fracaso")
+        )
     else:
         for campo in (
             "metrica",
@@ -181,31 +282,196 @@ def validar_propuesta(
             "resultado_favorable_alternativa",
         ):
             if not texto(prueba.get(campo)):
-                errores.append(f"prueba.sin_{campo}")
+                errores.append((KIND_SCHEMA, f"prueba.sin_{campo}"))
         if texto(prueba.get("umbral")) and not re.search(r"\d", prueba["umbral"]):
-            errores.append("prueba.umbral requiere un valor numérico")
+            errores.append((KIND_DOMAIN, "prueba.umbral requiere un valor numérico"))
         h1 = prueba.get("resultado_favorable_mecanismo")
         h2 = prueba.get("resultado_favorable_alternativa")
         if texto(h1) and texto(h2) and h1.strip().casefold() == h2.strip().casefold():
-            errores.append("prueba.predicciones_no_discriminantes")
+            errores.append((KIND_DOMAIN, "prueba.predicciones_no_discriminantes"))
     citas = parsed.get("evidencia_citada")
     cantidad = len(evidencia_entregada(evidence))
     if not isinstance(citas, list) or any(
         type(i) is not int or not 1 <= i <= cantidad for i in citas
     ):
-        errores.append("evidencia_citada contiene índices inexistentes o tipos inválidos")
+        errores.append(
+            (KIND_SCHEMA, "evidencia_citada contiene índices inexistentes o tipos inválidos")
+        )
     comprobaciones = parsed.get("comprobacion_restricciones")
     obligatorias = restricciones_de(idea)
     if not isinstance(comprobaciones, list) or any(not isinstance(c, dict) for c in comprobaciones):
-        errores.append("comprobacion_restricciones debe ser una lista de objetos")
+        errores.append((KIND_SCHEMA, "comprobacion_restricciones debe ser una lista de objetos"))
     else:
         declaradas = [c.get("restriccion") for c in comprobaciones]
         if declaradas != obligatorias:
-            errores.append("restricciones obligatorias no comprobadas exactamente")
+            errores.append((KIND_SCHEMA, "restricciones obligatorias no comprobadas exactamente"))
         for c in comprobaciones:
             if c.get("estado") != "CUMPLE" or not texto(c.get("justificacion")):
-                errores.append("restriccion violada o no verificada")
+                errores.append((KIND_DOMAIN, "restriccion violada o no verificada"))
     return errores
+
+
+def validar_propuesta(
+    parsed: dict[str, Any], idea: dict[str, Any], evidence: list[dict[str, Any]] | None
+) -> list[str]:
+    return [mensaje for _, mensaje in validar_propuesta_estructurada(parsed, idea, evidence)]
+
+
+def schema_propuesta(idea: dict[str, Any], evidence: list[dict[str, Any]] | None) -> dict[str, Any]:
+    """JSON Schema derivado del contrato real, para decodificación restringida.
+
+    La grammar FIJA LA FORMA, nunca el veredicto: no usa ``const`` sobre el
+    contenido salvo para el discriminante ``pertinencia``. Las reglas de
+    contenido (mecanismo >= 8 palabras, que no repita nombres de técnicas,
+    predicciones H1/H2 distintas) las sigue aplicando ``validar_propuesta``.
+    Se genera en cada llamada porque ``evidencia_citada`` y
+    ``comprobacion_restricciones`` dependen de la evidencia y restricciones del
+    caso.
+    """
+    n_ev = len(evidencia_entregada(evidence))
+    obligatorias = restricciones_de(idea)
+
+    defs = {
+        "texto_corto": {"type": "string", "minLength": 1, "maxLength": 600},
+        "mecanismo": {"type": "string", "minLength": 1, "maxLength": 1200},
+        "texto_lista": {"type": "string", "minLength": 1, "maxLength": 300},
+    }
+    corto = {"$ref": "#/$defs/texto_corto"}
+    mecano = {"$ref": "#/$defs/mecanismo"}
+    lista_item = {"$ref": "#/$defs/texto_lista"}
+
+    def lista(min_items: int, max_items: int | None = None) -> dict[str, Any]:
+        s: dict[str, Any] = {"type": "array", "items": lista_item, "minItems": min_items}
+        if max_items is not None:
+            s["maxItems"] = max_items
+        return s
+
+    prueba_campos = [
+        "metrica",
+        "baseline",
+        "umbral",
+        "condicion_fracaso",
+        "alternativa_explicativa",
+        "resultado_favorable_mecanismo",
+        "resultado_favorable_alternativa",
+    ]
+    restr: dict[str, Any] = {
+        "type": "array",
+        "minItems": len(obligatorias),
+        "maxItems": len(obligatorias),
+    }
+    if obligatorias:
+        restr["items"] = {
+            "type": "object",
+            "additionalProperties": False,
+            "required": ["restriccion", "estado", "justificacion"],
+            "properties": {
+                "restriccion": {"enum": obligatorias},
+                "estado": {"enum": ["CUMPLE", "VIOLA", "NO_VERIFICADO"]},
+                "justificacion": lista_item,
+            },
+        }
+    abstener = {
+        "type": "object",
+        "additionalProperties": False,
+        "required": ["pertinencia", "motivo_abstencion"],
+        "properties": {"pertinencia": {"const": "ABSTENER"}, "motivo_abstencion": corto},
+    }
+    pertinente = {
+        "type": "object",
+        "additionalProperties": False,
+        "required": [
+            "pertinencia",
+            "hipotesis",
+            "cadena_causal",
+            "mecanismo",
+            "aportacion_por_tecnica",
+            "supuestos",
+            "evidencia_citada",
+            "conocimiento_previo",
+            "incertidumbre",
+            "novedad",
+            "prueba_concreta",
+            "prueba",
+            "comprobacion_restricciones",
+        ],
+        "properties": {
+            "pertinencia": {"const": "PERTINENTE"},
+            "hipotesis": corto,
+            "cadena_causal": lista(2),
+            "mecanismo": mecano,
+            "aportacion_por_tecnica": lista(2, 2),
+            "supuestos": lista(0),
+            "evidencia_citada": {
+                "type": "array",
+                "maxItems": n_ev,
+                "items": {"type": "integer", "minimum": 1, "maximum": max(n_ev, 1)},
+            },
+            "conocimiento_previo": lista(0),
+            "incertidumbre": corto,
+            "novedad": corto,
+            "prueba_concreta": corto,
+            "prueba": {
+                "type": "object",
+                "additionalProperties": False,
+                "required": prueba_campos,
+                "properties": {k: corto for k in prueba_campos},
+            },
+            "comprobacion_restricciones": restr,
+            "ruta_desbloqueo": {
+                "enum": ["eliminar_necesidad", "sustituir_mecanismo", "desacoplar_dependencia"]
+            },
+        },
+    }
+    return {
+        "$defs": defs,
+        "anyOf": [abstener, pertinente],
+    }
+
+
+def schema_critica() -> dict[str, Any]:
+    """JSON Schema de la crítica: fija la forma, NUNCA el veredicto.
+
+    Los seis booleanos son ``{"type": "boolean"}`` (no ``const: true``): si la
+    grammar forzara ``true``, el crítico aprobaría siempre y el banco mediría la
+    grammar en vez del modelo.
+    """
+    t = {"$ref": "#/$defs/texto_respuesta"}
+    return {
+        "type": "object",
+        "additionalProperties": False,
+        "required": [
+            "pertinente",
+            "mecanismo_especifico",
+            "falsable",
+            "fiel_evidencia",
+            "restricciones_respetadas",
+            "discrimina_alternativas",
+            "intercambio_tecnicas_generico",
+            "objeciones",
+            "incertidumbre",
+            "respuestas_epistemologicas",
+        ],
+        "properties": {
+            "pertinente": {"type": "boolean"},
+            "mecanismo_especifico": {"type": "boolean"},
+            "falsable": {"type": "boolean"},
+            "fiel_evidencia": {"type": "boolean"},
+            "restricciones_respetadas": {"type": "boolean"},
+            "discrimina_alternativas": {"type": "boolean"},
+            "intercambio_tecnicas_generico": {"type": "boolean"},
+            "objeciones": {"type": "array", "items": {"$ref": "#/$defs/texto_respuesta"}},
+            "incertidumbre": t,
+            "respuestas_epistemologicas": {
+                "type": "object",
+                "required": [p.id for p in PREGUNTAS],
+                "properties": {p.id: t for p in PREGUNTAS},
+            },
+        },
+        "$defs": {
+            "texto_respuesta": {"type": "string", "minLength": 1, "maxLength": 500},
+        },
+    }
 
 
 def validar_critica(parsed: dict[str, Any]) -> list[str]:
@@ -224,11 +490,57 @@ def validar_critica(parsed: dict[str, Any]) -> list[str]:
             errores.append(f"critica.{campo}")
     if parsed.get("intercambio_tecnicas_generico") is not False:
         errores.append("critica.mecanismo_genérico")
-    if parsed.get("objeciones") != []:
-        errores.append("critica.objeciones")
+    objeciones = parsed.get("objeciones")
+    if not isinstance(objeciones, list) or any(not texto(obj) for obj in objeciones):
+        errores.append("critica.objeciones_malformadas")
     respuestas = parsed.get("respuestas_epistemologicas")
     if not isinstance(respuestas, dict) or any(not texto(respuestas.get(p.id)) for p in PREGUNTAS):
         errores.append("critica.preguntas_sin_responder")
     if not texto(parsed.get("incertidumbre")):
         errores.append("critica.sin_incertidumbre")
     return errores
+
+
+_CAMPOS_RECHAZO_CRITICA = (
+    "pertinente",
+    "mecanismo_especifico",
+    "falsable",
+    "fiel_evidencia",
+    "restricciones_respetadas",
+    "discrimina_alternativas",
+)
+
+
+def separar_errores_critica(
+    parsed: dict[str, Any], errores: list[str]
+) -> tuple[list[str], list[str]]:
+    """Separa una crítica malformada de un rechazo sustantivo.
+
+    Un ``False`` explícito o ``intercambio_tecnicas_generico=True`` rechaza la
+    propuesta. Una lista real de objeciones es una limitación declarada y no
+    invalida por sí sola el mecanismo ni la prueba. Un campo ausente o de tipo
+    incorrecto es un fallo de contrato y no debe presentarse como rechazo.
+    """
+    estructurales: list[str] = []
+    rechazos: list[str] = []
+    for error in errores:
+        if error == "critica.objeciones":
+            continue
+        if error == "critica.objeciones_malformadas":
+            destino = estructurales
+        elif error == "critica.mecanismo_genérico":
+            destino = (
+                rechazos
+                if parsed.get("intercambio_tecnicas_generico") is True
+                else estructurales
+            )
+        elif (
+            error.startswith("critica.")
+            and error[len("critica.") :] in _CAMPOS_RECHAZO_CRITICA
+        ):
+            campo = error[len("critica.") :]
+            destino = rechazos if parsed.get(campo) is False else estructurales
+        else:
+            destino = estructurales
+        destino.append(error)
+    return estructurales, rechazos

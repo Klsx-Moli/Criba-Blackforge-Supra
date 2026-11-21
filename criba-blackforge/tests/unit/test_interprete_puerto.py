@@ -47,13 +47,20 @@ class _Respuesta:
         self.status_code = status_code
         self._cuerpo = cuerpo if cuerpo is not None else {}
         self.text = texto or json.dumps(self._cuerpo)
+        # `headers` es obligatorio en la forma real: ExternalModelRateLimited
+        # construye su mensaje leyendo `response.headers.get('retry-after')`.
+        # Sin este atributo, el 429 moria con AttributeError en vez de
+        # propagarse como rate limit diagnosticable.
+        self.headers: dict[str, str] = {}
 
     def json(self) -> Any:
         return self._cuerpo
 
     def raise_for_status(self) -> None:
         if self.status_code >= 400:
-            raise httpx.HTTPStatusError("http", request=None, response=None)
+            # httpx.HTTPStatusError exige request/response no nulos: el
+            # consumidor lee `exc.response.status_code` para conservar el codigo.
+            raise httpx.HTTPStatusError("http", request=None, response=self)
 
 
 def _patch_post(monkeypatch, respuesta: _Respuesta) -> list[dict[str, Any]]:
@@ -72,7 +79,15 @@ def _patch_post(monkeypatch, respuesta: _Respuesta) -> list[dict[str, Any]]:
 
         def post(self, url: str, json: Any = None, headers: Any = None) -> _Respuesta:
             enviados.append({"url": url, "json": json, "headers": headers or {}})
-            if len(enviados) > 1:
+            # La crítica se distingue por su prompt, no por el número de orden:
+            # una propuesta truncada puede reintentarse y entonces el segundo
+            # POST sigue siendo de propuesta, no de crítica.
+            prompt = ""
+            if isinstance(json, dict):
+                mensajes = json.get("messages") or []
+                if mensajes and isinstance(mensajes[-1], dict):
+                    prompt = str(mensajes[-1].get("content") or "")
+            if "PROPUESTA A CRITICAR" in prompt:
                 return _Respuesta(200, {"model": "critico-reportado", "choices": [
                     {"finish_reason": "stop", "message": {"content": __import__("json").dumps(critica())}}
                 ]})

@@ -1,5 +1,5 @@
 T080|Global novelty search|IIE|scoring.novelty+prior_art|P10+P11|PRIOR_ART+OPPORTUNITY|high|FREE_NETWORK|1
-T081|Local novelty|CR|scoring.novelty|P11|OPPORTUNITY|high|LOCAL_COMPUTE|0
+T081|Local novelty|CR|criba.scoring.novelty|P11|OPPORTUNITY|high|LOCAL_COMPUTE|0
 T082|Global novelty|IIE|scoring.novelty|P11|OPPORTUNITY|high|FREE_NETWORK|1
 T083|Temporal novelty|IIE|scoring.novelty|P11|OPPORTUNITY|high|LOCAL_COMPUTE|0
 T084|Semantic distance|IIE|scoring.novelty+retrieval.semantic|P11|OPPORTUNITY|high|LOCAL_COMPUTE|0
@@ -22,14 +22,14 @@ T100|Multi-source confirmation|IIE|scoring.evidence|P11|OPPORTUNITY|high|LOCAL_C
 T101|Cross-source lead/lag|IIE|signals.lead_lag|P07|SIGNALS|high|LOCAL_COMPUTE|0
 T102|TRL estimation|CR|scoring.trl|P11|OPPORTUNITY|high|LOCAL_COMPUTE|0
 T103|Evidence scoring|IIE|scoring.evidence|P11|OPPORTUNITY|high|LOCAL_COMPUTE|0
-T104|Confidence scoring|CR|scoring.confidence|P11|OPPORTUNITY|high|LOCAL_COMPUTE|0
+T104|Confidence scoring|CR|scoring.evidence|P11|OPPORTUNITY|high|LOCAL_COMPUTE|0
 T105|Hype detection|IIE|scoring.hype|P11|OPPORTUNITY|high|FREE_NETWORK|1
 T106|Underhype detection|IIE|scoring.hype|P11|OPPORTUNITY|high|FREE_NETWORK|1
 T107|Opportunity scoring|CR|scoring.opportunity|P11|OPPORTUNITY|high|LOCAL_COMPUTE|0
 T108|Saturation score|CR|scoring.competition|P11|OPPORTUNITY|high|LOCAL_COMPUTE|0
 T109|Competitive density|CR|scoring.competition|P11|OPPORTUNITY|high|LOCAL_COMPUTE|0
 T110|Patent blocking|IIE|scoring.patents|P11|OPPORTUNITY|high|FREE_NETWORK|1
-T111|Feasibility estimation|CR|scoring.feasibility|P11|OPPORTUNITY|high|LOCAL_COMPUTE|0
+T111|Feasibility estimation|CR|scoring.evidence|P11|OPPORTUNITY|high|LOCAL_COMPUTE|0
 T112|Prototypeability|CR|scoring.prototypeability|P11|OPPORTUNITY|high|LOCAL_COMPUTE|0
 T113|Time-to-market|CR|scoring.opportunity|P11|OPPORTUNITY|high|LOCAL_COMPUTE|0
 T114|Cost-to-test|CR|scoring.prototypeability|P11|OPPORTUNITY|high|LOCAL_COMPUTE|0

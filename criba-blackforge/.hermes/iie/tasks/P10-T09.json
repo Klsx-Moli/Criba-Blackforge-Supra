@@ -21,7 +21,11 @@
   "contract": {
     "input": "InventionCandidate, non-empty Mapping[str, SourceQueryResult], matching PriorArtSkepticReport and Sequence[PriorArtMatch].",
     "output": "PriorArtAssessment with one of UNRESOLVED, PARTIAL_PRIOR_ART or SURVIVED_SEARCH.",
-    "forbidden_outputs": ["PROVEN_NEW", "automatic KNOWN", "automatic NEAR_PRIOR_ART"],
+    "forbidden_outputs": [
+      "PROVEN_NEW",
+      "automatic KNOWN",
+      "automatic NEAR_PRIOR_ART"
+    ],
     "ownership": "Known/near materiality needs a later explicit contract; P10-T10 owns mutation/re-search."
   },
   "tests": [
@@ -55,5 +59,20 @@
     "Implement P10-T10 mutation/re-search using PriorArtAssessment without reclassifying SURVIVED_SEARCH as PROVEN_NEW.",
     "Run P10-T12 falsification audit against T07 -> T08 -> T09 -> T10 once P10-T10 exists."
   ],
-  "completed_at": "2026-09-05T00:55:11+02:00"
+  "completed_at": "2026-09-05T00:55:11+02:00",
+  "status_reconciled": "VERIFIED",
+  "reconciliation": {
+    "date": "2026-10-20",
+    "reason": "El journal declaraba VERIFIED. Verificado a favor con evidencia de contrato: PriorArtVerdict no incluye PROVEN_NEW (src/criba/intelligence/enums.py), el motor solo emite UNRESOLVED/PARTIAL_PRIOR_ART/SURVIVED_SEARCH (verdict.py:74-78) y 6 tests comprueban que PROVEN_NEW jamas se infiere.",
+    "evidence": [
+      "src/criba/intelligence/enums.py: PriorArtVerdict sin PROVEN_NEW",
+      "src/criba/intelligence/prior_art/verdict.py:74-78: solo 3 valores emitidos",
+      "tests/intelligence/test_prior_art_verdict_engine.py -> 8 passed",
+      "tests/intelligence/test_contracts.py:97 -> PROVEN_NEW ausente del enum",
+      "tests/intelligence/test_prior_art_skeptic.py:93 -> PROVEN_NEW ausente del payload",
+      "tests/intelligence/test_prior_art_protocol.py:38 -> PROVEN_NEW fuera de allowed",
+      "tests/intelligence/test_prior_art_mutation_loop.py:201,233 -> PROVEN_NEW jamas"
+    ],
+    "certainty": "VERIFIED_BY_EXECUTION"
+  }
 }

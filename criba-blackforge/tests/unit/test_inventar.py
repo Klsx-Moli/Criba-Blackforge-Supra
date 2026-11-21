@@ -156,6 +156,62 @@ def test_entries_carry_run_id_and_ledger_keeps_proposal_fields(tmp_path) -> None
             assert field in entry, f"el ledger debe conservar {field}"
 
 
+def test_ledger_retiene_diagnostico_de_fallo_del_proveedor(tmp_path) -> None:
+    """El ledger append-only debe explicar por qu� un candidato qued� pendiente.
+
+    Antes solo conservaba estado/mecanismo vac�o: el motivo real del proveedor
+    se perd�a y una aceptaci�n fallida quedaba sin causa auditable.
+    """
+    def propuesta_pendiente(*_args, **_kwargs):
+        return {
+            "estado": "PENDIENTE_INTERPRETACION",
+            "hipotesis": "",
+            "mecanismo": "",
+            "aportacion_por_tecnica": [],
+            "supuestos": [],
+            "prueba_concreta": "",
+            "ruta_desbloqueo": "",
+            "error": "validacion:falta_mecanismo",
+            "interpretacion_error_kind": "schema",
+            "interpretacion_diagnostico": {
+                "error_code": "SCHEMA_VALIDATION_FAILED",
+                "phase": "validacion",
+                "reason": "falta_mecanismo",
+                "retryable": False,
+                "next_action": "La respuesta no cumple el esquema del contrato.",
+            },
+            "interpretacion_finish_reason": "stop",
+            "interpretacion_usage": {"completion_tokens": 12, "reasoning_tokens": 0},
+            "interpretacion_provenance": {"model_requested": "fixture-model"},
+            "interpretacion_model_requests": 2,
+        }
+
+    sheet = invent(
+        "q", seed=3, rounds=1, batch_size=4, top=2, offline=False,
+        methods=_methods(), sources=_sources(), proponer=propuesta_pendiente,
+        history_storage=False,
+    )
+    path = append_ledger(sheet, ledger_dir=tmp_path)
+    record = json.loads(path.read_text(encoding="utf-8").strip().splitlines()[-1])
+    assert record["entries"]
+    for entry in record["entries"]:
+        assert entry["estado_interpretacion"] == "PENDIENTE_INTERPRETACION"
+        assert entry["interpretacion_error"] == "validacion:falta_mecanismo"
+        assert entry["interpretacion_error_kind"] == "schema"
+        assert entry["interpretacion_finish_reason"] == "stop"
+        assert entry["interpretacion_usage"] == {
+            "completion_tokens": 12,
+            "reasoning_tokens": 0,
+        }
+        assert entry["interpretacion_provenance"]["model_requested"] == "fixture-model"
+        assert entry["interpretacion_model_requests"] == 2
+        assert entry["interpretacion_diagnostico"]["error_code"] == (
+            "SCHEMA_VALIDATION_FAILED"
+        )
+        assert entry["interpretacion_diagnostico"]["phase"] == "validacion"
+        assert entry["interpretacion_diagnostico"]["retryable"] is False
+
+
 # ---------------------------------------------------------------------------
 # Fase 1: contrato corregido (mecanismo antes de antecedentes, IDs estables,
 # offline en el transporte, ficha honesta). Comportamiento nuevo intencionado;
@@ -378,6 +434,23 @@ def test_dv9_history_failure_degrades_gracefully(monkeypatch, tmp_path) -> None:
     assert len(sheet["entries"]) == 2
 
 
+def test_blackforge_records_without_id_are_normalized_for_history() -> None:
+    class _History:
+        def load_combination_first_seen(self, fingerprint):
+            return None
+
+        def save_lottery_combinations(self, *args, **kwargs):
+            return None
+
+    methods = _methods()
+    for method in methods:
+        method["blackforge_id"] = method.pop("id")
+    sheet = invent("cruce blackforge con historial", seed=7, rounds=1,
+                   batch_size=6, top=2, offline=True, methods=methods,
+                   sources=_sources(), history_storage=_History())
+    assert len(sheet["entries"]) == 2
+
+
 def test_evidencia_local_reaches_proponer(tmp_path) -> None:
     """La evidencia local se ENTREGA a la llamada del intérprete, no solo
     se guarda en la ficha (corrección de conducta del recorrido)."""
@@ -561,6 +634,61 @@ def test_scout_con_fuentes_vacias_no_crash() -> None:
             "error": ""})
     for e in sheet["entries"]:
         assert e["prior_art"]["verdict"] == "UNRESOLVED"
+
+
+def test_propuesta_con_objeciones_conserva_estado_y_observaciones(tmp_path) -> None:
+    from criba.storage import Storage
+    from verification.interpreter_cases import critica as critica_fixture
+
+    critica = critica_fixture()
+    critica["objeciones"] = ["Falta medir el coste de la compuerta."]
+    diagnostico = {
+        "evaluation_status": "CRITIQUED",
+        "admitida_con_objeciones": True,
+        "objection_count": 1,
+        "respuesta": critica,
+        "independent_validation": False,
+    }
+
+    def _proponer(query, idea, domain, evidence=None):
+        return {
+            "estado": "PROPUESTA",
+            "hipotesis": "Una compuerta regula el paso.",
+            "mecanismo": "La compuerta limita el flujo y evita la saturación.",
+            "aportacion_por_tecnica": ["Regular el paso.", "Medir el coste."],
+            "supuestos": ["El flujo es medible."],
+            "prueba_concreta": "Comparar caudal y coste con y sin compuerta.",
+            "critica": diagnostico,
+            "error": "",
+        }
+
+    sheet = invent(
+        "regular el caudal con una compuerta",
+        seed=5,
+        rounds=1,
+        batch_size=4,
+        top=1,
+        offline=True,
+        history_storage=False,
+        methods=_methods(),
+        sources=[],
+        proponer=_proponer,
+    )
+    entry = sheet["entries"][0]
+    assert entry["estado_interpretacion"] == "PROPUESTA"
+    assert entry["critica"]["admitida_con_objeciones"] is True
+    assert entry["critica"]["respuesta"]["objeciones"] == [
+        "Falta medir el coste de la compuerta."
+    ]
+
+    db = tmp_path / "critique.sqlite3"
+    ident = Storage(db).save_invention(sheet)
+    restored = Storage(db).get(ident)["packet"]["sheet"]["entries"][0]
+    assert restored["estado_interpretacion"] == "PROPUESTA"
+    assert restored["critica"]["admitida_con_objeciones"] is True
+    assert restored["critica"]["respuesta"]["objeciones"] == [
+        "Falta medir el coste de la compuerta."
+    ]
 
 
 def test_un_solo_interprete_por_ejecucion(monkeypatch) -> None:
