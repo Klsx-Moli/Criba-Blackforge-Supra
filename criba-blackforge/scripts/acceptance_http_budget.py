@@ -9,6 +9,8 @@ from __future__ import annotations
 import hashlib
 import http.client
 import json
+import math
+import os
 import sqlite3
 from contextlib import closing, contextmanager
 from datetime import UTC, datetime
@@ -123,9 +125,34 @@ def install_native_budget(server, ledger: BudgetLedger):
     server._open_upstream = counted
 
 
+DEFAULT_FORWARD_TIMEOUT_S = 240.0
+FORWARD_TIMEOUT_ENV = "CRIBA_ACCEPTANCE_FORWARD_TIMEOUT_S"
+_TIMEOUT_ERROR = f"{FORWARD_TIMEOUT_ENV} must be a positive finite number of seconds"
+
+
+def resolve_forward_timeout(raw: str | None = None) -> float:
+    """Return the upstream timeout, rejecting anything that is not a positive finite number.
+
+    The proxy is the only place where the acceptance run waits on a remote model.
+    A zero, negative, NaN or infinite value would either busy-loop or hang forever
+    with no diagnostic, so the run fails closed at startup instead.
+    """
+    value = os.getenv(FORWARD_TIMEOUT_ENV, "") if raw is None else raw
+    if value is None or value == "":
+        return DEFAULT_FORWARD_TIMEOUT_S
+    try:
+        timeout = float(value)
+    except (TypeError, ValueError, OverflowError) as exc:
+        raise ValueError(_TIMEOUT_ERROR) from exc
+    if not math.isfinite(timeout) or timeout <= 0:
+        raise ValueError(_TIMEOUT_ERROR)
+    return timeout
+
+
 @contextmanager
 def budget_proxy(ledger: BudgetLedger):
     target = urlsplit(ledger.upstream)
+    timeout_up = resolve_forward_timeout()
 
     class Guard(BaseHTTPRequestHandler):
         def log_message(self, *_args):
@@ -162,7 +189,9 @@ def budget_proxy(ledger: BudgetLedger):
             self.forward(body)
 
         def forward(self, body):
-            connection = http.client.HTTPConnection(target.hostname, target.port, timeout=240)
+            connection = http.client.HTTPConnection(
+                target.hostname, target.port, timeout=timeout_up
+            )
             try:
                 headers = {
                     name: self.headers[name]
