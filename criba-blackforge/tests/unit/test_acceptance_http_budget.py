@@ -135,3 +135,43 @@ def test_http_guard_refuses_over_budget_without_forwarding(tmp_path):
         upstream.shutdown()
         upstream.server_close()
         thread.join(timeout=5)
+
+
+@pytest.mark.parametrize("raw", ["0", "-1", "nan", "inf", "-inf", "NaN", "Infinity", "abc", "1e999"])
+def test_forward_timeout_rejects_values_that_would_hang_or_busy_loop(raw, monkeypatch):
+    """0/negativo/NaN/Inf convertirian el proxy en busy-loop o cuelgue sin diagnostico."""
+    from scripts.acceptance_http_budget import FORWARD_TIMEOUT_ENV, resolve_forward_timeout
+
+    monkeypatch.setenv(FORWARD_TIMEOUT_ENV, raw)
+    with pytest.raises(ValueError, match="positive finite number"):
+        resolve_forward_timeout()
+
+
+def test_forward_timeout_accepts_valid_values_and_default(monkeypatch):
+    from scripts.acceptance_http_budget import (
+        DEFAULT_FORWARD_TIMEOUT_S,
+        FORWARD_TIMEOUT_ENV,
+        resolve_forward_timeout,
+    )
+
+    monkeypatch.delenv(FORWARD_TIMEOUT_ENV, raising=False)
+    assert resolve_forward_timeout() == DEFAULT_FORWARD_TIMEOUT_S
+    monkeypatch.setenv(FORWARD_TIMEOUT_ENV, "")
+    assert resolve_forward_timeout() == DEFAULT_FORWARD_TIMEOUT_S
+    monkeypatch.setenv(FORWARD_TIMEOUT_ENV, "12.5")
+    assert resolve_forward_timeout() == 12.5
+    assert resolve_forward_timeout("300") == 300.0
+
+
+def test_budget_proxy_fails_closed_before_starting_on_bad_timeout(tmp_path, monkeypatch):
+    """Un timeout invalido debe romper el arranque, no arrastrar un proxy colgado."""
+    from scripts.acceptance_http_budget import FORWARD_TIMEOUT_ENV, BudgetLedger, budget_proxy
+
+    ledger = BudgetLedger(
+        tmp_path / "budget.sqlite3", MODEL, "http://127.0.0.1:8645/v1", initialize=True
+    )
+    monkeypatch.setenv(FORWARD_TIMEOUT_ENV, "0")
+    with pytest.raises(ValueError, match="positive finite number"):
+        with budget_proxy(ledger):
+            pass
+
