@@ -1,0 +1,13 @@
+{
+  "total": 130,
+  "summary": {
+    "EXTENSION_PROMOTION_CANDIDATE": 2,
+    "EXTENSION_SHADOW_BYPASS": 2,
+    "EXTENSION_MODULE_ONLY": 42,
+    "MVP_IMPLEMENTED": 29,
+    "RESEARCH_NO_CODE": 55
+  },
+  "mvp_count": 29,
+  "extension_count": 46,
+  "research_count": 55
+}
