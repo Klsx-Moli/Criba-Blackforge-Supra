@@ -29,6 +29,19 @@ def test_complete_operations_survive_lottery_and_prompt(seed: int) -> None:
     assert recovered["method1_desc"] == engine.methods[0]["description"]
     assert recovered["method2_desc"] == engine.methods[1]["description"]
     assert "COLA_A" in prompt and "COLA_B" in prompt
+    assert idea["method1_id"] == "lossless-a"
+    assert idea["method2_id"] == "lossless-b"
+    assert idea["method1_desc"] == methods[0]["description"]
+    assert idea["method2_desc"] == methods[1]["description"]
+
+    # Metamorphic replay: the same seed must preserve scores, identity, and RNG state.
+    replay = LotteryEngine.from_methods(methods, seed=seed, storage=None)
+    replay_idea = replay.generate_ideas_from_batch(replay.methods)[0]
+    assert idea == replay_idea
+    assert engine.rng.getstate() == replay.rng.getstate()
+    state_after_generation = engine.rng.getstate()
+    prompt_propuesta("Reducir consumo manteniendo el servicio", idea, {}, [])
+    assert engine.rng.getstate() == state_after_generation
 
 
 def test_quoted_multiline_operations_are_valid_prompt_data() -> None:
