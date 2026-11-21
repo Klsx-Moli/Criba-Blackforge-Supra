@@ -658,6 +658,16 @@ def main(argv: Sequence[str] | None = None) -> int:
 
             result = run_blackforge_gui()
             return result if isinstance(result, int) else 0
+
+        if args.command == "hybrid":
+            from .hybrid import run_hybrid
+
+            packet = {"original_query": args.query, "mode": "criba"}
+            result = run_hybrid(
+                packet, enhance_semantics=getattr(args, "enhance_semantics", False)
+            )
+            print(json.dumps(result.model_dump(), ensure_ascii=False, indent=2))
+            return 0
     except (ValueError, OSError) as exc:
         print(f"Error: {exc}", file=sys.stderr)
         return 2
