@@ -1,0 +1,174 @@
+{
+  "recommended_order": [
+    "L0_SPECIAL_PROMOTION",
+    "L0_SPECIAL_SHADOW_BYPASS",
+    "L_MOD_TOPIC_DYNAMICS",
+    "L_MOD_SIGNALS_EVIDENCE_OPPORTUNITY",
+    "L_MOD_EXTERNAL_SOURCES",
+    "L_MOD_PATENT_INTELLIGENCE",
+    "L_MOD_ADVERSARIAL_FUTURES",
+    "L_MOD_INVENTION",
+    "L_MOD_NOVELTY_KNOWLEDGE_GRAPH",
+    "L_MOD_RETRIEVAL_GRAPH",
+    "L_NOMOD_INVENTION",
+    "L_NOMOD_PATENT_INTELLIGENCE",
+    "L_NOMOD_TOPIC_DYNAMICS",
+    "L_NOMOD_NOVELTY_KNOWLEDGE_GRAPH",
+    "L_NOMOD_RETRIEVAL_GRAPH",
+    "L_NOMOD_ADVERSARIAL_FUTURES",
+    "L_NOMOD_SIGNALS_EVIDENCE_OPPORTUNITY",
+    "L_NOMOD_EXTERNAL_SOURCES"
+  ],
+  "special_lots": [
+    {
+      "lot": "L0_SPECIAL_PROMOTION",
+      "ids": [
+        "T054",
+        "T061"
+      ],
+      "gate": "PENDING_APPROVAL (owner/attestation)"
+    },
+    {
+      "lot": "L0_SPECIAL_SHADOW_BYPASS",
+      "ids": [
+        "T104",
+        "T111"
+      ],
+      "gate": "PENDING_APPROVAL (owner/attestation)"
+    }
+  ],
+  "module_only_lots": [
+    {
+      "lot": "L_MOD_ADVERSARIAL_FUTURES",
+      "count": 6,
+      "ids": [
+        "T117",
+        "T119",
+        "T123",
+        "T124",
+        "T125",
+        "T130"
+      ]
+    },
+    {
+      "lot": "L_MOD_EXTERNAL_SOURCES",
+      "count": 4,
+      "ids": [
+        "T011",
+        "T015",
+        "T018",
+        "T020"
+      ]
+    },
+    {
+      "lot": "L_MOD_INVENTION",
+      "count": 7,
+      "ids": [
+        "T058",
+        "T066",
+        "T072",
+        "T073",
+        "T074",
+        "T075",
+        "T078"
+      ]
+    },
+    {
+      "lot": "L_MOD_NOVELTY_KNOWLEDGE_GRAPH",
+      "count": 7,
+      "ids": [
+        "T080",
+        "T081",
+        "T087",
+        "T088",
+        "T089",
+        "T090",
+        "T092"
+      ]
+    },
+    {
+      "lot": "L_MOD_PATENT_INTELLIGENCE",
+      "count": 5,
+      "ids": [
+        "T001",
+        "T005",
+        "T006",
+        "T007",
+        "T008"
+      ]
+    },
+    {
+      "lot": "L_MOD_RETRIEVAL_GRAPH",
+      "count": 10,
+      "ids": [
+        "T032",
+        "T033",
+        "T034",
+        "T037",
+        "T040",
+        "T041",
+        "T042",
+        "T043",
+        "T044",
+        "T045"
+      ]
+    },
+    {
+      "lot": "L_MOD_SIGNALS_EVIDENCE_OPPORTUNITY",
+      "count": 2,
+      "ids": [
+        "T100",
+        "T103"
+      ]
+    },
+    {
+      "lot": "L_MOD_TOPIC_DYNAMICS",
+      "count": 1,
+      "ids": [
+        "T047"
+      ]
+    }
+  ],
+  "no_module_lots": [
+    {
+      "lot": "L_NOMOD_ADVERSARIAL_FUTURES",
+      "count": 6
+    },
+    {
+      "lot": "L_NOMOD_EXTERNAL_SOURCES",
+      "count": 16
+    },
+    {
+      "lot": "L_NOMOD_INVENTION",
+      "count": 4
+    },
+    {
+      "lot": "L_NOMOD_NOVELTY_KNOWLEDGE_GRAPH",
+      "count": 5
+    },
+    {
+      "lot": "L_NOMOD_PATENT_INTELLIGENCE",
+      "count": 4
+    },
+    {
+      "lot": "L_NOMOD_RETRIEVAL_GRAPH",
+      "count": 5
+    },
+    {
+      "lot": "L_NOMOD_SIGNALS_EVIDENCE_OPPORTUNITY",
+      "count": 11
+    },
+    {
+      "lot": "L_NOMOD_TOPIC_DYNAMICS",
+      "count": 4
+    }
+  ],
+  "total_hours": 82.0,
+  "notes": [
+    "Estimaciones de planificacion (IE), no medidas. Base 0.5h/ID con modulo, 1.0h/ID sin modulo, 1.5h/ID special.",
+    "No se fabricaron 101 estimaciones individuales: se agrupan por lote (family+modulo).",
+    "Promocion T054/T061 requiere attestation A2 + capability proof (gate owner) — NO ejecutar sin aprobacion.",
+    "T104/T111 Shadow bypass requiere ADR (gap de arquitectura) — NO activar sin aprobacion.",
+    "Ejecucion total del canon sigue TBD hasta descomposicion y aprobacion por lote."
+  ]
+}
