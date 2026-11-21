@@ -29,6 +29,12 @@ class _Signals(QObject):
     done = Signal(object)
     fail = Signal(str)
     progress = Signal(object)
+    # `finished` se emite siempre al terminar `run`, haya `done` o `fail`.
+    # Sin esta señal, model_settings_dialog._test_profile lanzaba
+    # AttributeError: '_Signals' object has no attribute 'finished' al conectar
+    # su red de seguridad y el parado del timer de progreso, dejando el botón
+    # de comprobación deshabilitado y la animación activa.
+    finished = Signal()
 
 
 class Worker(QRunnable):
@@ -46,17 +52,23 @@ class Worker(QRunnable):
         # takes the surrounding process down. Nobody is listening any more, so
         # the emission is meaningless; dropping it is correct, not a mute.
         try:
-            result = self.fn()
-        except Exception as exc:  # noqa: BLE001 — S9 muestra el motivo real
             try:
-                self.signals.fail.emit(f"{exc}\n{traceback.format_exc(limit=3)}")
-            except RuntimeError:
-                return  # The signal source was destroyed with its window.
-        else:
+                result = self.fn()
+            except Exception as exc:  # noqa: BLE001 — S9 muestra el motivo real
+                try:
+                    self.signals.fail.emit(f"{exc}\n{traceback.format_exc(limit=3)}")
+                except RuntimeError:
+                    return  # The signal source was destroyed with its window.
+            else:
+                try:
+                    self.signals.done.emit(result)
+                except RuntimeError:
+                    return  # Only emission errors are safe to drop.
+        finally:
             try:
-                self.signals.done.emit(result)
+                self.signals.finished.emit()
             except RuntimeError:
-                return  # Only emission errors are safe to drop.
+                return  # La ventana ya no existe; nadie escucha.
 
 
 def _now_ts() -> str:
