@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 import os
 from collections.abc import Mapping, Sequence
 from typing import Any
@@ -42,8 +43,8 @@ def _env_float(name: str, default: float) -> float:
         value = float(raw)
     except ValueError as exc:
         raise ValueError(f"{name} must be a number") from exc
-    if value <= 0:
-        raise ValueError(f"{name} must be greater than zero")
+    if not math.isfinite(value) or value <= 0:
+        raise ValueError(f"{name} must be finite and greater than zero")
     return value
 
 
@@ -112,8 +113,17 @@ class OpenAICompatibleProvider(AgentProvider):
         self.timeout = (
             timeout if timeout is not None else _env_float("SUPRA_PROVIDER_TIMEOUT", 60.0)
         )
-        if self.timeout <= 0:
-            raise ValueError("Provider timeout must be greater than zero")
+        if (
+            isinstance(self.timeout, bool)
+            or not isinstance(self.timeout, (int, float))
+        ):
+            raise ValueError("Provider timeout must be finite and greater than zero")
+        try:
+            valid_timeout = math.isfinite(self.timeout) and self.timeout > 0
+        except OverflowError:
+            valid_timeout = False
+        if not valid_timeout:
+            raise ValueError("Provider timeout must be finite and greater than zero")
         self._transport = transport
         self._provider_name = provider_name
         self._cached_models: list[str] | None = None

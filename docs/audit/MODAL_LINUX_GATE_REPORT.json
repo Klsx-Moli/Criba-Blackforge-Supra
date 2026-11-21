@@ -1,0 +1,81 @@
+{
+  "report": "gate_modal_pytest_linux",
+  "generated": "2026-10-14",
+  "decision_operador": "2026-10-14: pytest_full Modal NO es gate verde; suite Windows local autoritativa; Modal = portabilidad/infra",
+  "evidencia_fuente": "JUnit XML parseado en el runner (message = texto real del test, no hipotesis)",
+  "ultima_corrida_util": {
+    "log": "C:/ASTRA_WORK/modal_gate_linux_seed1_v3.log",
+    "app": "ap-sMc2dQnALOEpUt9iPIR5FS",
+    "seed": 1,
+    "rc": 1,
+    "resultado": "25 failed, 2037 passed, 8 skipped",
+    "nota": "Corrida SIN pip install -e (el -e provoca segfault Qt: ver SEGFAULT_QT)"
+  },
+  "resumen_por_causa": {
+    "ENTORNO-UVICORN-AUSENTE": 10,
+    "ENTORNO-CRIBA-NO-INSTALADO": 3,
+    "ENTORNO-VENV-WINDOWS": 10,
+    "ENTORNO-GIT-AUSENTE": 2,
+    "TOTAL": 25
+  },
+  "fallos": [
+    {"test_id": "tests.astra_canon.test_anti_goodhart_runtime::test_observer_store_deduplicates_across_processes", "causa": "REVISAR: race barrier en contenedor (monotonic delta 31.346 vs 31.345)", "clasificacion": "UNKNOWN_REVISAR", "estado": "VERIFIED_OBSERVED", "mensaje": "AssertionError: observer workers did not reach race barrier / assert 31.346786284 < 31.345980043"},
+    {"test_id": "tests.intelligence.test_multi_repo_state_locks::test_validate_reports_residual_overlaps", "causa": "ENTORNO-GIT-AUSENTE", "clasificacion": "ENV", "estado": "VERIFIED_OBSERVED", "mensaje": "FileNotFoundError: [Errno 2] No such file or directory: 'git'"},
+    {"test_id": "tests.unit.test_mutation_gate::test_mutmut_copies_package_but_only_mutates_personas", "causa": "ENTORNO-MUTMUT-API: Config.reset no existe en mutmut 3.8 (imagen trae mutmut nuevo)", "clasificacion": "ENV", "estado": "VERIFIED_OBSERVED", "mensaje": "AttributeError: type object 'Config' has no attribute 'reset'"},
+    {"test_id": "tests.unit.test_blackforge_causal::test_emitted_report_is_byte_identical_to_tracked_golden", "causa": "ENTORNO-GIT-AUSENTE", "clasificacion": "ENV", "estado": "VERIFIED_OBSERVED", "mensaje": "FileNotFoundError: [Errno 2] No such file or directory: 'git'"},
+    {"test_id": "tests.integration.test_cb_i01_contract_interpreter_dossier_supra::test_propuesta_valida_llega_intacta_al_dossier", "causa": "ENTORNO-VENV-WINDOWS", "clasificacion": "ENV", "estado": "VERIFIED_OBSERVED", "mensaje": "failed on setup with OSError: [Errno 8] Exec format error: '/workspace/supra/.venv/Scripts/python.exe'"},
+    {"test_id": "tests.integration.test_cb_i01_contract_interpreter_dossier_supra::test_propuesta_valida_llega_a_supra", "causa": "ENTORNO-VENV-WINDOWS", "clasificacion": "ENV", "estado": "VERIFIED_OBSERVED", "mensaje": "failed on setup with OSError: [Errno 8] Exec format error: '/workspace/supra/.venv/Scripts/python.exe'"},
+    {"test_id": "tests.integration.test_blackforge_unavailable_sentinel::test_criba_imports_without_blackforge", "causa": "ENTORNO-CRIBA-NO-INSTALADO", "clasificacion": "ENV", "estado": "VERIFIED_OBSERVED", "mensaje": "AssertionError: CRIBA import failed: ModuleNotFoundError: No module named 'criba'"},
+    {"test_id": "tests.integration.test_blackforge_unavailable_sentinel::test_supra_imports_without_blackforge", "causa": "ENTORNO-VENV-WINDOWS", "clasificacion": "ENV", "estado": "VERIFIED_OBSERVED", "mensaje": "OSError: [Errno 8] Exec format error: '/workspace/supra/.venv/Scripts/python.exe'"},
+    {"test_id": "tests.integration.test_blackforge_unavailable_sentinel::test_shadow_window_independent_of_blackforge", "causa": "ENTORNO-VENV-WINDOWS (criba .venv)", "clasificacion": "ENV", "estado": "VERIFIED_OBSERVED", "mensaje": "OSError: [Errno 8] Exec format error: '/workspace/criba-blackforge/.venv/Scripts/python.exe'"},
+    {"test_id": "tests.integration.test_blackforge_unavailable_sentinel::test_shadow_window_constructs_without_blackforge", "causa": "ENTORNO-VENV-WINDOWS (criba .venv)", "clasificacion": "ENV", "estado": "VERIFIED_OBSERVED", "mensaje": "OSError: [Errno 8] Exec format error: '/workspace/criba-blackforge/.venv/Scripts/python.exe'"},
+    {"test_id": "tests.integration.test_blackforge_unavailable_sentinel::test_criba_activate_runs_without_blackforge", "causa": "ENTORNO-CRIBA-NO-INSTALADO", "clasificacion": "ENV", "estado": "VERIFIED_OBSERVED", "mensaje": "AssertionError: CRIBA activate failed: ModuleNotFoundError: No module named 'criba'"},
+    {"test_id": "tests.integration.test_blackforge_unavailable_sentinel::test_supra_service_starts_without_blackforge", "causa": "ENTORNO-VENV-WINDOWS", "clasificacion": "ENV", "estado": "VERIFIED_OBSERVED", "mensaje": "OSError: [Errno 8] Exec format error: '/workspace/supra/.venv/Scripts/python.exe'"},
+    {"test_id": "tests.integration.test_blackforge_unavailable_sentinel::test_shadow_ui_imports_without_blackforge", "causa": "ENTORNO-VENV-WINDOWS (criba .venv)", "clasificacion": "ENV", "estado": "VERIFIED_OBSERVED", "mensaje": "OSError: [Errno 8] Exec format error: '/workspace/criba-blackforge/.venv/Scripts/python.exe'"},
+    {"test_id": "tests.integration.test_cb_i06_shadow_without_blackforge::test_blackforge_import_fallo_no_tumba_criba", "causa": "ENTORNO-VENV-WINDOWS (criba .venv)", "clasificacion": "ENV", "estado": "VERIFIED_OBSERVED", "mensaje": "OSError: [Errno 8] Exec format error: '/workspace/criba-blackforge/.venv/Scripts/python.exe'"},
+    {"test_id": "tests.integration.test_cb_i06_shadow_without_blackforge::test_blackforge_sintaxis_corrupta_no_tumba_criba", "causa": "ENTORNO-VENV-WINDOWS (criba .venv)", "clasificacion": "ENV", "estado": "VERIFIED_OBSERVED", "mensaje": "OSError: [Errno 8] Exec format error: '/workspace/criba-blackforge/.venv/Scripts/python.exe'"},
+    {"test_id": "tests.integration.test_cb_i06_shadow_without_blackforge::test_shadow_window_con_blackforge_en_fallo", "causa": "ENTORNO-VENV-WINDOWS (criba .venv)", "clasificacion": "ENV", "estado": "VERIFIED_OBSERVED", "mensaje": "OSError: [Errno 8] Exec format error: '/workspace/criba-blackforge/.venv/Scripts/python.exe'"},
+    {"test_id": "tests.integration.test_cb_i06_shadow_without_blackforge::test_supra_importa_con_blackforge_en_fallo", "causa": "ENTORNO-VENV-WINDOWS (criba .venv)", "clasificacion": "ENV", "estado": "VERIFIED_OBSERVED", "mensaje": "OSError: [Errno 8] Exec format error: '/workspace/criba-blackforge/.venv/Scripts/python.exe'"},
+    {"test_id": "tests.unit.test_criba_shadow_launcher::test_supra_serves_health_and_stops_cleanly", "causa": "ENTORNO-UVICORN-AUSENTE", "clasificacion": "ENV", "estado": "VERIFIED_OBSERVED", "mensaje": "ModuleNotFoundError: No module named 'uvicorn'"},
+    {"test_id": "tests.unit.test_criba_shadow_launcher::test_signal_handling_lives_on_server_not_config", "causa": "ENTORNO-UVICORN-AUSENTE", "clasificacion": "ENV", "estado": "VERIFIED_OBSERVED", "mensaje": "ModuleNotFoundError: No module named 'uvicorn'"},
+    {"test_id": "tests.unit.test_criba_shadow_launcher::test_supra_config_call_does_not_raise_typeerror", "causa": "ENTORNO-UVICORN-AUSENTE", "clasificacion": "ENV", "estado": "VERIFIED_OBSERVED", "mensaje": "ModuleNotFoundError: No module named 'uvicorn'"},
+    {"test_id": "tests.unit.test_criba_shadow_launcher::test_start_does_not_reuse_an_occupied_port", "causa": "ENTORNO-UVICORN-AUSENTE", "clasificacion": "ENV", "estado": "VERIFIED_OBSERVED", "mensaje": "ModuleNotFoundError: No module named 'uvicorn'"},
+    {"test_id": "tests.unit.test_criba_shadow_launcher::test_banned_config_kwargs_do_not_exist_in_installed_uvicorn", "causa": "ENTORNO-UVICORN-AUSENTE", "clasificacion": "ENV", "estado": "VERIFIED_OBSERVED", "mensaje": "ModuleNotFoundError: No module named 'uvicorn'"},
+    {"test_id": "tests.unit.test_criba_shadow_launcher::test_failure_reports_the_real_reason_not_a_generic_message", "causa": "ENTORNO-UVICORN-AUSENTE", "clasificacion": "ENV", "estado": "VERIFIED_OBSERVED", "mensaje": "ModuleNotFoundError: No module named 'uvicorn'"},
+    {"test_id": "tests.unit.test_criba_shadow_launcher::test_real_server_starts_without_a_console", "causa": "ENTORNO-UVICORN-AUSENTE", "clasificacion": "ENV", "estado": "VERIFIED_OBSERVED", "mensaje": "ModuleNotFoundError: No module named 'uvicorn'"},
+    {"test_id": "tests.unit.test_criba_shadow_launcher::test_capture_signals_is_thread_safe", "causa": "ENTORNO-UVICORN-AUSENTE", "clasificacion": "ENV", "estado": "VERIFIED_OBSERVED", "mensaje": "ModuleNotFoundError: No module named 'uvicorn'"},
+    {"test_id": "tests.unit.test_criba_shadow_launcher::test_supra_config_builds_without_a_console", "causa": "ENTORNO-UVICORN-AUSENTE", "clasificacion": "ENV", "estado": "VERIFIED_OBSERVED", "mensaje": "ModuleNotFoundError: No module named 'uvicorn'"},
+    {"test_id": "tests.unit.test_criba_shadow_launcher::test_log_text_reaches_the_file_without_a_console_in_a_subprocess", "causa": "ENTORNO-UVICORN-AUSENTE (subprocess)", "clasificacion": "ENV", "estado": "VERIFIED_OBSERVED", "mensaje": "AssertionError: el subproceso fallo: ModuleNotFoundError: No module named 'uvicorn'"},
+    {"test_id": "tests.unit.test_lottery::test_cli_lottery_output_is_compatible_with_windows_cp1252", "causa": "ENTORNO-ENCODING: cp1252 no existe en Linux", "clasificacion": "ENV", "estado": "VERIFIED_OBSERVED", "mensaje": "subprocess.CalledProcessError: criba.cli lottery con PYTHONIOENCODING=cp1252 falla en Linux"},
+    {"test_id": "tests.unit.test_lottery::test_associative_seed_is_reproducible_across_hash_seeds", "causa": "ENTORNO-ENCODING o lottery: subprocess CalledProcessError (ver stdout del test en Windows: pasa local)", "clasificacion": "ENV_INFERRED", "estado": "INFERRED", "mensaje": "subprocess.CalledProcessError: LotteryEngine con PYTHONHASHSEED variable"},
+    {"test_id": "tests.integration.test_m2_vertical_slice_e2e::test_real_state_is_actually_visible_not_just_written", "causa": "ENTORNO-VENV-WINDOWS", "clasificacion": "ENV", "estado": "VERIFIED_OBSERVED", "mensaje": "failed on setup with OSError: [Errno 8] Exec format error: '/workspace/supra/.venv/Scripts/python.exe'"},
+    {"test_id": "tests.integration.test_m2_vertical_slice_e2e::test_blocked_is_shown_as_blocked_not_as_success", "causa": "ENTORNO-VENV-WINDOWS", "clasificacion": "ENV", "estado": "VERIFIED_OBSERVED", "mensaje": "failed on setup with OSError: [Errno 8] Exec format error: '/workspace/supra/.venv/Scripts/python.exe'"},
+    {"test_id": "tests.integration.test_m2_vertical_slice_e2e::test_displayed_interpretation_crosses_real_button_tcp_and_restart", "causa": "ENTORNO-VENV-WINDOWS", "clasificacion": "ENV", "estado": "VERIFIED_OBSERVED", "mensaje": "OSError: [Errno 8] Exec format error: '/workspace/supra/.venv/Scripts/python.exe'"},
+    {"test_id": "tests.integration.test_m2_vertical_slice_e2e::test_persisted_state_survives_a_server_restart", "causa": "ENTORNO-VENV-WINDOWS", "clasificacion": "ENV", "estado": "VERIFIED_OBSERVED", "mensaje": "failed on setup with OSError: [Errno 8] Exec format error: '/workspace/supra/.venv/Scripts/python.exe'"},
+    {"test_id": "tests.integration.test_m2_vertical_slice_e2e::test_interpretation_diagnostics_survive_real_transport_and_restart", "causa": "ENTORNO-VENV-WINDOWS", "clasificacion": "ENV", "estado": "VERIFIED_OBSERVED", "mensaje": "OSError: [Errno 8] Exec format error: '/workspace/supra/.venv/Scripts/python.exe'"},
+    {"test_id": "tests.integration.test_m2_vertical_slice_e2e::test_slice_reads_real_state_back_into_the_interface_persisted", "causa": "ENTORNO-VENV-WINDOWS", "clasificacion": "ENV", "estado": "VERIFIED_OBSERVED", "mensaje": "failed on setup with OSError: [Errno 8] Exec format error: '/workspace/supra/.venv/Scripts/python.exe'"},
+    {"test_id": "tests.integration.test_m2_vertical_slice_e2e::test_slice_reads_real_state_back_into_the_interface", "causa": "ENTORNO-VENV-WINDOWS", "clasificacion": "ENV", "estado": "VERIFIED_OBSERVED", "mensaje": "failed on setup with OSError: [Errno 8] Exec format error: '/workspace/supra/.venv/Scripts/python.exe'"}
+  ],
+  "SEGFAULT_QT": {
+    "observado": "rc=-11 (SIGSEGV) con seed 2 y 12345 sin -e install; con -e install reaparece con seed 1",
+    "estado": "VERIFIED_OBSERVED (rc), CAUSA_NO_AISLADA",
+    "hipotesis_no_verificada": "Qt se carga de verdad cuando criba queda importable; offscreen reduce pero no elimina",
+    "proximo_paso": "aislar con pytest_file por archivo GUI hasta el test exacto; QT_QPA_PLATFORM=minimal o xvfb-run como alternativas a medir"
+  },
+  "fixes_ya_aplicados_en_runner": [
+    "types-PyYAML en imagen (mypy PASS)",
+    "libs Qt (libgl1, libglib2.0-0, libfontconfig1, mesa-vulkan-drivers, libegl1, libxkbcommon0, libdbus-1-3)",
+    "deps Python: PyYAML, hypothesis, mutmut, jsonschema, pytest-qt, pytest-timeout, pytest-cov, uvicorn>=0.30",
+    "git en apt_install (pendiente verificar en proxima corrida: fixes de esta corrida aun no validados juntos)",
+    "QT_QPA_PLATFORM=offscreen",
+    "parametro --seed; JUnit XML parseado a failures[] (evidencia machine-readable)",
+    "pip install -e en runtime (no en build)"
+  ],
+  "gates_vigentes": {
+    "gate_windows_full": "AUTORITATIVO - suite local Windows con venv del proyecto",
+    "gate_modal_mypy": "PASS (167 source files)",
+    "gate_modal_pytest_linux": "EXPERIMENTAL - 25 fallos de entorno documentados; NO verde",
+    "gate_modal_smoke": "POR_CREAR - probe_paths existe; falta smoke de imports/Qt offscreen/arranque CRIBA-SUPRA"
+  },
+  "BLACKFORGE": "HARD_PAUSE respetado: no inicializado, sin key, sus tests no bloquean producto activo"
+}

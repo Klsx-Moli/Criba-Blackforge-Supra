@@ -55,7 +55,7 @@ def test_real_thread_race_has_single_winner(tool, tmp_path):
         tool.STATE_PATH = state
         barrier = threading.Barrier(2, timeout=10)
 
-        def worker(index: int) -> bool:
+        def worker(index: int, barrier: threading.Barrier = barrier) -> bool:
             barrier.wait()
             return tool.acquire_lock("CRIBA", "src/criba/engine.py", f"h{index}", "r")
 

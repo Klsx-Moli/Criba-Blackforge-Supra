@@ -1,0 +1,31 @@
+# Normalización de finales de línea en el índice (misma convención que
+# criba-blackforge/.gitattributes).
+#
+# Motivo verificado: con core.autocrlf=true los .sh se materializarían con CRLF
+# en el checkout, y un script POSIX con CRLF falla en Linux (`\r: command not
+# found`). Los gates de CI y los hooks de pre-commit invocan estos scripts con
+# `sh`, así que deben conservar LF en el índice y en el checkout.
+*.sh text eol=lf
+.gitattributes text eol=lf
+*.py text eol=lf
+*.yaml text eol=lf
+*.yml text eol=lf
+*.json text eol=lf
+*.md text eol=lf
+*.lock text eol=lf
+*.spec text eol=lf
+*.ps1 text eol=crlf
+*.bat text eol=crlf
+
+# Excepción posterior (2026-11-21): preservar exclusivamente los bytes del
+# corpus citado, sin conversión de EOL. `-text` sobre estas rutas concretas
+# desactiva la normalización SOLO para ellas; la política global de arriba sigue
+# vigente para todo lo demás.
+#
+# Motivo: estos ficheros son FUENTE literal citada. Cualquier cambio de bytes
+# (CRLF <-> LF) altera el hash del documento citado y rompe la trazabilidad de
+# la cita. No es una excepción de estilo: es integridad de la fuente.
+docs/continuity/00_SOURCE_MEGAPROMPT_ASTRA6_literal.md -text
+docs/continuity/01_SOURCE_RESPUESTAS_DISENO_literal.md -text
+docs/continuity/02_SOURCE_MANDATO_MAESTRO_v2_literal.md -text
+docs/continuity/60_MEGA_PROMPT_CBS_v3.md -text

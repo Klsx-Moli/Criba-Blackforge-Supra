@@ -29,7 +29,16 @@ def test_criba_engine_does_not_import_blackforge_on_load():
     import pathlib
     engine_path = pathlib.Path(__file__).resolve().parents[2] / "src" / "criba" / "engine.py"
     source = engine_path.read_text(encoding="utf-8")
-    assert "blackforge" not in source, "cribra/engine.py must not reference blackforge"
+    # Check for actual blackforge imports, not just the substring "blackforge"
+    # (domain="criba_blackforge" is a SUPRA domain identifier, not an import)
+    import re
+    # Match import statements that reference blackforge modules
+    bf_import_pattern = re.compile(
+        r'^\s*(from\s+criba\.blackforge|import\s+criba\.blackforge)',
+        re.MULTILINE
+    )
+    assert not bf_import_pattern.search(source), \
+        "cribra/engine.py must not import blackforge modules"
     # The already-imported engine module must not carry a blackforge submodule
     # in its namespace.
     for name, val in vars(engine).items():

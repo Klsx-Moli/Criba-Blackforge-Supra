@@ -1,0 +1,22 @@
+# Pre-commit hooks for EEIMC-001 compliance
+repos:
+  - repo: local
+    hooks:
+      - id: eeimc-001-policy-presence
+        name: EEIMC-001 Policy Presence Check
+        entry: scripts/check_eeimc_policy.sh
+        language: system
+        pass_filenames: false
+        always_run: true
+      - id: eeimc-001-state-check
+        name: EEIMC-001 State Reconciliation Check
+        entry: scripts/check_eeimc_state.sh
+        language: system
+        pass_filenames: false
+        always_run: true
+      - id: eeimc-001-secrets
+        name: EEIMC-001 Secret Detection
+        entry: scripts/check_eeimc_secrets.sh
+        language: system
+        pass_filenames: false
+        always_run: true

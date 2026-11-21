@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import sys
 import threading
 import time
 from collections.abc import Iterator
@@ -29,7 +30,7 @@ def _interprocess_file_lock(path: Path) -> Iterator[None]:
             handle.flush()
         handle.seek(0)
 
-        if os.name == "nt":
+        if sys.platform == "win32":
             import msvcrt
 
             while True:
@@ -46,11 +47,11 @@ def _interprocess_file_lock(path: Path) -> Iterator[None]:
         else:
             import fcntl
 
-            fcntl.flock(handle.fileno(), fcntl.LOCK_EX)  # type: ignore[attr-defined]
+            fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
             try:
                 yield
             finally:
-                fcntl.flock(handle.fileno(), fcntl.LOCK_UN)  # type: ignore[attr-defined]
+                fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
 
 
 class ObserverStore:

@@ -44,13 +44,16 @@ def test_validate_accepts_metadata_only_commit_ahead(tmp_path: Path, monkeypatch
         "dirty_files": [],
         "is_repo": True,
     })
-    monkeypatch.setattr(
-        tool,
-        "_git",
-        lambda _repo, *args: ".hermes/iie/STATE.json\n" if args == (
-            "diff", "--name-only", "code-commit..HEAD"
-        ) else "",
-    )
+    def git_result(_repo, *args):
+        if args == ("rev-parse", "--verify", "code-commit^{commit}"):
+            return "code-commit"
+        if args == ("merge-base", "code-commit", "HEAD"):
+            return "code-commit"
+        if args == ("diff", "--name-only", "code-commit..HEAD"):
+            return ".hermes/iie/STATE.json\n"
+        return ""
+
+    monkeypatch.setattr(tool, "_git", git_result)
 
     assert tool.validate() == 0
     assert "STATE_METADATA_AHEAD" in capsys.readouterr().out

@@ -12,7 +12,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 import pytest
 
-from criba.intelligence.contracts import EvidenceDocument
+from criba.intelligence.contracts import EvidenceDocument, SourceQueryResult
 from criba.intelligence.sources import (
     ArxivSource,
     ClinicalTrialsSource,

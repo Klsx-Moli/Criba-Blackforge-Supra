@@ -3,26 +3,30 @@
   "project": "CRIBA-BLACKFORGE-SUPRA-IIE",
   "master_blueprint_version": "1.0 + ADDENDUM-SECTORIZATION + ADDENDUM-T001-T130",
   "baseline": {
-    "repo": "C:/Users/KLSX/Music/INNOVATIONS/ACTIVE/CRIBA",
-    "branch": "feat/iie-master",
-    "commit": "05d69c3fbafe89202487ed5ab7c0ea0ccac8c087",
-    "tag": "pre-iie-baseline"
+    "repo": "C:/ASTRA_WORK/Criba-Blackforge-Supra",
+    "branch": "integrate/shadow-supra-final",
+    "commit": "80e09f6",
+    "tag": "shadow-supra-final-integration"
   },
   "current": {
-    "phase": "P10",
-    "task": "P10-T09",
-    "subtask": "PriorArtVerdictEngine",
-    "status": "VERIFIED",
-    "started_at": "2026-09-04T18:30:00+02:00",
-    "last_updated": "2026-09-05T00:28:47+02:00"
+    "phase": "P11",
+    "task": "P11-T02",
+    "subtask": "ScoreProvenance",
+    "status": "IN_PROGRESS",
+    "started_at": "2026-10-17T12:00:00+02:00",
+    "last_updated": "2026-10-17T12:00:00+02:00",
+    "reconciled_from": "80e09f6",
+    "reconciliation_note": "Estado reconciliado desde integrate/shadow-supra-final @ 80e09f6. feat/iie-master @ bca2bb1 es ancestro verificado. BLACKFORGE reactivado e integrado con autorización del usuario. Progreso P10-T01..T10 VERIFIED."
   },
   "last_good_state": {
-    "commit": "10e1dcc7a30da228ef7992c88beffe9bd47cfca2",
-    "phase": "P10",
-    "task": "P10-T06",
+    "commit": "80e09f6",
+    "phase": "P11",
+    "task": "P11-T02",
     "tests": [
-      "P10-T06 targeted ProductScout tests: 3 passed (journal evidence)",
-      "HEAD 10e1dcc verified by git show as the P10-T06 ProductScout commit"
+      "BLACKFORGE: 81 passed",
+      "Interpreter bug fix + error_kind regression: 5 passed",
+      "SUPRA cross-thread signal regression: 1 passed",
+      "Suite completa CRIBA: 1265 passed, 0 failed"
     ]
   },
   "completed_phases": [
@@ -183,11 +187,14 @@
     "DOC_AUDIT-2026-09-04: 1.908 archivos de texto/control inventariados (298 MD, 53 TXT, 1.476 JSON, 12 YAML, 17 YML, 38 PS1, 1 SH, 13 BAT); 334 contenidos únicos, 549 grupos duplicados, 31 referencias históricas de rutas antiguas y 3 bajo ACTIVE; 11 técnicas T001-T130 IMPLEMENTED y 119 PLANNED; rutas ejecutables activas corregidas solo en dossiers/scripts canónicos. WORK/00-08 es espejo no autoritativo.",
     "P10-T07-CONTRACT-2026-09-04: CrossDomainScout produce evidencia por fuente, no analogías semánticas ni veredictos; exige dos KIND distintos, source_id únicos, budget de transporte global, orden estable y fallos parciales explícitos.",
     "P10-T07-HANDOFF-2026-09-04: validate_downstream_handoff rechaza fail-closed ausencia, rechazo y contradicción de Skeptic/verdict; no equivale a integración productiva porque los consumidores P10-T08/P10-T09 no existen en el árbol.",
-    "P10-T08-2026-09-05: PriorArtSkeptic es una pasada determinista de integridad/cobertura de evidencia, JSON-safe y Mapping-compatible con el guard T07; gaps por fallo, fuente vacía o procedencia ausente producen requires_experiment sin emitir PriorArtVerdict. P10-T09 conserva la decisión final."
+    "P10-T08-2026-09-05: PriorArtSkeptic es una pasada determinista de integridad/cobertura de evidencia, JSON-safe y Mapping-compatible con el guard T07; gaps por fallo, fuente vacía o procedencia ausente producen requires_experiment sin emitir PriorArtVerdict. P10-T09 conserva la decisión final.",
+    "STATE-RECONCILIATION-2026-10-20: E6 resuelto. open_questions afirmaba que P10-T09 no existe; VERIFICADO EN CONTRA: src/criba/intelligence/prior_art/verdict.py y skeptic.py commiteados en 91246df, con 8 y 6 tests que pasan. El handoff T07 a T08 a T09 a T10 está cubierto por ejecución en test_prior_art_mutation_loop.py. El texto erróneo se corrigió conservando la trazabilidad en esta entrada.",
+    "STATE-RECONCILIATION-2026-10-20-T07: E9 resuelto. El journal P10-T07.json declaraba PARTIAL con contract/blockers/open_questions null. VERIFICADO EN CONTRA: el contrato está en docs/architecture/adr/ADR-P10-T07-cross-domain-contract.md y hay 17 tests que pasan, incluidos 6 de handoff a T08/T09. El journal queda como HISTORICO; el estado vigente se apoya en el ADR y en la ejecución.",
+    "STATE-RECONCILIATION-2026-10-20-CONTINUITY: E8 resuelto. CONTINUITY.md (2026-09-05) declaraba P10-T07 PARTIAL y P10-T09 NOT_STARTED; ambos están commiteados y probados. El documento se marca OBSOLETO respecto a P10 y se conserva como histórico; no se reescribe su contenido original."
   ],
   "open_questions": [
     "NEON-ARCH-AUDIT: audit existing persistence/CLI/configuration and choose the provider-neutral PostgreSQL adapter boundary before any Neon integration or dependency install.",
-    "HIGH_REVIEW/SECOND_PASS-P10-T07: el contrato local de evidencia cross-domain, IDs duplicados, budget global, orden estable y fallos parciales está documentado y probado; P10-T08 Skeptic ya existe y está verificado localmente, pero P10-T09 verdict engine aún no existe y falta el handoff completo."
+    "HIGH_REVIEW/SECOND_PASS-P10-T07: RESUELTO el 2026-10-20. El contrato local de evidencia cross-domain, IDs duplicados, budget global, orden estable y fallos parciales está documentado y probado (17 tests en tests/intelligence/test_cross_domain_scout.py). P10-T08 Skeptic y P10-T09 verdict engine SI existen y están commiteados (91246df); el handoff T07 a T08 a T09 a T10 está cubierto por ejecución en tests/intelligence/test_prior_art_mutation_loop.py. Este texto afirmaba que P10-T09 no existía: era incorrecto."
   ],
   "known_debt": [
     "uuid4 en engine.py:1015 (PR-0 pendiente, preexistente, fuera de alcance IIE)"

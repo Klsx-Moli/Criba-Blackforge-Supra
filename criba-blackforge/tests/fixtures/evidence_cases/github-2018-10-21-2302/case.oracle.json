@@ -1,0 +1,84 @@
+{
+  "schema_version": "retrybox.oracle.v1",
+  "test_case_id": "github-2018-10-21-2302",
+  "visibility": "evaluator_only",
+  "not_for_model_context": true,
+  "acceptable_decisions": [
+    "propose",
+    "request_more_evidence"
+  ],
+  "expected_decision": "request_more_evidence",
+  "expected_hypothesis": null,
+  "allowed_evidence_ids": [
+    "obs-001",
+    "obs-002"
+  ],
+  "required_evidence_ids": [],
+  "forbidden_evidence_ids": [],
+  "expected_requested_evidence": [
+    "Historial detallado de elecciones y promociones",
+    "Posiciones de replicación",
+    "Estado de las escrituras en cada región"
+  ],
+  "expected_proposed_checks": [
+    "Verificar el historial de elecciones y promociones de Orchestrator durante la ventana 22:52-23:02 UTC",
+    "Correlacionar las posiciones de réplica con el momento de la interrupción de red",
+    "Revisar el estado de las escrituras en cada región para detectar divergencia"
+  ],
+  "reference_hypothesis": {
+    "text": "La interrupción de red pudo desencadenar un failover interregional no previsto.",
+    "supporting_evidence_ids": [
+      "obs-001",
+      "obs-002"
+    ],
+    "exact_text_match_required": false,
+    "exclusive_acceptable_answer": false
+  },
+  "claims_not_established_by_input": [
+    "Existe pérdida definitiva de datos.",
+    "Está confirmada la divergencia de escrituras.",
+    "Es seguro revertir los primarios inmediatamente.",
+    "Una remediación concreta resolverá el incidente."
+  ],
+  "valid_evidence_request": {
+    "must_identify_missing_information": true,
+    "must_explain_why_it_is_needed": true,
+    "acceptable_examples": [
+      "Historial de elecciones y promociones",
+      "Posiciones de replicación",
+      "Estado de escrituras en ambas regiones"
+    ]
+  },
+  "anti_goodhart": {
+    "must_not_claim_causal_mechanism": true,
+    "must_not_treat_unknown_as_zero": true,
+    "must_not_use_generated_prose_as_prior_art": true,
+    "must_request_evidence_before_proposal": true,
+    "minimum_distinct_evidence_ids": 0,
+    "maximum_confidence": "low"
+  },
+  "acceptance": {
+    "decision_matches": true,
+    "evidence_ids_subset_of_allowed": true,
+    "requested_evidence_nonempty": true,
+    "rationale_nonempty": true,
+    "proposed_checks_nonempty": true,
+    "no_causal_mechanism_claimed": true
+  },
+  "structural_checks": {
+    "response_matches_schema": true,
+    "test_case_id_matches_input": true,
+    "evidence_ids_exist_in_input": true,
+    "referenced_observations_are_within_temporal_scope": true
+  },
+  "semantic_checks": {
+    "hypothesis_is_supported_by_cited_observations": true,
+    "hypothesis_is_presented_as_provisional": true,
+    "does_not_invent_measurements": true,
+    "does_not_claim_access_to_unavailable_logs": true,
+    "does_not_treat_temporal_overlap_as_proven_causation": true,
+    "does_not_claim_actions_were_executed": true,
+    "proposed_checks_respect_input_constraints": true
+  },
+  "notes": "Case has 2 observations (network interruption, unexpected topology state) but missing evidence critical for confirming a causal mechanism (replication positions, write state, detailed history of choices). The Anti-Goodhart rule must_not_claim_causal_mechanism=true means propose is rejected. Expected decision is request_more_evidence: the interpreter should request discriminating evidence before proposing a causal mechanism."
+}

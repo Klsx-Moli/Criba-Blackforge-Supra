@@ -5,8 +5,8 @@ provenance_note: reg_parts es canon; blueprint §72 es evidencia histórica (17 
   documentadas por técnica). Nada de este archivo redefine status del canon.
 summary:
   total: 130
-  implemented: 29
-  planned: 98
+  implemented: 31
+  planned: 95
   mapped_only_planned: 3
   canonical_gaps: 3
 fichas:
@@ -1277,19 +1277,21 @@ fichas:
   - P09
   pipelines:
   - INVENTION
-  status: PLANNED
-  implementation: null
-  runtime_operator: null
-  integration_path: null
-  input_contracts: []
-  output_contracts: []
+  status: IMPLEMENTED
+  implementation: criba.intelligence.invention.recombination.recombine_technologies
+  runtime_operator: recombination.recombine_technologies
+  integration_path: criba tecnicas --ejecutar (execution.py)
+  input_contracts:
+  - documents: Sequence[EvidenceDocument]
+  - limit: int = 20
+  output_contracts:
+  - list[InventionCandidate]
   tests:
-  - test_t054_technological_recombination
-  provenance: reg_parts → gen_registry.py (canon)
+  - test_t054_proposes_only_from_explicit_technology_metadata
+  provenance: reg_parts → gen_registry.py (canon) + gen_registry.py IMPLEMENTATION_OVERRIDES
   gap: null
-  remaining_gap: implementación no materializada — construcción nueva requerida (dimensionar
-    por EV)
-  falsifier: null
+  remaining_gap: consumer productivo en loop invent (decisión de arquitectura vigente)
+  falsifier: combinar tecnologías no declaradas explícitamente
 - id: T055
   canonical_requirement: Cross-domain analogy
   blueprint_72_name: Cross-domain analogy
@@ -1450,19 +1452,21 @@ fichas:
   - P09
   pipelines:
   - INVENTION
-  status: PLANNED
-  implementation: null
-  runtime_operator: null
-  integration_path: null
-  input_contracts: []
-  output_contracts: []
+  status: IMPLEMENTED
+  implementation: criba.intelligence.invention.recombination.substitute_attributes
+  runtime_operator: recombination.substitute_attributes
+  integration_path: criba tecnicas --ejecutar (execution.py)
+  input_contracts:
+  - documents: Sequence[EvidenceDocument]
+  - limit: int = 20
+  output_contracts:
+  - list[InventionCandidate]
   tests:
-  - test_t061_attribute_substitution
-  provenance: reg_parts → gen_registry.py (canon)
+  - test_t061_proposes_only_from_explicit_attribute_metadata
+  provenance: reg_parts → gen_registry.py (canon) + gen_registry.py IMPLEMENTATION_OVERRIDES
   gap: null
-  remaining_gap: implementación no materializada — construcción nueva requerida (dimensionar
-    por EV)
-  falsifier: null
+  remaining_gap: consumer productivo en loop invent (decisión de arquitectura vigente)
+  falsifier: sustituir atributos no declarados explícitamente
 - id: T062
   canonical_requirement: Functional decomposition
   blueprint_72_name: Functional decomposition

@@ -110,10 +110,21 @@ tasa (sin red en los tests de CI).
 ## Desarrollo
 
 ```bash
-uv run pytest -q            # 866 tests
+uv run pytest -q            # suite completa del árbol vivo
 uv run mypy src/criba       # tipado estricto sobre el motor
 uv run ruff check src       # lint
 ```
+
+Benchmarks de innovación (funcionales, no científicos):
+
+```bash
+uv run python benchmarks/innovation/run_dual_domains_smoke.py
+```
+
+El smoke ejecuta A_DIRECT/B_STRONG_PROMPT con un stub determinista y C_CRIBA /
+D_BLACKFORGE con sus motores reales locales. Valida schema, runner y métricas;
+**no** concluye superioridad sobre un modelo. La evaluación de valor sigue
+siendo `scripts/evaluate_product_value.py` con revisiones ciegas declaradas.
 
 Las contribuciones son bienvenidas — ver [CONTRIBUTING](./CONTRIBUTING.md) y la
 [política de seguridad](./SECURITY.md). Los releases se construyen desde tags y se

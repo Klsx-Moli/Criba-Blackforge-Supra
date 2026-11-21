@@ -119,10 +119,15 @@ def test_associative_seed_is_reproducible_across_hash_seeds(tmp_path: Path) -> N
     )
 
     outputs = []
+    source_root = str(Path(__file__).resolve().parents[2] / "src")
     for hash_seed in ("1", "987654"):
         env = os.environ.copy()
         env["PYTHONHASHSEED"] = hash_seed
         env["PYTHONIOENCODING"] = "utf-8"
+        existing_path = env.get("PYTHONPATH")
+        env["PYTHONPATH"] = (
+            source_root + os.pathsep + existing_path if existing_path else source_root
+        )
         completed = subprocess.run(
             [sys.executable, "-c", program, str(methods_file)],
             check=True,
@@ -192,6 +197,11 @@ def test_cli_lottery_output_is_compatible_with_windows_cp1252(tmp_path: Path) ->
     methods_file.write_text(json.dumps(_methods()), encoding="utf-8")
     env = os.environ.copy()
     env["PYTHONIOENCODING"] = "cp1252"
+    source_root = str(Path(__file__).resolve().parents[2] / "src")
+    existing_path = env.get("PYTHONPATH")
+    env["PYTHONPATH"] = (
+        source_root + os.pathsep + existing_path if existing_path else source_root
+    )
 
     completed = subprocess.run(
         [

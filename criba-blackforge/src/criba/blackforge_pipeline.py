@@ -75,7 +75,10 @@ def run_headless(
         return {
             "schema": PACKET_SCHEMA,
             "schema_version": PACKET_VERSION,
+            "activation_id": str(uuid.uuid4()),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "query": query,
+            "session_id": session_id,
             "selection": sel.to_dict(),
             "ideas": [],
             "status": "SELECTION_FAILED",

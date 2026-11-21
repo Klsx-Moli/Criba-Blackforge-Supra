@@ -16,6 +16,7 @@ import json
 import os
 import warnings
 from collections.abc import Callable
+from copy import deepcopy
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, TypeGuard
@@ -84,7 +85,9 @@ def _entry_desde_idea(idea: dict[str, Any], problema: str) -> dict[str, Any]:
     The epistemology is preserved end to end: the engine marks its own output
     ``MECHANISM_PROPOSED_UNVALIDATED``, the dossier keeps
     ``SUPRA_EJECUCION_PENDIENTE`` and the protocol keeps ``NO_EJECUTADA``. What
-    this function adds is a *declared, falsifiable* test — never a result.
+    this function adds is a *declared representation-level* protocol — never
+    a result or proof of relevance to the user's objective. Axis changes are
+    not by themselves observations of functional behaviour.
     """
     moves = _axis_moves(idea)
     causal_variables = idea.get("causal_variables")
@@ -105,6 +108,7 @@ def _entry_desde_idea(idea: dict[str, Any], problema: str) -> dict[str, Any]:
 
     return {
         "candidate_id": _text(idea, "id", 256),
+        "interpretacion_provenance": {"interpreter_backend": "deterministic_core"},
         "claim_id": None,
         "hipotesis": hipotesis,
         "mecanismo": _text(idea, "mechanism_causal", 2000),
@@ -309,8 +313,35 @@ def preparar_dossier(
         protocol_version = raw_protocol_version
     delivered = list(entry.get("evidence_delivered", entry.get("evidencia_local_usada", [])))
     documented = list(entry.get("evidence_documented_as_used", []))
+    raw_provenance = entry.get("interpretacion_provenance")
+    provenance = dict(raw_provenance) if isinstance(raw_provenance, dict) else {}
+    if "cross_operational_records" in entry:
+        provenance["cross_operational_records"] = deepcopy(entry["cross_operational_records"])
+    limitations: list[str] = []
+    # Exact relational failures are detectable; general semantic relevance is
+    # not established by a JSON schema, self-assertion, or lexical overlap.
+    def normalize(value: object) -> str:
+        return " ".join(str(value).split()).casefold()
+
+    if normalize(alternativa) == normalize(claim) and normalize(claim):
+        limitations.append("RIVAL_RESTATES_HYPOTHESIS")
+    if normalize(resultado_mecanismo) == normalize(resultado_alternativa):
+        limitations.append("PREDICTIONS_NOT_DISTINCT")
+    if not (entry.get("observable") or declarada.get("metrica") or entry.get("metrica")):
+        limitations.append("NO_DECLARED_OBSERVABLE")
+    deterministic = provenance.get("interpreter_backend") == "deterministic_core"
+    if deterministic:
+        limitations.append("REPRESENTATION_ONLY_NOT_FUNCTIONAL_TEST")
+    provenance["planning_assessment"] = {
+        "objective_sha256": hashlib.sha256(problema.encode("utf-8")).hexdigest(),
+        "content_origin": "GENERATED_DETERMINISTIC" if deterministic else "DECLARED_UNVERIFIED",
+        "relevance_status": "UNKNOWN",
+        "discriminant_status": "UNKNOWN",
+        "semantic_validation": "NOT_VALIDATED",
+        "limitations": limitations,
+    }
     interpretacion = {
-        "provenance": entry.get("interpretacion_provenance") or {},
+        "provenance": provenance,
         "critica": entry.get("critica") or {},
         "evidencia_citada": entry.get("evidencia_citada") or [],
         "conocimiento_previo": entry.get("conocimiento_previo") or [],
@@ -343,7 +374,7 @@ def guardar_dossier(dossier: dict[str, Any], directory: Path | None = None) -> P
     directory = _dossiers_dir(directory)
     path = directory / "dossiers.jsonl"
     identity = dossier.get("dossier_id")
-    if not isinstance(identity, str) or not identity.strip():
+    if not _exact_identity_text(identity):
         raise ValueError("dossier_id es obligatorio")
     if dossier.get("tipo") == "resultado_observado":
         raise ValueError("usar registrar_resultado para observaciones")
@@ -365,9 +396,9 @@ def cargar_dossier(
     directory: Path | None = None,
 ) -> dict[str, Any] | None:
     """Load one unambiguous local dossier by identity."""
-    identity = dossier_id.strip()
-    if not identity:
-        raise ValueError("dossier_id es obligatorio")
+    if not _exact_identity_text(dossier_id):
+        raise ValueError("dossier_id debe ser texto exacto no vacío")
+    identity = dossier_id
     path = _dossiers_dir(directory) / "dossiers.jsonl"
     dossiers, ambiguos, _ = _leer_historial(path)
     if identity in ambiguos:

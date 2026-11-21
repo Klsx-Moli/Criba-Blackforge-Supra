@@ -359,10 +359,20 @@ def _build() -> dict[str, dict[str, Any]]:
     return specs
 
 
-FAMILY_SPECS: dict[str, dict[str, Any]] = _build()
+# Lazy loading: _build() imports _OPERATOR_EFFECT from engine.py, which imports
+# causal_model.py. To avoid circular import, FAMILY_SPECS starts empty and is
+# populated on first access via get_family_spec().
+FAMILY_SPECS: dict[str, dict[str, Any]] = {}
+
+
+def _ensure_family_specs() -> None:
+    """Populate FAMILY_SPECS lazily on first access."""
+    if not FAMILY_SPECS:
+        FAMILY_SPECS.update(_build())
 
 
 def get_family_spec(family: str) -> dict[str, Any]:
+    _ensure_family_specs()
     if family in FAMILY_SPECS:
         return FAMILY_SPECS[family]
     return {"operator": Operator.OPTIMIZE, "target": "parameter", "primary_axis": AX06_EVIDENCIA,

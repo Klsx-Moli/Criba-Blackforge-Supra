@@ -11,10 +11,16 @@ def test_runtime_catalog_loads_every_approved_source_without_id_collisions() -> 
     catalog = methods()
     ids = [str(item["id"]) for item in catalog]
 
-    assert len(catalog) == 7_201
+    # Preserve the legacy contract independently of the approved new records;
+    # an added operator must not compensate for a missing legacy method.
+    assert len([item for item in catalog if "operator_record" not in item]) == 7_201
+    assert len(catalog) == 7_228
     assert len(ids) == len(set(ids))
 
     sources = Counter(str(item.get("source")) for item in catalog)
+    assert {name: sources[name] for name in ("triz_koestler", "a3", "a4")} == {
+        "triz_koestler": 8, "a3": 9, "a4": 10,
+    }
     assert sources["escape_1030_master"] == 30
     assert sources["foundational_methods"] == 66
     assert (

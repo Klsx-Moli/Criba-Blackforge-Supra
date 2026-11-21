@@ -30,6 +30,11 @@ SUBS = {
 # y tests fueron RESTAURADOS desde cbac469~1 el 2026-09-08 (commit de
 # restauracion); toda IMPLEMENTED se verifica contra codigo y tests reales
 # en tests/intelligence/test_technique_runtime_traceability.py.
+#
+# Canon: solo técnicas con capability proof §79 + attestation A2/A3 en
+# assurance_ledger.json pasan de PLANNED a ejecutable (execution.py:366).
+# T054/T061 quedan PLANNED hasta attestation (canon 2026-09-08.3: 0/130 IMPLEMENTED).
+# El handler resoluble en _INPUT_ADAPTERS no implica ejecución productiva.
 IMPLEMENTATION_OVERRIDES = {
     "T053": {
         "implementation": "criba.intelligence.invention.rare_combinations.detect_rare_combinations",
@@ -37,6 +42,9 @@ IMPLEMENTATION_OVERRIDES = {
         "output_contracts": ["list[InventionCandidate]"],
         "tests": ["test_rare_combinations_are_deterministic_and_explicitly_corpus_local"],
     },
+    # T054/T061: handler resoluble en _INPUT_ADAPTERS pero estado canónico
+    # PLANNED (canon 2026-09-08.3: 0/130 IMPLEMENTED en assurance_ledger).
+    # execution.py:366 rechaza PLANNED/SHADOW — no se promueve sin attestation A2+ §79.
     "T055": {
         "implementation": "criba.intelligence.invention.cross_domain.detect_cross_domain_analogies",
         "input_contracts": ["Sequence[EvidenceDocument] with metadata.domain and metadata.concepts"],
@@ -290,7 +298,7 @@ for tid, f in rows.items():
         f"  owner: {OWNER[oc]}",
         "  module:",
     ]
-    out += [f"    - criba.intelligence.{m}" for m in module.replace(" ", "").split("+")]
+    out += [f"    - {m if m.startswith('criba.') else f'criba.intelligence.{m}'}" for m in module.replace(" ", "").split("+")]
     out += ["  phase:"] + [f"    - {p}" for p in phases.split("+")]
     out += ["  pipelines:"] + [f"    - {p}" for p in pipelines.replace(" ", "").split("+")]
     out += [

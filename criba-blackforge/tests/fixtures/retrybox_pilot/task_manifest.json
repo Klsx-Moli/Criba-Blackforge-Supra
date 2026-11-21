@@ -1,0 +1,17 @@
+{
+  "task_id": "software-retrybox-001",
+  "benchmark_id": "criba-value-benchmark-v0",
+  "status": "PILOT_ONLY",
+  "participant_visible": [
+    "README_TASK.md",
+    "pyproject.toml",
+    "src/",
+    "tests/test_public.py"
+  ],
+  "held_out": [
+    "evaluator/test_hidden.py"
+  ],
+  "primary_outcome": "all public + held-out tests pass",
+  "interpretation": "This pilot validates benchmark wiring and produces one paired observation. It cannot establish general CRIBA advantage.",
+  "contamination_rule": "Each arm receives a fresh copy of participant_repo only. evaluator/ is not visible until the arm has finalized its patch."
+}

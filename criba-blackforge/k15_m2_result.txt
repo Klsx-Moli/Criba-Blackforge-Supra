@@ -1,0 +1,16 @@
+============================= test session starts =============================
+platform win32 -- Python 3.11.15, pytest-9.1.1, pluggy-1.6.0 -- C:\ASTRA_WORK\Criba-Blackforge-Supra\criba-blackforge\.venv\Scripts\python.exe
+cachedir: .pytest_cache
+hypothesis profile 'default'
+PySide6 6.11.2 -- Qt runtime 6.11.2 -- Qt compiled 6.11.2
+rootdir: C:\ASTRA_WORK\Criba-Blackforge-Supra\criba-blackforge
+configfile: pyproject.toml
+plugins: anyio-4.14.2, hypothesis-6.167.1, cov-7.1.0, qt-4.5.0, timeout-2.4.0
+timeout: 120.0s
+timeout method: thread
+timeout func_only: False
+collecting ... collected 1 item
+
+tests/integration/test_m2_vertical_slice_e2e.py::test_interpretation_diagnostics_survive_real_transport_and_restart PASSED [100%]
+
+============================== 1 passed in 7.44s ==============================

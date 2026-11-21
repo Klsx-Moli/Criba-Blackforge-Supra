@@ -126,6 +126,11 @@ def _inventar_canon_version(adaptive: bool) -> str | None:
 
 def main(argv: Sequence[str] | None = None) -> int:
     """Run the CRIBA command-line interface and return a process exit code."""
+    import sys as _dossier_sys
+    _dossier_argv = _dossier_sys.argv[1:] if argv is None else argv
+    if _dossier_argv and _dossier_argv[0] == "dossier":
+        from .dossier_workflow_cli import main as dossier_main
+        return dossier_main(_dossier_argv[1:])
     parser = argparse.ArgumentParser(
         prog="criba",
         description="CRIBA Current Engine - 3 modos de innovación:\n"
@@ -136,6 +141,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     parser.add_argument("--database", default=None, help="Ruta SQLite (por defecto artifacts/criba.sqlite3)")
     sub = parser.add_subparsers(dest="command", required=True)
+    _dossier_parser = sub.add_parser("dossier", add_help=False,
+                                    help="Dossier: prepare/send/recover/export/import")
+    _dossier_parser.add_argument("workflow_arguments", nargs=argparse.REMAINDER)
 
     def activation(name: str) -> argparse.ArgumentParser:
         command_parser = sub.add_parser(name)
@@ -144,8 +152,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         command_parser.add_argument("--current", default="auto")
         command_parser.add_argument("--mode", default="balanced")
         command_parser.add_argument("--supporting-methods", type=int, default=8)
-        command_parser.add_argument("--llm", choices=["none", "offline", "cloud", "nebius"],
-                                   default="none", help="Modo LLM: none (determinista), offline (Ollama), cloud (API), nebius (Token Factory)")
+        command_parser.add_argument("--llm", choices=["none", "offline", "cloud"],
+                                   default="none", help="Modo LLM: none (determinista), offline (Ollama), cloud (API)")
         command_parser.add_argument("--llm-model", default=None, help="Nombre del modelo LLM")
         command_parser.add_argument("--llm-url", default=None, help="URL del servidor LLM (Ollama: http://localhost:11434)")
         command_parser.add_argument("--llm-api-key", default=None, help="API key para modo cloud")
@@ -327,6 +335,12 @@ def main(argv: Sequence[str] | None = None) -> int:
              "Sin él, evalúa la política uniforme (congelada).",
     )
     args = parser.parse_args(argv)
+    if args.command == "dossier":
+        if args.database is not None:
+            print("Dossier usa --home/CRIBASHADOW_HOME, no --database.", file=_dossier_sys.stderr)
+            return 2
+        from .dossier_workflow_cli import main as dossier_main
+        return dossier_main(args.workflow_arguments)
 
     try:
         if args.command in {"activate", "run"}:
@@ -408,9 +422,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             return 0
 
         if args.command == "inventar":
-            from .inventar import append_ledger, invent, print_sheet, record_outcomes
-
             from .intelligence.refresh import default_store
+            from .inventar import append_ledger, invent, print_sheet, record_outcomes
 
             active_store = _inventar_outcome_store(args.adaptive)
             canon = _inventar_canon_version(args.adaptive)
@@ -480,6 +493,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                 from .intelligence.outcome_store import (
                     CHANNEL_OBSERVED,
                     CHANNEL_VERDICT,
+                )
+                from .intelligence.outcome_store import (
                     default_store as _ostore,
                 )
 
@@ -513,6 +528,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         if args.command == "retro":
             from .intelligence.outcome_store import (
                 CHANNEL_OBSERVED,
+            )
+            from .intelligence.outcome_store import (
                 default_store as _outcome_store,
             )
 
@@ -613,16 +630,44 @@ def main(argv: Sequence[str] | None = None) -> int:
             return 0
 
         if args.command == "gui":
-            from .gui import run
+            if args.database is not None:
+                print(
+                    "--database no es compatible con CRIBA Shadow. "
+                    "Usa CRIBASHADOW_HOME para aislar el estado; "
+                    "no se seleccionara otra SQLite silenciosamente.",
+                    file=sys.stderr,
+                )
+                return 2
+            # CRIBA has ONE user-facing UI: Shadow. Do not silently fall back
+            # to the historic main window when the source checkout/launcher is
+            # absent (e.g. a source-only pip package).
+            import subprocess
 
-            result = run(args.database)
-            return result if isinstance(result, int) else 0
+            launcher = Path(__file__).resolve().parents[2] / "criba_shadow_main.py"
+            if not launcher.is_file():
+                print(
+                    "CRIBA Shadow UI no incluida en este paquete. "
+                    "Ejecuta CribaShadow.exe o abre el monorepo con shadow_ui.",
+                    file=sys.stderr,
+                )
+                return 2
+            return subprocess.run([sys.executable, str(launcher)], check=False).returncode
 
         if args.command in {"blackforge-gui", "blackforge_gui"}:
             from .blackforge_gui import run as run_blackforge_gui
 
-            result = run_blackforge_gui()
-            return result if isinstance(result, int) else 0
+            gui_result = run_blackforge_gui()
+            return gui_result if isinstance(gui_result, int) else 0
+
+        if args.command == "hybrid":
+            from .hybrid import run_hybrid
+
+            packet = {"original_query": args.query, "mode": "criba"}
+            hybrid_result = run_hybrid(
+                packet, enhance_semantics=getattr(args, "enhance_semantics", False)
+            )
+            print(json.dumps(hybrid_result.model_dump(), ensure_ascii=False, indent=2))
+            return 0
     except (ValueError, OSError) as exc:
         print(f"Error: {exc}", file=sys.stderr)
         return 2

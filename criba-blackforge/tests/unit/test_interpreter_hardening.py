@@ -31,8 +31,14 @@ IDEA = {
 
 
 def respuesta(data, *, status=200, model="reportado"):
+    # httpx >= 0.28 exige `request` en Response para poder evaluar el estado:
+    # sin él, raise_for_status() lanza RuntimeError y enmascara el motivo real
+    # (el error de validación que este test comprueba). Se adjunta la petición
+    # para que la respuesta se comporte como una real.
+    request = httpx.Request("POST", "http://test.local/v1/chat/completions")
     return httpx.Response(
         status,
+        request=request,
         json={
             "model": model,
             "choices": [{"finish_reason": "stop", "message": {"content": json.dumps(data)}}],
@@ -55,7 +61,12 @@ def transporte(monkeypatch, responses):
 
         def post(self, url, json=None, headers=None):
             enviados.append((url, json))
-            response = responses[len(enviados) - 1]
+            # Repite la última respuesta cuando se agotan las previstas: el
+            # cliente real reintenta los errores transitorios (hasta 4 intentos)
+            # y un servidor con un timeout persistente devuelve el mismo fallo
+            # en cada reintento. Sin esto, el fake lanzaba IndexError y
+            # enmascaraba el motivo real del fallo bajo prueba.
+            response = responses[min(len(enviados) - 1, len(responses) - 1)]
             if isinstance(response, Exception):
                 raise response
             return response
@@ -109,13 +120,22 @@ def test_propuesta_y_critica_son_llamadas_distintas_con_procedencia(monkeypatch)
     assert "score" not in result.to_campos()
 
 
+def test_critica_no_duplica_las_preguntas_epistemologicas(monkeypatch):
+    enviados = transporte(monkeypatch, [respuesta(propuesta()), respuesta(critica())])
+    result = oc.OpenAICompatibleInterpreter().proponer("colas", IDEA)
+
+    assert result.es_propuesta, result.error
+    critique_prompt = enviados[1][1]["messages"][1]["content"]
+    assert all(critique_prompt.count(f"[Q{index}]") == 1 for index in range(1, 12))
+
+
 @pytest.mark.parametrize(
     "key,value",
     [
         ("fiel_evidencia", False),
         ("falsable", "true"),
         ("intercambio_tecnicas_generico", True),
-        ("objeciones", ["cita inventada"]),
+        ("objeciones", "cita inventada"),
         ("respuestas_epistemologicas", {"Q1": "factor"}),
         ("score", 0.99),
     ],
@@ -130,6 +150,103 @@ def test_critica_no_aprobatoria_degrada_a_pendiente(monkeypatch, key, value):
     assert result.raw_output and result.critica["raw_output"]
 
 
+def test_critica_con_objeciones_admite_propuesta_con_observaciones(monkeypatch):
+    data = critica()
+    data["objeciones"] = ["La evidencia no sostiene la causalidad."]
+    transporte(monkeypatch, [respuesta(propuesta()), respuesta(data)])
+
+    result = oc.OpenAICompatibleInterpreter().proponer("colas", IDEA)
+
+    assert result.es_propuesta, result.error
+    assert result.critica["evaluation_status"] == "CRITIQUED"
+    assert result.critica["objection_count"] == 1
+    assert result.critica["admitida_con_objeciones"] is True
+    assert result.to_campos()["estado"] == "PROPUESTA"
+
+
+def test_critica_con_objeciones_malformadas_es_invalida(monkeypatch):
+    data = critica()
+    data["objeciones"] = "La evidencia no sostiene la causalidad."
+    transporte(monkeypatch, [respuesta(propuesta()), respuesta(data)])
+
+    result = oc.OpenAICompatibleInterpreter().proponer("colas", IDEA)
+
+    assert not result.es_propuesta
+    assert result.error.startswith("critica_invalida:")
+    assert result.critica["evaluation_status"] == "REJECTED"
+
+
+def test_parametros_de_critica_se_heredan_y_sobrescriben(monkeypatch):
+    monkeypatch.setenv("CRIBA_EXTERNAL_MAX_TOKENS", "8192")
+    monkeypatch.setenv("CRIBA_EXTERNAL_CRITIQUE_MAX_TOKENS", "4096")
+    enviados = transporte(monkeypatch, [respuesta(propuesta()), respuesta(critica())])
+    port = oc.OpenAICompatibleInterpreter(
+        model="p",
+        critic_model="c",
+        reasoning_effort="high",
+        critique_reasoning_effort="low",
+    )
+
+    result = port.proponer("colas", IDEA)
+
+    assert result.es_propuesta, result.error
+    assert enviados[0][1]["max_tokens"] == 8192
+    assert enviados[1][1]["max_tokens"] == 4096
+    assert enviados[1][1]["reasoning_effort"] == "low"
+    assert result.critica["provenance"]["generation_parameters"]["max_tokens"] == 4096
+    assert result.critica["provenance"]["generation_parameters"]["reasoning_effort"] == "low"
+
+
+def test_parametros_de_critica_heredan_y_sobrescriben_todas_las_fases(monkeypatch):
+    monkeypatch.delenv("CRIBA_EXTERNAL_CRITIQUE_MAX_TOKENS", raising=False)
+    monkeypatch.delenv("CRIBA_EXTERNAL_CRITIQUE_TEMPERATURE", raising=False)
+    monkeypatch.delenv("CRIBA_EXTERNAL_CRITIQUE_TIMEOUT_S", raising=False)
+    monkeypatch.delenv("CRIBA_EXTERNAL_CRITIQUE_REASONING_EFFORT", raising=False)
+
+    inherited = oc.OpenAICompatibleInterpreter(
+        model="p",
+        critic_model="c",
+        max_tokens=8192,
+        temperature=0.4,
+        timeout_s=120,
+        reasoning_effort="high",
+    )
+    assert inherited.critique_max_tokens == 8192
+    assert inherited.critique_temperature == 0.4
+    assert inherited.critique_timeout_s == 120
+    assert inherited.critique_reasoning_effort == "high"
+
+    overridden = oc.OpenAICompatibleInterpreter(
+        model="p",
+        critic_model="c",
+        max_tokens=8192,
+        temperature=0.4,
+        timeout_s=120,
+        reasoning_effort="high",
+        critique_max_tokens=2048,
+        critique_temperature=0.1,
+        critique_timeout_s=30,
+        critique_reasoning_effort="low",
+    )
+    assert overridden.critique_max_tokens == 2048
+    assert overridden.critique_temperature == 0.1
+    assert overridden.critique_timeout_s == 30
+    assert overridden.critique_reasoning_effort == "low"
+
+
+def test_critica_malformada_es_critica_invalida(monkeypatch):
+    data = critica()
+    data["respuestas_epistemologicas"] = {"Q1": "factor"}
+    transporte(monkeypatch, [respuesta(propuesta()), respuesta(data)])
+
+    result = oc.OpenAICompatibleInterpreter().proponer("colas", IDEA)
+
+    assert not result.es_propuesta
+    assert result.error.startswith("critica_invalida:")
+    assert result.error_kind == "critique_invalid"
+    assert result.critica["evaluation_status"] == "REJECTED"
+
+
 def test_critica_sin_red_no_aprueba(monkeypatch):
     transporte(monkeypatch, [respuesta(propuesta()), httpx.ReadTimeout("token=secret")])
     result = oc.OpenAICompatibleInterpreter().proponer("colas", IDEA)
@@ -137,6 +254,17 @@ def test_critica_sin_red_no_aprueba(monkeypatch):
     assert result.model_requests == 2
     assert "secret" not in result.error
     assert result.critica["evaluation_status"] == "NOT_EVALUATED"
+
+
+def test_acceptance_budget_mode_does_not_retry_physical_model_requests(monkeypatch):
+    monkeypatch.setenv("CRIBA_ACCEPTANCE_NO_RETRIES", "1")
+    enviados = transporte(monkeypatch, [httpx.ReadTimeout("synthetic timeout")])
+
+    result = oc.OpenAICompatibleInterpreter().proponer("colas", IDEA)
+
+    assert result.error == "timeout"
+    assert result.model_requests == 1
+    assert len(enviados) == 1
 
 
 def test_abstencion_es_explicita_y_no_necesita_relleno(monkeypatch):
@@ -419,6 +547,78 @@ def test_banco_exige_positivos_negativos_y_consistencia():
     assert report["correct_abstention_rate"] == report["consistency_rate"] == 1
     with pytest.raises(ValueError):
         evaluar_banco(proponer, repeticiones=1)
+
+
+def test_banco_cancelado_detiene_llamadas_y_falla_cerrado():
+    calls = 0
+    progress = []
+
+    def cancel_requested():
+        return calls >= 2
+
+    def proponer(*_args):
+        nonlocal calls
+        calls += 1
+        return resultado()
+
+    report = evaluar_banco(
+        proponer,
+        cancel_requested=cancel_requested,
+        progress=progress.append,
+    )
+    assert calls == 2
+    assert report["cancelled"] is True
+    assert report["passed"] is False
+    assert report["completed_attempts"] == 2
+    assert report["total_attempts"] == 8
+    assert [event["completed"] for event in progress] == [1, 2]
+    assert all(event["phase"] == "bank" for event in progress)
+
+
+def test_banco_local_cancelado_no_admite_el_interprete(monkeypatch):
+    monkeypatch.setattr(oc.OpenAICompatibleInterpreter, "operativo", lambda self: (True, "models"))
+    monkeypatch.setattr(
+        oc.OpenAICompatibleInterpreter,
+        "proponer",
+        lambda *args: (_ for _ in ()).throw(AssertionError("cancelled bank sent a request")),
+    )
+    local = oc.LocalLlamaInterpreter(
+        base_url="http://127.0.0.1:8742/v1",
+        model="selected-local-model",
+        cancel_requested=lambda: True,
+    )
+    ready, reason = local.operativo()
+    assert ready is False
+    assert reason == "banco local cancelado; intérprete no admitido"
+    assert local.gate_report is not None
+    assert local.gate_report["cancelled"] is True
+    assert local.gate_report["passed"] is False
+
+
+def test_banco_local_se_ejecuta_una_vez_por_instancia(monkeypatch):
+    progress = []
+    monkeypatch.setattr(oc.OpenAICompatibleInterpreter, "operativo", lambda self: (True, "models"))
+
+    def proponer(_self, query, *_args, **_kwargs):
+        if query == CASOS[0]["query"] or query not in {case["query"] for case in CASOS}:
+            return resultado()
+        return InterpretationResult(
+            estado="PENDIENTE_INTERPRETACION",
+            pertinencia="ABSTENER",
+            error="validacion:abstencion:contraejemplo",
+        )
+
+    monkeypatch.setattr(oc.OpenAICompatibleInterpreter, "proponer", proponer)
+    local = oc.LocalLlamaInterpreter(
+        base_url="http://127.0.0.1:8742/v1",
+        model="selected-local-model",
+        progress=progress.append,
+    )
+    assert local.operativo() == (True, "banco local superado")
+    assert len(progress) == 8
+    for _ in range(3):
+        assert local.proponer("candidate query", IDEA).es_propuesta
+    assert len(progress) == 8
 
 
 def test_local_rechaza_endpoint_remoto_y_no_envia_credenciales(monkeypatch):

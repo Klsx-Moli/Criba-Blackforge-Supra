@@ -1,0 +1,37 @@
+{
+  "mode": "restore",
+  "status": "BUNDLED_RESTORE_PASS",
+  "transport": "REAL_HTTP",
+  "app": "PACKAGED_EXE",
+  "model_calls": "NONE_REQUIRED",
+  "scientific_advantage": "NOT_ESTABLISHED",
+  "desktop_visual_acceptance": "NOT_VERIFIED",
+  "image_initial": {
+    "source": "QWidget.grab (Qt paint buffer, not independent screen capture)",
+    "width": 1920,
+    "height": 991,
+    "sampled_distinct_colors": 85,
+    "sha256": "7aba8e5c5c88aa1d0606f539cab1e87a6871813ab869d7aaa815c8a1ad8888b0",
+    "bytes": 348942,
+    "desktop_visual_acceptance": "NOT_VERIFIED"
+  },
+  "project_id": "astram237a00ffbcd",
+  "http_get_status": 200,
+  "artifact_exists": true,
+  "receipt_execution_status": "NOT_EXECUTED",
+  "receipt_scientific_status": "NOT_VALIDATED",
+  "ui_status_visible": true,
+  "status_in_viewport": true,
+  "side_status_in_viewport": true,
+  "provenance_source": "IN_PROCESS_MEMORY_CACHE",
+  "image_restored": {
+    "source": "QWidget.grab (Qt paint buffer, not independent screen capture)",
+    "width": 1920,
+    "height": 991,
+    "sampled_distinct_colors": 85,
+    "sha256": "7aba8e5c5c88aa1d0606f539cab1e87a6871813ab869d7aaa815c8a1ad8888b0",
+    "bytes": 348942,
+    "desktop_visual_acceptance": "NOT_VERIFIED"
+  },
+  "elapsed_s": 1.01
+}

@@ -232,7 +232,6 @@ def parse_1700_puntos(filepath: Path) -> List[Dict[str, Any]]:
     
     category_map = {
         "Conocimiento, ciencia y realidad": "ciencia_realidad",
-        "Conocimiento, ciencia y realidad": "ciencia_realidad",
         "Filosofía y existencia": "filosofia",
         "Mente, psicología y comportamiento": "psicologia",
         "Cultura, sociedad y poder": "cultura_sociedad",

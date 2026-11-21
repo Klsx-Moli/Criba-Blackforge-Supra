@@ -25,6 +25,23 @@ BACKEND_LOCAL = "local_llama"
 
 DEFAULT_SELECCION = BACKEND_EXTERNO
 
+# Catálogo de modelos gratuitos del proxy Hermes (suscripción Nous).
+# Cada entrada es (id real del modelo, etiqueta para la UI). Se descubrieron
+# por ejecución contra el proxy local (GET /models + POST /chat/completions):
+# los seis respondieron HTTP 200 con contenido; el séptimo (longcat-2.0:free)
+# quedó fuera porque el proveedor lo retiró de free ("This model is no longer
+# free", HTTP 404). La etiqueta no se inventa: es legible y honesta.
+# El modelo se elige por el operador desde el selector de Generación; ninguno
+# se activa por defecto. Sin secretos: el proxy adjunta la credencial.
+FREE_MODELS: tuple[tuple[str, str], ...] = (
+    ("stepfun/step-5-preview:free", "Step 5 Preview"),
+    ("stepfun/step-3.7-flash:free", "Step 3.7 Flash"),
+    ("upstage/solar-mini4:free", "Solar Mini 4"),
+    ("poolside/laguna-s-2.1:free", "Laguna S 2.1"),
+    ("poolside/laguna-xs-2.1:free", "Laguna XS 2.1"),
+    ("meituan/longcat-2.5-preview:free", "Longcat 2.5 Preview"),
+)
+
 
 def seleccion_por_defecto() -> str:
     """Backend configurado. Externo salvo que se diga otra cosa."""
@@ -40,17 +57,24 @@ class BackendDesconocido(ValueError):
     """
 
 
-def construir_interprete(backend: str | None = None) -> InterpreterPort:
+def construir_interprete(
+    backend: str | None = None, *, model: str | None = None
+) -> InterpreterPort:
     """Instancia el interprete pedido. Un backend desconocido es un error.
 
     No hay cadena de respaldo silenciosa: si el backend no existe, se dice cual
     se pidio y cuales existen.
+
+    ``model`` fija el modelo del intérprete externo cuando el operador elige
+    uno concreto del catálogo gratuito del proxy. Sin ``model`` se respeta el
+    valor por entorno/defecto del propio intérprete. En local se ignora: el
+    runtime local usa su perfil GGUF, no un modelo remoto.
     """
     elegido = (backend or seleccion_por_defecto()).strip().lower()
     if elegido in (BACKEND_LOCAL, "local", "local_llama"):
         return LocalLlamaInterpreter()
     if elegido == BACKEND_EXTERNO:
-        return OpenAICompatibleInterpreter()
+        return OpenAICompatibleInterpreter(model=model) if model else OpenAICompatibleInterpreter()
     log.error("backend de interprete desconocido: %r", elegido)
     raise BackendDesconocido(
         f"backend de interprete desconocido: {elegido!r}. "

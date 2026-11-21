@@ -276,6 +276,7 @@ class ValueScoreGauge(QWidget):
         self._diam = d
         self.setFixedSize(d + 20, d + 44)
         self._score = 0.0
+        self._no_value = False
         self._percentile = "Pendiente"
         self._inner_label = "VALUE_SCORE"
         self.setGraphicsEffect(make_glow(2, self._t))
@@ -294,7 +295,16 @@ class ValueScoreGauge(QWidget):
 
     score = Property(float, get_score, _set_score_prop)
 
-    def set_score(self, value: float, animate: bool = True) -> None:
+    def set_score(self, value: float | None, animate: bool = True) -> None:
+        # ``None`` means "not evaluated": no measurement, so no bar. It is a
+        # distinct state from 0.0 (evaluated and found minimal).
+        if value is None:
+            self._anim.stop()
+            self._score = 0.0
+            self._no_value = True
+            self.update()
+            return
+        self._no_value = False
         if animate:
             self._anim.stop()
             self._anim.setStartValue(self._score)
@@ -326,13 +336,16 @@ class ValueScoreGauge(QWidget):
         grad.setColorAt(0.75, _qcolor(b))
         grad.setColorAt(1.0, _qcolor(b))
         p.setPen(QPen(grad, stroke, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap))
-        p.drawArc(rect, start_deg * 16, int(span_deg * 16 * min(1.0, self._score)))
+        if not self._no_value:
+            p.drawArc(rect, start_deg * 16, int(span_deg * 16 * min(1.0, self._score)))
         # centro
         disp = t.type_scale("display")
         f = p.font(); f.setPixelSize(disp.size_px); f.setWeight(QFont.Weight(800))
         p.setFont(f)
         p.setPen(_qcolor(t.text_primary))
-        p.drawText(rect, Qt.AlignmentFlag.AlignCenter, f"{self._score:.2f}")
+        # ``None`` is a distinct state: no arc, no number, an explicit label.
+        center_text = "—" if self._no_value else f"{self._score:.2f}"
+        p.drawText(rect, Qt.AlignmentFlag.AlignCenter, center_text)
         cap = t.type_scale("caption")
         f2 = p.font(); f2.setPixelSize(cap.size_px); f2.setWeight(QFont.Weight(500))
         p.setFont(f2)

@@ -88,5 +88,21 @@
     "Do not add semantic analogy scoring, new providers, migrations, external probes or changes to SUPRA under this T07 scope.",
     "Do not mark P10-T07 VERIFIED until the downstream integration test and all completion evidence are present."
   ],
-  "completed_at": null
+  "completed_at": null,
+  "status_superseded": "PARTIAL (2026-09-04)",
+  "status_reconciled": "VERIFIED",
+  "reconciliation": {
+    "date": "2026-10-20",
+    "reason": "El journal declaraba PARTIAL y su follow_up afirmaba que no existia un consumidor Skeptic/verdict productivo. Verificado en contra: P10-T08 skeptic.py y P10-T09 verdict.py estan commiteados (91246df), con 6 y 8 tests que pasan, y el handoff T07->T08->T09->T10 esta cubierto por ejecucion en tests/intelligence/test_prior_art_mutation_loop.py. El journal original se conserva; solo se anade este estado vigente.",
+    "evidence": [
+      "src/criba/intelligence/prior_art/verdict.py commiteado en 91246df",
+      "src/criba/intelligence/prior_art/skeptic.py commiteado en 91246df",
+      "tests/intelligence/test_cross_domain_scout.py -> 17 passed",
+      "tests/intelligence/test_prior_art_skeptic.py -> 6 passed",
+      "tests/intelligence/test_prior_art_verdict_engine.py -> 8 passed",
+      "tests/intelligence/test_prior_art_mutation_loop.py -> 5 passed",
+      "docs/architecture/adr/ADR-P10-T07-cross-domain-contract.md"
+    ],
+    "certainty": "VERIFIED_BY_EXECUTION"
+  }
 }

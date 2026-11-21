@@ -1,0 +1,47 @@
+{
+  "mode": "journey",
+  "status": "BUNDLED_JOURNEY_PASS",
+  "transport": "REAL_HTTP",
+  "app": "PACKAGED_EXE",
+  "model_calls": "NONE_REQUIRED",
+  "scientific_advantage": "NOT_ESTABLISHED",
+  "desktop_visual_acceptance": "NOT_VERIFIED",
+  "image_initial": {
+    "source": "QWidget.grab (Qt paint buffer, not independent screen capture)",
+    "width": 1920,
+    "height": 991,
+    "sampled_distinct_colors": 84,
+    "sha256": "3b9a9bd16849ed3337c71732c92e41147b6dbcb023e11c524e853bb12b331f97",
+    "bytes": 328741,
+    "desktop_visual_acceptance": "NOT_VERIFIED"
+  },
+  "generated_ideas": 94,
+  "image_generated": {
+    "source": "QWidget.grab (Qt paint buffer, not independent screen capture)",
+    "width": 1920,
+    "height": 991,
+    "sampled_distinct_colors": 90,
+    "sha256": "0e1265b05c0d43f739952872cc2a339eb7e9468116f908fc1a86d7fa22fc8034",
+    "bytes": 330092,
+    "desktop_visual_acceptance": "NOT_VERIFIED"
+  },
+  "project_id": "astram237a00ffbcd",
+  "http_get_status": 200,
+  "artifact_exists": true,
+  "receipt_execution_status": "NOT_EXECUTED",
+  "receipt_scientific_status": "NOT_VALIDATED",
+  "ui_status_visible": true,
+  "status_in_viewport": true,
+  "side_status_in_viewport": true,
+  "provenance_source": "IN_PROCESS_MEMORY_CACHE",
+  "image_supra": {
+    "source": "QWidget.grab (Qt paint buffer, not independent screen capture)",
+    "width": 1920,
+    "height": 991,
+    "sampled_distinct_colors": 86,
+    "sha256": "3b514ee52afc7a313b74d9d055154177403a5bcbba23420a2c92f39e41fdc381",
+    "bytes": 351026,
+    "desktop_visual_acceptance": "NOT_VERIFIED"
+  },
+  "elapsed_s": 1.51
+}
