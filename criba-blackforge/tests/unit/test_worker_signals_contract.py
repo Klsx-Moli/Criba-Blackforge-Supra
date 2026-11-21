@@ -56,29 +56,28 @@ def test_toda_conexion_de_la_dialog_es_valida():
 
 def test_finished_emite_al_terminar_el_worker():
     """finished debe emitirse despues de done/fail, no solo existir."""
-    from PySide6.QtCore import QCoreApplication, QTimer
+    from PySide6.QtCore import QEventLoop, QThreadPool, QTimer
+    from PySide6.QtWidgets import QApplication
 
     from criba.ui.actions import Worker
 
-    app = QCoreApplication.instance() or QCoreApplication([])
+    # El singleton sobrevive al test: otros tests del proceso crean QWidget.
+    app = QApplication.instance() or QApplication(["worker-test", "-platform", "offscreen"])
+    assert isinstance(app, QApplication)
     vistos: list[str] = []
     w = Worker(lambda: "ok")
     w.signals.done.connect(lambda _r: vistos.append("done"))
     w.signals.finished.connect(lambda: vistos.append("finished"))
 
-    from PySide6.QtCore import QThreadPool
-
+    loop = QEventLoop()
+    timer = QTimer()
+    timer.setSingleShot(True)
+    timer.timeout.connect(loop.quit)
+    w.signals.finished.connect(loop.quit)
+    timer.start(4000)
     QThreadPool.globalInstance().start(w)
-    loop_done = []
-    t = QTimer()
-    t.setSingleShot(True)
-    t.timeout.connect(lambda: (loop_done.append(True), app.quit()))
-    t.start(4000)
-    QTimer.singleShot(50, lambda: None)
-    while not loop_done and not vistos.count("finished"):
-        app.processEvents()
-        if not vistos:
-            continue
+    loop.exec()
+    timer.stop()
     assert vistos == ["done", "finished"], f"orden/ausencia: {vistos}"
 
 

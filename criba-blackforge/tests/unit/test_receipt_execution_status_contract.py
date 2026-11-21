@@ -18,6 +18,9 @@ forma del receipt que CRIBA construye, no la disponibilidad del servicio.
 from __future__ import annotations
 
 import sys
+from unittest.mock import patch
+
+from criba.integrations.supra_client import SupraProjectResult
 
 CLAVES_REQUERIDAS = (
     "project_id",
@@ -33,10 +36,29 @@ CLAVES_REQUERIDAS = (
 def _run():
     from criba.engine import scientific_cycle
 
-    return scientific_cycle(
-        "Reducir el impacto de las baterías sin aumentar el coste "
-        "ni comprometer el suministro."
-    )
+    # Sustituir solo el cliente remoto: CRIBA genera el dossier y construye
+    # su propio receipt. No depende de un SUPRA en el puerto del usuario.
+    def planned_result(*, project_id, **_kwargs):
+        return SupraProjectResult(
+            project_id=project_id, status="blocked", completion_status="BLOCKED",
+            stage="RESTRICTED_EXECUTION_VERIFIED", workflow_status="RESTRICTED_EXECUTION_VERIFIED",
+            verification_status="FAIL", scientific_status="NOT_VALIDATED",
+            criba_planning_receipt_status="PRESERVED_NOT_EXECUTED",
+            criba_mechanism_execution_status="NOT_EXECUTED", posture={},
+        )
+
+    with patch("criba.integrations.SupraClient", autospec=True) as factory:
+        client = factory.return_value
+        client.run_project.side_effect = planned_result
+        result = scientific_cycle(
+            "Reducir el impacto de las baterías sin aumentar el coste "
+            "ni comprometer el suministro."
+        )
+        assert result["error"] is None, result["error"]
+        client.run_project.assert_called_once()
+        client.get_project.assert_called_once_with(result["receipt"]["project_id"])
+        client.close.assert_called_once_with()
+    return result
 
 
 def test_receipt_expone_execution_status():
@@ -65,19 +87,12 @@ def test_execution_status_es_no_ejecutado():
     assert receipt["execution_status"] == "NOT_EXECUTED"
 
 
-def test_dossier_workflow_acepta_el_receipt_local():
-    """bind_local/import usan receipt['execution_status']; con el receipt de
-    scientific_cycle no debe fallar por clave ausente."""
-    from criba.dossier_workflow import WorkflowError
-
+def test_alias_de_estado_conserva_el_campo_legacy():
+    """La proyección local conserva ambas claves; no es el receipt persistido."""
     resultado = _run()
     receipt = resultado.get("receipt")
     assert isinstance(receipt, dict), f"sin receipt: error={resultado.get('error')!r}"
-    try:
-        receipt["execution_status"]
-    except KeyError as exc:  # pragma: no cover - es el fallo que se corrige
-        raise AssertionError(f"el consumidor leería KeyError: {exc}") from exc
-    assert issubclass(WorkflowError, Exception)
+    assert receipt["execution_status"] == receipt["criba_mechanism_execution_status"]
 
 
 if __name__ == "__main__":
