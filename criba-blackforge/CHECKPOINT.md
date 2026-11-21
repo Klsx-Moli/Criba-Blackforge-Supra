@@ -99,6 +99,20 @@ trabajo. **Cero commits en `main`.**
 | `d79de53` | `KeyError: 'execution_status'` en el receipt de `scientific_cycle` | base falla, fix pasa |
 | `6b6cb88` | `AttributeError: '_Signals' object has no attribute 'finished'` en `model_settings_dialog.py:450` | log: 3 → 0 |
 | `383d53c` | "Definir problema" con campo vacío cerraba el diálogo en silencio | banner en pantalla |
+| `6f3b746` | `criba hybrid` sin cablear: subcomando en parser sin rama en `main()` → "Comando desconocido: hybrid" | RED→GREEN; CLI real empaquetada exit 0 |
+
+## Builds finales (post-`6f3b746`, VERIFIED_BY_EXECUTION)
+
+- `dist/CRIBA-Blackforge/`: `CRIBA.exe` + `BLACKFORGE.exe` + `CRIBA-CLI.exe`
+  (spec `CRIBA-Blackforge.spec`, catálogo `imports/blackforge_v2` y `data/`
+  empaquetados). `CRIBA-CLI.exe hybrid --query "边缘"` → HybridResult JSON con
+  `final_confidence: confirmed`, exit 0. `CRIBA-CLI.exe blackforge --query ...`
+  → packet `blackforge_headless_packet` status OK, exit 0.
+- `dist/CribaShadow/CribaShadow.exe`: `verify_shadow_bundle_journey.py` →
+  **BUNDLED_E2E_PASS**, `project_id astram2605ea28268`, GET 200, restore
+  tras reinicio real del proceso, exit 0.
+- Tests de contrato del fix hybrid: `test_hybrid_cli_contract.py` 3 passed;
+  regresión `test_hybrid.py` + `test_blackforge_agentic.py` 37 passed.
 
 ## M2 / M3
 
