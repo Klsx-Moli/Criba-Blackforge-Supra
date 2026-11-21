@@ -123,6 +123,13 @@ def scientific_cycle(
                 criba_dossier=dossier,
             )
             lookup = client.get_project(project_id)
+            # ``execution_status`` es el nombre del campo en el receipt que
+            # SUPRA persiste (supra_agentic.service) y el que consume
+            # dossier_workflow.bind_local/import. Sin este alias el receipt
+            # local no se puede leer con el mismo contrato que el remoto:
+            # test_09 estallaba con KeyError 'execution_status' y el flujo de
+            # dossier_workflow rechazaba el receipt por clave ausente.
+            # Se conserva criba_mechanism_execution_status por compatibilidad.
             result["receipt"] = {
                 "project_id": project_id,
                 "status": run_result.status,
@@ -130,6 +137,7 @@ def scientific_cycle(
                 "workflow_status": run_result.workflow_status,
                 "verification_status": run_result.verification_status,
                 "scientific_status": run_result.scientific_status,
+                "execution_status": run_result.criba_mechanism_execution_status,
                 "criba_mechanism_execution_status": run_result.criba_mechanism_execution_status,
                 "dossier_id": dossier["dossier_id"],
                 "candidate_id": dossier["candidate_id"],
