@@ -352,6 +352,59 @@ def recuperar_lotes_pendientes(directory: Path | None = None) -> list[str]:
         return restored
 
 
+def reservar_primer_envio_preparado(
+    batch_id: str, run_id: str, problema: str, *,
+    endpoint: str, directory: Path | None = None,
+) -> dict[str, Any]:
+    """Atomically reserve ONE initial POST from an original fsynced PREPARED.
+
+    Explicit operator action is a caller/UI contract; this function does not
+    prompt, call a provider, execute a mechanism or retry UNKNOWN. It replays
+    journal lineage and verifies all original dossier bytes under the same
+    lock that writes REMOTE_UNKNOWN. Dossiers returned are the original
+    immutable-intent snapshot, never reconstructed from current UI proposals.
+    """
+    if not all(_exact(v) for v in (batch_id, run_id, problema)):
+        raise ValueError("first dispatch requires exact batch/run/problem")
+    origin = _endpoint_identity(endpoint)
+    directory = sd._dossiers_dir(directory)
+    with sd._historial_exclusive(directory):
+        batches = _state(_events(directory / JOURNAL))
+        batch = batches.get(batch_id)
+        if batch is None:
+            raise ValueError("first dispatch batch is absent from original journal")
+        intent = batch["intent"]
+        if (intent["run_id"] != run_id or intent["problema"] != problema
+                or batch_id != _batch_id(run_id, problema)):
+            raise ValueError("first dispatch conflicts with PREPARED lineage")
+        if not batch["committed"]:
+            raise ValueError("first dispatch local commit is incomplete")
+        if batch["remote"] != "NOT_ATTEMPTED":
+            raise ValueError("first dispatch already reserved; GET-only recovery required")
+        original = intent["dossiers"]
+        stored, ambiguous, _ = sd._leer_historial(directory / "dossiers.jsonl")
+        if any(
+            d["dossier_id"] in ambiguous
+            or d["dossier_id"] not in stored
+            or sd._contexto(stored[d["dossier_id"]]) != sd._contexto(d)
+            for d in original
+        ):
+            raise ValueError("first dispatch original local dossier history changed")
+        # No remote transport can start before this fsynced write-ahead marker.
+        sd._append_historial(
+            directory / JOURNAL,
+            _event("REMOTE_UNKNOWN", batch_id, endpoint=origin),
+        )
+        return {
+            "batch_id": batch_id, "run_id": run_id, "problema": problema,
+            "dossiers": json.loads(_canonical(original)),
+            "path": str(directory / "dossiers.jsonl"),
+            "endpoint": origin,
+            "remote_state": "UNKNOWN",
+            "reserved": True,
+        }
+
+
 def marcar_envio_incierto(
     batch_id: str, directory: Path | None = None, *, endpoint: str | None = None,
 ) -> bool:
