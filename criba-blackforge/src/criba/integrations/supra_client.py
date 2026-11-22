@@ -130,7 +130,10 @@ class SupraClientConfig:
     def from_env(cls) -> "SupraClientConfig":
         return cls(
             endpoint=os.getenv("SUPRA_ENDPOINT", "http://127.0.0.1:8000").strip(),
-            api_key=os.getenv("SUPRA_API_KEY", "").strip(),
+            # SUPRA_API_TOKEN authenticates requests TO the SUPRA service.
+            # SUPRA_API_KEY instead belongs to inference providers used BY
+            # SUPRA. Never forward a provider credential to the service host.
+            api_key=os.getenv("SUPRA_API_TOKEN", "").strip(),
             timeout=float(os.getenv("SUPRA_TIMEOUT_SECONDS", "30")),
         )
 
