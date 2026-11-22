@@ -584,6 +584,11 @@ def on_inventar(win: Any) -> None:
     # Snapshot the accepted question; a queued worker must not read a later
     # mutable UI field and attribute it to the selected model/consent.
     problem_snapshot = str(win.problem)
+    remote_env_at_queue = (
+        _hermes_run_env_snapshot()
+        if selected is not None and backend == "openai_compatible"
+        else None
+    )
     win.interpreter_cancel_requested = False
     topcards = getattr(win, "topcards", None)
     evidence_selector = (
@@ -609,6 +614,16 @@ def on_inventar(win: Any) -> None:
     holder: dict[str, Worker] = {}
 
     def _task() -> dict[str, Any]:
+        # A consented GUI selection is not permission to dispatch with a
+        # different runtime environment after the worker leaves the queue.
+        if remote_env_at_queue is not None and (
+            _hermes_run_env_snapshot() != remote_env_at_queue
+            or not _hermes_proxy_base_ok()
+        ):
+            raise RuntimeError(
+                "REMOTE_CONFIG_CHANGED_BEFORE_DISPATCH: "
+                "la configuración de Hermes cambió antes de iniciar."
+            )
         sheet = _run_inventar(
             problem_snapshot,
             backend=backend,
@@ -1421,6 +1436,15 @@ def on_modelos(win: Any) -> None:
         _activity(win, "cyan", f"Modelo activo: {active_model_label()}")
 
 
+def _hermes_run_env_snapshot() -> tuple[str | None, ...]:
+    """Read only the remote identity/credential routing env; never log values."""
+    return tuple(os.environ.get(key) for key in (
+        "CRIBA_EXTERNAL_BASE_URL", "CRIBA_EXTERNAL_API_KEY",
+        "CRIBA_EXTERNAL_PROVIDER", "CRIBA_EXTERNAL_MODEL",
+        "CRIBA_CRITIC_MODEL", "CRIBA_EXTERNAL_FALLBACK_LOCAL",
+    ))
+
+
 def _hermes_proxy_base_ok() -> bool:
     """Never route Hermes elsewhere or forward an unrelated external API key."""
     configured = os.environ.get(
@@ -1434,6 +1458,9 @@ def _hermes_proxy_base_ok() -> bool:
         and os.environ.get(
             "CRIBA_EXTERNAL_PROVIDER", "nous_oauth_subscription_proxy"
         ) == "nous_oauth_subscription_proxy"
+        and os.environ.get(
+            "CRIBA_EXTERNAL_FALLBACK_LOCAL", "false"
+        ).strip().lower() != "true"
     )
 
 
@@ -2350,12 +2377,7 @@ def on_protocolo_operativo(win: Any) -> None:
         # A nested Qt dialog may mutate source entry/identity. This token
         # exists solely for the read-only current-intent check during consent.
         intent["cancel"] = Event()
-        external_before = (
-            os.environ.get("CRIBA_EXTERNAL_BASE_URL", ""),
-            os.environ.get("CRIBA_EXTERNAL_API_KEY", ""),
-            os.environ.get("CRIBA_EXTERNAL_PROVIDER", ""),
-            os.environ.get("CRIBA_CRITIC_MODEL", ""),
-        )
+        external_before = _hermes_run_env_snapshot()
         consent = QMessageBox.question(
             win, "Protocolo operativo · posible consumo",
             f"Refinar con el modelo {model} puede consumir créditos; "
@@ -2366,12 +2388,7 @@ def on_protocolo_operativo(win: Any) -> None:
         )
         if consent != QMessageBox.StandardButton.Yes:
             return
-        external_after = (
-            os.environ.get("CRIBA_EXTERNAL_BASE_URL", ""),
-            os.environ.get("CRIBA_EXTERNAL_API_KEY", ""),
-            os.environ.get("CRIBA_EXTERNAL_PROVIDER", ""),
-            os.environ.get("CRIBA_CRITIC_MODEL", ""),
-        )
+        external_after = _hermes_run_env_snapshot()
         if (external_before != external_after or not _hermes_proxy_base_ok()
                 or not _protocolo_intent_actual(win, intent)):
             show_error(
@@ -2389,6 +2406,11 @@ def on_protocolo_operativo(win: Any) -> None:
     backend = str(interpreter_state.get("backend") or "openai_compatible")
     model = str(interpreter_state.get("model_requested") or "") or None
     query = str(intent["query"] or "")
+    remote_env_at_queue = (
+        _hermes_run_env_snapshot()
+        if shadow_selector is not None and backend == "openai_compatible"
+        else None
+    )
     right_panel = getattr(win, "right_panel", None)
     boton = getattr(right_panel, "protocolo", None)
     if boton is not None:
@@ -2402,6 +2424,15 @@ def on_protocolo_operativo(win: Any) -> None:
     def _task() -> dict[str, Any]:
         if intent["cancel"].is_set():
             return {"estado": "PENDIENTE", "error": "REFINEMENT_SUPERSEDED", "protocolo": None}
+        if remote_env_at_queue is not None and (
+            _hermes_run_env_snapshot() != remote_env_at_queue
+            or not _hermes_proxy_base_ok()
+        ):
+            return {
+                "estado": "PENDIENTE",
+                "error": "REMOTE_CONFIG_CHANGED_BEFORE_DISPATCH",
+                "protocolo": None,
+            }
         from ..interprete.refinamiento import refinar_propuesta
         from ..interprete.seleccion import construir_interprete
 
