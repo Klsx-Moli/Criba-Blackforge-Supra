@@ -229,3 +229,40 @@ def test_equal_content_replacement_is_new_entry_identity(rig):
     workers[1].signals.fail.emit("current")
     assert len(errors) == 1
     assert win.right_panel.protocolo.enabled
+
+
+
+@pytest.mark.parametrize("field,replacement", [
+    ("backend", "deterministic_core"),
+    ("model_requested", "different-model"),
+])
+def test_interpreter_configuration_change_invalidates_worker(rig, field, replacement):
+    workers, errors, _, applied = rig
+    s = sheet()
+    s["interpreter"] = {
+        "backend": "openai_compatible",
+        "model_requested": "original-model",
+    }
+    win = window(s)
+    actions.on_protocolo_operativo(win)
+    s["interpreter"][field] = replacement
+    workers[0].signals.done.emit({"estado": "PROTOCOLO"})
+    assert not applied and not errors
+    assert win._protocolo_intent is None
+    assert win.right_panel.protocolo.enabled
+
+
+def test_changed_interpreter_allows_new_request_and_supersedes_old(rig):
+    workers, errors, _, applied = rig
+    s = sheet()
+    s["interpreter"] = {"model_requested": "first"}
+    win = window(s)
+    actions.on_protocolo_operativo(win)
+    s["interpreter"]["model_requested"] = "second"
+    actions.on_protocolo_operativo(win)
+    assert len(workers) == 2
+    workers[0].signals.fail.emit("old provider failure")
+    assert not win.right_panel.protocolo.enabled and not errors
+    workers[1].signals.fail.emit("current failure")
+    assert win.right_panel.protocolo.enabled
+    assert len(errors) == 1 and not applied

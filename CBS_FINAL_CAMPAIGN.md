@@ -582,3 +582,8 @@ git diff --check
 ### F17 mutación adicional — objeto reemplazado con mismos campos
 
 - Una sustitución del objeto `entries[index]` por `dict(old)` puede conservar igualdad de contenido y seguir representando una nueva revisión de sesión. Se comprueba además `is entry_ref` y se permite una nueva solicitud en ese caso. Test dirigido añadió escenario de dos workers en secuencia, done antiguo descartado y fail vigente respetado.
+
+### F17 contrato de configuración del intérprete
+
+- El worker preserva backend/model al crear la solicitud, pero el sheet activo puede cambiar su configuración durante la inferencia. La nueva identidad de solicitud incluye una copia profunda de `sheet.interpreter` y la invalida si se modifica el backend o modelo. Evita atribuir a la configuración actual un protocolo generado con otra.
+- Tres casos dirigidos adicionales: mutación de backend, mutación de modelo y segunda solicitud que reemplaza a la primera.
