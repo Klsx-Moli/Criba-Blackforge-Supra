@@ -73,3 +73,12 @@ git diff --check
 ```
 
 Para corregir una suite roja: REPRODUCE→TEST→FIX MÍNIMO→TEST DIRIGIDO→REGRESIÓN→STATIC→DIFF. No merge/push a main; todo en rama de campaña y sincronización local posterior, protegiendo cambios existentes. Sin lanzar pruebas que consuman proveedores externos.
+
+
+## 8. False-coverage re-scan — silent normalization of known/unknown config fields
+
+La primera protección de `_editable_model_settings_bytes` solo comprobaba versión, selección y IDs duplicados. Eso dejaba abiertas mutaciones en campos ordinarios (`backend` inválido, `context_size` negativo, `model` con espacios) y campos nuevos desconocidos. `ModelProfile.from_dict` los normalizaba o descartaba y `save_model_settings` sobrescribía los bytes originales. Por tanto, varios tests del primer grupo eran **FALSE_COVERAGE** respecto al contrato «no destruir configuraciones legacy».
+
+**Fix adicional:** para un `models.json` existente, la activación desde catálogo Ollama exige exactamente las claves que conoce el esquema 1 actual y un roundtrip `asdict(ModelProfile.from_dict(profile)) == profile` para cada perfil, además de JSON estricto, IDs y active profile consistentes. Un archivo antiguo o futuro desconocido no se modifica desde el acceso rápido: se debe conservar y migrar explícitamente. No se altera `ModelProfile.from_dict` ni el editor clásico.
+
+**Tests añadidos:** un archivo emitido por `save_model_settings` sí permite la operación; 7 mutaciones de campos desconocidos, omitidos, normalizados o enum inválido se rechazan antes de escribir. STATICALLY_INSPECTED; aún NOT_EXECUTED. Esto protege pérdida conocida de metadatos, no proporciona locks de proceso ni validación absoluta de contenido.
