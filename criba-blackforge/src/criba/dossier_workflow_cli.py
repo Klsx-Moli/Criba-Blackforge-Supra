@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import sys
@@ -50,7 +51,6 @@ def _send_one_journal_bound(
     rather than constructing a new run identity for a repeat POST.
     """
     from . import dossier_batch as journal
-    from . import supra_dossier as sd
     from .dossier_batch_recovery import reconciliar_lote_por_get
 
     dossier = workflow.load_local(args.dossier_id)
@@ -80,7 +80,7 @@ def _send_one_journal_bound(
             "Repetir con --confirm-first-send para autorizar su primer POST.",
         )
     expected_project = (
-        "astram2-" + __import__("hashlib").sha256(
+        "astram2-" + hashlib.sha256(
             args.dossier_id.encode("utf-8")
         ).hexdigest()[:32]
     )
@@ -92,9 +92,18 @@ def _send_one_journal_bound(
     # The caller cannot choose a new mutable POST payload or a new identity.
     client = workflow.http()
     origin = journal._endpoint_identity(client.config.endpoint)
-    reservation = journal.reservar_primer_envio_preparado(
-        found["batch_id"], run_id, problem, endpoint=origin,
-    )
+    try:
+        reservation = journal.reservar_primer_envio_preparado(
+            found["batch_id"], run_id, problem, endpoint=origin,
+        )
+    except (ValueError, OSError) as exc:
+        # Another process may already have reserved the batch. Caller cannot
+        # use a stale preflight to justify POST or a new identity.
+        raise WorkflowError(
+            "CLI_FIRST_RESERVATION_REJECTED", "reserve",
+            "Reserva original no confirmada; comprobar journal y usar GET.",
+            remote_unknown=True,
+        ) from exc
     payloads = reservation["dossiers"]
     if len(payloads) != 1 or payloads[0]["dossier_id"] != args.dossier_id:
         raise WorkflowError(
@@ -104,27 +113,56 @@ def _send_one_journal_bound(
         )
     # Marker persists before even health. A crash here leaves UNKNOWN,
     # never NOT_ATTEMPTED and never authorizes an automatic POST retry.
-    original_payloads = journal.reclamar_inicio_envio_remoto(
-        reservation["batch_id"], payloads, endpoint=origin,
-    )
+    try:
+        original_payloads = journal.reclamar_inicio_envio_remoto(
+            reservation["batch_id"], payloads, endpoint=origin,
+        )
+    except (ValueError, OSError) as exc:
+        raise WorkflowError(
+            "CLI_DISPATCH_CLAIM_UNCONFIRMED", "dispatch",
+            "El lote permanece UNKNOWN; no repetir POST, consultar por GET.",
+            remote_unknown=True,
+        ) from exc
     if len(original_payloads) != 1:
         raise WorkflowError(
             "CLI_JOURNAL_CHANGED", "dispatch",
             "La reclamación no conserva el lote original.",
             remote_unknown=True,
         )
-    result = workflow.submit(
-        original_payloads[0], expected_project,
-        use_model=args.use_model, provider=args.provider, model=args.model,
-        domain=args.domain, allow_disruptive=not args.no_disruptive,
-        expected_endpoint=origin,
-    )
-    # Successful POST and a workflow-local GET are insufficient to declare
-    # journaled success. This second GET uses the strict v2 evidence contract.
-    verified = reconciliar_lote_por_get(
-        reservation["batch_id"], client, registrar=True,
-        expected_run_id=run_id, expected_problem=problem,
-    )
+    try:
+        result = workflow.submit(
+            original_payloads[0], expected_project,
+            use_model=args.use_model, provider=args.provider, model=args.model,
+            domain=args.domain, allow_disruptive=not args.no_disruptive,
+            expected_endpoint=origin,
+        )
+    except WorkflowError as exc:
+        # A worker acquired its durable claim; even a local validation failure
+        # cannot make that same batch safely POSTable again.
+        exc.remote_unknown = True
+        exc.retryable = False
+        raise
+    except Exception as exc:
+        raise WorkflowError(
+            "CLI_POST_OUTCOME_UNKNOWN", "send",
+            "Envío reclamado: no reintentar; recuperar exclusivamente por GET.",
+            remote_unknown=True,
+        ) from exc
+    # Successful POST and workflow-local GET are insufficient to declare a
+    # journaled receipt. Reconcile through independent strict v2 GET checks.
+    try:
+        verified = reconciliar_lote_por_get(
+            reservation["batch_id"], client, registrar=True,
+            expected_run_id=run_id, expected_problem=problem,
+        )
+    except Exception:
+        return ({
+            "operation_status": "REMOTE_UNKNOWN_READBACK_UNCONFIRMED",
+            "batch_id": reservation["batch_id"], "project_id": expected_project,
+            "remote_outcome_unknown": True, "authorizes_retry": False,
+            "scientific_status": "NOT_VALIDATED",
+            "mechanism_execution": "NOT_EXECUTED",
+        }, 2)
     if (verified.get("status") != "READBACK_OBSERVED"
             or verified.get("fresh_get_status") != "VERIFIED_FROM_ARTIFACT"
             or verified.get("journal_recorded") is not True):
