@@ -1423,8 +1423,13 @@ def _refresh_interpreter_selector(win: Any) -> None:
 def _on_source_catalog(win: Any, source: str, catalog: Any) -> None:
     """Install read-only catalog entries; selection still requires an explicit click."""
     selector = getattr(win, "interpreter_selector", None)
-    if selector is None or selector.currentData() != f"source:{source}":
-        return  # stale worker result for a different user selection
+    if selector is None:
+        return
+    try:
+        if selector.currentData() != f"source:{source}":
+            return  # stale worker result for a different user selection
+    except RuntimeError:
+        return  # Qt widget was destroyed while GET was running.
     provenance_role = Qt.ItemDataRole.UserRole + 1
     previous_blocked = selector.blockSignals(True)
     try:
@@ -1460,9 +1465,14 @@ def _on_source_catalog(win: Any, source: str, catalog: Any) -> None:
 
 def _on_source_catalog_error(win: Any, source: str, error: str) -> None:
     selector = getattr(win, "interpreter_selector", None)
-    if selector is None or selector.currentData() != f"source:{source}":
+    if selector is None:
         return
-    selector.setCurrentIndex(0)
+    try:
+        if selector.currentData() != f"source:{source}":
+            return
+        selector.setCurrentIndex(0)
+    except RuntimeError:
+        return  # window closed before the worker finished
     cards = getattr(win, "topcards", None)
     if cards is not None:
         # Worker error can include a traceback. Never display environment data.
