@@ -30,7 +30,9 @@ class NoPostClient:
     def health(self):
         self.health_calls += 1
         if self.on_health:
-            self.on_health()
+            result = self.on_health()
+            if result is not None:
+                return result
         raise RuntimeError("synthetic health failure before POST")
 
     def run_project(self, **_kwargs):
@@ -159,14 +161,15 @@ def test_concurrent_batch_intent_during_health_stops_pre_post(
 
     def create_competing_intent():
         batch.guardar_lote_dossiers([item], directory)
+        return {"status": "UP"}
 
     client = NoPostClient(on_health=create_competing_intent)
-    # The test client raises during health; verify that a follow-up call
-    # is blocked and never interprets that failure as POST evidence.
-    with pytest.raises(WorkflowError, match="SUPRA_UNAVAILABLE"):
-        DossierWorkflow(client=client).submit(item)
+    # Initial pre-health check sees no batch. After successful health, a
+    # separate writer has committed PREPARED. The pre-POST recheck MUST kill
+    # this path before the fake transport's forbidden run_project method.
     with pytest.raises(WorkflowError, match="BATCH_DISPATCH_BOUNDARY"):
         DossierWorkflow(client=client).submit(item)
+    assert client.health_calls == 1
     assert client.post_calls == 0
 
 
@@ -177,4 +180,21 @@ def test_unreadable_journal_never_opens_direct_submission(tmp_path, monkeypatch)
     client = NoPostClient()
     with pytest.raises(WorkflowError, match="BATCH_DISPATCH_BOUNDARY"):
         DossierWorkflow(client=client).submit(items[0])
+    assert client.health_calls == client.post_calls == 0
+
+
+def test_claimed_batch_cannot_override_deterministic_project_id(
+    tmp_path, monkeypatch,
+):
+    directory, key, items = prepared(tmp_path, monkeypatch)
+    batch.marcar_envio_incierto(key, directory, endpoint=ENDPOINT)
+    accepted = batch.reclamar_inicio_envio_remoto(
+        key, items, directory, endpoint=ENDPOINT,
+    )
+    client = NoPostClient()
+    with pytest.raises(WorkflowError, match="BATCH_DISPATCH_BOUNDARY"):
+        DossierWorkflow(client=client).submit(
+            accepted[0], project_id="unrelated-project",
+            batch_dispatch_id=key, expected_endpoint=ENDPOINT,
+        )
     assert client.health_calls == client.post_calls == 0
