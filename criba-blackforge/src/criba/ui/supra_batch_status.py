@@ -189,6 +189,10 @@ def present_partial_diagnostics(
             or r.get("dossier_id") not in dossier_ids for r in rows)
             or {r["dossier_id"] for r in rows} != set(dossier_ids)
             or len({r["dossier_id"] for r in rows}) != n
+            or any(type(r.get("historical_partial_recorded")) is not bool
+                   for r in rows)
+            or sum(r["historical_partial_recorded"] is True
+                   for r in rows) != historical
             or sum(r["get_status"] == "FRESH_PLANNING_RECEIPT_VERIFIED"
                    for r in rows) != fresh):
         return None

@@ -354,6 +354,12 @@ def inspeccionar_lote_parcial_por_get(
         ):
             return refusal("LOCAL_HISTORY_CHANGED_DURING_GET", len(original))
         historical_count = len(current["partial_readbacks"])
+        for row in rows:
+            # This receipt was persisted in an earlier or current inspection.
+            # Never mistake it for a fresh GET or evidence about other IDs.
+            row["historical_partial_recorded"] = (
+                row["dossier_id"] in current["partial_readbacks"]
+            )
         complete = current["remote"] == "READBACK_OBSERVED"
     return {
         "batch_id": batch_id, "status": "PARTIAL_DIAGNOSTIC_ONLY",
@@ -370,7 +376,7 @@ def inspeccionar_lote_parcial_por_get(
 
 
 def main(argv: list[str] | None = None) -> int:
-    """Explicit, read-only reconciliation CLI; it never submits a project."""
+    """Remote GET-only CLI; local receipt writes unless --dry-run."""
     import argparse
     import json
     from .integrations.supra_client import SupraClient

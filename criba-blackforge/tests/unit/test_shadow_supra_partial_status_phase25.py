@@ -26,9 +26,11 @@ def valid():
         "rows": [
             {"dossier_id": IDS[0],
              "get_status": "FRESH_PLANNING_RECEIPT_VERIFIED",
-             "partial_written_now": True},
+             "partial_written_now": True,
+             "historical_partial_recorded": True},
             {"dossier_id": IDS[1],
-             "get_status": "GET_UNAVAILABLE_UNKNOWN"},
+             "get_status": "GET_UNAVAILABLE_UNKNOWN",
+             "historical_partial_recorded": False},
         ],
     }
 
@@ -52,6 +54,7 @@ def test_zero_out_of_two_is_unknown_not_false_evidence():
     result["fresh_verified"] = 0
     result["journal_partials"] = 0
     result["rows"][0]["get_status"] = "GET_UNAVAILABLE_UNKNOWN"
+    result["rows"][0]["historical_partial_recorded"] = False
     summary = view(result)
     assert "0/2 recibos actuales" in summary
     assert "lote completo NO CONFIRMADO" in summary
@@ -62,6 +65,7 @@ def test_two_of_two_partials_still_do_not_make_batch_confirmed():
     result["fresh_verified"] = 2
     result["journal_partials"] = 2
     result["rows"][1]["get_status"] = "FRESH_PLANNING_RECEIPT_VERIFIED"
+    result["rows"][1]["historical_partial_recorded"] = True
     assert "lote completo NO CONFIRMADO" in view(result)
     assert present_batch_recovery(result)["state"] == "UNKNOWN"
 
@@ -117,3 +121,18 @@ def test_duplicate_and_missing_dossier_sets_rejected():
 def test_malformed_report_not_rendered():
     for value in (None, False, "recorded", [], {"status": "UNKNOWN"}):
         assert view(value) is None
+
+
+
+def test_historical_receipt_count_cannot_be_reassigned_to_other_dossier():
+    wrong = valid()
+    wrong["rows"][0]["historical_partial_recorded"] = False
+    assert view(wrong) is None
+
+    wrong = valid()
+    wrong["rows"][1]["historical_partial_recorded"] = True
+    assert view(wrong) is None
+
+    wrong = valid()
+    wrong["rows"][0]["historical_partial_recorded"] = 1
+    assert view(wrong) is None

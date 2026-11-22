@@ -333,3 +333,26 @@ def test_oversized_partial_sweep_does_not_launch_unbounded_gets(tmp_path):
     assert result["rows"] == []
     assert client.calls == []
     assert source.read_bytes() == before
+
+
+
+def test_offline_reinspection_reports_exact_historical_dossier_not_fresh(tmp_path):
+    key, original = prepared(tmp_path)
+    client = OnlyGet(original)
+    client.responses[project(original[1])] = TimeoutError("second GET unavailable")
+    initial = inspect(key, client, tmp_path)
+    assert initial["journal_partials"] == 1
+    offline = OnlyGet(original)
+    offline.responses[project(original[0])] = ConnectionError("offline 1")
+    offline.responses[project(original[1])] = ConnectionError("offline 2")
+    later = inspect(key, offline, tmp_path)
+    assert later["fresh_verified"] == 0
+    assert later["journal_partials"] == 1
+    assert [row["historical_partial_recorded"] for row in later["rows"]] == [
+        True, False,
+    ]
+    assert all(row["get_status"] == "GET_UNAVAILABLE_UNKNOWN" for row in later["rows"])
+    assert later["status"] == "PARTIAL_DIAGNOSTIC_ONLY"
+    assert journal._state(journal._events(tmp_path / journal.JOURNAL))[key][
+        "remote"
+    ] == "UNKNOWN"
