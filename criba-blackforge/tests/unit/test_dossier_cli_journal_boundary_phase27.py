@@ -142,6 +142,7 @@ def test_first_send_creates_one_claim_and_v2_receipt_only(home, original, capsys
     assert payload == original[0] and payload is not original[0]
     assert identity == project(original[0])
     assert opts["expected_endpoint"] == ENDPOINT
+    assert opts["batch_dispatch_id"] == key
     assert [e["event"] for e in journal._events(home / journal.JOURNAL)] == [
         "PREPARED", "LOCAL_COMMITTED", "REMOTE_UNKNOWN",
         "REMOTE_DISPATCH_STARTED", "REMOTE_READBACK_OBSERVED",
@@ -174,7 +175,7 @@ def test_post_failure_after_claim_never_promotes_unknown(home, original, capsys,
     wf = FakeWorkflow(original, mode=mode)
     rc, report = cli(wf, original[0]["dossier_id"], capsys, "--confirm-first-send")
     assert rc == 2 and report["error"]["remote_outcome_unknown"] is True
-    assert report["error"]["retryable"] is False or mode == "crash"
+    assert report["error"]["retryable"] is False
     assert state(home, key)["remote"] == "UNKNOWN"
     assert state(home, key)["dispatch_started"] is True
     rc, report = cli(wf, original[0]["dossier_id"], capsys, "--confirm-first-send")
@@ -271,7 +272,7 @@ def test_two_concurrent_cli_sends_claim_only_one_worker(home, original):
     assert state(home, key)["remote"] == "READBACK_OBSERVED"
 
 
-def test_real_workflow_prepost_origin_drift_rejected_without_post(original):
+def test_real_workflow_prepost_origin_drift_rejected_without_post(original, home):
     payload = original[0]
 
     class Drift:
