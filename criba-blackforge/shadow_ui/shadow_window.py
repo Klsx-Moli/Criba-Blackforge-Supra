@@ -655,11 +655,16 @@ def _selected_interpreter_label(win: Any) -> str:
     from criba.model_config import active_model_label
 
     selector = getattr(getattr(win, "topcards", None), "interpreter_selector", None)
-    data = selector.currentData() if selector is not None else "openai_compatible"
+    data = selector.currentData() if selector is not None else None
+    if data is None or (isinstance(data, str) and data.startswith("source:")):
+        return "Cargar modelo"
     backend, model = data if isinstance(data, (tuple, list)) else (data, None)
     if backend == "local_llama":
         return active_model_label()
-    return OpenAICompatibleInterpreter(model=model or None).model
+    if backend == "openai_compatible" and model:
+        return str(model)
+    # Do not silently fall back to the obsolete default remote model.
+    return "Cargar modelo"
 
 
 class HeaderWidget(QWidget):
@@ -750,7 +755,10 @@ class HeaderWidget(QWidget):
             label = _selected_interpreter_label(self.win)
         except Exception:
             pass
-        self.model_btn.setText(f"  {_t('shadow.modelo')} · {label}")
+        self.model_btn.setText(
+            "  Cargar modelo" if label == "Cargar modelo"
+            else f"  {_t('shadow.modelo')} · {label}"
+        )
         self.model_btn.setToolTip(f"Modelo seleccionado: {label}; disponibilidad al generar")
 
     def _open_modelos(self) -> None:
@@ -843,20 +851,16 @@ class TopCardsWidget(QWidget):
         selector_label.setProperty("caption", True)
         selector_row.addWidget(selector_label)
         self.interpreter_selector = QComboBox()
-        self.interpreter_selector.addItem(
-            "Nous/Hermes OAuth · Space Bunny", "openai_compatible"
-        )
-        # Modelos gratuitos del proxy Hermes (suscripción Nous). Se listan por
-        # ejecución real contra el proxy; el operador elige uno concreto. El
-        # userData lleva (backend, model) para que el run use ese modelo.
-        from criba.interprete.seleccion import FREE_MODELS
-
-        for model_id, label in FREE_MODELS:
-            self.interpreter_selector.addItem(
-                f"{label} · free", ("openai_compatible", model_id)
-            )
-        self.interpreter_selector.addItem(
-            "Cargar modelo", "local_llama"
+        # F29: no auto-select a stale, paid or otherwise unavailable model.
+        # Provider lists are retrieved by explicit operator action, GET-only.
+        self.interpreter_selector.addItem("Cargar modelo", None)
+        self.interpreter_selector.addItem("Hermes · conectar / modelos", "source:hermes")
+        self.interpreter_selector.addItem("OpenCode · explorar proveedores", "source:opencode")
+        self.interpreter_selector.addItem("Ollama · modelos locales", "source:ollama")
+        self.interpreter_selector.addItem("GGUF local · configurar perfil", "local_llama")
+        self.interpreter_selector.setToolTip(
+            "Selecciona el origen para consultar modelos. "
+            "No se copian claves ni tokens OAuth; ninguna consulta genera inferencia."
         )
         self.interpreter_selector.currentIndexChanged.connect(
             lambda idx: actions._on_interpreter_changed(win, idx)
