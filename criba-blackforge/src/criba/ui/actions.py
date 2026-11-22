@@ -476,6 +476,24 @@ def on_inventar(win: Any) -> None:
                        "CRIBA_EXTERNAL_BASE_URL=http://127.0.0.1:8645/v1, "
                        "CRIBA_EXTERNAL_API_KEY vacío y proveedor correcto.")
             return
+    # Model catalogs do not attest free pricing or subscription quota.
+    # A Hermes catalog choice must be authorized per run before ANY mutator.
+    if (selected is not None
+            and selected.itemData(
+                selected.currentIndex(), Qt.ItemDataRole.UserRole + 1
+            ) == "hermes"):
+        from PySide6.QtWidgets import QMessageBox
+
+        consent = QMessageBox.question(
+            win, "Hermes · autorización de inferencia",
+            "El precio, plan y cuota del modelo no están verificados. "
+            "Inventar puede enviar varias peticiones (propuesta, crítica "
+            "y reintentos) y consumir créditos. ¿Autorizas esta ejecución?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        )
+        if consent != QMessageBox.StandardButton.Yes:
+            return
     _cancelar_protocolo_pendiente(win)
     _lock_mutators(win)
     _suggest(win, None)
@@ -1453,6 +1471,21 @@ def _activate_ollama_choice(win: Any, model_id: str) -> bool:
         model=model_id,
         auto_start=False,
     )
+    # This settings file is ALSO consumed by CRIBA generation and BLACKFORGE.
+    # Choosing a catalog item must not silently activate a global model.
+    if not settings.enabled or settings.active_profile_id != profile.id:
+        from PySide6.QtWidgets import QMessageBox
+
+        answer = QMessageBox.question(
+            win, "Ollama · activar perfil compartido",
+            f"Activar {model_id} actualizará el perfil compartido para CRIBA "
+            "y BLACKFORGE. El banco de intérprete seguirá pendiente. "
+            "¿Confirmas el cambio?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        )
+        if answer != QMessageBox.StandardButton.Yes:
+            return False
     if existing is None:
         settings.profiles.append(profile)
     settings.enabled = True
@@ -1501,7 +1534,7 @@ def _on_interpreter_changed(win: Any, index: int) -> None:
             if not _activate_ollama_choice(win, str(model)):
                 if cards is not None:
                     cards.interpreter_status.setText(
-                        "Ollama: no se pudo guardar el perfil. No se activó."
+                        "Ollama: activación cancelada o no guardada. No se activó."
                     )
                 return
             selector.setItemData(index, "local_llama")
