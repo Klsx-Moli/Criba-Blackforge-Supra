@@ -170,11 +170,22 @@ def test_get_readback_after_worker_claim_still_supported_without_repost(tmp_path
         claim(key, original, tmp_path)
 
 
-def test_legacy_unknown_and_v2_readback_remain_replayable_without_claim(tmp_path):
-    key, original = local_reserved(tmp_path)
+def test_unversioned_legacy_unknown_remains_get_only_after_upgrade(tmp_path):
+    original = dossiers()
+    key = batch.guardar_lote_dossiers(original, tmp_path)["batch_id"]
+    # Pre-F24 journals reserved UNKNOWN without a single-worker claim policy.
+    sd._append_historial(
+        tmp_path / batch.JOURNAL,
+        batch._event("REMOTE_UNKNOWN", key, endpoint=ENDPOINT),
+    )
     state = batch._state(batch._events(tmp_path / batch.JOURNAL))[key]
     assert state["dispatch_started"] is False
+    assert state["dispatch_policy"] is None
     assert state["remote"] == "UNKNOWN"
+    old_bytes = (tmp_path / batch.JOURNAL).read_bytes()
+    with pytest.raises(ValueError, match="historical UNKNOWN"):
+        claim(key, original, tmp_path)
+    assert (tmp_path / batch.JOURNAL).read_bytes() == old_bytes
     report = reconciliar_lote_por_get(key, OnlyGet(original), tmp_path)
     assert report["status"] == "READBACK_OBSERVED"
     state = batch._state(batch._events(tmp_path / batch.JOURNAL))[key]
@@ -226,3 +237,84 @@ def test_corrupt_tail_cannot_be_interpreted_as_empty_claim(tmp_path):
     with pytest.raises(ValueError, match="batch journal corrupt"):
         claim(key, original, tmp_path)
     assert path.read_bytes() == before
+
+
+
+def test_new_unknown_reservation_carries_exact_worker_policy(tmp_path):
+    key, original = local_reserved(tmp_path)
+    events = batch._events(tmp_path / batch.JOURNAL)
+    assert events[-1]["dispatch_policy"] == batch.DISPATCH_POLICY
+    assert batch._state(events)[key]["dispatch_policy"] == batch.DISPATCH_POLICY
+    claim(key, original, tmp_path)
+    assert batch._state(batch._events(tmp_path / batch.JOURNAL))[key][
+        "dispatch_started"
+    ] is True
+
+
+def test_explicit_first_send_has_same_versioned_dispatch_contract(tmp_path):
+    original = dossiers()
+    key = batch.guardar_lote_dossiers(original, tmp_path)["batch_id"]
+    report = batch.reservar_primer_envio_preparado(
+        key, "phase15-run", "Synthetic recovery problem",
+        endpoint=ENDPOINT, directory=tmp_path,
+    )
+    assert report["reserved"] is True
+    state = batch._state(batch._events(tmp_path / batch.JOURNAL))[key]
+    assert state["dispatch_policy"] == batch.DISPATCH_POLICY
+    claim(key, original, tmp_path)
+
+
+def test_old_legacy_readback_marker_never_unlocks_a_second_worker(tmp_path):
+    original = dossiers()
+    key = batch.guardar_lote_dossiers(original, tmp_path)["batch_id"]
+    sd._append_historial(
+        tmp_path / batch.JOURNAL,
+        batch._event("REMOTE_UNKNOWN", key, endpoint=ENDPOINT),
+    )
+    # Old phase-14 readback cannot validate the new scientific channels.
+    sd._append_historial(
+        tmp_path / batch.JOURNAL,
+        batch._event("REMOTE_READBACK_OBSERVED", key, endpoint=ENDPOINT, runs=[]),
+    )
+    replay = batch._state(batch._events(tmp_path / batch.JOURNAL))[key]
+    assert replay["legacy_readback_unverified"] is True
+    assert replay["remote"] == "UNKNOWN"
+    before = (tmp_path / batch.JOURNAL).read_bytes()
+    with pytest.raises(ValueError, match="historical UNKNOWN"):
+        claim(key, original, tmp_path)
+    assert (tmp_path / batch.JOURNAL).read_bytes() == before
+
+
+def test_forged_dispatch_started_on_unversioned_legacy_unknown_is_invalid(tmp_path):
+    original = dossiers()
+    key = batch.guardar_lote_dossiers(original, tmp_path)["batch_id"]
+    sd._append_historial(
+        tmp_path / batch.JOURNAL,
+        batch._event("REMOTE_UNKNOWN", key, endpoint=ENDPOINT),
+    )
+    sd._append_historial(
+        tmp_path / batch.JOURNAL,
+        batch._event(
+            "REMOTE_DISPATCH_STARTED", key, endpoint=ENDPOINT,
+            fingerprint=batch._fingerprint(original),
+        ),
+    )
+    with pytest.raises(ValueError, match="out-of-order"):
+        batch._state(batch._events(tmp_path / batch.JOURNAL))
+
+
+@pytest.mark.parametrize("policy", [
+    "criba-single-worker-dispatch/999", "", 0, False,
+])
+def test_unknown_or_malformed_reservation_policy_fails_replay(tmp_path, policy):
+    original = dossiers()
+    key = batch.guardar_lote_dossiers(original, tmp_path)["batch_id"]
+    sd._append_historial(
+        tmp_path / batch.JOURNAL,
+        batch._event(
+            "REMOTE_UNKNOWN", key, endpoint=ENDPOINT,
+            dispatch_policy=policy,
+        ),
+    )
+    with pytest.raises(ValueError, match="unknown remote dispatch policy"):
+        batch._state(batch._events(tmp_path / batch.JOURNAL))
