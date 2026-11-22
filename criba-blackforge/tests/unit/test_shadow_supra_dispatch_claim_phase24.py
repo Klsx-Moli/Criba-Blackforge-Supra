@@ -210,7 +210,7 @@ def test_real_worker_uses_detached_dossiers_if_caller_mutates_during_health(
             passed.append(dossier)
             assert dossier["mecanismo"] == first_before
             assert dossier["dossier_id"] == "dossier-first-1"
-            assert dossier is not original[0]
+            assert dossier is not original[-1]
             raise RuntimeError("stopped before any actual POST")
 
     monkeypatch.setattr(workflow, "DossierWorkflow", NoPostWorkflow)
@@ -245,3 +245,37 @@ def test_worker_rejects_unversioned_historical_unknown_before_network(
     assert batch._state(batch._events(tmp_path / batch.JOURNAL))[key][
         "remote"
     ] == "UNKNOWN"
+
+
+
+def test_endpoint_drifts_during_health_and_post_is_still_forbidden(
+    tmp_path, monkeypatch,
+):
+    from criba import dossier_workflow as workflow
+
+    key, original = reserved(tmp_path)
+
+    class DriftingClient:
+        def __init__(self):
+            self.config = SimpleNamespace(endpoint=ENDPOINT)
+
+        def health(self):
+            self.config.endpoint = "https://other.example"
+            return SimpleNamespace(model_dump=lambda: {"synthetic": True})
+
+    class MustNotSubmit:
+        def __init__(self, client):
+            pass
+
+        def submit(self, **kwargs):
+            pytest.fail("endpoint changed during health: POST forbidden")
+
+    monkeypatch.setattr(workflow, "DossierWorkflow", MustNotSubmit)
+    with pytest.raises(ValueError, match="endpoint changed before POST"):
+        actions._execute_supra_dossiers(
+            original, DriftingClient(),
+            batch_id=key, expected_endpoint=ENDPOINT,
+        )
+    state = batch._state(batch._events(tmp_path / batch.JOURNAL))[key]
+    assert state["remote"] == "UNKNOWN"
+    assert state["dispatch_started"] is True

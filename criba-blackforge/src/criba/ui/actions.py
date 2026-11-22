@@ -1459,6 +1459,12 @@ def _execute_supra_dossiers(
         health = supra.health()
         runs: list[dict[str, Any]] = []
         for dossier in dossiers:
+            # The health request is real I/O and yields to other threads.
+            # Endpoint drift after the worker claim must abort BEFORE POST,
+            # not merely fail when trying to record its eventual GET result.
+            if (expected_endpoint is not None
+                    and supra.config.endpoint.rstrip("/") != expected_endpoint):
+                raise ValueError("SUPRA endpoint changed before POST")
             result = _workflow_submit_batch(
                 supra,
                 objective=objective_from_dossier(dossier),
