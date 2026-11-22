@@ -815,3 +815,14 @@ git diff --check
 - Siguiente gate: ejecuta en worktree aislado F27/F29/F30 tests + full + ruff/mypy + Windows UI 1366×768/1920×1080, sin tocar main. Refutar falsos positivos con ejecución; corregir cualquier suite roja antes de F31. No detener SUPRA Uvicorn ni gastar en modelos de pago para cerrar pruebas.
 
 - F30 re-scan FALSE_COVERAGE: el primer guard de JSON válido aún permitía perder claves desconocidas y normalizar campos de perfil al guardar. Endurecido `_editable_model_settings_bytes` con esquema exacto y `ModelProfile.from_dict` roundtrip. Test de configuración válida y 7 mutaciones future/legacy/inválidas. Perfiles antiguos/futuros requieren migración explícita; TOCTOU entre comprobación y os.replace sigue OPEN.
+
+
+## Fase 31 — Snapshot de proveedor antes del despacho y handoff Windows
+
+- Base F30 `ea07a4e6fd98c6318e232feba955d5396b3bae78`. Estado `IMPLEMENTED / EVIDENCE_PENDING`, sin merge ni despliegue. Runbook `CBS_F31_WINDOWS_EXECUTION_HANDOFF.md`.
+- F31 P1 mitigado: `actions.on_inventar` Shadow captura identidad de entorno antes de encolar y la vuelve a comprobar al entrar en worker; un cambio de endpoint, API key, proveedor, modelo override, crítico o fallback deniega la operación ANTES de `run_invention` con `REMOTE_CONFIG_CHANGED_BEFORE_DISPATCH`. F31 `on_protocolo_operativo` protege igualmente el worker antes de `construir_interprete`. `CRIBA_EXTERNAL_FALLBACK_LOCAL=true` no autoriza un modelo local oculto al seleccionar Hermes.
+- 6+6 sentinels de mutación de variables de entorno en workers encolados y una regresión de fallback publicadas en `test_phase29_shadow_source_selector.py`; sin llamadas remotas ni proveedor real en fixtures. NOT_EXECUTED PySide6.
+- F30 FALSE_COVERAGE detectada: `dict` de Python considera `8192 == 8192.0`, pero el guard prometía preservar tipos JSON exactos. Cambiado a `json.dumps(..., sort_keys=True, allow_nan=False)` del objeto y roundtrip normalizado. 5 sentinels parametrizados con float↔int escritos; NOT_EXECUTED en Windows.
+- No se ha leído OAuth del usuario, cambiado main/handoff/ASTRA, ejecutado Uvicorn ni gastado en modelos. `model_config` aún necesita CAS/lock multi-proceso; y el fingerprint de entorno se verifica antes del arranque del worker, no atesta proveedor durante HTTP ni limita reintentos físicos.
+- Ernie puede comenzar ahora **únicamente** la verificación Windows en un worktree aislado, siguiendo el handoff de F31 y devolviendo SHA + traceback + status; NO reparar ni tocar procesos/ramas protegidas sin siguiente autorización. Cuando vuelvan resultados, reproducir y reconciliar cada hallazgo para F31 PASS o RED.
+- G0 científico NO-GO; P0 semántico OPEN; F28 contabilidad/identidad P1 OPEN; F29 OpenCode ejecución NOT_IMPLEMENTED.
