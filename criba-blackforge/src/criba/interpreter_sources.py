@@ -71,7 +71,10 @@ def _get_local_json(source: str) -> Any:
 
 
 def _name(value: Any) -> str:
-    return value if isinstance(value, str) and 0 < len(value) <= 240 and value == value.strip() else ""
+    if (not isinstance(value, str) or not 0 < len(value) <= 240
+            or value != value.strip() or not value.isprintable()):
+        return ""
+    return value
 
 
 def discover_models(source: str) -> SourceCatalog:
