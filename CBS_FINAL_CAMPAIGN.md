@@ -303,6 +303,48 @@ python -m ruff check src/criba/interprete/store.py src/criba/inventar.py tests/u
 git diff --check
 ```
 
-## Siguiente acción exacta
+## Siguiente acción exacta (histórica, al cierre de fase 08)
 
 Fase 09: comprobar integración productiva transversal de Inventar->historial->Shadow->dossier SUPRA y del Juez->InterpreteStore->pipeline->CLI/API, incluyendo carreras de último escritor, caché que envejece entre read y write, errores/retries, campos no verificados en export y reanudación entre ejecuciones. Primero ejecutar las pruebas de integración fase08 en checkout completo si ya es accesible; si no, preservar NOT_EXECUTED y ejecutar sentinelas aislados sobre contratos críticos. Reparar solo defectos reproducibles con tests; evitar que `NOT_EVALUATED` o `PENDIENTE` se conviertan en evidencia/puntuación/estado `PROPUESTA` al cruzar las capas. No activar G0 ni tocar ASTRA/BLACKFORGE, no gastar, desplegar, borrar o mezclar a main.
+
+## Fase 09 — Juez, caché concurrente y callbacks asíncronos de Shadow/SUPRA
+
+Baseline: `352db907535720fef87b8f581012bc168687f781`. Alcance: reparación de dos carreras reproducidas con dependencias controladas; la integración Qt y el viaje completo del monorepo siguen pendientes. **G0=NO_GO; P0_SEMANTIC=OPEN.**
+
+### F09-01 P1: segundo GET de la caché sin validar (juez -> storage)
+
+- **STATICALLY_INSPECTED:** `criba-blackforge/src/criba/interprete/juez.py` original Git blob `44fcab9ac8cd6d9d2c80e1853154f898f1c35d7f`. La lectura anterior a `proponer` aplicaba `InterpreteStore.cache_valido`, parámetros y `prompt_sha256`. Pero si `record_decision` devolvía `deduplicated` tras competir con otro escritor, el segundo `get_verdict` recuperaba `response.interpretation` y ejecutaba `idea.update` sin ninguna de esas validaciones. El `BEGIN IMMEDIATE` de `record_decision` no cubre el GET posterior: otra escritura o estado dañado puede aparecer tras liberar la transacción.
+- **VERIFIED_BY_EXECUTION, ISOLATED_SEAM:** se reprodujo el método de `JuezInterprete` con filtro, puerto y store falsos que fuerzan el interleaving read -> generate -> store.deduplicated -> read. Baseline: 5 de 6 controles fallaban, incluido reemplazar una respuesta fresca por un ganador pendiente, incompleto, con otro prompt o con parámetros distintos. No se reprodujo ese interleaving con dos procesos del Storage productivo; esa integración es EVIDENCE_PENDING.
+- **FIX:** `JuezInterprete._cache_reusable` concentra un único gate de coherencia para ambos GET (validación de `InterpreteStore`, procedencia, parámetros y SHA del prompt). Antes de generar se congela mediante `deepcopy` la entrada para revalidar con la identidad original incluso si el intérprete muta la idea. El segundo ganador solo puede sustituir el resultado si revalida. Si cambió/desapareció, se conserva la generación fresca pero se declara `_registro={"status":"unregistered","reason":"concurrent_winner_not_reusable"}`, **nunca se finge que se persistió**. No se escribe una tercera vez ni se inicia otra inferencia.
+- **VERIFIED_BY_EXECUTION:** 10 controles aislados del juez PASS tras reparación, incluidos ganador válido y caché válida anterior que evitan llamadas adicionales, cambios de entrada y ausencia de ganador. No se reemplazó el resultado por un estado inventado. Archivo candidato `juez.py` blob `a18c65cd6c5205435efee312b974fafd41388d96`.
+- **NOT_EXECUTED IN FULL CHECKOUT:** test real `tests/unit/test_juez_concurrent_winner_phase09.py`, blob `bcad240fdd74999d7bdb8ded447688114aaf5704`. Debe probar con `JuezInterprete`, `InterpreteStore.cache_valido`, y `verification.interpreter_cases` genuinos; puerto/store con carrera simulada. No confundir prueba preparada con test verde.
+
+### F09-02 P1: trabajo asíncrono de SUPRA atribuido a otra sesión de Shadow
+
+- **STATICALLY_INSPECTED:** `criba-blackforge/src/criba/ui/actions.py` original Git blob `d3a76a39f356141c2ab295b6b9fe9ba4f1061db7`: `on_desarrollar_supra` creaba Worker y conectaba `done`/`fail` solo con `win`. `_on_supra_dossiers_done` escribía `sheet=win.invent_sheet; sheet["supra_runs"]=report["runs"]` sin identidad de la sesión que lanzó el trabajo; la ruta de fallo sobreescribía igualmente el estado de la pantalla. Un worker de la sesión A puede terminar mientras el usuario trabaja en B; también puede competir con un segundo envío de la misma sesión.
+- **VERIFIED_BY_EXECUTION, ISOLATED_SEAM:** callback extraído con `refs`, `set_chip`, `_activity`, `show_error` controlados. La versión base falló al recibir argumentos de identidad (no estaban soportados). Se probó la inyección de callbacks obsoletos en sesiones distintas, mismo `run_id` reutilizado, un envío posterior del mismo sheet, un `run_id` modificado y señales terminales duplicadas.
+- **FIX:** `on_desarrollar_supra` crea un token único por envío y captura el objeto `sheet` y `run_id` al conectar signals. Ambos callbacks exigen identidad del objeto de sesión, token todavía vigente y `run_id` cuando existe. El primer callback terminal aceptado consume el token: un `done` duplicado o `fail` tardío no puede escribir una segunda vez. Los callbacks legacy directos mantienen signatura compatible cuando no se proporcionan esos argumentos; la ruta Worker nueva siempre los proporciona. No se ha alterado `_execute_supra_dossiers`, su cliente, ni GET/readback.
+- **VERIFIED_BY_EXECUTION:** 6 pruebas aisladas del callback, con escenarios positivos para el envío actual y negativos para callbacks tardíos. Archivo candidato `actions.py` blob `c9633d498dbb338d50552e7d4971c5e0e7c0e454`.
+- **NOT_EXECUTED IN FULL CHECKOUT:** `tests/unit/test_shadow_supra_stale_callback_phase09.py`, blob `147cd4eef5f451f41a7402a3e5a32abd8a76e3d2`, usa Worker y dossier IO falsos, y el `actions` real cuando Qt esté disponible. No se ejecutó el GUI real. No considerar un resultado de SUPRA acreditado por el contenido de un callback simulado.
+
+### Pruebas y false coverage
+
+- **VERIFIED_BY_ME:** `/mnt/data/cbs_final_phase09_sandbox`, ejecutadas **16/16** pruebas aisladas del método/callback extraídos tras restaurar código. Se probaron 11 mutaciones no destructivas y fueron detectadas: omitir validación del ganador, SHA, parámetros, copia congelada y estado de registro; omitir token, `run_id`, identidad del sheet, guard de `done`/`fail` y consumo de señal terminal. Los dos controles de identidad de sesión/run son deliberadamente distintos; se añadió el caso `run_id` reutilizado al detectar protección redundante.
+- **VERIFIED_BY_ME:** la regresión offline exacta de fases 01–07 fue reejecutada con `PYTHONPATH=src:.` en el sandbox disponible: **242/242 PASS** (4.38 s). Una primera ejecución sin `PYTHONPATH` no pudo recopilar tres módulos por `ModuleNotFoundError`; se corrigió la invocación y se reejecutó, sin modificar pruebas. Estos 242 **NO incluyen** la suite real de fase 08 ni de fase 09. Las 16 pruebas de fase 09 pertenecen a otro sandbox, no a un único checkout.
+- **VERIFIED_BY_ME:** compileall dirigido sobre los fragmentos aislados y sus tests PASS. **NOT_EXECUTED:** integración real de módulos completos fase 09, PySide6/Qt, full pytest, Ruff, mypy, Windows, CI (comprobar tras push). No hay clon completo; acceso HTTPS GitHub desde el contenedor falló por DNS y solo se puede inspeccionar/modificar código remoto con herramientas GitHub. Cero inferencias, cero gasto, cero SUPRA productivo.
+- **EVIDENCE_PENDING:** una tercera escritura entre `record_decision` y segundo GET aún podría hacer que el resultado leído dejase de ser la última versión. El guard prueba coherencia de la fila observada, no serializabilidad futura. Un CAS/revisión persistente sería otra modificación y requiere diseño de concurrencia/contrato.
+- **EVIDENCE_PENDING:** `Storage.save_invention` admite en el historial un entry con estado `PROPUESTA` y mecanismo no vacío sin revalidar todo el contrato; `on_desarrollar_supra` selecciona por estado. Los consumidores downstream pueden poseer validadores propios y no se demostró ejecución efectiva de un dossier inválido. Fase 10 debe inspeccionar esos validadores y evitar promociones solo nominales sin romper la ruta determinista válida. Otros callbacks de recuperación SUPRA y errores de worker deben revisarse por identidad.
+- Se mantienen interfaces, rama productiva main, SUPRA remoto, BLACKFORGE, ASTRA, scoring científico y G0 intactos. No se han fusionado branches, desplegado ni publicado datos privados.
+
+### Comandos de verificación pendientes (desde checkout completo `criba-blackforge`)
+
+```sh
+python -m pytest -q tests/unit/test_juez_concurrent_winner_phase09.py tests/unit/test_shadow_supra_stale_callback_phase09.py tests/unit/test_interpreter_state_integrity_phase08.py tests/unit/test_interpreter_hardening.py tests/unit/test_inventar.py tests/unit/test_shadow_interpreter_journey.py
+python -m compileall -q src/criba/interprete/juez.py src/criba/ui/actions.py
+python -m ruff check src/criba/interprete/juez.py src/criba/ui/actions.py tests/unit/test_juez_concurrent_winner_phase09.py tests/unit/test_shadow_supra_stale_callback_phase09.py
+git diff --check
+```
+
+## Siguiente acción exacta
+
+Fase 10: persistencia y frontera de aceptación del dossier. Revisar las rutas de `Storage.save_invention`, restauración desde SQLite/JSONL, `shadow_invention_probe.chosen_entry`, `on_desarrollar_supra`, `_entry_para_desarrollo`, CLI `--dossier`, `supra_dossier.preparar_dossier` y `SupraClient` para determinar si un `PROPUESTA` falsificado/incompleto o un `PENDIENTE/UNKNOWN` legacy puede generar un dossier aparentemente acreditado. Reproducir con estado parseable corrupto y casos válidos, identificar validadores downstream antes de reparar. Verificar también callback `_on_supra_restore_done` contra sesiones activas y persistencia cross-run, y las regresiones preparadas en fases 08–09 si se obtiene checkout completo. No introducir falsos PASS ni llenar campos de evidencia sin fuente; preservar datos históricos, ASTRA, G0, y main.

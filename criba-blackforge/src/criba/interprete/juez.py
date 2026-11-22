@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from copy import deepcopy
 from typing import TYPE_CHECKING, Any
 
 from .contrato import SYSTEM, evidencia_entregada, prompt_propuesta
@@ -28,6 +29,29 @@ class JuezInterprete:
         self.prefilter = PreFilter(top_n=12, strict=True)
         self.store = InterpreteStore(storage) if storage is not None else None
 
+    def _cache_reusable(
+        self,
+        row: dict[str, Any] | None,
+        original: dict[str, Any],
+        evidence: list[dict[str, Any]],
+        query: str,
+    ) -> bool:
+        """Same cache gate before and after concurrent-writer deduplication."""
+        if not row or not InterpreteStore.cache_valido(row, original, evidence):
+            return False
+        provenance = row.get("provenance")
+        if not isinstance(provenance, dict):
+            return False
+        try:
+            return (
+                provenance.get("generation_parameters", {})
+                == getattr(self.interpreter, "generation_parameters", {})
+                and provenance.get("prompt_sha256")
+                == hash_salida(SYSTEM + prompt_propuesta(query, original, None, evidence))
+            )
+        except (KeyError, TypeError, ValueError):
+            return False
+
     def interpretar_lote(
         self,
         query: str,
@@ -47,19 +71,15 @@ class JuezInterprete:
             idea = dict(original)
             if evidence_context is not None:
                 idea["evidence_context"] = evidence_context
+            # A model may mutate the candidate while proposing. Compare both
+            # reads against the same frozen input, not generated output.
+            cache_input = deepcopy(idea)
             previo = (
                 self.store.get_verdict(idea["id"], modelo, run_id=run_id, seed=seed)
                 if self.store
                 else None
             )
-            if (
-                previo
-                and InterpreteStore.cache_valido(previo, idea, evidence)
-                and previo["provenance"].get("generation_parameters", {})
-                == getattr(self.interpreter, "generation_parameters", {})
-                and previo["provenance"].get("prompt_sha256")
-                == hash_salida(SYSTEM + prompt_propuesta(query, idea, None, evidence))
-            ):
+            if self._cache_reusable(previo, cache_input, evidence, query):
                 idea.update(previo["response"]["interpretation"])
                 idea["_registro"] = {"status": "deduplicated"}
             else:
@@ -95,8 +115,16 @@ class JuezInterprete:
                 if self.store and idea["_registro"]["status"] == "deduplicated":
                     # A concurrent writer may have won after our initial read.
                     elegido = self.store.get_verdict(idea["id"], modelo, run_id=run_id, seed=seed)
-                    if elegido is not None:
+                    if self._cache_reusable(elegido, cache_input, evidence, query):
                         idea.update(elegido["response"]["interpretation"])
+                    else:
+                        # The winning row may have changed since the atomic
+                        # dedup transaction. Do not claim this result was
+                        # persisted or promote an unverified cached answer.
+                        idea["_registro"] = {
+                            "status": "unregistered",
+                            "reason": "concurrent_winner_not_reusable",
+                        }
             resultados.append(idea)
         return {
             "query": query,

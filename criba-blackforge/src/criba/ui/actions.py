@@ -1448,10 +1448,47 @@ def _execute_supra_dossiers(
             supra.close()
 
 
-def _on_supra_dossiers_done(win: Any, report: dict[str, Any]) -> None:
+def _supra_callback_is_current(
+    win: Any,
+    *,
+    expected_sheet: dict[str, Any] | None = None,
+    submission_token: object | None = None,
+    expected_run_id: str | None = None,
+) -> bool:
+    """Only the current run and current submission may update Shadow."""
+    sheet = getattr(win, "invent_sheet", None)
+    if expected_sheet is not None and sheet is not expected_sheet:
+        return False
+    if submission_token is not None and (
+        getattr(win, "_supra_submission_token", None) is not submission_token
+    ):
+        return False
+    if expected_run_id is not None and (
+        not isinstance(sheet, dict) or sheet.get("run_id") != expected_run_id
+    ):
+        return False
+    return True
+
+
+def _on_supra_dossiers_done(
+    win: Any,
+    report: dict[str, Any],
+    *,
+    expected_sheet: dict[str, Any] | None = None,
+    submission_token: object | None = None,
+    expected_run_id: str | None = None,
+) -> None:
+    if not _supra_callback_is_current(
+        win, expected_sheet=expected_sheet,
+        submission_token=submission_token, expected_run_id=expected_run_id,
+    ):
+        return
     sheet = getattr(win, "invent_sheet", None)
     if sheet is None:
         return
+    if submission_token is not None:
+        # A second done/fail signal must not reapply a completed operation.
+        win._supra_submission_token = None
     runs = report.get("runs", [])
     sheet["supra_runs"] = runs
     readbacks = sum(1 for item in runs if isinstance(item.get("read"), dict))
@@ -1496,7 +1533,21 @@ def _on_supra_dossiers_done(win: Any, report: dict[str, Any]) -> None:
     )
 
 
-def _on_supra_dossiers_failed(win: Any, message: str) -> None:
+def _on_supra_dossiers_failed(
+    win: Any,
+    message: str,
+    *,
+    expected_sheet: dict[str, Any] | None = None,
+    submission_token: object | None = None,
+    expected_run_id: str | None = None,
+) -> None:
+    if not _supra_callback_is_current(
+        win, expected_sheet=expected_sheet,
+        submission_token=submission_token, expected_run_id=expected_run_id,
+    ):
+        return
+    if submission_token is not None:
+        win._supra_submission_token = None
     r = win.refs
     r["ideaSummary"].setText("Dossier SUPRA conservado localmente · ejecución remota NO CONFIRMADA")
     set_chip(r["ideaEstadoChip"], "SUPRA pendiente", "exploracion")
@@ -1666,9 +1717,24 @@ def on_desarrollar_supra(win: Any) -> None:
         f"Desarrollar con SUPRA: {len(dossier_payloads)} dossier(s) preservados -> {path}",
     )
 
+    # A background operation must never rewrite a later Inventar session or a
+    # newer SUPRA submission from the same sheet. Bind both signal callbacks.
+    submission_token = object()
+    win._supra_submission_token = submission_token
+    expected_run_id = sheet.get("run_id")
     worker = Worker(lambda: _execute_supra_dossiers(dossier_payloads))
-    worker.signals.done.connect(lambda report: _on_supra_dossiers_done(win, report))
-    worker.signals.fail.connect(lambda message: _on_supra_dossiers_failed(win, message))
+    worker.signals.done.connect(
+        lambda report: _on_supra_dossiers_done(
+            win, report, expected_sheet=sheet,
+            submission_token=submission_token, expected_run_id=expected_run_id,
+        )
+    )
+    worker.signals.fail.connect(
+        lambda message: _on_supra_dossiers_failed(
+            win, message, expected_sheet=sheet,
+            submission_token=submission_token, expected_run_id=expected_run_id,
+        )
+    )
     _start_worker(win, worker)
 
 
