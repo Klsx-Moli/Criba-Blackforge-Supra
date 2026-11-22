@@ -517,3 +517,43 @@ def test_forged_source_classification_cannot_be_launched_as_valid_snapshot(
     path.write_text(json.dumps(manifest, ensure_ascii=False), encoding="utf-8")
     with pytest.raises(ValueError, match="manifest schema invalid"):
         verificar_snapshot_forense(out)
+
+
+
+@pytest.mark.parametrize("bad", [
+    [], {}, {"claim": "PASS"}, ["REPLAY_VALID_LOCAL_ONLY"], None,
+    False, True, float("nan"), float("inf"), 0, 1,
+])
+def test_nonhashable_or_invalid_classification_fails_closed_no_typeerror(
+    tmp_path, bad,
+):
+    root, _, _ = source(tmp_path)
+    out = backup(tmp_path)
+    crear_snapshot_forense(root, out)
+    manifest_path = out / "manifest.json"
+    payload = json.loads(manifest_path.read_text(encoding="utf-8"))
+    payload["source_classification"] = bad
+    manifest_path.write_text(
+        json.dumps(payload, ensure_ascii=False), encoding="utf-8",
+    )
+    with pytest.raises(ValueError, match="forensic manifest schema invalid"):
+        verificar_snapshot_forense(out)
+
+
+@pytest.mark.parametrize("bad", [
+    "PASS", "POST_DELIVERED", "SCIENTIFIC_VALIDATED", "tomorrow",
+    "2026-11-22", "2026-11-22T12:00:00",
+    "2026-11-22T12:00:00+02:00",
+])
+def test_invalid_or_non_utc_manifest_timestamp_fails_closed(tmp_path, bad):
+    root, _, _ = source(tmp_path)
+    out = backup(tmp_path)
+    crear_snapshot_forense(root, out)
+    manifest_path = out / "manifest.json"
+    payload = json.loads(manifest_path.read_text(encoding="utf-8"))
+    payload["created_utc"] = bad
+    manifest_path.write_text(
+        json.dumps(payload, ensure_ascii=False), encoding="utf-8",
+    )
+    with pytest.raises(ValueError, match="forensic manifest schema invalid"):
+        verificar_snapshot_forense(out)

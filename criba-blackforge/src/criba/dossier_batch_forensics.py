@@ -12,7 +12,7 @@ import hashlib
 import json
 import os
 import shutil
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -37,6 +37,16 @@ KNOWN_EVENTS = frozenset((
     "REMOTE_DISPATCH_STARTED", "REMOTE_PARTIAL_READBACK_OBSERVED",
     "REMOTE_READBACK_OBSERVED",
 ))
+
+
+def _valid_utc_created_at(value: object) -> bool:
+    if not isinstance(value, str) or not value:
+        return False
+    try:
+        instant = datetime.fromisoformat(value)
+        return instant.tzinfo is not None and instant.utcoffset() == timedelta(0)
+    except (TypeError, ValueError, OverflowError):
+        return False
 
 
 def _source(path: Path) -> Path:
@@ -254,9 +264,9 @@ def verificar_snapshot_forense(out_dir: Path) -> dict[str, Any]:
                 "scientific_validation_proven",
             }
             or manifest.get("schema") != SNAPSHOT_SCHEMA
-            or not isinstance(manifest.get("created_utc"), str)
-            or not manifest["created_utc"]
-            or manifest.get("source_classification") not in CLASSIFICATIONS
+            or not _valid_utc_created_at(manifest.get("created_utc"))
+            or not isinstance(manifest.get("source_classification"), str)
+            or manifest["source_classification"] not in CLASSIFICATIONS
             or not isinstance(manifest.get("files"), dict)
             or set(manifest["files"]) != set(FILES)
             or manifest.get("authorizes_post") is not False
