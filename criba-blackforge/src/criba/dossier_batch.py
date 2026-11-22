@@ -113,7 +113,8 @@ def _state(events: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
                 if key != _batch_id(run, problem):
                     raise ValueError("batch id does not match run")
             batches[key] = {"intent": event, "committed": False,
-                            "remote": "NOT_ATTEMPTED", "endpoint": None}
+                            "remote": "NOT_ATTEMPTED", "endpoint": None,
+                            "dispatch_started": False}
         elif key not in batches:
             raise ValueError("orphan batch event")
         else:
@@ -125,6 +126,14 @@ def _state(events: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
                 ep = event.get("endpoint")
                 batch["endpoint"] = _endpoint_identity(ep) if ep is not None else None
                 batch["remote"] = "UNKNOWN"
+            elif (kind == "REMOTE_DISPATCH_STARTED"
+                  and batch["remote"] == "UNKNOWN"
+                  and not batch["dispatch_started"]
+                  and batch["endpoint"] is not None):
+                if (event.get("endpoint") != batch["endpoint"]
+                        or event.get("fingerprint") != batch["intent"]["fingerprint"]):
+                    raise ValueError("remote dispatch start lineage mismatch")
+                batch["dispatch_started"] = True
             elif kind == "REMOTE_READBACK_OBSERVED" and batch["remote"] == "UNKNOWN":
                 if event.get("evidence_version") is None:
                     # Phase13/14 evidence does not prove top-level execution
@@ -434,6 +443,50 @@ def marcar_envio_incierto(
         sd._append_historial(directory / JOURNAL,
                             _event("REMOTE_UNKNOWN", batch_id, endpoint=bound_endpoint))
         return True
+
+
+def reclamar_inicio_envio_remoto(
+    batch_id: str, dossiers: list[dict[str, Any]],
+    directory: Path | None = None, *, endpoint: str | None = None,
+) -> None:
+    """Claim a single worker dispatch before any external transport.
+
+    The durable REMOTE_UNKNOWN reservation alone does not prevent two
+    independently scheduled workers from posting the same original batch.
+    This second fsynced event prevents more than one *worker attempt* across
+    retries and restarts, without claiming that any HTTP POST occurred.
+    A crash after the claim leaves UNKNOWN and requires GET-only recovery.
+    """
+    if not _exact(batch_id):
+        raise ValueError("remote dispatch requires exact batch id")
+    origin = _endpoint_identity(endpoint)
+    directory = sd._dossiers_dir(directory)
+    with sd._historial_exclusive(directory):
+        batches = _state(_events(directory / JOURNAL))
+        batch = batches.get(batch_id)
+        if (batch is None or not batch["committed"]
+                or batch["remote"] != "UNKNOWN"
+                or batch.get("dispatch_started")):
+            raise ValueError("remote dispatch already claimed or not pending UNKNOWN")
+        if batch["endpoint"] != origin:
+            raise ValueError("remote dispatch endpoint differs from journal")
+        original = batch["intent"]["dossiers"]
+        if (not isinstance(dossiers, list)
+                or _canonical(dossiers) != _canonical(original)):
+            raise ValueError("remote dispatch payload differs from original PREPARED")
+        stored, ambiguous, _ = sd._leer_historial(directory / "dossiers.jsonl")
+        if any(
+            d["dossier_id"] in ambiguous
+            or d["dossier_id"] not in stored
+            or sd._contexto(stored[d["dossier_id"]]) != sd._contexto(d)
+            for d in original
+        ):
+            raise ValueError("remote dispatch local dossier history changed")
+        sd._append_historial(
+            directory / JOURNAL,
+            _event("REMOTE_DISPATCH_STARTED", batch_id, endpoint=origin,
+                   fingerprint=batch["intent"]["fingerprint"]),
+        )
 
 
 def marcar_readback_observado(
