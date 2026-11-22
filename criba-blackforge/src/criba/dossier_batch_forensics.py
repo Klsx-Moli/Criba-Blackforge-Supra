@@ -12,7 +12,7 @@ import hashlib
 import json
 import os
 import shutil
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -170,7 +170,7 @@ def crear_snapshot_forense(directory: Path, out_dir: Path) -> dict[str, Any]:
         out.mkdir(mode=0o700, exist_ok=False)
         manifest: dict[str, Any] = {
             "schema": SNAPSHOT_SCHEMA,
-            "created_utc": datetime.now(UTC).isoformat(),
+            "created_utc": datetime.now(timezone.utc).isoformat(),
             "source_classification": analysis["classification"],
             "files": {},
             "remote_execution_proven": False,

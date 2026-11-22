@@ -7,11 +7,9 @@ from __future__ import annotations
 
 import hashlib
 import json
-import os
 import subprocess
 import sys
 from concurrent.futures import ThreadPoolExecutor
-from copy import deepcopy
 from pathlib import Path
 
 import pytest
@@ -24,7 +22,7 @@ from criba.dossier_batch_forensics import (
 )
 from criba.dossier_batch_recovery import _readback
 from test_dossier_batch_phase15_integration import (
-    ENDPOINT, dossiers, lookup, prepared,
+    ENDPOINT, lookup, prepared,
 )
 
 
