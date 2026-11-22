@@ -452,3 +452,83 @@ def test_manual_remote_combo_still_rejects_hidden_critic(win, monkeypatch):
     )
     actions.on_inventar(win)
     assert errors and errors[0][0] == "Hermes · modelo de crítica"
+
+
+def _f30_refinement_sheet(win):
+    entry = {"estado_interpretacion": "PROPUESTA",
+             "candidate_id": "f30-candidate", "hipotesis": "fixture"}
+    sheet = {
+        "run_id": "f30-run",
+        "query": "fixture",
+        "entries": [entry],
+        "interpreter": {
+            "backend": "openai_compatible",
+            "model_requested": "provider/refinement-model",
+        },
+    }
+    win.problem = "fixture"
+    win.invent_sheet = sheet
+    win.candidates.interpretation_index = 0
+    return sheet
+
+
+def test_external_refinement_denied_without_fresh_cost_consent(win, monkeypatch):
+    _f30_refinement_sheet(win)
+    monkeypatch.setattr(
+        QMessageBox, "question",
+        lambda *_a, **_kw: QMessageBox.StandardButton.No,
+    )
+    monkeypatch.setattr(actions, "_start_worker", lambda *_a, **_kw:
+                        pytest.fail("refinement may not start without cost consent"))
+    actions.on_protocolo_operativo(win)
+    assert getattr(win, "_protocolo_intent", None) is None
+
+
+@pytest.mark.parametrize("mutation", ["problem", "entry", "model", "endpoint"])
+def test_external_refinement_consent_rechecks_source_and_intent(
+    win, monkeypatch, mutation
+):
+    sheet = _f30_refinement_sheet(win)
+    before = sheet["entries"][0]
+    errors = []
+    monkeypatch.setattr(actions, "show_error", lambda _w, title, message:
+                        errors.append((title, message)))
+
+    def mutate_during_consent(*_a, **_kw):
+        if mutation == "problem":
+            win.problem = "modified"
+        elif mutation == "entry":
+            before["hipotesis"] = "injected"
+        elif mutation == "model":
+            sheet["interpreter"]["model_requested"] = "changed"
+        else:
+            monkeypatch.setenv("CRIBA_EXTERNAL_BASE_URL",
+                               "http://127.0.0.1:8646/v1")
+        return QMessageBox.StandardButton.Yes
+
+    monkeypatch.setattr(QMessageBox, "question", mutate_during_consent)
+    monkeypatch.setattr(actions, "_start_worker", lambda *_a, **_kw:
+                        pytest.fail("stale refinement consent launched a worker"))
+    actions.on_protocolo_operativo(win)
+    assert errors and errors[0][0] == (
+        "Protocolo operativo · consentimiento caducado"
+    )
+    assert getattr(win, "_protocolo_intent", None) is None
+
+
+def test_external_refinement_approval_reaches_pre_worker_boundary(
+    win, monkeypatch
+):
+    _f30_refinement_sheet(win)
+    monkeypatch.setattr(
+        QMessageBox, "question",
+        lambda *_a, **_kw: QMessageBox.StandardButton.Yes,
+    )
+    class ApprovalBoundary(Exception):
+        pass
+    monkeypatch.setattr(
+        actions, "_cancelar_protocolo_pendiente",
+        lambda _win: (_ for _ in ()).throw(ApprovalBoundary()),
+    )
+    with pytest.raises(ApprovalBoundary):
+        actions.on_protocolo_operativo(win)
