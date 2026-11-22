@@ -615,3 +615,14 @@ git diff --check
 - Se añadió un tercer control `Event.is_set()` **después** de construir el payload independiente y **antes** de llamar a `refinar_propuesta`. Evita iniciar gasto en un proveedor cuando la cancelación se activa durante una copia lenta de la propuesta.
 - Se añadió el rechazo de `intent.cancel` en `_protocolo_intent_actual`, aun si el puntero a la solicitud no ha sido limpiado; una señal terminal de ese intent no puede publicar resultados.
 - Dos pruebas adversariales nuevas en F18. El conjunto es 11 casos F18. **VERIFIED_BY_ME**: smoke espejo de cinco funciones productivas en sandbox local: 9/9 PASS y py_compile PASS, pero los bytes del checkout completo no son accesibles en contenedor; **NOT_EXECUTED**: suite F18 oficial, Qt, CI y tests globales.
+
+## Fase 19 — Recuperación duradera, concurrencia GET y estados históricos
+
+- Base: 176ad416be307ef606a955ad1a94f2d8f5a664df; main, handoff y ASTRA sin modificaciones.
+- P1 / STATICALLY_INSPECTED: una segunda consulta GET fallida podía degradar la salida a UNKNOWN aunque el journal v2 verificable seguía marcando READBACK_OBSERVED. Se separa el estado histórico del estado fresco: reason=PREVIOUSLY_RECORDED_NOT_FRESHLY_VERIFIED, fresh_get_status=<causa real>.
+- P1 / STATICALLY_INSPECTED: dos recuperadores GET simultáneos podían fsync el mismo resultado y reportar al segundo JOURNAL_COMMIT_UNCONFIRMED. Tras una colisión de escritura se relee el journal bajo lock y solo se acepta una confirmación v2 idéntica, con comprobación de dossier, fingerprint y endpoint.
+- P1 / CLI: recibir status=READBACK_OBSERVED con fresh_get_status=GET_FAILED ya NO devuelve exit code 0. La automatización requiere GET fresco validado (exit 0), o código 2 cuando la confirmación es únicamente histórica.
+- P2 / TOCTOU: para batches ya confirmados se revalida el journal y el historial local al concluir GET, evitando confirmación basada en una lectura anterior a una modificación concurrente.
+- Se conservan journal bytes, no se repite POST y nunca se promociona UNKNOWN ni evidencia científica ausente.
+- Tests F19: 10 escenarios reales de journal/lock/ficheros, más 4 escenarios parametrizados de salida CLI. Solo se simula GET/cliente CLI. NOT_EXECUTED: suite oficial contra checkout completo y CI Windows.
+- Estado: IMPLEMENTED / EVIDENCE_PENDING. G0=NO-GO; P0 semántico=OPEN.
