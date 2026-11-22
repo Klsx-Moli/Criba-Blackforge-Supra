@@ -305,6 +305,33 @@ def _save_under_lock(directory: Path, key: str,
             "remote_state": batch["remote"]}
 
 
+def _exigir_historial_dossiers_integro_para_post(directory: Path) -> None:
+    """Never use the permissive legacy JSONL reader as POST authority.
+
+    The ordinary dossier reader can skip malformed historical rows so that
+    forensic recovery remains possible. A *new remote POST*, however, must
+    refuse a corrupt-but-parseable source instead of silently trusting only
+    its intact prefix. This function is read-only and runs under the lock.
+    """
+    path = directory / "dossiers.jsonl"
+    if not path.exists():
+        return
+    with path.open("rb") as stream:
+        for line in stream:
+            if not line.endswith(b"\\n"):
+                raise ValueError("dossier history unterminated before POST")
+            try:
+                value = json.loads(
+                    line, object_pairs_hook=_unique_pairs,
+                    parse_constant=_bad_constant,
+                )
+            except (UnicodeDecodeError, ValueError, RecursionError,
+                    OverflowError) as exc:
+                raise ValueError("dossier history corrupt before POST") from exc
+            if not isinstance(value, dict) or not _exact(value.get("dossier_id")):
+                raise ValueError("dossier history invalid identity before POST")
+
+
 def comprobar_autorizacion_envio_dossier(
     dossier: dict[str, Any], directory: Path | None = None, *,
     batch_dispatch_id: str | None = None,
@@ -324,6 +351,7 @@ def comprobar_autorizacion_envio_dossier(
     run_id = dossier.get("run_id")
     directory = sd._dossiers_dir(directory)
     with sd._historial_exclusive(directory):
+        _exigir_historial_dossiers_integro_para_post(directory)
         state = _state(_events(directory / JOURNAL))
         owners = []
         for key, item in state.items():
