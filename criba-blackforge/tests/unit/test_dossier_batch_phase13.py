@@ -153,7 +153,10 @@ def readback(dossier):
                 "integration_version": "criba-supra/1",
                 "payload_fingerprint": _dossier_payload_fingerprint(dossier)},
                 "status_source": "PERSISTED_STATE",
-                "persisted_artifact_status": "VERIFIED_FROM_ARTIFACT"}}
+                "persisted_artifact_status": "VERIFIED_FROM_ARTIFACT",
+                "scientific_status": "NOT_VALIDATED",
+                "criba_mechanism_execution_status": "NOT_EXECUTED",
+                "criba_planning_receipt_status": "PRESERVED_NOT_EXECUTED"}}
 
 
 def test_readback_requires_all_dossiers_and_remains_unknown_on_bad_report(tmp_path):

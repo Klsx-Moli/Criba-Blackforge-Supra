@@ -126,11 +126,13 @@ def _state(events: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
                 batch["endpoint"] = _endpoint_identity(ep) if ep is not None else None
                 batch["remote"] = "UNKNOWN"
             elif kind == "REMOTE_READBACK_OBSERVED" and batch["remote"] == "UNKNOWN":
-                if batch["endpoint"] is None and "runs" not in event:
-                    # Phase13 marker with no readback evidence: historical,
-                    # readable, but NOT evidence of a confirmed remote state.
+                if event.get("evidence_version") is None:
+                    # Phase13/14 evidence does not prove top-level execution
+                    # channels. Preserve history but require a new verified GET.
                     batch["legacy_readback_unverified"] = True
                     continue
+                if event.get("evidence_version") != "criba-batch-readback/2":
+                    raise ValueError("unknown remote evidence version")
                 if event.get("endpoint") != batch["endpoint"] or batch["endpoint"] is None:
                     raise ValueError("remote readback endpoint mismatch")
                 _verified_readbacks(batch["intent"]["dossiers"], event.get("runs"))
@@ -193,6 +195,9 @@ def _verified_readbacks(
         if (run.get("project_id") != project
                 or read.get("status_source") != "PERSISTED_STATE"
                 or read.get("persisted_artifact_status") != "VERIFIED_FROM_ARTIFACT"
+                or read.get("scientific_status") != "NOT_VALIDATED"
+                or read.get("criba_mechanism_execution_status") != "NOT_EXECUTED"
+                or read.get("criba_planning_receipt_status") != "PRESERVED_NOT_EXECUTED"
                 or any(receipt.get(remote) != dossier.get(local) for local, remote in fields)
                 or receipt.get("receipt_scope") != "PLANNED_DISCRIMINANT_PROTOCOL_ONLY"
                 or receipt.get("execution_status") != "NOT_EXECUTED"
@@ -215,6 +220,9 @@ def _verified_readbacks(
                 },
                 "status_source": "PERSISTED_STATE",
                 "persisted_artifact_status": "VERIFIED_FROM_ARTIFACT",
+                "scientific_status": "NOT_VALIDATED",
+                "criba_mechanism_execution_status": "NOT_EXECUTED",
+                "criba_planning_receipt_status": "PRESERVED_NOT_EXECUTED",
             },
         })
     return results
@@ -316,7 +324,9 @@ def marcar_envio_incierto(
             if (identity in ambiguous or identity not in stored
                     or sd._contexto(stored[identity]) != sd._contexto(dossier)):
                 raise ValueError("local dossier history is not committed")
-        bound_endpoint = _endpoint_identity(endpoint) if endpoint is not None else None
+        # New remote reservations cannot be unbound. Phase13/14 records remain
+        # readable but are never silently assigned today's endpoint.
+        bound_endpoint = _endpoint_identity(endpoint)
         sd._append_historial(directory / JOURNAL,
                             _event("REMOTE_UNKNOWN", batch_id, endpoint=bound_endpoint))
         return True
@@ -349,5 +359,5 @@ def marcar_readback_observado(
         sd._append_historial(
             directory / JOURNAL,
             _event("REMOTE_READBACK_OBSERVED", batch_id, endpoint=batch["endpoint"],
-                   runs=minimal),
+                   evidence_version="criba-batch-readback/2", runs=minimal),
         )

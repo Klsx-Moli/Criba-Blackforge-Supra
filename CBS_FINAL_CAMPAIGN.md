@@ -549,3 +549,14 @@ git diff --check
 - Cobertura: readback verificado tras reabrir journal, replay sin IDs nuevos, GET parcial, endpoint cambiado, dossier alterado, recibo alterado después del commit, fallo de escritura del marcador, legacy sin recibo y borrado del historial local.
 - **NOT_EXECUTED:** estos 8 casos en el checkout integral: no se certifica PASS. El sandbox F14 reejecutado 38/38 PASS y compileall PASS, pero usa journal simulado. Este cierre no permite elevar G0 ni cerrar el P0 semántico.
 - Punto siguiente: ejecutar los 8 casos junto con las suites F13/F14/GUI en Windows y CI de PR; refutar y corregir fallos, sin mezclar en main.
+
+
+## Fase 16 — Contratos de readback y migración conservadora
+
+- Base: `9fba726d7b4bd0236892030db12d40938acbed0c`. Mantener la rama `campaign/cbs-final-32-40` y no tocar `main`.
+- **P1 / STATICALLY_INSPECTED:** `marcar_envio_incierto` permitía guardar un intento remoto nuevo sin endpoint; la recuperación F14 no podía acreditar su origen. Ahora el endpoint se exige para toda reserva nueva. Los eventos legacy sin origen siguen legibles sin inventarles origen.
+- **P1 / STATICALLY_INSPECTED:** la función de confirmación productiva `marcar_readback_observado` comprobaba receipt e identidad, pero no `read.scientific_status`, `read.criba_mechanism_execution_status` ni `read.criba_planning_receipt_status`. La recuperación F14 sí comprobaba los tres: el productor Shadow y la recuperación divergían. Se añade validación y persistencia de los tres canales; contradicciones no se promocionan.
+- **Versionado y migración:** nuevo evento `REMOTE_READBACK_OBSERVED` lleva `evidence_version=criba-batch-readback/2`. Eventos anteriores sin versión se conservan como `UNKNOWN` para reconciliación GET-only explícita. No se borran ni editan.
+- Tests añadidos F16: endpoint nulo, tres mutaciones de canales superiores, marcador antiguo y adulteración del evento v2. Adaptadas fixtures F13 y F15. Test de readback real y GUI/CI requieren checkout completo.
+- **NOT_EXECUTED:** nuevo conjunto de pruebas F16 contra el código exacto (contenedor sin acceso GitHub por DNS y sin PySide6). No elevar G0 ni P0 semántico, y no declarar fase 16 aceptada antes de suite y verificación.
+

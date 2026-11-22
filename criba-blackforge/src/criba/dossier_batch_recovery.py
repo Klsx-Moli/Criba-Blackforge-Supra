@@ -75,6 +75,9 @@ def _readback(dossier: dict[str, Any], lookup: Any) -> dict[str, Any] | None:
             "read": {"receipt": {key: receipt[key] for key in expected},
                      "status_source": "PERSISTED_STATE",
                      "persisted_artifact_status": "VERIFIED_FROM_ARTIFACT",
+                     "scientific_status": "NOT_VALIDATED",
+                     "criba_mechanism_execution_status": "NOT_EXECUTED",
+                     "criba_planning_receipt_status": "PRESERVED_NOT_EXECUTED",
                      "stage": _field(lookup, "stage")}}
 
 

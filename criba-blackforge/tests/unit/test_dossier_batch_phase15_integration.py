@@ -92,7 +92,13 @@ class OnlyGet:
 def prepared(tmp_path: Path, endpoint: str | None = ENDPOINT) -> tuple[str, list[dict]]:
     originals = dossiers()
     key = journal.guardar_lote_dossiers(originals, tmp_path)["batch_id"]
-    assert journal.marcar_envio_incierto(key, tmp_path, endpoint=endpoint)
+    if endpoint is None:
+        # Construct historical unbound event rather than allowing a *new*
+        # unbound reservation.
+        sd._append_historial(tmp_path / journal.JOURNAL,
+                            journal._event("REMOTE_UNKNOWN", key, endpoint=None))
+    else:
+        assert journal.marcar_envio_incierto(key, tmp_path, endpoint=endpoint)
     return key, originals
 
 
