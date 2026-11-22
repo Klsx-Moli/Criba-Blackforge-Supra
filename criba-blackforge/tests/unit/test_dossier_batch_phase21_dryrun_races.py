@@ -5,8 +5,6 @@ simulated. This is a zero-POST, isolated tmp_path regression.
 """
 from __future__ import annotations
 
-from pathlib import Path
-
 import pytest
 
 from criba import dossier_batch as batch
