@@ -469,10 +469,27 @@ def on_inventar(win: Any) -> None:
         return
     if chosen == "local_llama":
         from ..model_config import load_model_settings
-        if not load_model_settings().enabled:
+        settings = load_model_settings()
+        active = settings.active_profile()
+        if not settings.enabled or active is None:
             show_error(win, "Modelo local",
                        "Configura y activa primero un perfil GGUF u Ollama.")
             return
+        if selected is not None:
+            pinned = selected.itemData(
+                selected.currentIndex(), Qt.ItemDataRole.UserRole + 2
+            )
+            if pinned is not None and (
+                not isinstance(pinned, (tuple, list)) or len(pinned) != 2
+                or (active.backend, active.model) != tuple(pinned)
+                or active.endpoint.rstrip("/") != "http://127.0.0.1:11434"
+            ):
+                show_error(
+                    win, "Ollama · perfil cambiado",
+                    "El perfil activo ha cambiado desde la selección del "
+                    "modelo. Vuelve a cargar y seleccionar el modelo."
+                )
+                return
     if isinstance(chosen, (tuple, list)) and chosen and chosen[0] == "openai_compatible":
         if not _hermes_proxy_base_ok():
             show_error(win, "Hermes",
@@ -1575,6 +1592,9 @@ def _on_interpreter_changed(win: Any, index: int) -> None:
                     )
                 return
             selector.setItemData(index, "local_llama")
+            selector.setItemData(
+                index, ("ollama", str(model)), Qt.ItemDataRole.UserRole + 2
+            )
             selector.setItemText(index, f"Ollama · {model} · banco pendiente")
         if backend == "openai_compatible" and not _hermes_proxy_base_ok():
             if cards is not None:
