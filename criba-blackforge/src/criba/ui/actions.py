@@ -1444,6 +1444,18 @@ def _execute_supra_dossiers(
         if (expected_endpoint is not None
                 and supra.config.endpoint.rstrip("/") != expected_endpoint):
             raise ValueError("SUPRA endpoint changed after journal reservation")
+        if batch_id is not None:
+            # A single durable reservation can outlive a crash and be
+            # accidentally submitted by two workers. Before ANY health/POST
+            # transport, fsync one dispatch claim bound to the original
+            # PREPARED payload. A second worker must stop here.
+            if expected_endpoint is None:
+                raise ValueError("reserved SUPRA worker requires original endpoint")
+            from ..dossier_batch import reclamar_inicio_envio_remoto
+
+            reclamar_inicio_envio_remoto(
+                batch_id, dossiers, endpoint=expected_endpoint,
+            )
         health = supra.health()
         runs: list[dict[str, Any]] = []
         for dossier in dossiers:
