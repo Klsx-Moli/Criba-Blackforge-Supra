@@ -146,3 +146,54 @@ def submitted_batch_receipt_valid(
                 or run.get("criba_mechanism_execution_status") != "NOT_EXECUTED"):
             return False
     return seen == set(dossier_ids)
+
+
+
+def present_partial_diagnostics(
+    report: Any, *, batch_id: Any, dossier_ids: Any,
+) -> str | None:
+    """Show row-level GET facts without turning UNKNOWN into a batch success.
+
+    Even 100% positive partial receipts lack the whole-batch v2 marker.
+    A historical count is never a fresh GET, or proof a POST did not run.
+    """
+    if (not isinstance(report, dict) or not isinstance(batch_id, str)
+            or report.get("batch_id") != batch_id
+            or report.get("status") != "PARTIAL_DIAGNOSTIC_ONLY"
+            or report.get("reason") != "NO_FULL_BATCH_PROMOTION"
+            or report.get("scientific_status") != "NOT_VALIDATED"
+            or report.get("mechanism_execution") != "NOT_EXECUTED"
+            or report.get("full_batch_recorded") is not False):
+        return None
+    if (not isinstance(dossier_ids, list) or not dossier_ids
+            or any(not isinstance(x, str) or not x or x != x.strip()
+                   for x in dossier_ids)
+            or len(set(dossier_ids)) != len(dossier_ids)):
+        return None
+    n = len(dossier_ids)
+    fresh = report.get("fresh_verified")
+    historical = report.get("journal_partials")
+    if (type(report.get("expected")) is not int
+            or report["expected"] != n
+            or type(fresh) is not int or not 0 <= fresh <= n
+            or type(historical) is not int or not 0 <= historical <= n):
+        return None
+    rows = report.get("rows")
+    if not isinstance(rows, list) or len(rows) != n:
+        return None
+    allowed = {
+        "GET_UNAVAILABLE_UNKNOWN", "UNBOUND_READBACK_UNKNOWN",
+        "JOURNAL_WRITE_UNCONFIRMED", "FRESH_PLANNING_RECEIPT_VERIFIED",
+    }
+    if (any(not isinstance(r, dict) or r.get("get_status") not in allowed
+            or r.get("dossier_id") not in dossier_ids for r in rows)
+            or {r["dossier_id"] for r in rows} != set(dossier_ids)
+            or len({r["dossier_id"] for r in rows}) != n
+            or sum(r["get_status"] == "FRESH_PLANNING_RECEIPT_VERIFIED"
+                   for r in rows) != fresh):
+        return None
+    return (
+        f"diagnóstico GET: {fresh}/{n} recibos actuales de planificación; "
+        f"{historical}/{n} parciales históricos en journal; "
+        "resto UNKNOWN · lote completo NO CONFIRMADO · sin reenvío POST"
+    )

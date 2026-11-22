@@ -1651,13 +1651,26 @@ def _reconciliar_lote_supra_get(
     Unlike 'recover latest SUPRA', this uses the bound local batch_id and the
     journal origin, not LIST ordering or an unrelated latest remote project.
     """
-    from ..dossier_batch_recovery import reconciliar_lote_por_get
+    from ..dossier_batch_recovery import (
+        inspeccionar_lote_parcial_por_get, reconciliar_lote_por_get,
+    )
     from ..integrations import SupraClient
 
     with SupraClient() as client:
-        return reconciliar_lote_por_get(
+        result = reconciliar_lote_por_get(
             batch_id, client, expected_run_id=run_id, expected_problem=query,
         )
+        if result.get("status") == "UNKNOWN" and result.get("reason") in (
+            "GET_FAILED", "READBACK_NOT_DURABLY_BOUND",
+            "JOURNAL_COMMIT_UNCONFIRMED",
+        ):
+            # Every retry is GET-only, from original PREPARED IDs; partial
+            # journal receipts never confirm the entire batch.
+            result["partial_diagnostics"] = inspeccionar_lote_parcial_por_get(
+                batch_id, client, registrar=True,
+                expected_run_id=run_id, expected_problem=query,
+            )
+        return result
 
 
 def _supra_batch_get_current(
@@ -1693,10 +1706,22 @@ def _on_supra_batch_get_done(
     view = present_batch_recovery(result)
     sheet["dossier_recovery_view_state"] = view["state"]
     sheet["dossier_fresh_get_status"] = view["fresh_get_status"]
+    from .supra_batch_status import present_partial_diagnostics
+
+    partial_summary = present_partial_diagnostics(
+        result.get("partial_diagnostics"),
+        batch_id=batch_id, dossier_ids=sheet.get("dossiers"),
+    )
+    sheet["dossier_partial_diagnostics"] = (
+        result.get("partial_diagnostics") if partial_summary else None
+    )
     if view["state"] in ("FRESH_JOURNALED", "HISTORICAL_ONLY"):
         sheet["dossier_remote_state"] = "READBACK_OBSERVED"
     win._dossier_workflow_report = None
-    win.refs["ideaSummary"].setText(view["summary"])
+    summary = view["summary"]
+    if view["state"] == "UNKNOWN" and partial_summary:
+        summary += " · " + partial_summary
+    win.refs["ideaSummary"].setText(summary)
     set_chip(win.refs["ideaEstadoChip"], view["chip"], "exploracion")
     status_label = getattr(getattr(win, "right_panel", None), "supra_result_status", None)
     if status_label is not None:
