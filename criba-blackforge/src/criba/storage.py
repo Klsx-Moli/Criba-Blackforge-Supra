@@ -51,10 +51,17 @@ class Storage:
         self.initialize()
 
     def connect(self) -> sqlite3.Connection:
-        con = sqlite3.connect(self.path, timeout=3)
+        # timeout mas alto: initialize() ejecuta DDL idempotente en cada
+        # conexion y, bajo escritores concurrentes, 3s no bastaba (el test
+        # de concurrencia de BLACKFORGE fallaba con "database is locked").
+        con = sqlite3.connect(self.path, timeout=30)
         con.row_factory = sqlite3.Row
         con.execute("PRAGMA foreign_keys = ON")
         con.execute("PRAGMA journal_mode = WAL")
+        # busy_timeout explicito: hace que un escritor espere en C en lugar
+        # de fallar en Python, tambien para las conexiones que llegan
+        # mientras otra sostiene el lock de escritura.
+        con.execute("PRAGMA busy_timeout = 30000")
         return con
 
     def initialize(self) -> None:
@@ -98,6 +105,24 @@ class Storage:
                   mode TEXT NOT NULL,
                   seed INTEGER,
                   PRIMARY KEY (catalog_fingerprint, combo_key))''')
+                con.execute('''CREATE TABLE IF NOT EXISTS semantic_reservations (
+                  scope TEXT NOT NULL,
+                  attempt TEXT NOT NULL,
+                  request_sha256 TEXT NOT NULL,
+                  reviewer TEXT NOT NULL,
+                  status TEXT NOT NULL,
+                  created_at TEXT NOT NULL,
+                  closed_at TEXT,
+                  receipt_sha256 TEXT,
+                  PRIMARY KEY (scope, attempt))''')
+                con.execute('''CREATE TABLE IF NOT EXISTS semantic_receipts (
+                  scope TEXT NOT NULL,
+                  attempt TEXT NOT NULL,
+                  request_sha256 TEXT NOT NULL,
+                  body_sha256 TEXT NOT NULL,
+                  status TEXT NOT NULL,
+                  received_at TEXT NOT NULL,
+                  PRIMARY KEY (scope, attempt, body_sha256))''')
                 if current_version < SCHEMA_VERSION:
                     con.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
         finally:
@@ -247,6 +272,10 @@ class Storage:
         }
         con = self.connect()
         try:
+            # BEGIN IMMEDIATE: toma el lock de escritura ANTES del SELECT.
+            # Con BEGIN diferido, dos hilos podian leer el mismo evidence_json
+            # y luego competir por el UPDATE: uno recibia "database is locked".
+            # Es el mismo defecto que corregi en las reservas semanticas.
             con.execute("BEGIN IMMEDIATE")
             row = con.execute(
                 "SELECT evidence_json FROM sessions WHERE id=?",
@@ -308,6 +337,11 @@ class Storage:
         con = self.connect()
         try:
             with con:
+                # BEGIN IMMEDIATE: toma el lock de ESCRITURA antes del SELECT.
+                # Sin esto, dos escritores podian leer el mismo evidence_json y
+                # uno sobrescribia al otro (perdida silenciosa de evidencia).
+                # Es la misma reparacion aplicada en record_event.
+                con.execute("BEGIN IMMEDIATE")
                 row = con.execute(
                     "SELECT evidence_json FROM sessions WHERE id=?", (session_id,)
                 ).fetchone()
@@ -357,6 +391,12 @@ class Storage:
         con = self.connect()
         try:
             with con:
+                # BEGIN IMMEDIATE: el SELECT de "ya guardado" y el INSERT
+                # deben ser una sola operacion atomica. Sin el lock, dos
+                # hilos podian no ver la fila del otro y guardar el mismo
+                # campo dos veces (duplicado de identidad), o pisarse el
+                # valor en el caso de campos con valores distintos.
+                con.execute("BEGIN IMMEDIATE")
                 for field_name, value in memory.items():
                     if isinstance(value, (list, dict)):
                         field_value = json.dumps(value, ensure_ascii=False)
@@ -524,5 +564,198 @@ class Storage:
                 if pair is not None:
                     out[pair] = str(r[1])
             return out
+        finally:
+            con.close()
+
+    # ------------------------------------------------------------------
+    # Reserva de intento y cierre condicional (K3)
+    # ------------------------------------------------------------------
+    def reserve_semantic_attempt(
+        self,
+        scope: str,
+        attempt: str,
+        request_sha256: str,
+        reviewer: str,
+    ) -> bool:
+        """Reserva (o RE-RESERVA) el intento activo de un scope.
+
+        Devuelve True si esta llamada crea la reserva vigente y False si
+        repite exactamente la misma peticion ya reservada.
+
+        Semantica de reintento: un scope tiene UN intento activo. Si llega
+        una peticion nueva (otro ``request_sha256``) para el mismo intento,
+        SUSTITUYE a la anterior y la anterior pasa a ``SUPERSEDED``. Esto es
+        lo que hace que una respuesta tardia del intento 1 ya no pueda cerrar
+        la reserva que ahora pertenece al intento 2.
+        """
+        if not scope or not attempt:
+            raise ValueError("scope y attempt son obligatorios")
+        now = datetime.now(timezone.utc).isoformat()
+        con = self.connect()
+        try:
+            # BEGIN IMMEDIATE toma el lock de ESCRITURA antes de leer. Sin
+            # esto, dos conexiones podian leer ACTIVE a la vez y ambas
+            # creerse ganadoras: la carrera real lo demostro.
+            con.execute("BEGIN IMMEDIATE")
+            fila = con.execute(
+                "SELECT request_sha256 FROM semantic_reservations "
+                "WHERE scope=? AND attempt=?",
+                (scope, attempt),
+            ).fetchone()
+            if fila is not None and str(fila[0]) == request_sha256:
+                con.commit()
+                # Misma peticion repetida: idempotente, no es reserva nueva.
+                return False
+            if fila is not None:
+                # Reintento legitimo del mismo attempt: la reserva anterior
+                # queda superada. Con PK (scope, attempt) no pueden coexistir
+                # dos filas, asi que se reemplaza la vigente.
+                con.execute(
+                    "DELETE FROM semantic_reservations "
+                    "WHERE scope=? AND attempt=?",
+                    (scope, attempt),
+                )
+            con.execute(
+                "INSERT INTO semantic_reservations "
+                "(scope, attempt, request_sha256, reviewer, status, created_at) "
+                "VALUES(?,?,?,?,?,?)",
+                (scope, attempt, request_sha256, reviewer, "ACTIVE", now),
+            )
+            con.commit()
+            return True
+        finally:
+            con.close()
+
+    def close_semantic_attempt(
+        self,
+        scope: str,
+        attempt: str,
+        request_sha256: str,
+        receipt_sha256: str,
+    ) -> str:
+        """Cierra SOLO si el recibo corresponde a la reserva VIGENTE.
+
+        Devuelve uno de:
+          - ``CLOSED``: el recibo corresponde a la peticion activa y se cierra.
+          - ``ALREADY_CLOSED``: ya estaba cerrado con este mismo recibo.
+          - ``STALE``: la peticion ya fue superada por un reintento; el
+            recibo se conserva para auditoria pero NO queda vigente.
+          - ``UNKNOWN``: no existe reserva para ese scope/attempt.
+
+        ``STALE`` es el caso critico de K3: la respuesta tardia del intento 1
+        llega despues de que el intento 2 re-reservo el mismo scope, asi que
+        no cierra nada vigente.
+        """
+        now = datetime.now(timezone.utc).isoformat()
+        con = self.connect()
+        try:
+            # BEGIN IMMEDIATE: el lock de escritura se toma ANTES de leer el
+            # estado. Sin esto, dos cierres concurrentes leian ACTIVE y
+            # ambos devolvia CLOSED. La carrera real lo detecto.
+            con.execute("BEGIN IMMEDIATE")
+            fila = con.execute(
+                "SELECT request_sha256, status, receipt_sha256 "
+                "FROM semantic_reservations WHERE scope=? AND attempt=?",
+                (scope, attempt),
+            ).fetchone()
+            if fila is None:
+                con.rollback()
+                return "UNKNOWN"
+            request_actual, status_actual, receipt_actual = (
+                str(fila[0]), str(fila[1]), fila[2]
+            )
+            es_vigente = request_actual == request_sha256
+            # El recibo se persiste siempre, incluso si llega tarde.
+            con.execute(
+                "INSERT OR IGNORE INTO semantic_receipts "
+                "(scope, attempt, request_sha256, body_sha256, status, "
+                "received_at) VALUES(?,?,?,?,?,?)",
+                (
+                    scope,
+                    attempt,
+                    request_sha256,
+                    receipt_sha256,
+                    status_actual if es_vigente else "STALE",
+                    now,
+                ),
+            )
+            if not es_vigente:
+                con.commit()
+                return "STALE"
+            if status_actual != "ACTIVE":
+                if receipt_actual is not None and str(receipt_actual) == receipt_sha256:
+                    con.commit()
+                    return "ALREADY_CLOSED"
+                # Mismo intento, cuerpo distinto: conflicto, no reemplazo.
+                con.rollback()
+                raise ValueError(
+                    "conflicto: el intento ya esta cerrado con otro recibo"
+                )
+            cursor = con.execute(
+                "UPDATE semantic_reservations SET status=?, closed_at=?, "
+                "receipt_sha256=? WHERE scope=? AND attempt=? "
+                "AND request_sha256=? AND status=?",
+                ("CLOSED", now, receipt_sha256, scope, attempt,
+                 request_sha256, "ACTIVE"),
+            )
+            # El UPDATE condicional es la garantia final: si otra conexion
+            # cerro entre la lectura y la escritura, rowcount es 0.
+            if cursor.rowcount != 1:
+                con.rollback()
+                return "ALREADY_CLOSED"
+            con.commit()
+            return "CLOSED"
+        finally:
+            con.close()
+
+    def semantic_attempt_status(self, scope: str, attempt: str) -> dict[str, Any] | None:
+        """Estado legible de una reserva, o None si no existe."""
+        con = self.connect()
+        try:
+            fila = con.execute(
+                "SELECT attempt, request_sha256, reviewer, status, created_at, "
+                "closed_at, receipt_sha256 FROM semantic_reservations "
+                "WHERE scope=? AND attempt=?",
+                (scope, attempt),
+            ).fetchone()
+            if fila is None:
+                return None
+            return {
+                "attempt": fila[0],
+                "request_sha256": fila[1],
+                "reviewer": fila[2],
+                "status": fila[3],
+                "created_at": fila[4],
+                "closed_at": fila[5],
+                "receipt_sha256": fila[6],
+            }
+        finally:
+            con.close()
+
+    def load_semantic_receipts(
+        self, scope: str, attempt: str
+    ) -> list[dict[str, Any]]:
+        """Recibos persistidos de un intento, incluidos los tardios.
+
+        Un recibo STALE sigue aqui para auditoria, pero su ``status`` deja
+        claro que no cierra la reserva vigente.
+        """
+        con = self.connect()
+        try:
+            rows = con.execute(
+                "SELECT request_sha256, body_sha256, status, received_at "
+                "FROM semantic_receipts WHERE scope=? AND attempt=? "
+                "ORDER BY received_at",
+                (scope, attempt),
+            ).fetchall()
+            return [
+                {
+                    "request_sha256": r[0],
+                    "body_sha256": r[1],
+                    "status": r[2],
+                    "received_at": r[3],
+                }
+                for r in rows
+            ]
         finally:
             con.close()
