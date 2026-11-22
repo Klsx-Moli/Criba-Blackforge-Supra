@@ -14,7 +14,8 @@ for path in (ROOT, ROOT / "shadow_ui"):
         sys.path.insert(0, str(path))
 
 pytest.importorskip("PySide6")
-from PySide6.QtWidgets import QApplication  # noqa: E402
+from PySide6.QtCore import Qt  # noqa: E402
+from PySide6.QtWidgets import QApplication, QMessageBox  # noqa: E402
 
 from criba.interpreter_sources import ModelChoice, SourceCatalog  # noqa: E402
 from criba.model_config import load_model_settings  # noqa: E402
@@ -99,7 +100,13 @@ def test_opencode_catalog_does_not_create_executable_interpreter(win):
     assert "NO EJECUTABLE" in win.topcards.interpreter_status.text()
 
 
-def test_ollama_selection_activates_explicit_profile_without_token(win, app):
+def test_ollama_selection_activates_explicit_profile_without_token(
+    win, app, monkeypatch
+):
+    monkeypatch.setattr(
+        QMessageBox, "question",
+        lambda *args, **kwargs: QMessageBox.StandardButton.Yes,
+    )
     selector = win.topcards.interpreter_selector
     block = selector.blockSignals(True)
     selector.setCurrentIndex(selector.findData("source:ollama"))
@@ -148,3 +155,79 @@ def test_wrong_hermes_base_blocked_before_any_work(win, monkeypatch):
                         pytest.fail("must not send selected Hermes model elsewhere"))
     actions.on_inventar(win)
     assert errors and errors[0][0] == "Hermes"
+
+
+def test_ollama_cancel_preserves_disabled_settings(win, app, monkeypatch):
+    monkeypatch.setattr(
+        QMessageBox, "question",
+        lambda *args, **kwargs: QMessageBox.StandardButton.No,
+    )
+    selector = win.topcards.interpreter_selector
+    block = selector.blockSignals(True)
+    selector.setCurrentIndex(selector.findData("source:ollama"))
+    selector.blockSignals(block)
+    actions._on_source_catalog(win, "ollama", SourceCatalog(
+        "ollama", (ModelChoice("ollama", "fixture-cancel:7b"),), "catalog",
+    ))
+    index = next(
+        i for i in range(selector.count())
+        if selector.itemData(i) == ("ollama_catalog", "fixture-cancel:7b")
+    )
+    selector.setCurrentIndex(index)
+    app.processEvents()
+    settings = load_model_settings()
+    assert not settings.enabled
+    assert not any(p.model == "fixture-cancel:7b" for p in settings.profiles)
+    assert selector.currentData() == ("ollama_catalog", "fixture-cancel:7b")
+
+
+def test_remote_price_unknown_decline_does_not_launch_worker(win, monkeypatch):
+    selector = win.topcards.interpreter_selector
+    block = selector.blockSignals(True)
+    selector.setCurrentIndex(selector.findData("source:hermes"))
+    selector.blockSignals(block)
+    actions._on_source_catalog(win, "hermes", SourceCatalog(
+        "hermes", (ModelChoice("hermes", "provider/paid-unknown"),), "unknown",
+    ))
+    index = next(
+        i for i in range(selector.count())
+        if selector.itemData(i) == ("openai_compatible", "provider/paid-unknown")
+    )
+    assert selector.itemData(index, Qt.ItemDataRole.UserRole + 1) == "hermes"
+    selector.setCurrentIndex(index)
+    win.problem = "fixture"
+    monkeypatch.setattr(
+        QMessageBox, "question",
+        lambda *args, **kwargs: QMessageBox.StandardButton.No,
+    )
+    monkeypatch.setattr(actions, "_lock_mutators", lambda _win:
+                        pytest.fail("declined consent may not start work"))
+    actions.on_inventar(win)
+    assert selector.isEnabled()
+
+
+def test_remote_price_unknown_approval_reaches_mutation_boundary(win, monkeypatch):
+    selector = win.topcards.interpreter_selector
+    block = selector.blockSignals(True)
+    selector.setCurrentIndex(selector.findData("source:hermes"))
+    selector.blockSignals(block)
+    actions._on_source_catalog(win, "hermes", SourceCatalog(
+        "hermes", (ModelChoice("hermes", "provider/paid-unknown"),), "unknown",
+    ))
+    index = next(
+        i for i in range(selector.count())
+        if selector.itemData(i) == ("openai_compatible", "provider/paid-unknown")
+    )
+    selector.setCurrentIndex(index)
+    win.problem = "fixture"
+    monkeypatch.setattr(
+        QMessageBox, "question",
+        lambda *args, **kwargs: QMessageBox.StandardButton.Yes,
+    )
+    class ConsentReached(Exception):
+        pass
+    def before_mutation(_win):
+        raise ConsentReached()
+    monkeypatch.setattr(actions, "_cancelar_protocolo_pendiente", before_mutation)
+    with pytest.raises(ConsentReached):
+        actions.on_inventar(win)
