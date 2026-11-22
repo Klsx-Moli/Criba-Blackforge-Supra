@@ -265,6 +265,44 @@ python -m pytest -q tests/unit/test_g0_authorization_preflight.py tests/unit/tes
 
 **Fase 07 terminada en su alcance de inventario y comprobación; autorización G0 = NO_GO.** No se buscará firma del propietario para ejecutar A/B/C mientras S0/S1, referencias, jueces, identidad física y transporte productivo sigan pendientes. El avance funcional offline sigue independiente de G0.
 
-## Siguiente acción exacta
+## Siguiente acción exacta (histórica, al cierre de fase 07)
 
 Fase 08: inspeccionar y reproducir la ruta productiva de estados PROPUESTA/PENDIENTE/ABSTENER/ERROR/UNRESOLVED en `openai_compatible.py`, `InterpretationResult`, `JuezInterprete`, `InterpreteStore`, `invention_service`, Shadow, exportadores y consumidores SUPRA. Probar respuestas parciales, crítica fallida, error de red, retry oculto, resultado obsoleto, caché legacy, ausencia de evidencia y múltiples ejecuciones. Crear sentinelas que fallen ante promoción silenciosa de UNKNOWN/PENDIENTE a éxito, sin cambiar ASTRA, scoring científico ni BLACKFORGE; reparar lo que pueda verificarse en GitHub y conservar lo que requiere ejecución Windows. No inferencias ni gasto, no main merge ni publicaciones.
+
+## Fase 08 — Integridad de estados productivos, caché y juez de Inventar
+
+Baseline: `ba201b2f91bed68d9971b8d45737fd1248c668e2`. Alcance: dos reparaciones fail-closed de discrepancias entre estados y un test de integración nuevo para un checkout real. **Fase 08 completada dentro de este alcance; no se declara viaje de producto completo validado.**
+
+### F08-01 P1 — Caché de interpretaciones con estados contradictorios
+
+- **STATICALLY_INSPECTED:** `src/criba/interprete/store.py`, objeto Git original `281e530b1a40042f16927bacf176c136e8e4ebb5`. `InterpreteStore.cache_valido` verificaba `row.evaluation_status=CRITIQUED`, versiones, `interprete_result.estado=PROPUESTA`, validación estructural y crítica; **no** exigía concordancia con `row.veredicto`, `interprete_verdict`, `interprete_evaluation_status`, `interprete_analisis` ni `interprete_result.error`.
+- **VERIFIED_BY_EXECUTION, ISOLATED_SEAM:** extracto literal de `cache_valido` del objeto remoto (únicas sustituciones: funciones de `validar_propuesta` y `validar_critica` por validadores mínimos para aislar esta condición). Baseline: **1/9 pruebas pasa, 8 fallan** porque la función reutiliza filas parseables que contienen PENDIENTE, ERROR, timeout o análisis contradictorio. No afirmar que se reprodujo un modelo, UI o todo el contrato de producción.
+- **FIX:** comprobar antes de usar la caché que los estados exterior/interior dicen inequívocamente `PROPUESTA`/`CRITIQUED`, análisis vacío y error interno vacío. Nunca modificar/borrar el historial. Fallos y casos legados pasan a revalidación o retry; no se convierten en cero ni aceptación. El nuevo blob de `store.py` es `64aca033891d38285c8dc2812cdb07a5cdb9affb`.
+- **Regresión aislada ejecutada:** 15 casos de caché/SQLite con cierre y reapertura simulando filas parseables contradictorias, más pruebas externas de estado. Se añadieron pruebas para invariantes de versión y estado exterior tras detectar false coverage inicial. Función candidata verificada por FNV1a32 `79e11b67` del extracto exacto remoto; 8/8 mutaciones dirigidas detectadas, restauradas, rerun verde. El conjunto fase 08 de cache + juez tiene **27/27 PASS**. El módulo de almacenamiento completo no se ejecutó por falta de checkout íntegro.
+- **Prueba real preparada, NOT_EXECUTED:** `tests/unit/test_interpreter_state_integrity_phase08.py` usa `Storage` real, `InterpreteStore.record_decision/get_verdict`, `verification.interpreter_cases`, recuperación SQLite, reemplazo transaccional de un registro inválido y conteo de `interprete_attempts`. La aceptación de esa prueba es requisito pendiente; no convertir preparación en PASS.
+
+### F08-02 P1 — Crítica marcada CRITIQUED aunque la propuesta esté pendiente
+
+- **STATICALLY_INSPECTED:** `src/criba/inventar.py` original blob `59af1f1ba40689dc4ee57ee4f34029ebcc6dd37d`, ruta `_desarrollar` -> `_judge`. El bucle pasaba `proposal.critica` directamente a `_judge` sin comprobar que `proposal.estado=PROPUESTA`. Una propuesta fallida con crítica `CRITIQUED` estructuralmente válida producía `entry.judge.evaluation_status=CRITIQUED`. La propia `entry.estado_interpretacion` seguía pendiente; era inconsistencia de presentación/consumo, no ejecución SUPRA probada.
+- **VERIFIED_BY_EXECUTION, ISOLATED_SEAM:** función original `_judge` aislada, con validador de crítica sintético, confirma `CRITIQUED` ante una propuesta pendiente y crítica positiva. La corrección solo entrega dicha crítica al juez si el estado principal es PROPUESTA, conservando el payload original en `entry.critica` para auditoría. En estados PENDIENTE, ERROR, ABSTENER, NOT_RUN y UNKNOWN, el juez emite NOT_EVALUATED, nunca éxito; éxito genuino sigue CRITIQUED. Dos mutaciones del selector nuevo detectadas. Blob candidato de `inventar.py` `b331e273311d5b94457f6c1e79cdf51d0d4e7508`.
+- **Prueba real preparada, NOT_EXECUTED:** caso integrado `invent(... proponer=synthetic_proposer, history_storage=False)` con fuentes offline falsas y casos de propuesta válida/pendiente. No hay modelo real ni tráfico. Probarlo en checkout completo.
+
+### Inspección de consumidores y límites
+
+- **STATICALLY_INSPECTED:** `src/criba/interprete/puerto.py`: `InterpretationResult.to_campos` convierte no-propuestas a PENDIENTE, pero conserva diagnóstico de crítica y otros campos; el consumidor debe verificar explícitamente estado. `src/criba/ui/actions.py`, `proposal_view.py` y CLI filtran `estado_interpretacion=PROPUESTA` antes de opciones SUPRA/guardado; no se verificó GUI real ni se garantiza que toda API/consumidor haga lo mismo. El registro estructurado del fallo debe seguir visible solo como diagnóstico.
+- **VERIFIED_BY_EXECUTION:** regresión offline previa de fases 01–07 repetida sin cambios, **242/242 PASS** en sandbox parcial; el conjunto fase 08 aislado tiene **27/27 PASS**. No afirmar 269 casos en un checkout monorepo único. `compileall` del subconjunto candidato y pruebas de mutación dirigidas PASS. Ruff/mypy, suite íntegra, tests originales de `JuezInterprete` y Windows **NOT_EXECUTED** para esta candidata.
+- Sin changes de scoring, ASTRA, SUPRA productivo, BLACKFORGE ni G0. G0=NO_GO; P0_SEMANTIC=OPEN; modelo físico no acreditado; contabilidad de llamadas reales no acreditada.
+
+Comandos pendientes de validación en clon Windows o CI, desde `criba-blackforge`:
+
+```sh
+python -m pytest -q tests/unit/test_interpreter_state_integrity_phase08.py tests/unit/test_interpreter_hardening.py tests/unit/test_inventar.py tests/unit/test_interprete_puerto.py tests/unit/test_invention_acceptance_gate.py
+python -m pytest -q tests/unit --ignore=tests/fixtures
+python -m compileall -q src/criba/interprete/store.py src/criba/inventar.py
+python -m ruff check src/criba/interprete/store.py src/criba/inventar.py tests/unit/test_interpreter_state_integrity_phase08.py
+git diff --check
+```
+
+## Siguiente acción exacta
+
+Fase 09: comprobar integración productiva transversal de Inventar->historial->Shadow->dossier SUPRA y del Juez->InterpreteStore->pipeline->CLI/API, incluyendo carreras de último escritor, caché que envejece entre read y write, errores/retries, campos no verificados en export y reanudación entre ejecuciones. Primero ejecutar las pruebas de integración fase08 en checkout completo si ya es accesible; si no, preservar NOT_EXECUTED y ejecutar sentinelas aislados sobre contratos críticos. Reparar solo defectos reproducibles con tests; evitar que `NOT_EVALUATED` o `PENDIENTE` se conviertan en evidencia/puntuación/estado `PROPUESTA` al cruzar las capas. No activar G0 ni tocar ASTRA/BLACKFORGE, no gastar, desplegar, borrar o mezclar a main.

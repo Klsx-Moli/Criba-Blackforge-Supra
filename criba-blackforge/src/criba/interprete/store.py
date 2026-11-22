@@ -37,11 +37,18 @@ class InterpreteStore:
             return False
         try:
             response = row.get("response") or json.loads(row["response_json"])
-            campos = response["interpretation"]["interprete_result"]
+            interpretation = response["interpretation"]
+            campos = interpretation["interprete_result"]
             critica = campos["critica"]
             return (
-                isinstance(campos, dict)
+                row.get("veredicto") == "PROPUESTA"
+                and isinstance(interpretation, dict)
+                and interpretation.get("interprete_verdict") == "PROPUESTA"
+                and interpretation.get("interprete_evaluation_status") == "CRITIQUED"
+                and interpretation.get("interprete_analisis") == ""
+                and isinstance(campos, dict)
                 and campos.get("estado") == "PROPUESTA"
+                and campos.get("error") == ""
                 and not validar_propuesta(campos, idea, evidence)
                 and isinstance(critica, dict)
                 and critica.get("evaluation_status") == "CRITIQUED"

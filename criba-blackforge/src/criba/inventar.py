@@ -541,7 +541,13 @@ def invent(
             origin="NEW_IIE",
         )
         # 2) Crítica automática sobre la propuesta (no validación independiente).
-        judged = _judge(query, {**idea, "critica": proposal.get("critica", {})}, is_offline)
+        # A pending proposal may carry a prior critique payload for diagnostics,
+        # but it must not promote that critique to a successful judge outcome.
+        # Preserve proposal["critica"] in the audit entry below unchanged.
+        critic_for_judge = (
+            proposal.get("critica", {}) if proposal.get("estado") == "PROPUESTA" else {}
+        )
+        judged = _judge(query, {**idea, "critica": critic_for_judge}, is_offline)
         # 3) Antecedentes del mecanismo (nunca del título).
         assessment = _assess_candidate(candidate, active_sources)
         return {
