@@ -762,7 +762,13 @@ class HeaderWidget(QWidget):
         self.model_btn.setToolTip(f"Modelo seleccionado: {label}; disponibilidad al generar")
 
     def _open_modelos(self) -> None:
-        """Clic en la cabecera → gestor de modelos compartido y refresco real."""
+        """The header's Cargar modelo opens the actual Shadow source picker."""
+        selector = getattr(self.win, "interpreter_selector", None)
+        if selector is not None and selector.isEnabled():
+            selector.setFocus()
+            selector.showPopup()
+            return
+        # The local profile editor remains available from sidebar Modelos.
         actions.on_modelos(self.win)
         refresh = getattr(self.win, "refresh_model_state", None)
         if callable(refresh):
