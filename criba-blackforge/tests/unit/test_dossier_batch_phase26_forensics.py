@@ -475,3 +475,26 @@ def test_unknown_manifest_claims_are_not_accepted_as_raw_evidence(tmp_path, muta
     manifest.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
     with pytest.raises(ValueError, match="manifest|inventory"):
         verificar_snapshot_forense(out)
+
+
+
+def test_oversized_manifest_is_rejected_before_json_parse(tmp_path):
+    root, _, _ = source(tmp_path)
+    out = backup(tmp_path)
+    crear_snapshot_forense(root, out)
+    path = out / "manifest.json"
+    with path.open("ab") as handle:
+        handle.write(b" " * (128 * 1024))
+    with pytest.raises(ValueError, match="exceeds inspection limit"):
+        verificar_snapshot_forense(out)
+
+
+def test_recursive_manifest_is_classified_as_malformed(tmp_path):
+    root, _, _ = source(tmp_path)
+    out = backup(tmp_path)
+    crear_snapshot_forense(root, out)
+    path = out / "manifest.json"
+    path.write_bytes(b'{"schema":' + b"[" * 1500 +
+                     b"0" + b"]" * 1500 + b"}")
+    with pytest.raises(ValueError, match="forensic manifest is malformed"):
+        verificar_snapshot_forense(out)

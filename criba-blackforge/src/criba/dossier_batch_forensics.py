@@ -23,6 +23,7 @@ FILES = ("dossier_batches.jsonl", "dossiers.jsonl")
 SNAPSHOT_SCHEMA = "criba-dossier-forensic-snapshot/1"
 MAX_INSPECT_BYTES = 64 * 1024 * 1024
 MAX_SNAPSHOT_BYTES = 512 * 1024 * 1024
+MAX_MANIFEST_BYTES = 128 * 1024
 KNOWN_EVENTS = frozenset((
     "PREPARED", "LOCAL_COMMITTED", "REMOTE_UNKNOWN",
     "REMOTE_DISPATCH_STARTED", "REMOTE_PARTIAL_READBACK_OBSERVED",
@@ -177,7 +178,7 @@ def crear_snapshot_forense(directory: Path, out_dir: Path) -> dict[str, Any]:
         out.mkdir(mode=0o700, exist_ok=False)
         manifest: dict[str, Any] = {
             "schema": SNAPSHOT_SCHEMA,
-            "created_utc": datetime.now(timezone.utc).isoformat(),
+            "created_utc": datetime.now(timezone.utc).isoformat(),  # noqa: UP017 (Python 3.10)
             "source_classification": analysis["classification"],
             "files": {},
             "remote_execution_proven": False,
@@ -228,13 +229,15 @@ def verificar_snapshot_forense(out_dir: Path) -> dict[str, Any]:
     manifest_path = root / "manifest.json"
     if manifest_path.is_symlink() or not manifest_path.is_file():
         raise ValueError("forensic manifest missing or symlinked")
+    if manifest_path.stat().st_size > MAX_MANIFEST_BYTES:
+        raise ValueError("forensic manifest exceeds inspection limit")
     try:
         with manifest_path.open("r", encoding="utf-8") as stream:
             manifest = json.load(
                 stream, object_pairs_hook=batch._unique_pairs,
                 parse_constant=batch._bad_constant,
             )
-    except (UnicodeDecodeError, ValueError) as exc:
+    except (UnicodeDecodeError, ValueError, RecursionError, OverflowError) as exc:
         raise ValueError("forensic manifest is malformed") from exc
     if (not isinstance(manifest, dict)
             or set(manifest) != {
