@@ -308,6 +308,7 @@ class Storage:
         con = self.connect()
         try:
             with con:
+                con.execute("BEGIN IMMEDIATE")
                 row = con.execute(
                     "SELECT evidence_json FROM sessions WHERE id=?", (session_id,)
                 ).fetchone()
