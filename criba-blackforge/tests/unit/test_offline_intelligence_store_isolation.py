@@ -9,9 +9,9 @@ import pytest
 from criba.intelligence.refresh import default_store
 
 
-@pytest.mark.parametrize("case", [1, 2])
+@pytest.mark.parametrize("_case", [1, 2])
 def test_default_intelligence_store_is_inside_unique_pytest_tmp_path(
-    tmp_path: Path, case: int,
+    tmp_path: Path, _case: int,
 ) -> None:
     # Autouse fixture from tests/conftest.py must run before the first access.
     base = tmp_path / "isolated-appdata"
