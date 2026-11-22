@@ -33,7 +33,10 @@ def present_batch_recovery(report: Any) -> dict[str, str]:
         and expected > 0 and 0 <= checked <= expected
     )
     if (status == "READBACK_OBSERVED" and valid_counts
-            and fresh == "VERIFIED_FROM_ARTIFACT" and checked == expected):
+            and fresh == "VERIFIED_FROM_ARTIFACT" and checked == expected
+            and reason in ("PERSISTED_PLANNING_RECEIPTS_ONLY",
+                           "JOURNAL_CONFIRMED_CONCURRENTLY")
+            and (recorded or reason != "JOURNAL_CONFIRMED_CONCURRENTLY")):
         if recorded:
             return {
                 "state": "FRESH_JOURNALED",
@@ -57,7 +60,8 @@ def present_batch_recovery(report: Any) -> dict[str, str]:
         }
     if (status == "READBACK_OBSERVED" and recorded and valid_counts
             and reason == "PREVIOUSLY_RECORDED_NOT_FRESHLY_VERIFIED"
-            and fresh in ("GET_FAILED", "READBACK_NOT_DURABLY_BOUND")):
+            and fresh in ("GET_FAILED", "READBACK_NOT_DURABLY_BOUND")
+            and checked < expected):
         return {
             "state": "HISTORICAL_ONLY",
             "chip": "SUPRA · recibo histórico",

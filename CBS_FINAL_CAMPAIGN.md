@@ -648,3 +648,9 @@ git diff --check
 - El botón de recuperación consulta ahora un `dossier_batch_id` previamente reservado **antes de validar propuestas actuales**. El replay no depende de que una sesión antigua siga teniendo entradas interpretables; el journal local es la única autoridad de lo que se envió.
 - `reconciliar_lote_por_get` acepta precondiciones opcionales `expected_run_id` / `expected_problem`. La ruta Shadow las exige y las coteja con el `PREPARED` duradero bajo lock, antes de abrir GET; un batch_id de otra sesión retorna `INTENT_LINEAGE_MISMATCH` y no toca remoto ni journal.
 - Cuatro casos GET lineage con JSONL real y cuatro casos Qt adicionales de ficha sin propuestas, dedup, run_id ausente y cambio de query durante GET. **NOT_EXECUTED** contra checkout completo; no se interpreta la publicación de pruebas como PASS.
+
+### F20 re-scan adversarial — contadores y procedencia contradictorios
+
+- **FALSE_COVERAGE:** el primer presentador aceptaba `reason=PREVIOUSLY_RECORDED_NOT_FRESHLY_VERIFIED` junto a `fresh_get_status=VERIFIED_FROM_ARTIFACT` y contadores completos. Ahora la ruta fresca exige razones exactas `PERSISTED_PLANNING_RECEIPTS_ONLY` / `JOURNAL_CONFIRMED_CONCURRENTLY`, con acuse local obligatorio para la segunda.
+- El caso histórico exige `checked < expected`; la primera fixture de prueba histórica usaba 2/2 GET y a la vez GET_FAILED, un estado inalcanzable. Se ajustó a 0/2 o 1/2 y se añaden mutaciones que deben devolver UNKNOWN.
+- **VERIFIED_BY_ME:** el archivo de presentación original publicado tenía SHA Git idéntico al archivo probado en contenedor; tras las nuevas mutaciones la ejecución local del mismo código actualizó a 29/29 PASS. El checkout completo/UI Qt continúa NOT_EXECUTED.

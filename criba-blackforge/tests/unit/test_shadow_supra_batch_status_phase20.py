@@ -26,9 +26,9 @@ def good(**changes):
     ({}, "FRESH_JOURNALED"),
     ({"journal_recorded": False}, "FRESH_NOT_JOURNALED"),
     ({"reason": "PREVIOUSLY_RECORDED_NOT_FRESHLY_VERIFIED",
-      "fresh_get_status": "GET_FAILED"}, "HISTORICAL_ONLY"),
+      "fresh_get_status": "GET_FAILED", "checked": 0}, "HISTORICAL_ONLY"),
     ({"reason": "PREVIOUSLY_RECORDED_NOT_FRESHLY_VERIFIED",
-      "fresh_get_status": "READBACK_NOT_DURABLY_BOUND"}, "HISTORICAL_ONLY"),
+      "fresh_get_status": "READBACK_NOT_DURABLY_BOUND", "checked": 1}, "HISTORICAL_ONLY"),
     ({"status": "UNKNOWN"}, "UNKNOWN"),
     ({"journal_recorded": None}, "FRESH_NOT_JOURNALED"),
     ({"checked": 1}, "UNKNOWN"),
@@ -45,6 +45,15 @@ def good(**changes):
       "fresh_get_status": "VERIFIED_FROM_ARTIFACT", "checked": 1}, "UNKNOWN"),
     ({"reason": "PREVIOUSLY_RECORDED_NOT_FRESHLY_VERIFIED",
       "fresh_get_status": "REMOTE_VALIDATED"}, "UNKNOWN"),
+    ({"reason": "PREVIOUSLY_RECORDED_NOT_FRESHLY_VERIFIED"}, "UNKNOWN"),
+    ({"reason": "SYNTHETIC_FRESH_SUCCESS"}, "UNKNOWN"),
+    ({"reason": "JOURNAL_CONFIRMED_CONCURRENTLY",
+      "journal_recorded": False}, "UNKNOWN"),
+    ({"reason": "PREVIOUSLY_RECORDED_NOT_FRESHLY_VERIFIED",
+      "fresh_get_status": "GET_FAILED", "checked": 2}, "UNKNOWN"),
+    ({"reason": "PREVIOUSLY_RECORDED_NOT_FRESHLY_VERIFIED",
+      "fresh_get_status": "READBACK_NOT_DURABLY_BOUND",
+      "checked": 2}, "UNKNOWN"),
 ])
 def test_status_projection_is_strict(changes, state):
     projected = present_batch_recovery(good(**changes))
