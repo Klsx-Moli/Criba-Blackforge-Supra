@@ -179,3 +179,69 @@ def test_worker_claim_timeout_keeps_unknown_and_refuses_restart(tmp_path):
     state = batch._state(batch._events(tmp_path / batch.JOURNAL))[key]
     assert state["remote"] == "UNKNOWN"
     assert state["dispatch_started"] is True
+
+
+
+def test_real_worker_uses_detached_dossiers_if_caller_mutates_during_health(
+    tmp_path, monkeypatch,
+):
+    from criba import dossier_workflow as workflow
+
+    key, original = reserved(tmp_path)
+    first_before = original[0]["mecanismo"]
+    passed = []
+
+    class MutatingClient:
+        config = SimpleNamespace(endpoint=ENDPOINT)
+
+        def health(self):
+            # A different thread/callback edits the original input after the
+            # fsynced worker claim. This must not change the POST payload.
+            original[0]["mecanismo"] = "forged after worker claim"
+            original.reverse()
+            return SimpleNamespace(model_dump=lambda: {"synthetic": True})
+
+    class NoPostWorkflow:
+        def __init__(self, client):
+            self.client = client
+
+        def submit(self, **kwargs):
+            dossier = kwargs["dossier"]
+            passed.append(dossier)
+            assert dossier["mecanismo"] == first_before
+            assert dossier["dossier_id"] == "dossier-first-1"
+            assert dossier is not original[0]
+            raise RuntimeError("stopped before any actual POST")
+
+    monkeypatch.setattr(workflow, "DossierWorkflow", NoPostWorkflow)
+    with pytest.raises(RuntimeError, match="stopped before any actual POST"):
+        actions._execute_supra_dossiers(
+            original, MutatingClient(), batch_id=key, expected_endpoint=ENDPOINT,
+        )
+    assert len(passed) == 1
+    assert passed[0]["mecanismo"] == first_before
+    assert batch._state(batch._events(tmp_path / batch.JOURNAL))[key][
+        "dispatch_started"
+    ] is True
+
+
+def test_worker_rejects_unversioned_historical_unknown_before_network(
+    tmp_path,
+):
+    from criba import supra_dossier as sd
+
+    original = dossiers()
+    key = batch.guardar_lote_dossiers(original, tmp_path)["batch_id"]
+    sd._append_historial(
+        tmp_path / batch.JOURNAL,
+        batch._event("REMOTE_UNKNOWN", key, endpoint=ENDPOINT),
+    )
+    client = HealthCrash()
+    with pytest.raises(ValueError, match="historical UNKNOWN"):
+        actions._execute_supra_dossiers(
+            original, client, batch_id=key, expected_endpoint=ENDPOINT,
+        )
+    assert client.health_calls == 0
+    assert batch._state(batch._events(tmp_path / batch.JOURNAL))[key][
+        "remote"
+    ] == "UNKNOWN"
