@@ -498,3 +498,22 @@ def test_recursive_manifest_is_classified_as_malformed(tmp_path):
                      b"0" + b"]" * 1500 + b"}")
     with pytest.raises(ValueError, match="forensic manifest is malformed"):
         verificar_snapshot_forense(out)
+
+
+
+@pytest.mark.parametrize("fake", [
+    "", "UNKNOWN", "PASS", "CERTIFIED_SUCCESS", "POST_DELIVERED",
+    "SCIENTIFIC_VALIDATED", "READY_FOR_POST", "REPLAY_AUTHORIZED",
+])
+def test_forged_source_classification_cannot_be_launched_as_valid_snapshot(
+    tmp_path, fake,
+):
+    root, _, _ = source(tmp_path)
+    out = backup(tmp_path)
+    crear_snapshot_forense(root, out)
+    path = out / "manifest.json"
+    manifest = json.loads(path.read_text(encoding="utf-8"))
+    manifest["source_classification"] = fake
+    path.write_text(json.dumps(manifest, ensure_ascii=False), encoding="utf-8")
+    with pytest.raises(ValueError, match="manifest schema invalid"):
+        verificar_snapshot_forense(out)

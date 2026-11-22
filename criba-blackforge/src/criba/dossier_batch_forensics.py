@@ -24,6 +24,14 @@ SNAPSHOT_SCHEMA = "criba-dossier-forensic-snapshot/1"
 MAX_INSPECT_BYTES = 64 * 1024 * 1024
 MAX_SNAPSHOT_BYTES = 512 * 1024 * 1024
 MAX_MANIFEST_BYTES = 128 * 1024
+CLASSIFICATIONS = frozenset((
+    "JOURNAL_MISSING", "INSPECTION_SIZE_LIMIT", "JOURNAL_UNTERMINATED_TAIL",
+    "UNSUPPORTED_JOURNAL_SCHEMA", "JOURNAL_PARSE_INVALID",
+    "UNSUPPORTED_EVENT_VERSION", "JOURNAL_REPLAY_INVALID",
+    "DOSSIER_HISTORY_MISSING", "VALID_EMPTY_HISTORY",
+    "DOSSIER_HISTORY_PARSE_INVALID", "DOSSIER_HISTORY_MISMATCH",
+    "REPLAY_VALID_LOCAL_ONLY",
+))
 KNOWN_EVENTS = frozenset((
     "PREPARED", "LOCAL_COMMITTED", "REMOTE_UNKNOWN",
     "REMOTE_DISPATCH_STARTED", "REMOTE_PARTIAL_READBACK_OBSERVED",
@@ -248,7 +256,7 @@ def verificar_snapshot_forense(out_dir: Path) -> dict[str, Any]:
             or manifest.get("schema") != SNAPSHOT_SCHEMA
             or not isinstance(manifest.get("created_utc"), str)
             or not manifest["created_utc"]
-            or not isinstance(manifest.get("source_classification"), str)
+            or manifest.get("source_classification") not in CLASSIFICATIONS
             or not isinstance(manifest.get("files"), dict)
             or set(manifest["files"]) != set(FILES)
             or manifest.get("authorizes_post") is not False
