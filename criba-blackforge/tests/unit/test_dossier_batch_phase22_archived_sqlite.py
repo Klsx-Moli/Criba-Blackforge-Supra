@@ -17,7 +17,7 @@ from criba import supra_dossier as sd
 from criba.invention_lineage import verify_archived_invention
 from criba.storage import Storage
 from criba.ui.supra_batch_resume import resolve_archived_batch
-from test_dossier_batch_phase15_integration import ENDPOINT, dossiers, prepared
+from test_dossier_batch_phase15_integration import dossiers, prepared
 
 
 def _archive_before_supra(tmp_path: Path):
@@ -200,5 +200,6 @@ def test_duplicate_parseable_journal_key_rejected_before_lookup(tmp_path):
         original.replace('"batch_id":', '"batch_id":"forged","batch_id":', 1),
         encoding="utf-8",
     )
-    with pytest.raises(ValueError, match="duplicate JSON key"):
+    with pytest.raises(ValueError, match="batch journal corrupt") as exc:
         resolve_archived_batch(archived, tmp_path)
+    assert "duplicate JSON key" in str(exc.value.__cause__)

@@ -13,7 +13,7 @@ from criba import dossier_batch as journal
 from criba import supra_dossier as sd
 from criba.dossier_batch_recovery import reconciliar_lote_por_get
 from criba.ui import actions
-from test_dossier_batch_phase15_integration import OnlyGet, dossiers, prepared, project
+from test_dossier_batch_phase15_integration import OnlyGet, dossiers, prepared
 from test_shadow_supra_stale_callback_phase09 import harness, window
 
 
