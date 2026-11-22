@@ -81,19 +81,24 @@ def _readback(dossier: dict[str, Any], lookup: Any) -> dict[str, Any] | None:
                      "stage": _field(lookup, "stage")}}
 
 
-def _confirmed_v2_still_local(
+def _local_batch_still_intact(
     batch_id: str, directory: Path, endpoint: str, fingerprint: str,
+    *, allow_unknown: bool = False,
 ) -> bool:
-    """Verify durable v2 receipt and local original dossiers under one lock.
+    """Re-read exact journal intent and dossier history under a shared lock.
 
-    The durable receipt is NOT proof of a current GET, scientific validation
-    or successful execution of any proposed CRIBA mechanism.
+    A valid UNKNOWN intent is sufficient only to guard a *dry-run fresh GET*.
+    It must never establish a historically recorded v2 confirmation.
     """
     with journal.sd._historial_exclusive(directory):
         state = journal._state(journal._events(directory / journal.JOURNAL))
         batch = state.get(batch_id)
+        expected_states = (
+            ("UNKNOWN", "READBACK_OBSERVED") if allow_unknown
+            else ("READBACK_OBSERVED",)
+        )
         if (batch is None or not batch["committed"]
-                or batch["remote"] != "READBACK_OBSERVED"
+                or batch["remote"] not in expected_states
                 or batch["endpoint"] != endpoint
                 or batch["intent"].get("fingerprint") != fingerprint):
             return False
@@ -104,6 +109,15 @@ def _confirmed_v2_still_local(
             and journal.sd._contexto(d) == journal.sd._contexto(history[d["dossier_id"]])
             for d in batch["intent"]["dossiers"]
         )
+
+
+def _confirmed_v2_still_local(
+    batch_id: str, directory: Path, endpoint: str, fingerprint: str,
+) -> bool:
+    """Verify a prior durable v2 receipt, not current scientific success."""
+    return _local_batch_still_intact(
+        batch_id, directory, endpoint, fingerprint,
+    )
 
 
 def _fresh_get_unconfirmed(
@@ -207,8 +221,14 @@ def reconciliar_lote_por_get(
             return {"batch_id": batch_id, "status": "UNKNOWN",
                     "reason": "JOURNAL_COMMIT_UNCONFIRMED", "checked": len(verified),
                     "expected": len(dossiers)}
-    if batch["remote"] == "READBACK_OBSERVED" and not _confirmed_v2_still_local(
-        batch_id, directory, endpoint, fingerprint,
+    # An UNKNOWN dry-run never enters marcar_readback_observado. Without
+    # this recheck, a concurrent journal/dossier mutation can be promoted
+    # as a valid GET result even when local evidence is now lost.
+    if (not registrar or batch["remote"] == "READBACK_OBSERVED") and not (
+        _local_batch_still_intact(
+            batch_id, directory, endpoint, fingerprint,
+            allow_unknown=(batch["remote"] == "UNKNOWN"),
+        )
     ):
         return {"batch_id": batch_id, "status": "UNKNOWN",
                 "reason": "LOCAL_OR_JOURNAL_CHANGED_DURING_GET",
