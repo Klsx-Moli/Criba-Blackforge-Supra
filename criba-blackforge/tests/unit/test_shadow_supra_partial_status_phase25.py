@@ -136,3 +136,23 @@ def test_historical_receipt_count_cannot_be_reassigned_to_other_dossier():
     wrong = valid()
     wrong["rows"][0]["historical_partial_recorded"] = 1
     assert view(wrong) is None
+
+
+
+@pytest.mark.parametrize("bad", [
+    [], {}, {"x": "y"}, ["FRESH_PLANNING_RECEIPT_VERIFIED"],
+    None, False, True, 0, 1, float("nan"), float("inf"),
+])
+def test_nonhashable_or_wrong_get_status_type_fails_closed_without_exception(bad):
+    invalid = valid()
+    invalid["rows"][0]["get_status"] = bad
+    assert view(invalid) is None
+
+
+@pytest.mark.parametrize("bad", [
+    [], {}, None, False, 0, ["dossier-first-1"],
+])
+def test_nonstring_dossier_id_fails_closed_without_exception(bad):
+    invalid = valid()
+    invalid["rows"][0]["dossier_id"] = bad
+    assert view(invalid) is None

@@ -185,8 +185,14 @@ def present_partial_diagnostics(
         "GET_UNAVAILABLE_UNKNOWN", "UNBOUND_READBACK_UNKNOWN",
         "JOURNAL_WRITE_UNCONFIRMED", "FRESH_PLANNING_RECEIPT_VERIFIED",
     }
-    if (any(not isinstance(r, dict) or r.get("get_status") not in allowed
-            or r.get("dossier_id") not in dossier_ids for r in rows)
+    if (any(
+            not isinstance(r, dict)
+            or not isinstance(r.get("get_status"), str)
+            or r["get_status"] not in allowed
+            or not isinstance(r.get("dossier_id"), str)
+            or r["dossier_id"] not in dossier_ids
+            for r in rows
+    )
             or {r["dossier_id"] for r in rows} != set(dossier_ids)
             or len({r["dossier_id"] for r in rows}) != n
             or any(type(r.get("historical_partial_recorded")) is not bool
