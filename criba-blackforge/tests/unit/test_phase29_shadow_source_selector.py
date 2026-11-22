@@ -18,7 +18,10 @@ from PySide6.QtCore import Qt  # noqa: E402
 from PySide6.QtWidgets import QApplication, QMessageBox  # noqa: E402
 
 from criba.interpreter_sources import ModelChoice, SourceCatalog  # noqa: E402
-from criba.model_config import load_model_settings, save_model_settings, ModelProfile  # noqa: E402
+from criba.model_config import (  # noqa: E402
+    ModelProfile, default_model_settings, load_model_settings,
+    save_model_settings,
+)
 from criba.ui import actions  # noqa: E402
 from shadow_window import ShadowWindow  # noqa: E402
 
@@ -532,3 +535,29 @@ def test_external_refinement_approval_reaches_pre_worker_boundary(
     )
     with pytest.raises(ApprovalBoundary):
         actions.on_protocolo_operativo(win)
+
+
+def test_f30_valid_roundtrip_model_settings_is_writable(tmp_path):
+    config_path = tmp_path / "valid-models.json"
+    settings = default_model_settings()
+    save_model_settings(settings, config_path)
+    assert actions._editable_model_settings_bytes(config_path.read_bytes())
+    assert actions._editable_model_settings_bytes(None)
+
+
+@pytest.mark.parametrize("mutation", [
+    lambda d: d.update({"unrecognized_future_key": "preserve"}),
+    lambda d: d["profiles"][0].update({"new_unknown_model_option": 42}),
+    lambda d: d["profiles"][0].pop("reasoning"),
+    lambda d: d["profiles"][0].update({"timeout": "invalid"}),
+    lambda d: d["profiles"][0].update({"context_size": -999}),
+    lambda d: d["profiles"][0].update({"model": " model trimmed on load "}),
+    lambda d: d["profiles"][0].update({"backend": "made-up-backend"}),
+])
+def test_f30_lossy_config_normalization_rejected_before_write(mutation):
+    import json
+
+    payload = default_model_settings().to_dict()
+    mutation(payload)
+    raw = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+    assert not actions._editable_model_settings_bytes(raw)
