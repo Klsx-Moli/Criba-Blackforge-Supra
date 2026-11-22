@@ -41,7 +41,7 @@ def resolve_archived_batch(
     if (not isinstance(run_id, str) or not run_id or run_id.strip() != run_id
             or not isinstance(query, str) or not query or query.strip() != query):
         if has_hint:
-            raise ValueError("archived batch lacks exact run and problem lineage")
+            raise ValueError("archived batch lacks exact run_id and problem lineage")
         return None
     original = buscar_lote_por_sesion(run_id, query, directory)
     if original is None:
