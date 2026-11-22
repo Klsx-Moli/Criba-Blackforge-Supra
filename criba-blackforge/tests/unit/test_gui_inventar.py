@@ -199,7 +199,21 @@ def test_desarrollar_con_supra_prepara_dossier_pendiente(qapp, tmp_path, monkeyp
 
     sheet = _sheet_stub("permisos")
     sheet["entries"][0]["estado_interpretacion"] = "PROPUESTA"
-    sheet["entries"][0]["prueba_concreta"] = "medir reutilizaciones rechazadas"
+    sheet["entries"][0].update({
+        "hipotesis": "La validación reduce permisos reutilizados.",
+        "mecanismo": "El agente verifica la vigencia y bloquea reutilizaciones indebidas.",
+        "prueba_concreta": "medir reutilizaciones rechazadas",
+        "interpretacion_error": "",
+        "prueba": {
+            "metrica": "reutilizaciones rechazadas",
+            "baseline": "sin validación previa",
+            "umbral": "20% de reducción",
+            "condicion_fracaso": "sin reducción medida",
+            "alternativa_explicativa": "cambio de carga de trabajo",
+            "resultado_favorable_mecanismo": "rechazos aumentan",
+            "resultado_favorable_alternativa": "sin diferencia con baseline",
+        },
+    })
     sheet["ficha_bloqueo"] = {"bloqueo": "permisos reutilizables", "origen_bloqueo": "hipotesis"}
 
     rutas = []

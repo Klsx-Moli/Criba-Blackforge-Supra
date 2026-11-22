@@ -222,6 +222,13 @@ def preparar_dossier(
     ``alternativa_explicativa``: la otra explicación que la observación debe
     distinguir. Si no se aporta, el dossier lo declara en lugar de inventarla.
     """
+    # Preserve legacy/core deterministic dossier construction (no interpreter
+    # state), but do not let a declared PENDIENTE/ERROR/forged PROPUESTA
+    # bypass the strict boundary by calling the assembler directly.
+    if "estado_interpretacion" in entry:
+        from .invention_acceptance import exigir_entrada_interpretada
+
+        exigir_entrada_interpretada(entry, para_supra=True)
     bloqueo = ficha_bloqueo or {}
     raw_prueba = entry.get("prueba")
     declarada: dict[str, Any] = raw_prueba if isinstance(raw_prueba, dict) else {}

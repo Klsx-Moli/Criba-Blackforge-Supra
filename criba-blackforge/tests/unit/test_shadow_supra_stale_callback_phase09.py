@@ -73,6 +73,17 @@ def sheet(run_id, candidate_id):
             "estado_interpretacion": "PROPUESTA",
             "hipotesis": "synthetic",
             "mecanismo": "synthetic model fixture only",
+            "prueba_concreta": "medir cambios",
+            "interpretacion_error": "",
+            "prueba": {
+                "metrica": "conteo de cambios",
+                "baseline": "sin adaptación",
+                "umbral": "10% de cambio",
+                "condicion_fracaso": "no cambia",
+                "alternativa_explicativa": "fluctuación externa",
+                "resultado_favorable_mecanismo": "cambio medido",
+                "resultado_favorable_alternativa": "sin cambio",
+            },
         }],
     }
 

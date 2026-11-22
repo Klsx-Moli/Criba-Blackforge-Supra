@@ -12,6 +12,7 @@ from .engine import activate, activate_with_llm, build_prompt
 from .model_config import ModelSettings, load_model_settings
 from .model_runtime import enhance_criba_packet, enhance_ideas_with_model
 from .storage import Storage
+from .invention_acceptance import propuestas_para_supra
 
 
 def _query(args: argparse.Namespace) -> str:
@@ -442,14 +443,36 @@ def main(argv: Sequence[str] | None = None) -> int:
             if args.dossier:
                 from .supra_dossier import guardar_dossier, preparar_dossier
 
+                if not isinstance(sheet.get("query"), str) or not sheet["query"].strip():
+                    print("Dossier SUPRA bloqueado: problema inválido", file=sys.stderr)
+                    return 2
+
+                # Check the entire batch before writing the first dossier.
+                # A corrupted PROPUESTA must not be silently skipped or exported.
+                try:
+                    propuestas = propuestas_para_supra(sheet["entries"])
+                except ValueError as exc:
+                    print(f"Dossier SUPRA bloqueado: {exc}", file=sys.stderr)
+                    return 2
+                # Resolve every dossier before writing any of them.
+                try:
+                    payloads = [
+                        preparar_dossier(
+                            entry, sheet["query"],
+                            ficha_bloqueo=sheet.get("ficha_bloqueo"),
+                        )
+                        for entry in propuestas
+                    ]
+                except (TypeError, ValueError, OSError) as exc:
+                    print(f"Dossier SUPRA no preparado: {exc}", file=sys.stderr)
+                    return 2
                 dossiers = []
-                for entry in sheet["entries"]:
-                    if entry.get("estado_interpretacion") != "PROPUESTA":
-                        continue
-                    dossier = preparar_dossier(
-                        entry, sheet["query"],
-                        ficha_bloqueo=sheet.get("ficha_bloqueo"))
-                    path = guardar_dossier(dossier)
+                for dossier in payloads:
+                    try:
+                        path = guardar_dossier(dossier)
+                    except (TypeError, ValueError, OSError) as exc:
+                        print(f"Dossier SUPRA no preservado: {exc}", file=sys.stderr)
+                        return 2
                     dossiers.append(dossier["dossier_id"])
                     print(f"Dossier SUPRA pendiente: {dossier['dossier_id']} -> {path}")
                 sheet["dossiers"] = dossiers

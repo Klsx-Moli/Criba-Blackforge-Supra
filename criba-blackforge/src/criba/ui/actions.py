@@ -1674,9 +1674,19 @@ def on_desarrollar_supra(win: Any) -> None:
     if not sheet or not sheet.get("entries"):
         show_error(win, "SUPRA", "Genera candidatos con Inventar antes de desarrollar.")
         return
-    propuestas = [
-        entry for entry in sheet["entries"] if entry.get("estado_interpretacion") == "PROPUESTA"
-    ]
+    from ..invention_acceptance import propuestas_para_supra
+
+    if not isinstance(sheet.get("query"), str) or not sheet["query"].strip():
+        show_error(win, "SUPRA", "No hay problema válido para asociar al dossier.")
+        return
+
+    # Fail before any dossier write or SUPRA worker; a malformed PROPUESTA
+    # must not be masked by another valid candidate in the same batch.
+    try:
+        propuestas = propuestas_para_supra(sheet["entries"])
+    except ValueError as exc:
+        show_error(win, "SUPRA", f"No se puede desarrollar el lote: {exc}")
+        return
     if not propuestas:
         show_error(
             win,
@@ -1688,14 +1698,19 @@ def on_desarrollar_supra(win: Any) -> None:
     from ..supra_dossier import guardar_dossier, preparar_dossier
 
     dossier_payloads: list[dict[str, Any]] = []
-    for entry in propuestas:
-        dossier = preparar_dossier(
-            entry,
-            sheet["query"],
-            ficha_bloqueo=sheet.get("ficha_bloqueo"),
-        )
-        path = guardar_dossier(dossier)
-        dossier_payloads.append(dossier)
+    try:
+        # Build the whole batch before the first filesystem write.
+        dossier_payloads = [
+            preparar_dossier(
+                entry, sheet["query"], ficha_bloqueo=sheet.get("ficha_bloqueo")
+            )
+            for entry in propuestas
+        ]
+        for dossier in dossier_payloads:
+            path = guardar_dossier(dossier)
+    except (TypeError, ValueError, OSError) as exc:
+        show_error(win, "SUPRA", f"No se pudo preparar o preservar el dossier: {exc}")
+        return
 
     sheet["dossiers"] = [item["dossier_id"] for item in dossier_payloads]
     sheet["dossiers_path"] = str(path)
@@ -1719,6 +1734,8 @@ def on_desarrollar_supra(win: Any) -> None:
 
     # A background operation must never rewrite a later Inventar session or a
     # newer SUPRA submission from the same sheet. Bind both signal callbacks.
+    # A new explicit SUPRA submission supersedes any old restore request.
+    win._supra_restore_token = None
     submission_token = object()
     win._supra_submission_token = submission_token
     expected_run_id = sheet.get("run_id")
@@ -1745,7 +1762,44 @@ def _load_latest_supra(client: Any | None = None) -> dict[str, Any]:
         return workflow.recover_latest().report(_supra_lookup_read)
 
 
-def _on_supra_restore_done(win: Any, report: dict[str, Any]) -> None:
+def _supra_restore_callback_current(
+    win: Any,
+    token: object,
+    sheet: Any,
+    packet: Any,
+    problem: Any,
+    run_id: Any,
+) -> bool:
+    """Ignore responses from an older restore or a different active session."""
+    return (
+        getattr(win, "_supra_restore_token", None) is token
+        and getattr(win, "invent_sheet", None) is sheet
+        and getattr(win, "packet", None) is packet
+        and getattr(win, "problem", None) == problem
+        and (
+            not isinstance(sheet, dict)
+            or sheet.get("run_id") == run_id
+        )
+    )
+
+
+def _on_supra_restore_done(
+    win: Any,
+    report: dict[str, Any],
+    *,
+    restore_token: object | None = None,
+    expected_sheet: Any = None,
+    expected_packet: Any = None,
+    expected_problem: Any = None,
+    expected_run_id: Any = None,
+) -> None:
+    if restore_token is not None:
+        if not _supra_restore_callback_current(
+            win, restore_token, expected_sheet, expected_packet,
+            expected_problem, expected_run_id,
+        ):
+            return
+        win._supra_restore_token = None
     if report.get("empty"):
         _activity(win, "blue", "SUPRA disponible · sin proyecto previo que recuperar")
         from .dossier_workflow_view import apply_dossier_report
@@ -1802,7 +1856,23 @@ def _on_supra_restore_done(win: Any, report: dict[str, Any]) -> None:
     apply_dossier_report(win, report)
 
 
-def _on_supra_restore_failed(win: Any, message: str) -> None:
+def _on_supra_restore_failed(
+    win: Any,
+    message: str,
+    *,
+    restore_token: object | None = None,
+    expected_sheet: Any = None,
+    expected_packet: Any = None,
+    expected_problem: Any = None,
+    expected_run_id: Any = None,
+) -> None:
+    if restore_token is not None:
+        if not _supra_restore_callback_current(
+            win, restore_token, expected_sheet, expected_packet,
+            expected_problem, expected_run_id,
+        ):
+            return
+        win._supra_restore_token = None
     _activity(win, "amber", f"No se pudo recuperar SUPRA al reabrir: {message[:120]}")
     status_label = getattr(getattr(win, "right_panel", None), "supra_result_status", None)
     if status_label is not None:
@@ -1812,9 +1882,28 @@ def _on_supra_restore_failed(win: Any, message: str) -> None:
 
 def on_restore_latest_supra(win: Any) -> None:
     """Start non-blocking recovery after launcher connected the real endpoint."""
+    restore_token = object()
+    win._supra_restore_token = restore_token
+    expected_sheet = getattr(win, "invent_sheet", None)
+    expected_packet = getattr(win, "packet", None)
+    expected_problem = getattr(win, "problem", None)
+    expected_run_id = (
+        expected_sheet.get("run_id") if isinstance(expected_sheet, dict) else None
+    )
+    context = {
+        "restore_token": restore_token,
+        "expected_sheet": expected_sheet,
+        "expected_packet": expected_packet,
+        "expected_problem": expected_problem,
+        "expected_run_id": expected_run_id,
+    }
     worker = Worker(_load_latest_supra)
-    worker.signals.done.connect(lambda report: _on_supra_restore_done(win, report))
-    worker.signals.fail.connect(lambda message: _on_supra_restore_failed(win, message))
+    worker.signals.done.connect(
+        lambda report: _on_supra_restore_done(win, report, **context)
+    )
+    worker.signals.fail.connect(
+        lambda message: _on_supra_restore_failed(win, message, **context)
+    )
     _start_worker(win, worker)
 
 
@@ -1926,11 +2015,11 @@ def _prepare_dossier_for_selected_idea(win: Any) -> dict[str, Any]:
         if type(index) is not int or not 0 <= index < len(entries):
             raise ValueError("no hay una interpretación seleccionada")
         entry = entries[index]
-        if entry.get("estado_interpretacion") != "PROPUESTA":
-            raise ValueError(
-                "la interpretación seleccionada está pendiente; "
-                "no se sustituye por ejes"
-            )
+        from ..invention_acceptance import exigir_entrada_interpretada
+
+        # Keep the original strict field checks below for explicit diagnostics,
+        # but also reject contradictory status/error and internal state.
+        exigir_entrada_interpretada(entry, para_supra=True)
         for field in ("candidate_id", "hipotesis", "mecanismo", "prueba_concreta"):
             if not isinstance(entry.get(field), str) or not entry[field].strip():
                 raise ValueError(f"propuesta interpretada sin {field}")
@@ -2120,6 +2209,8 @@ def on_supra_vertical(win: Any) -> None:
         show_error(win, "SUPRA", f"No se pudo preparar o preservar el dossier: {exc}")
         return
 
+    # The active vertical dispatch supersedes an asynchronous old restoration.
+    win._supra_restore_token = None
     # SUPRA persists projects across runs, so the id must be unique per slice.
     project_id = "astram2" + uuid.uuid4().hex[:10]
     candidates = getattr(win, "candidates", None)
@@ -2169,6 +2260,7 @@ def _on_supra_health_failed(win: Any, message: str) -> None:
 
 def on_supra(win: Any) -> None:
     """Panel SUPRA backed by the same canonical client used for execution."""
+    win._supra_restore_token = None
     win.nav["navSupra"].setChecked(True)
     win.content_label.setText("SUPRA Taskmaster")
     win.content_sub.setText("Comprobando servicio real…")

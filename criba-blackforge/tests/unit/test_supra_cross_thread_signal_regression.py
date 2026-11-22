@@ -86,6 +86,15 @@ def test_supra_worker_signal_processed_via_eventloop(qapp, tmp_path, monkeypatch
                 "mecanismo": "Mecanismo causa-efecto test",
                 "interpretacion_error": "",
                 "prueba_concreta": "medir X",
+                "prueba": {
+                    "metrica": "conteo X",
+                    "baseline": "sin intervención",
+                    "umbral": "10% diferencia",
+                    "condicion_fracaso": "sin diferencia",
+                    "alternativa_explicativa": "cambio externo",
+                    "resultado_favorable_mecanismo": "X disminuye",
+                    "resultado_favorable_alternativa": "X constante",
+                },
                 "ruta_desbloqueo": "sustituir_mecanismo",
                 "prior_art": {
                     "verdict": "UNRESOLVED",

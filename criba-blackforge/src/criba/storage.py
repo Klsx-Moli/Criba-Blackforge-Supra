@@ -14,6 +14,8 @@ from .constants import (
     VALID_DECISIONS,
 )
 
+from .invention_acceptance import exigir_entrada_interpretada
+
 SCHEMA_VERSION = 1
 
 
@@ -164,13 +166,10 @@ class Storage:
         ):
             raise ValueError("Selecciona una propuesta de la sesión.")
         selected = entries[selected_index]
-        if (
-            not isinstance(selected, dict)
-            or selected.get("estado_interpretacion") != "PROPUESTA"
-            or not isinstance(selected.get("mecanismo"), str)
-            or not selected["mecanismo"].strip()
-        ):
-            raise ValueError("No hay una propuesta interpretada que guardar.")
+        # An archival write is permitted with a minimal interpreted proposal,
+        # but it must not label a pending/error or contradictory row PROPUESTA.
+        # SUPRA export has a separate, stricter proof contract.
+        exigir_entrada_interpretada(selected)
         packet = {
             "kind": "invention_sheet",
             "sheet": dict(sheet),
