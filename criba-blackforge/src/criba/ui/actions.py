@@ -1572,6 +1572,20 @@ def _editable_model_settings_bytes(raw_bytes: bytes | None) -> bool:
                 for ident in ids) or len(set(ids)) != len(ids)
                 or active_id not in ids):
             return False
+        # A tolerant reader may normalize a malformed/legacy field on load.
+        # Never serialize that normalized value as if the old bytes were valid.
+        from dataclasses import asdict
+        from ..model_config import ModelProfile
+
+        if set(raw) != {
+            "schema_version", "enabled", "active_profile_id", "profiles"
+        }:
+            return False
+        required = set(ModelProfile.__dataclass_fields__)
+        for profile in profiles:
+            if (not isinstance(profile, dict) or set(profile) != required
+                    or asdict(ModelProfile.from_dict(profile)) != profile):
+                return False
     except (ValueError, UnicodeError, RecursionError, TypeError):
         return False
     return True
