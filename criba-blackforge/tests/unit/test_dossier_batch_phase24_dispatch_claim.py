@@ -285,7 +285,7 @@ def test_old_legacy_readback_marker_never_unlocks_a_second_worker(tmp_path):
     assert (tmp_path / batch.JOURNAL).read_bytes() == before
 
 
-def test_forged_dispatch_started_on_unversioned_legacy_unknown_is_invalid(tmp_path):
+def test_unversioned_intermediate_dispatch_marker_is_read_only_not_post(tmp_path):
     original = dossiers()
     key = batch.guardar_lote_dossiers(original, tmp_path)["batch_id"]
     sd._append_historial(
@@ -299,8 +299,15 @@ def test_forged_dispatch_started_on_unversioned_legacy_unknown_is_invalid(tmp_pa
             fingerprint=batch._fingerprint(original),
         ),
     )
-    with pytest.raises(ValueError, match="out-of-order"):
-        batch._state(batch._events(tmp_path / batch.JOURNAL))
+    state = batch._state(batch._events(tmp_path / batch.JOURNAL))[key]
+    assert state["remote"] == "UNKNOWN"
+    assert state["dispatch_started"] is True
+    assert state["dispatch_policy"] is None
+    assert state["legacy_dispatch_unversioned"] is True
+    with pytest.raises(ValueError, match="already claimed"):
+        claim(key, original, tmp_path)
+    report = reconciliar_lote_por_get(key, OnlyGet(original), tmp_path)
+    assert report["status"] == "READBACK_OBSERVED"
 
 
 @pytest.mark.parametrize("policy", [
@@ -317,4 +324,23 @@ def test_unknown_or_malformed_reservation_policy_fails_replay(tmp_path, policy):
         ),
     )
     with pytest.raises(ValueError, match="unknown remote dispatch policy"):
+        batch._state(batch._events(tmp_path / batch.JOURNAL))
+
+
+
+def test_malformed_intermediate_marker_still_rejected(tmp_path):
+    original = dossiers()
+    key = batch.guardar_lote_dossiers(original, tmp_path)["batch_id"]
+    sd._append_historial(
+        tmp_path / batch.JOURNAL,
+        batch._event("REMOTE_UNKNOWN", key, endpoint=ENDPOINT),
+    )
+    sd._append_historial(
+        tmp_path / batch.JOURNAL,
+        batch._event(
+            "REMOTE_DISPATCH_STARTED", key, endpoint=ENDPOINT,
+            fingerprint="f" * 64,
+        ),
+    )
+    with pytest.raises(ValueError, match="remote dispatch start lineage mismatch"):
         batch._state(batch._events(tmp_path / batch.JOURNAL))

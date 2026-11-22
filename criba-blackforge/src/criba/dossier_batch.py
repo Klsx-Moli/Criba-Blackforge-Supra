@@ -139,13 +139,17 @@ def _state(events: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
             elif (kind == "REMOTE_DISPATCH_STARTED"
                   and batch["remote"] == "UNKNOWN"
                   and not batch["dispatch_started"]
-                  and batch["dispatch_policy"] == DISPATCH_POLICY
-                  and batch["intent"]["run_id"] is not None
                   and batch["endpoint"] is not None):
+                # Intermediate F24 journals may have a fsynced worker-start
+                # marker but not yet have the versioned reservation policy.
+                # Replay them for GET/read-only forensics, NEVER authorize POST.
                 if (event.get("endpoint") != batch["endpoint"]
                         or event.get("fingerprint") != batch["intent"]["fingerprint"]):
                     raise ValueError("remote dispatch start lineage mismatch")
                 batch["dispatch_started"] = True
+                if (batch["dispatch_policy"] != DISPATCH_POLICY
+                        or batch["intent"]["run_id"] is None):
+                    batch["legacy_dispatch_unversioned"] = True
             elif kind == "REMOTE_READBACK_OBSERVED" and batch["remote"] == "UNKNOWN":
                 if event.get("evidence_version") is None:
                     # Phase13/14 evidence does not prove top-level execution
