@@ -234,6 +234,8 @@ def marcar_readback_observado(batch_id: str, runs: list[dict[str, Any]],
             raise ValueError("remote attempt not pending UNKNOWN")
         expected = {d["dossier_id"] for d in batch["intent"]["dossiers"]}
         actual = [r.get("dossier_id") for r in runs if isinstance(r, dict)]
+        from .integrations.supra_client import _dossier_payload_fingerprint
+
         expected_by_id = {d["dossier_id"]: d for d in batch["intent"]["dossiers"]}
         if len(runs) != len(expected) or set(actual) != expected or len(set(actual)) != len(actual):
             raise ValueError("readback report does not cover exact batch")
@@ -250,7 +252,9 @@ def marcar_readback_observado(batch_id: str, runs: list[dict[str, Any]],
                         ("protocol_version", "protocol_version"),
                     )) or receipt.get("receipt_scope") != "PLANNED_DISCRIMINANT_PROTOCOL_ONLY" or
                     receipt.get("execution_status") != "NOT_EXECUTED" or
-                    receipt.get("scientific_status") != "NOT_VALIDATED"):
+                    receipt.get("scientific_status") != "NOT_VALIDATED" or
+                    receipt.get("integration_version") != "criba-supra/1" or
+                    receipt.get("payload_fingerprint") != _dossier_payload_fingerprint(dossier)):
                 raise ValueError("readback report does not bind the local dossier")
         sd._append_historial(directory / JOURNAL,
                             _event("REMOTE_READBACK_OBSERVED", batch_id))

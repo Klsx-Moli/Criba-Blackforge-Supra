@@ -137,6 +137,7 @@ def test_remote_unknown_is_write_ahead_and_never_auto_retried(tmp_path):
 
 def readback(dossier):
     import hashlib
+    from criba.integrations.supra_client import _dossier_payload_fingerprint
     return {"dossier_id": dossier["dossier_id"],
             "project_id": "astram2-" + hashlib.sha256(dossier["dossier_id"].encode()).hexdigest()[:32],
             "read": {"receipt": {"criba_dossier_id": dossier["dossier_id"],
@@ -145,7 +146,9 @@ def readback(dossier):
                 "mechanism_version": dossier["mechanism_version"],
                 "protocol_version": dossier["protocol_version"],
                 "receipt_scope": "PLANNED_DISCRIMINANT_PROTOCOL_ONLY",
-                "execution_status": "NOT_EXECUTED", "scientific_status": "NOT_VALIDATED"}}}
+                "execution_status": "NOT_EXECUTED", "scientific_status": "NOT_VALIDATED",
+                "integration_version": "criba-supra/1",
+                "payload_fingerprint": _dossier_payload_fingerprint(dossier)}}}
 
 
 def test_readback_requires_all_dossiers_and_remains_unknown_on_bad_report(tmp_path):
@@ -197,4 +200,14 @@ def test_readback_other_dossier_or_project_rejected(tmp_path):
             wrong[0]["read"]["receipt"]["criba_candidate_id"] = "another"
         with pytest.raises(ValueError, match="bind"):
             b.marcar_readback_observado(key, wrong, tmp_path)
+    assert b.guardar_lote_dossiers(dossiers(attempt=2), tmp_path)["remote_state"] == "UNKNOWN"
+
+
+def test_readback_same_ids_but_wrong_content_fingerprint_rejected(tmp_path):
+    key = b.guardar_lote_dossiers(dossiers(), tmp_path)["batch_id"]
+    b.marcar_envio_incierto(key, tmp_path)
+    forged = [readback(d) for d in dossiers()]
+    forged[0]["read"]["receipt"]["payload_fingerprint"] = "sha256:" + "0" * 64
+    with pytest.raises(ValueError, match="bind"):
+        b.marcar_readback_observado(key, forged, tmp_path)
     assert b.guardar_lote_dossiers(dossiers(attempt=2), tmp_path)["remote_state"] == "UNKNOWN"
