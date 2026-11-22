@@ -14,7 +14,6 @@ for path in (ROOT, ROOT / "shadow_ui"):
         sys.path.insert(0, str(path))
 
 pytest.importorskip("PySide6")
-from PySide6.QtCore import Qt  # noqa: E402
 from PySide6.QtWidgets import QApplication  # noqa: E402
 
 from criba.interpreter_sources import ModelChoice, SourceCatalog  # noqa: E402
