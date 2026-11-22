@@ -1610,8 +1610,14 @@ def _editable_model_settings_bytes(raw_bytes: bytes | None) -> bool:
             return False
         required = set(ModelProfile.__dataclass_fields__)
         for profile in profiles:
-            if (not isinstance(profile, dict) or set(profile) != required
-                    or asdict(ModelProfile.from_dict(profile)) != profile):
+            if not isinstance(profile, dict) or set(profile) != required:
+                return False
+            normalized = asdict(ModelProfile.from_dict(profile))
+            # Dict equality regards 8192 and 8192.0 (also 1 and True) as
+            # equal. Compare canonical JSON to retain exact numeric types.
+            if json.dumps(normalized, sort_keys=True, allow_nan=False) != (
+                json.dumps(profile, sort_keys=True, allow_nan=False)
+            ):
                 return False
     except (ValueError, UnicodeError, RecursionError, TypeError):
         return False
