@@ -72,7 +72,8 @@ def _get_local_json(source: str) -> Any:
 
 def _name(value: Any) -> str:
     if (not isinstance(value, str) or not 0 < len(value) <= 240
-            or value != value.strip() or not value.isprintable()):
+            or value != value.strip() or not value.isprintable()
+            or "<" in value or ">" in value or "&" in value):
         return ""
     return value
 
