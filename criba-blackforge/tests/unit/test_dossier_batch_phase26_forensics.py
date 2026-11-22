@@ -557,3 +557,24 @@ def test_invalid_or_non_utc_manifest_timestamp_fails_closed(tmp_path, bad):
     )
     with pytest.raises(ValueError, match="forensic manifest schema invalid"):
         verificar_snapshot_forense(out)
+
+
+
+@pytest.mark.parametrize("bad_record", [
+    {},
+    {"dossier_id": None},
+    {"dossier_id": 0},
+    {"dossier_id": ""},
+    {"dossier_id": " dossier-whitespace "},
+    [],
+])
+def test_parseable_dossier_lines_with_ignored_identity_are_not_fully_valid(
+    tmp_path, bad_record,
+):
+    root, _, _ = source(tmp_path)
+    path = root / "dossiers.jsonl"
+    with path.open("a", encoding="utf-8") as stream:
+        stream.write(json.dumps(bad_record) + "\n")
+    report = inspeccionar_journal(root)
+    assert report["classification"] == "DOSSIER_HISTORY_PARSE_INVALID"
+    assert report["local_replay_parseable"] is False

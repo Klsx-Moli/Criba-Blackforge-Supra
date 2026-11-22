@@ -136,8 +136,11 @@ def _inspect_locked(directory: Path) -> dict[str, Any]:
                     line, object_pairs_hook=batch._unique_pairs,
                     parse_constant=batch._bad_constant,
                 )
-                if not isinstance(row, dict):
-                    raise ValueError("invalid dossier history row type")
+                if (not isinstance(row, dict)
+                        or not batch._exact(row.get("dossier_id"))):
+                    # The ordinary dossier reader quietly ignores malformed
+                    # or identity-less rows. Forensics cannot call that VALID.
+                    raise ValueError("invalid dossier history row identity")
     except (ValueError, UnicodeDecodeError, RecursionError, OverflowError):
         report["classification"] = "DOSSIER_HISTORY_PARSE_INVALID"
         return report
@@ -296,7 +299,8 @@ def verificar_snapshot_forense(out_dir: Path) -> dict[str, Any]:
             continue
         if (path.is_symlink() or not path.is_file()
                 or type(expected.get("bytes")) is not int
-                or expected["bytes"] < 0
+                or not 0 <= expected["bytes"] <= MAX_SNAPSHOT_BYTES
+                or path.stat().st_size != expected["bytes"]
                 or not isinstance(expected.get("sha256"), str)):
             raise ValueError("forensic inventory invalid")
         digest = expected["sha256"]
