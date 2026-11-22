@@ -596,9 +596,24 @@ def _on_invented(win: Any, sheet: dict[str, Any]) -> None:
             f"interpretación válida {valid}/{n_entries}"
         )
     _render_interpreter_outputs(win, sheet)
+    # A recovered invention sheet may have no interpretable proposals while
+    # its original SUPRA batch survives in the fsynced journal. Keep the
+    # GET-only recovery action reachable without authorising fresh POST.
+    recoverable_supra_batch = False
+    if valid == 0 and isinstance(sheet.get("run_id"), str):
+        try:
+            from .supra_batch_resume import resolve_archived_batch
+            prior = resolve_archived_batch(sheet)
+            recoverable_supra_batch = (
+                prior is not None and prior["committed"]
+                and prior["remote_state"] in ("UNKNOWN", "READBACK_OBSERVED")
+            )
+        except (OSError, ValueError, TypeError):
+            # Fail closed on a corrupt journal; no GET/POST in render path.
+            recoverable_supra_batch = False
     right_panel = getattr(win, "right_panel", None)
     if right_panel is not None:
-        right_panel.supra.setEnabled(valid > 0)
+        right_panel.supra.setEnabled(valid > 0 or recoverable_supra_batch)
         right_panel.protocolo.setEnabled(valid > 0)
 
     evidence_label = str(sheet.get("evidence_mode_label") or "Creativo")
@@ -608,7 +623,8 @@ def _on_invented(win: Any, sheet: dict[str, Any]) -> None:
         f"Modo {evidence_label} · {evidence_state} · Operación terminada · "
         f"{n_entries} candidatos · {valid} propuestas válidas · "
         f"interpretación pendiente: {pending} · SUPRA no ejecutado · "
-        f"UNRESOLVED: {totals['unresolved']} · "
+        + ("recuperación GET-only disponible · " if recoverable_supra_batch else "")
+        + f"UNRESOLVED: {totals['unresolved']} · "
         f"PARTIAL: {totals['partial_prior_art']} · SURVIVED: {totals['survived_search']}"
     )
     if valid == 0:
