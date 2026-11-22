@@ -38,6 +38,8 @@ def win(app, tmp_path, monkeypatch):
     monkeypatch.delenv("CRIBA_EXTERNAL_API_KEY", raising=False)
     monkeypatch.delenv("CRIBA_EXTERNAL_PROVIDER", raising=False)
     monkeypatch.delenv("CRIBA_CRITIC_MODEL", raising=False)
+    monkeypatch.delenv("CRIBA_EXTERNAL_MODEL", raising=False)
+    monkeypatch.delenv("CRIBA_EXTERNAL_FALLBACK_LOCAL", raising=False)
     window = ShadowWindow(database=str(tmp_path / "shadow.sqlite3"))
     try:
         yield window
@@ -561,3 +563,75 @@ def test_f30_lossy_config_normalization_rejected_before_write(mutation):
     mutation(payload)
     raw = json.dumps(payload, ensure_ascii=False).encode("utf-8")
     assert not actions._editable_model_settings_bytes(raw)
+
+
+@pytest.mark.parametrize("changed_var", [
+    "CRIBA_EXTERNAL_BASE_URL", "CRIBA_EXTERNAL_API_KEY",
+    "CRIBA_EXTERNAL_PROVIDER", "CRIBA_EXTERNAL_MODEL",
+    "CRIBA_CRITIC_MODEL", "CRIBA_EXTERNAL_FALLBACK_LOCAL",
+])
+def test_f31_queued_shadow_invent_never_uses_changed_remote_config(
+    win, monkeypatch, changed_var
+):
+    selector = win.topcards.interpreter_selector
+    selector.addItem(
+        "Hermes · fixture", ("openai_compatible", "provider/snapshot"),
+    )
+    selector.setCurrentIndex(selector.count() - 1)
+    win.problem = "approved question"
+    monkeypatch.setattr(
+        QMessageBox, "question",
+        lambda *_a, **_kw: QMessageBox.StandardButton.Yes,
+    )
+    queued = []
+    monkeypatch.setattr(
+        actions, "_start_worker",
+        lambda _win, worker, operation="": queued.append(worker),
+    )
+    monkeypatch.setattr(
+        actions, "_run_inventar",
+        lambda *_args, **_kwargs: pytest.fail(
+            "no interpretation after remote environment changed"
+        ),
+    )
+    actions.on_inventar(win)
+    assert len(queued) == 1, "consented work should be queued but not run"
+    monkeypatch.setenv(changed_var, "different-after-queue")
+    with pytest.raises(RuntimeError, match="REMOTE_CONFIG_CHANGED_BEFORE_DISPATCH"):
+        queued[0].fn()
+
+
+@pytest.mark.parametrize("changed_var", [
+    "CRIBA_EXTERNAL_BASE_URL", "CRIBA_EXTERNAL_API_KEY",
+    "CRIBA_EXTERNAL_PROVIDER", "CRIBA_EXTERNAL_MODEL",
+    "CRIBA_CRITIC_MODEL", "CRIBA_EXTERNAL_FALLBACK_LOCAL",
+])
+def test_f31_queued_shadow_refinement_never_uses_changed_remote_config(
+    win, monkeypatch, changed_var
+):
+    _f30_refinement_sheet(win)
+    monkeypatch.setattr(
+        QMessageBox, "question",
+        lambda *_a, **_kw: QMessageBox.StandardButton.Yes,
+    )
+    queued = []
+    monkeypatch.setattr(
+        actions, "_start_worker",
+        lambda _win, worker, operation="": queued.append(worker),
+    )
+    actions.on_protocolo_operativo(win)
+    assert len(queued) == 1
+    monkeypatch.setenv(changed_var, "different-after-queue")
+    result = queued[0].fn()
+    assert result == {
+        "estado": "PENDIENTE",
+        "error": "REMOTE_CONFIG_CHANGED_BEFORE_DISPATCH",
+        "protocolo": None,
+    }
+
+
+def test_f31_hermes_explicit_fallback_is_not_silent(win, monkeypatch):
+    monkeypatch.setenv("CRIBA_EXTERNAL_FALLBACK_LOCAL", "true")
+    assert not actions._hermes_proxy_base_ok()
+    monkeypatch.setenv("CRIBA_EXTERNAL_FALLBACK_LOCAL", "false")
+    assert actions._hermes_proxy_base_ok()
