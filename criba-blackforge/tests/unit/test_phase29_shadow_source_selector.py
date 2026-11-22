@@ -34,6 +34,7 @@ def win(app, tmp_path, monkeypatch):
     monkeypatch.setenv("CRIBA_EXTERNAL_BASE_URL", "http://127.0.0.1:8645/v1")
     monkeypatch.delenv("CRIBA_EXTERNAL_API_KEY", raising=False)
     monkeypatch.delenv("CRIBA_EXTERNAL_PROVIDER", raising=False)
+    monkeypatch.delenv("CRIBA_CRITIC_MODEL", raising=False)
     window = ShadowWindow(database=str(tmp_path / "shadow.sqlite3"))
     try:
         yield window
@@ -231,3 +232,31 @@ def test_remote_price_unknown_approval_reaches_mutation_boundary(win, monkeypatc
     monkeypatch.setattr(actions, "_cancelar_protocolo_pendiente", before_mutation)
     with pytest.raises(ConsentReached):
         actions.on_inventar(win)
+
+
+def test_hidden_second_critic_model_is_denied_before_cost_consent(win, monkeypatch):
+    selector = win.topcards.interpreter_selector
+    block = selector.blockSignals(True)
+    selector.setCurrentIndex(selector.findData("source:hermes"))
+    selector.blockSignals(block)
+    actions._on_source_catalog(win, "hermes", SourceCatalog(
+        "hermes", (ModelChoice("hermes", "provider/selected"),), "unknown",
+    ))
+    index = next(
+        i for i in range(selector.count())
+        if selector.itemData(i) == ("openai_compatible", "provider/selected")
+    )
+    selector.setCurrentIndex(index)
+    win.problem = "fixture"
+    monkeypatch.setenv("CRIBA_CRITIC_MODEL", "poolside/laguna-s-2.1:free")
+    messages = []
+    monkeypatch.setattr(actions, "show_error", lambda _win, title, message:
+                        messages.append((title, message)))
+    monkeypatch.setattr(
+        QMessageBox, "question",
+        lambda *args, **kwargs: pytest.fail("must not request paid consent for hidden critic"),
+    )
+    monkeypatch.setattr(actions, "_lock_mutators", lambda _win:
+                        pytest.fail("must not run with unselected critic"))
+    actions.on_inventar(win)
+    assert messages and messages[0][0] == "Hermes · modelo de crítica"
