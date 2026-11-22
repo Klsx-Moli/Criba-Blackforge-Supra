@@ -1388,7 +1388,7 @@ def _on_source_catalog(win: Any, source: str, catalog: Any) -> None:
                 label = f"Ollama · {entry.model_id}"
                 data = ("ollama_catalog", entry.model_id)
             else:
-                status = "autorizado según OpenCode" if entry.connected_reported else "no conectado"
+                status = "conectado según catálogo" if entry.connected_reported else "sin conexión indicada"
                 label = f"OpenCode · {entry.provider}/{entry.model_id} · {status}"
                 data = ("opencode_catalog", f"{entry.provider}/{entry.model_id}")
             selector.addItem(label, data)
