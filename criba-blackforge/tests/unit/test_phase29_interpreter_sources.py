@@ -173,7 +173,7 @@ def test_unhashable_or_invalid_source_fails_closed(source):
         sources.discover_models(source)
 
 
-@pytest.mark.parametrize("label", ["bad\\nmodel", "<b>spoofed</b>", "a&b", " "])
+@pytest.mark.parametrize("label", ["bad\nmodel", "<b>spoofed</b>", "a&b", " "])
 def test_model_id_never_contains_rich_text_or_control_chars(monkeypatch, label):
     monkeypatch.setattr(
         sources, "_get_local_json",
