@@ -40,6 +40,20 @@ def win(app, tmp_path, monkeypatch):
     monkeypatch.delenv("CRIBA_CRITIC_MODEL", raising=False)
     monkeypatch.delenv("CRIBA_EXTERNAL_MODEL", raising=False)
     monkeypatch.delenv("CRIBA_EXTERNAL_FALLBACK_LOCAL", raising=False)
+    # Never inherit a developer's runtime/model overrides or real test budget.
+    # These tests must remain deterministic without provider credentials.
+    for key in (
+        "CRIBA_LOCAL_MODEL", "CRIBA_LOCAL_BASE",
+        "CRIBA_EXTERNAL_TIMEOUT_S", "CRIBA_EXTERNAL_MAX_TOKENS",
+        "CRIBA_EXTERNAL_REASONING_EFFORT",
+        "CRIBA_EXTERNAL_CRITIQUE_MAX_TOKENS",
+        "CRIBA_EXTERNAL_CRITIQUE_TEMPERATURE",
+        "CRIBA_EXTERNAL_CRITIQUE_TIMEOUT_S",
+        "CRIBA_EXTERNAL_CRITIQUE_REASONING_EFFORT",
+        "CRIBA_EXTERNAL_SEED", "CRIBA_CONSTRAINED_DECODING",
+        "CRIBA_REFINEMENT_MAX_TOKENS", "CRIBA_ACCEPTANCE_NO_RETRIES",
+    ):
+        monkeypatch.delenv(key, raising=False)
     window = ShadowWindow(database=str(tmp_path / "shadow.sqlite3"))
     try:
         yield window
