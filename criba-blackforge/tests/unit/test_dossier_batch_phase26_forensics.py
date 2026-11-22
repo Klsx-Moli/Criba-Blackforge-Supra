@@ -390,3 +390,56 @@ def test_cli_corrupt_source_snapshot_created_but_nonzero_status(tmp_path, capsys
     assert result["classification"] == "JOURNAL_UNTERMINATED_TAIL"
     assert out.exists()
     assert verificar_snapshot_forense(out)["status"] == "RAW_BYTES_MATCH_MANIFEST_ONLY"
+
+
+
+def test_recursion_bomb_in_journal_is_classified_without_running_any_repair(tmp_path):
+    root, _, _ = source(tmp_path)
+    path = root / batch.JOURNAL
+    attack = b'{"schema":"' + batch.SCHEMA.encode() + b'","x":' + (
+        b"[" * 2000 + b"0" + b"]" * 2000
+    ) + b"}\n"
+    path.write_bytes(attack)
+    raw = path.read_bytes()
+    report = inspeccionar_journal(root)
+    assert report["classification"] == "JOURNAL_PARSE_INVALID"
+    assert report["local_replay_parseable"] is False
+    assert path.read_bytes() == raw
+
+
+def test_deeply_nested_dossier_json_is_not_silently_skipped(tmp_path):
+    root, _, _ = source(tmp_path)
+    path = root / "dossiers.jsonl"
+    with path.open("ab") as out:
+        out.write(b'{"dossier_id":"extra","nested":' + b"[" * 2000
+                  + b"0" + b"]" * 2000 + b"}\n")
+    report = inspeccionar_journal(root)
+    assert report["classification"] == "DOSSIER_HISTORY_PARSE_INVALID"
+
+
+def test_valid_but_uncertain_remote_state_is_not_implicitly_zero(tmp_path):
+    root, _, _ = source(tmp_path)
+    report = inspeccionar_journal(root)
+    assert report["unknown_remote_batches"] == 1
+    assert report["uncommitted_batches"] == 0
+    assert report["remote_execution_proven"] is False
+
+
+def test_incomplete_prepared_is_locally_parseable_but_not_committed(tmp_path):
+    root = tmp_path / "source"
+    root.mkdir()
+    originals = dossiers()
+    key = batch._batch_id("phase15-run", "Synthetic recovery problem")
+    sd._append_historial(
+        root / batch.JOURNAL,
+        batch._event(
+            "PREPARED", key, run_id="phase15-run",
+            problema="Synthetic recovery problem",
+            fingerprint=batch._fingerprint(originals),
+            dossiers=originals,
+        ),
+    )
+    report = inspeccionar_journal(root)
+    # No dossier history exists: this incomplete write remains non-authoritative.
+    assert report["classification"] == "DOSSIER_HISTORY_MISSING"
+    assert report["local_replay_parseable"] is False

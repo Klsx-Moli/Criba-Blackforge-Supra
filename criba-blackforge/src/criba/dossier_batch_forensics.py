@@ -80,7 +80,7 @@ def _inspect_locked(directory: Path) -> dict[str, Any]:
         return report
     try:
         events = batch._events(jpath)
-    except ValueError as exc:
+    except (ValueError, TypeError, OverflowError, RecursionError) as exc:
         report["classification"] = (
             "UNSUPPORTED_JOURNAL_SCHEMA" if "schema mismatch" in str(exc)
             else "JOURNAL_PARSE_INVALID"
@@ -98,7 +98,8 @@ def _inspect_locked(directory: Path) -> dict[str, Any]:
         return report
     try:
         state = batch._state(events)
-    except (ValueError, TypeError, KeyError, AttributeError, IndexError):
+    except (ValueError, TypeError, KeyError, AttributeError,
+            IndexError, RecursionError, OverflowError):
         report["classification"] = "JOURNAL_REPLAY_INVALID"
         return report
     report["batch_count"] = len(state)
@@ -118,7 +119,7 @@ def _inspect_locked(directory: Path) -> dict[str, Any]:
                 )
                 if not isinstance(row, dict):
                     raise ValueError("invalid dossier history row type")
-    except (ValueError, UnicodeDecodeError):
+    except (ValueError, UnicodeDecodeError, RecursionError, OverflowError):
         report["classification"] = "DOSSIER_HISTORY_PARSE_INVALID"
         return report
     history, ambiguous, _ = sd._leer_historial(dpath)
@@ -133,6 +134,12 @@ def _inspect_locked(directory: Path) -> dict[str, Any]:
                 return report
     report["classification"] = "REPLAY_VALID_LOCAL_ONLY"
     report["local_replay_parseable"] = True
+    # Counts are computed only from complete, parseable original evidence;
+    # never default missing or corrupt files to zero local reservations.
+    report["uncommitted_batches"] = sum(not x["committed"] for x in state.values())
+    report["unknown_remote_batches"] = sum(
+        x["remote"] == "UNKNOWN" for x in state.values()
+    )
     # Locally valid batches can still be UNKNOWN remotely and scientifically.
     return report
 
