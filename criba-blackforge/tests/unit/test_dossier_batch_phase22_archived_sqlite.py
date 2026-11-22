@@ -203,3 +203,19 @@ def test_duplicate_parseable_journal_key_rejected_before_lookup(tmp_path):
     with pytest.raises(ValueError, match="batch journal corrupt") as exc:
         resolve_archived_batch(archived, tmp_path)
     assert "duplicate JSON key" in str(exc.value.__cause__)
+
+
+
+@pytest.mark.parametrize("field, value", [
+    ("dossiers", ["dossier-previous"]),
+    ("dossiers_path", "C:/old/dossiers.jsonl"),
+    ("dossier_batch_id", None),
+    ("dossier_remote_state", None),
+])
+def test_partial_archive_provenance_without_journal_cannot_authorize_fresh_post(
+    tmp_path, field, value,
+):
+    _, _, archived = _archive_before_supra(tmp_path)
+    archived[field] = value
+    with pytest.raises(ValueError, match="missing local journal"):
+        resolve_archived_batch(archived, tmp_path)

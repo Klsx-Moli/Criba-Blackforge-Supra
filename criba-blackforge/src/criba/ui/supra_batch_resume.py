@@ -36,7 +36,14 @@ def resolve_archived_batch(
         "NOT_ATTEMPTED", "UNKNOWN", "READBACK_OBSERVED",
     ):
         raise ValueError("archived batch remote state is unrecognised")
-    has_hint = batch_hint is not None or remote_hint is not None
+    # Missing batch_id after a partially written/corrupted archive does not
+    # authorize a new POST if the sheet still declares dossier provenance.
+    has_hint = any(
+        field in sheet for field in (
+            "dossier_batch_id", "dossier_remote_state",
+            "dossiers", "dossiers_path",
+        )
+    )
     run_id, query = sheet.get("run_id"), sheet.get("query")
     if (not isinstance(run_id, str) or not run_id or run_id.strip() != run_id
             or not isinstance(query, str) or not query or query.strip() != query):
