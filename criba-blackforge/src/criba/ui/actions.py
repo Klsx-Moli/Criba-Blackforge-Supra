@@ -7,6 +7,7 @@ la GUI nunca se congela (WIDGET_TREE §3).
 from __future__ import annotations
 
 import json
+import os
 import traceback
 from collections.abc import Callable
 from copy import deepcopy
@@ -449,6 +450,25 @@ def on_inventar(win: Any) -> None:
     except ValueError as exc:
         show_error(win, "Inventar", str(exc))
         return
+    # Never start a model from the startup placeholder or a read-only catalog.
+    # Preflight before locking mutators or creating any provider attempts.
+    selected = getattr(getattr(win, "topcards", None), "interpreter_selector", None)
+    chosen = selected.currentData() if selected is not None else None
+    if chosen is None or (
+        isinstance(chosen, str) and
+        (chosen.startswith("source:") or chosen.startswith("catalog:"))
+    ) or (isinstance(chosen, (tuple, list)) and chosen and
+           chosen[0] in {"opencode_catalog", "ollama_catalog"}):
+        show_error(win, "Cargar modelo",
+                   "Selecciona y activa primero un modelo desde Hermes, Ollama o GGUF. "
+                   "OpenCode está disponible solo para explorar el catálogo.")
+        return
+    if isinstance(chosen, (tuple, list)) and chosen and chosen[0] == "openai_compatible":
+        if not _hermes_proxy_base_ok():
+            show_error(win, "Hermes",
+                       "El intérprete externo no apunta al proxy local de Hermes. "
+                       "Usa CRIBA_EXTERNAL_BASE_URL=http://127.0.0.1:8645/v1.")
+            return
     _cancelar_protocolo_pendiente(win)
     _lock_mutators(win)
     _suggest(win, None)
@@ -1306,61 +1326,187 @@ def on_modelos(win: Any) -> None:
         _activity(win, "cyan", f"Modelo activo: {active_model_label()}")
 
 
+def _hermes_proxy_base_ok() -> bool:
+    """Never silently route a Hermes catalog pick to another HTTP server."""
+    configured = os.environ.get(
+        "CRIBA_EXTERNAL_BASE_URL", "http://127.0.0.1:8645/v1"
+    ).strip().rstrip("/")
+    return configured in {
+        "http://127.0.0.1:8645/v1", "http://localhost:8645/v1"
+    }
+
+
 def _refresh_interpreter_selector(win: Any) -> None:
-    """Reflect the active local model in the Generación interpreter selector."""
+    """Only reflect a configured local profile; never inject cloud defaults."""
     from ..interprete.seleccion import BACKEND_LOCAL
     from ..model_config import active_model_label, load_model_settings
 
     selector = getattr(win, "interpreter_selector", None)
     if selector is None:
         return
-    from ..interprete.openai_compatible import OpenAICompatibleInterpreter
-
-    selector.setItemText(0, "Nous/Hermes · " + OpenAICompatibleInterpreter().model)
-    # La entrada local se busca por su userData, no por índice fijo: entre ella
-    # y el externo hay ahora los modelos gratuitos del proxy. Un índice duro
-    # apuntaría a un modelo free y lo renombraría como "modelo local".
-    local_index = -1
     for i in range(selector.count()):
         if selector.itemData(i) == BACKEND_LOCAL:
-            local_index = i
+            settings = load_model_settings()
+            label = (
+                active_model_label(settings)
+                if settings.enabled and settings.active_profile() is not None
+                else "GGUF local · configurar perfil"
+            )
+            selector.setItemText(i, label)
+            selector.setItemData(
+                i, _t("shadow.interpreter.local"), Qt.ItemDataRole.ToolTipRole
+            )
             break
-    try:
-        settings = load_model_settings()
-        if settings.enabled and settings.active_profile() is not None:
-            label = active_model_label(settings)
-            if local_index >= 0:
-                selector.setItemText(local_index, label)
-        else:
-            if local_index >= 0:
-                selector.setItemText(local_index, "Cargar modelo")
-                selector.setItemData(local_index, _t("shadow.interpreter.local"),
-                                     Qt.ItemDataRole.ToolTipRole)
-    except Exception:
-        pass
-
     cards = getattr(win, "topcards", None)
     if cards is not None:
         cards.interpreter_status.setText(
-            f"Seleccionado · {selector.currentText()} · disponibilidad al generar"
+            "Sin modelo activo · elige Hermes, OpenCode, Ollama o GGUF"
+            if selector.currentData() is None
+            else f"Seleccionado · {selector.currentText()} · disponibilidad al generar"
         )
     refresh = getattr(win, "refresh_model_state", None)
     if callable(refresh):
         refresh()
 
 
-def _on_interpreter_changed(win: Any, index: int) -> None:
-    """Handle interpreter selector change from the Generación tab."""
+def _on_source_catalog(win: Any, source: str, catalog: Any) -> None:
+    """Install read-only catalog entries; selection still requires an explicit click."""
     selector = getattr(win, "interpreter_selector", None)
-    label = selector.itemText(index) if selector is not None else "desconocido"
-    data = selector.itemData(index) if selector is not None else None
-    if isinstance(data, (tuple, list)) and len(data) == 2:
-        label = f"{label} · {data[1]}"
-    _activity(win, "cyan", f"Intérprete seleccionado para el siguiente run: {label}")
+    if selector is None or selector.currentData() != f"source:{source}":
+        return  # stale worker result for a different user selection
+    provenance_role = Qt.ItemDataRole.UserRole + 1
+    previous_blocked = selector.blockSignals(True)
+    try:
+        for i in range(selector.count() - 1, -1, -1):
+            if selector.itemData(i, provenance_role) == source:
+                selector.removeItem(i)
+        for entry in catalog.models:
+            if source == "hermes":
+                label = f"Hermes · {entry.model_id} · precio no verificado"
+                data = ("openai_compatible", entry.model_id)
+            elif source == "ollama":
+                label = f"Ollama · {entry.model_id}"
+                data = ("ollama_catalog", entry.model_id)
+            else:
+                status = "autorizado según OpenCode" if entry.connected_reported else "no conectado"
+                label = f"OpenCode · {entry.provider}/{entry.model_id} · {status}"
+                data = ("opencode_catalog", f"{entry.provider}/{entry.model_id}")
+            selector.addItem(label, data)
+            selector.setItemData(selector.count() - 1, source, provenance_role)
+        selector.setCurrentIndex(0)
+    finally:
+        selector.blockSignals(previous_blocked)
     cards = getattr(win, "topcards", None)
     if cards is not None:
         cards.interpreter_status.setText(
-            f"Seleccionado · {label} · disponibilidad al generar"
+            f"{source}: {len(catalog.models)} modelos del catálogo · "
+            f"{catalog.note} Selecciona uno; aún no se ha enviado ningún prompt."
+        )
+    refresh = getattr(win, "refresh_model_state", None)
+    if callable(refresh):
+        refresh()
+
+
+def _on_source_catalog_error(win: Any, source: str, error: str) -> None:
+    selector = getattr(win, "interpreter_selector", None)
+    if selector is None or selector.currentData() != f"source:{source}":
+        return
+    selector.setCurrentIndex(0)
+    cards = getattr(win, "topcards", None)
+    if cards is not None:
+        # Worker error can include a traceback. Never display environment data.
+        cards.interpreter_status.setText(
+            f"{source}: servicio local no disponible. "
+            "Hermes: hermes proxy start; OpenCode: opencode serve; "
+            "Ollama: iniciar Ollama. No se envió ningún prompt."
+        )
+
+
+def _activate_ollama_choice(win: Any, model_id: str) -> bool:
+    """Explicit user selection writes a new local profile, never provider secrets."""
+    from ..model_config import ModelProfile, load_model_settings, save_model_settings
+
+    settings = load_model_settings()
+    existing = next(
+        (p for p in settings.profiles
+         if p.backend == "ollama" and p.endpoint.rstrip("/") ==
+         "http://127.0.0.1:11434" and p.model == model_id),
+        None,
+    )
+    profile = existing or ModelProfile(
+        name=f"Ollama · {model_id}",
+        backend="ollama",
+        endpoint="http://127.0.0.1:11434",
+        model=model_id,
+        auto_start=False,
+    )
+    if existing is None:
+        settings.profiles.append(profile)
+    settings.enabled = True
+    settings.active_profile_id = profile.id
+    try:
+        save_model_settings(settings)
+    except OSError:
+        return False
+    return True
+
+
+def _on_interpreter_changed(win: Any, index: int) -> None:
+    """Switch source/catalog without copying credentials or auto-running a model."""
+    selector = getattr(win, "interpreter_selector", None)
+    if selector is None:
+        return
+    data = selector.itemData(index)
+    cards = getattr(win, "topcards", None)
+    if isinstance(data, str) and data.startswith("source:"):
+        source = data.split(":", 1)[1]
+        if cards is not None:
+            cards.interpreter_status.setText(
+                f"{source} · consultando catálogo local (solo GET, sin inferencia)…"
+            )
+        from ..interpreter_sources import discover_models
+
+        worker = Worker(lambda: discover_models(source))
+        worker.signals.done.connect(
+            lambda catalog: _on_source_catalog(win, source, catalog)
+        )
+        worker.signals.fail.connect(
+            lambda error: _on_source_catalog_error(win, source, error)
+        )
+        _start_worker(win, worker)
+        return
+    if isinstance(data, (tuple, list)) and len(data) == 2:
+        backend, model = data
+        if backend == "opencode_catalog":
+            if cards is not None:
+                cards.interpreter_status.setText(
+                    f"OpenCode · {model}: catálogo disponible, "
+                    "sin adaptador de interpretación seguro. NO EJECUTABLE."
+                )
+            return
+        if backend == "ollama_catalog":
+            if not _activate_ollama_choice(win, str(model)):
+                if cards is not None:
+                    cards.interpreter_status.setText(
+                        "Ollama: no se pudo guardar el perfil. No se activó."
+                    )
+                return
+            selector.setItemData(index, "local_llama")
+            selector.setItemText(index, f"Ollama · {model} · banco pendiente")
+        if backend == "openai_compatible" and not _hermes_proxy_base_ok():
+            if cards is not None:
+                cards.interpreter_status.setText(
+                    "Hermes: el intérprete externo apunta a otro endpoint. "
+                    "Configura CRIBA_EXTERNAL_BASE_URL=http://127.0.0.1:8645/v1."
+                )
+            return
+    label = selector.currentText() if data is not None else "Cargar modelo"
+    _activity(win, "cyan", f"Intérprete seleccionado para el siguiente run: {label}")
+    if cards is not None:
+        cards.interpreter_status.setText(
+            "Sin intérprete activo · elige un proveedor y un modelo."
+            if data is None else
+            f"Seleccionado · {label} · disponibilidad al generar; no acreditado"
         )
     refresh = getattr(win, "refresh_model_state", None)
     if callable(refresh):
