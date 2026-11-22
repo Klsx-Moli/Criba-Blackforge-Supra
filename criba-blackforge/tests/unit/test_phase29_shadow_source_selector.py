@@ -31,6 +31,8 @@ def app():
 def win(app, tmp_path, monkeypatch):
     monkeypatch.setenv("CRIBA_MODEL_CONFIG", str(tmp_path / "models.json"))
     monkeypatch.setenv("CRIBA_EXTERNAL_BASE_URL", "http://127.0.0.1:8645/v1")
+    monkeypatch.delenv("CRIBA_EXTERNAL_API_KEY", raising=False)
+    monkeypatch.delenv("CRIBA_EXTERNAL_PROVIDER", raising=False)
     window = ShadowWindow(database=str(tmp_path / "shadow.sqlite3"))
     try:
         yield window
