@@ -480,6 +480,22 @@ def on_inventar(win: Any) -> None:
                        "CRIBA_EXTERNAL_BASE_URL=http://127.0.0.1:8645/v1, "
                        "CRIBA_EXTERNAL_API_KEY vacío y proveedor correcto.")
             return
+    # The cloud interpreter can silently choose a different critic from env.
+    # Do not send a second request to an invisible or retired model.
+    if (selected is not None and isinstance(chosen, (tuple, list))
+            and len(chosen) == 2 and chosen[0] == "openai_compatible"
+            and selected.itemData(
+                selected.currentIndex(), Qt.ItemDataRole.UserRole + 1
+            ) == "hermes"):
+        critic = os.environ.get("CRIBA_CRITIC_MODEL", "").strip()
+        if critic and critic != str(chosen[1]):
+            show_error(
+                win, "Hermes · modelo de crítica",
+                "CRIBA_CRITIC_MODEL configura un segundo modelo distinto "
+                "al elegido. Ajusta esta variable al modelo seleccionado o "
+                "elimínala antes de Inventar."
+            )
+            return
     # Model catalogs do not attest free pricing or subscription quota.
     # A Hermes catalog choice must be authorized per run before ANY mutator.
     if (selected is not None
