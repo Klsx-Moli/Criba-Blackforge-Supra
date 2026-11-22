@@ -29,7 +29,7 @@ entrada para continuar la campaña.
 | Componente | Estado | Evidencia |
 |---|---|---|
 | CRIBA (motor determinista) | **VERIFIED** | suite completa verde, tests del engine |
-| Intérprete (OpenAI-compatible) | **VERIFIED** localmente | `test_model_runtime_identity.py` 6/6, mutación detectada |
+| Intérprete (OpenAI-compatible) | **WIRED**, identidad GGUF **NO ACREDITADA** en la transferencia | ver §7.4: el fix vive sin commitear en `iso-fixid-20261122` |
 | Shadow UI (interfaz canónica) | **WIRED / TESTED offscreen** | `test_shadow_three_wiring.py`; `desktop_visual_acceptance = NOT_VERIFIED` |
 | SUPRA | **TESTED** (servicio FastAPI, runner) | suite supra |
 | BLACKFORGE | **DEFERRED** (no reactivar en esta campaña) | safety gates intactos |
@@ -91,6 +91,8 @@ C:/ASTRA_WORK/iso-fixid-20261122           1304649 (detached)          (verifica
   promoción. Verificado estáticamente: cero imports desde `src/` y `shadow_ui/`.
 - **Identidad:** un alias (`criba-local`) NO acredita identidad. Se contrasta
   la ruta real del GGUF vía `/props.model_path` (`_assert_requested_model`).
+  **CORRECCIÓN F34: esto NO está en la transferencia.** Ver §7.4. El
+  `_assert_requested_model` del handoff sólo compara alias.
 - **Puente de crítica:** debe reutilizar la MISMA llamada de producción
   (`prompt_critica` + `_SYSTEM`), no inventar una segunda. Produce byte a byte
   el mensaje que `_pedir` envía.
@@ -120,10 +122,58 @@ C:/ASTRA_WORK/iso-fixid-20261122           1304649 (detached)          (verifica
   (4 fallos reproducidos); integrado sin duplicar (record_event ya lo tenía).
 - 7/7 regresiones externas pasan.
 
-### 6.3 Corrección de diagnóstico
+### 6.3 Corrección de diagnóstico — **RECONCILIADO F34, mi corrección era el error**
+
+> **CORRECCIÓN (2026-11-23, auditoría de `428b011` / F34).**
+> Lo que sigue es lo que escribí en la versión original de este handoff.
+> **Era falso y queda retirado.**
+
 ChatGPT afirmó que `record_event` ya tenía `BEGIN IMMEDIATE` en main
-`1304649`. **Falso**: en main estaba diferido; lo aportó ERNIE en el ciclo
-anterior. No atribuir esa protección a la reparación externa.
+`1304649`. Yo respondí que era falso y que lo había aportado ERNIE.
+
+**Verificación posterior (solo lectura):**
+```
+git show 1304649b...:criba-blackforge/src/criba/storage.py | grep -n "BEGIN IMMEDIATE"
+→ 250:            con.execute("BEGIN IMMEDIATE")     ← dentro de record_event
+```
+Blob de `storage.py` en main: `a624a0e9`.
+
+**Conclusión correcta: ChatGPT tenía razón. `record_event` YA tenía
+`BEGIN IMMEDIATE` en main `1304649`. Mi "corrección" era el error.**
+
+Lo que ERNIE aportó realmente en esa ruta fue el `timeout=30` +
+`PRAGMA busy_timeout`, no la sentencia `BEGIN IMMEDIATE`.
+
+No volver a "reparar" `record_event` por esta afirmación.
+
+### 7.4 **Trabajo de ERNIE NO transferido — identidades GGUF y corpus CBS**
+
+> **Enmendado 2026-11-23 tras auditoría de `428b011` (F34).**
+> Este handoff afirmaba que la identidad real de GGUF estaba resuelta y
+> transferida. **No lo estaba.** El trabajo existe, pero **sin commitear**,
+> y por tanto no llegó al remoto.
+
+**Estado real verificado:**
+
+| Artefacto | Dónde vive | Commiteado |
+|---|---|---|
+| `model_runtime.py` con `_props_url`, `_served_model_path`, `model_path` | `C:/ASTRA_WORK/iso-fixid-20261122` (modificado, `M`) | **NO** |
+| `tests/unit/test_model_runtime_identity.py` | `C:/ASTRA_WORK/iso-fixid-20261122` (`??`) | **NO** |
+| `benchmarks/innovation/cbs_corpus.py` | `C:/ASTRA_WORK/iso-fixid-20261122` (`??`) | **NO** |
+| `tests/unit/test_cbs_corpus_adapter.py` | `C:/ASTRA_WORK/iso-fixid-20261122` (`??`) | **NO** |
+
+**Lo que SÍ hay en la transferencia:**
+`src/criba/model_runtime.py` con `_assert_requested_model` que sólo compara
+alias vía `_served_model_ids`. Verificado: `grep -c props` = **0**.
+
+**Consecuencia:** un alias `criba-local` servido por un GGUF distinto
+pasaría la validación. La identidad física del modelo **no está acreditada**
+en la transferencia. No usar la transferencia para certificar qué modelo
+respondió.
+
+**Qué falta para cerrarlo:** un commit con esos cuatro ficheros sobre una
+base limpia, sus 6 pruebas en verde, y `grep -c props` > 0 en el fichero
+publicado. Requiere autorización: no se ha hecho en esta sesión.
 
 ---
 
@@ -135,8 +185,11 @@ anterior. No atribuir esa protección a la reparación externa.
 - `reserve_semantic_attempt` / `close_semantic_attempt` /
   `semantic_attempt_status` / `load_semantic_receipts`.
 - **5 sentencias `BEGIN IMMEDIATE`**, 0 diferidos, en las cinco rutas
-  read-modify-write:
-  - `record_event` (línea ~279)
+  read-modify-write (en el fichero hay 10 líneas que contienen el texto:
+  5 son comentarios explicativos y 5 son sentencias reales):
+  - `record_event` (línea ~279) — la sentencia **ya existía en main**
+    (`1304649`, línea 250, blob `a624a0e9`); ERNIE aportó `timeout=30` +
+    `busy_timeout`, no el `BEGIN IMMEDIATE`. Ver §6.3.
   - `record_decision` (línea ~344) — reparación externa integrada
   - `save_chain_memory` (línea ~399) — defecto reproducido y reparado por ERNIE
   - `reserve_semantic_attempt` (línea ~599)
@@ -168,7 +221,9 @@ anterior. No atribuir esa protección a la reparación externa.
 
 1. **`_pedir` monta `[system=_SYSTEM, user=prompt]`** — el puente debe
    reproducir eso exactamente, o el hash de mensaje diverge.
-2. **`_assert_requested_model` contrasta `/props.model_path`**, no el alias.
+2. **`_assert_requested_model` en la transferencia sólo compara alias**
+   (`_served_model_ids`). **NO** contrasta `/props.model_path`. Ese fix
+   existe sin commitear en `iso-fixid-20261122` y no se publicó. Ver §7.4.
 3. **PK `(scope, attempt)` en reservas** y `(scope, attempt, body_sha256)` en
    recibos: no cambiar sin migración y sin actualizar el normalizador.
 4. **`semantic_receipts.status`** refleja el estado AL INSERTAR, no el cierre
@@ -237,7 +292,9 @@ En el worktree ASTRA (verificado previamente):
 4. **Dos cuerpos con el mismo `body_sha256`** colisionan en la PK: el segundo
    `INSERT OR IGNORE` se ignora. Correcto para cuerpo repetido, pero el
    recuento de recibos ≠ recuento de llamadas.
-5. **Modelo solicitado ≠ identidad acreditada.** Se necesita `/props`.
+5. **Modelo solicitado ≠ identidad acreditada.** En la transferencia NO se
+   acredita: falta `/props` (ver §7.4). Sólo el worktree `iso-fixid-20261122`
+   tiene la comparación de ruta real, sin commitear.
 6. **pytest-qt:** `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1` rompe `qapp`/`qtbot`
    (falsos `fixture not found`). Usar `QT_QPA_PLATFORM=offscreen` sin ese flag.
 7. **`pytest-current` del temp del sistema** da `PermissionError` (WinError 5):
@@ -256,7 +313,8 @@ En el worktree ASTRA (verificado previamente):
 `C:\Users\KLSX\Desktop\CBS_AUTORIZACION_G0_CONSOLIDADA_20261122.txt`
 
 Seis decisiones: alcance (3 problemas, fase A 16 slots), juez (mismo modelo),
-modelo/parámetros (por `/props`), semillas (27183/314159/161803), presupuesto
+modelo/parámetros (identidad por `/props` **cuando se transfiera el fix**,
+hoy no acreditada), semillas (27183/314159/161803), presupuesto
 (16 llamadas, cero reintentos), versión congelada (`semantic_lab e0692a16`).
 
 Sin esa firma: **no se ejecutan fases A/B/C**. G0 sigue `DRAFT_NOT_APPROVED`.

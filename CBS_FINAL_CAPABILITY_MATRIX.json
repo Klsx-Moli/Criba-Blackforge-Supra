@@ -11,8 +11,15 @@
     "note": "Estados NO alterados por esta transferencia."
   },
   "state_legend": [
-    "ABSENT", "IMPLEMENTED", "WIRED", "EXECUTED", "TESTED",
-    "VERIFIED", "PACKAGED_VERIFIED", "EVIDENCE_PENDING", "DEFERRED"
+    "ABSENT",
+    "IMPLEMENTED",
+    "WIRED",
+    "EXECUTED",
+    "TESTED",
+    "VERIFIED",
+    "PACKAGED_VERIFIED",
+    "EVIDENCE_PENDING",
+    "DEFERRED"
   ],
   "capabilities": [
     {
@@ -27,7 +34,11 @@
       "execution_state": "EXECUTED",
       "packaging_state": "PACKAGED_VERIFIED",
       "evidence": "suite completa verde 1791 passed (worktree ASTRA)",
-      "dependencies": ["storage", "catalog", "diversity_selector"],
+      "dependencies": [
+        "storage",
+        "catalog",
+        "diversity_selector"
+      ],
       "blockers": [],
       "next_action": "Mantener; no reescribir el motor combinatorio."
     },
@@ -36,15 +47,22 @@
       "description": "Interpretacion OpenAI-compatible con identidad de modelo y validacion de propuesta.",
       "module": "criba-blackforge/src/criba/interprete/openai_compatible.py",
       "entry_point": " cribа.interprete.openai_compatible.OpenAICompatibleInterprete.proponer",
-      "contract": "_pedir monta [system=_SYSTEM, user=prompt]; _assert_requested_model contrasta /props.model_path",
+      "contract": "_pedir monta [system=_SYSTEM, user=prompt]. CORRECCION F34: _assert_requested_model en la transferencia SOLO compara alias (_served_model_ids); NO contrasta /props.model_path. El fix vive sin commitear en iso-fixid-20261122.",
       "wiring": "WIRED",
-      "tests": "test_model_runtime_identity.py (6), test_interpreter_*",
+      "tests": "test_model_runtime_identity.py NO esta en la transferencia (existe sin commitear en iso-fixid-20261122); test_interpreter_*",
       "persistence": "state.db / storage",
       "execution_state": "EXECUTED",
       "packaging_state": "PACKAGED_VERIFIED",
-      "evidence": "6/6 identidad, mutacion detectada; P0 semantico OPEN",
-      "dependencies": ["model_runtime", "storage"],
-      "blockers": ["P0 semantico abierto", "contabilidad fisica no prueba llamadas"],
+      "evidence": "6/6 identidad verificado SOLO en iso-fixid-20261122, no publicado. En la transferencia: grep -c props = 0. Identidad fisica NO acreditada.",
+      "dependencies": [
+        "model_runtime",
+        "storage"
+      ],
+      "blockers": [
+        "P0 semantico abierto",
+        "identidad GGUF no acreditada en la transferencia (fix sin commitear)",
+        "contabilidad fisica no prueba llamadas"
+      ],
       "next_action": "Demostrar correspondencia semantica con consumidor productivo real."
     },
     {
@@ -59,8 +77,15 @@
       "execution_state": "EXECUTED",
       "packaging_state": "PACKAGED_VERIFIED",
       "evidence": "EXE APPS/CribaShadow_20261122 sha256 e53e2569...; GUI real NO verificada",
-      "dependencies": ["engine", "interpreter", "storage"],
-      "blockers": ["desktop_visual_acceptance NOT_VERIFIED", "requiere DISPLAY local"],
+      "dependencies": [
+        "engine",
+        "interpreter",
+        "storage"
+      ],
+      "blockers": [
+        "desktop_visual_acceptance NOT_VERIFIED",
+        "requiere DISPLAY local"
+      ],
       "next_action": "Verificar GUI real en PC local."
     },
     {
@@ -75,8 +100,12 @@
       "execution_state": "EXECUTED",
       "packaging_state": "PACKAGED_VERIFIED",
       "evidence": "sha256 e53e256985d861bdb41671d2ec17a55c9ce24cdd3764b629f9da2b8d4311dbc3",
-      "dependencies": ["shadow_ui"],
-      "blockers": ["solo probado offscreen"],
+      "dependencies": [
+        "shadow_ui"
+      ],
+      "blockers": [
+        "solo probado offscreen"
+      ],
       "next_action": "Reempaquetar solo si cambian entradas."
     },
     {
@@ -91,7 +120,9 @@
       "execution_state": "EXECUTED",
       "packaging_state": "PACKAGED_VERIFIED",
       "evidence": "suite supra verde",
-      "dependencies": ["criba bridge (integrations/supra_client.py)"],
+      "dependencies": [
+        "criba bridge (integrations/supra_client.py)"
+      ],
       "blockers": [],
       "next_action": "Mantener; no mezclar terminologia con THEKEY/CHECKMATE."
     },
@@ -107,8 +138,13 @@
       "execution_state": "EXECUTED",
       "packaging_state": "EVIDENCE_PENDING",
       "evidence": "safety gates intactos; no reactivado en esta campana",
-      "dependencies": ["blackforge_safety", "storage"],
-      "blockers": ["DEFERRED por decision de campana"],
+      "dependencies": [
+        "blackforge_safety",
+        "storage"
+      ],
+      "blockers": [
+        "DEFERRED por decision de campana"
+      ],
       "next_action": "No reactivar durante CBS-FINAL-32/40."
     },
     {
@@ -123,7 +159,9 @@
       "execution_state": "VERIFIED",
       "packaging_state": "n/a",
       "evidence": "6/6 carrera real estable x3; mutacion BEGIN->BEGIN diferido detectada (4 fallos)",
-      "dependencies": ["storage"],
+      "dependencies": [
+        "storage"
+      ],
       "blockers": [],
       "next_action": "Mantener; cualquier cambio de PK exige migracion y actualizar normalizador."
     },
@@ -139,8 +177,13 @@
       "execution_state": "VERIFIED",
       "packaging_state": "n/a",
       "evidence": "14/14; mensaje identico a produccion (identicos: True), system 208 / user 2764 chars",
-      "dependencies": ["storage", "semantic_lab"],
-      "blockers": ["no cableado en openai_compatible.proponer (punto de integracion preparado)"],
+      "dependencies": [
+        "storage",
+        "semantic_lab"
+      ],
+      "blockers": [
+        "no cableado en openai_compatible.proponer (punto de integracion preparado)"
+      ],
       "next_action": "Cablear desde openai_compatible.py:961 cuando se autorice."
     },
     {
@@ -155,8 +198,13 @@
       "execution_state": "EXECUTED",
       "packaging_state": "n/a",
       "evidence": "49/49; cero imports desde src/ y shadow_ui/ (aislamiento verificado)",
-      "dependencies": ["semantic_cases"],
-      "blockers": ["G0 DRAFT_NOT_APPROVED", "P0 semantico OPEN"],
+      "dependencies": [
+        "semantic_cases"
+      ],
+      "blockers": [
+        "G0 DRAFT_NOT_APPROVED",
+        "P0 semantico OPEN"
+      ],
       "next_action": "No convertir lectura en evidencia; no sobrescribir con versiones antiguas."
     },
     {
@@ -171,24 +219,30 @@
       "execution_state": "VERIFIED",
       "packaging_state": "n/a",
       "evidence": "13/13; gate.summarize acepta el lote y expone physical_calls_reported",
-      "dependencies": ["storage"],
-      "blockers": ["physical_calls es inferencia, no prueba"],
+      "dependencies": [
+        "storage"
+      ],
+      "blockers": [
+        "physical_calls es inferencia, no prueba"
+      ],
       "next_action": "Mantener; no inventar veredictos."
     },
     {
       "id": "CBS-BENCHMARK-CORPUS",
       "description": "Corpus del benchmark (CRIBA-460, CBS-500, BLACKFORGE-40) y adaptador al harness.",
-      "module": "criba-blackforge/benchmarks/innovation/cbs_corpus.py (en worktree ASTRA)",
+      "module": "criba-blackforge/benchmarks/innovation/cbs_corpus.py (SIN COMMITEAR en C:/ASTRA_WORK/iso-fixid-20261122)",
       "entry_point": "cargar_corpus_jsonl / problemas_de / validar_contrato_harness",
       "contract": "460/460 contratos validos, particiones 276/92/92, 23 centinelas",
-      "wiring": "IMPLEMENTED",
+      "wiring": "IMPLEMENTED_NOT_TRANSFERRED",
       "tests": "test_cbs_corpus_adapter.py (14)",
       "persistence": "jsonl",
       "execution_state": "EXECUTED",
       "packaging_state": "n/a",
       "evidence": "460/460; CBS500-01-01 = consulta de la ducha (incidente P0)",
       "dependencies": [],
-      "blockers": ["no incluido en esta rama (vive en worktree ASTRA)"],
+      "blockers": [
+        "NO transferido: vive sin commitear en iso-fixid-20261122"
+      ],
       "next_action": "Incluir en un commit posterior si ChatGPT lo necesita."
     },
     {
@@ -203,8 +257,14 @@
       "execution_state": "EXECUTED",
       "packaging_state": "n/a",
       "evidence": "16/16; 18/18 casos existen en laboratorio ASTRA, etiquetas coincidentes",
-      "dependencies": ["semantic_lab", "pilot_cases.json"],
-      "blockers": ["G0 DRAFT_NOT_APPROVED", "requiere firma consolidada"],
+      "dependencies": [
+        "semantic_lab",
+        "pilot_cases.json"
+      ],
+      "blockers": [
+        "G0 DRAFT_NOT_APPROVED",
+        "requiere firma consolidada"
+      ],
       "next_action": "No ejecutar fases A/B/C sin autorizacion."
     },
     {
@@ -219,8 +279,12 @@
       "execution_state": "EXECUTED",
       "packaging_state": "n/a",
       "evidence": "12/12; limites documentados en VERSIONES_EFECTIVAS_G0.md seccion 10",
-      "dependencies": ["storage"],
-      "blockers": ["contabilidad no prueba llamadas (limite declarado)"],
+      "dependencies": [
+        "storage"
+      ],
+      "blockers": [
+        "contabilidad no prueba llamadas (limite declarado)"
+      ],
       "next_action": "Ampliar recibo con transport_id/bytes/tokens/latencia si se decide."
     },
     {
@@ -235,7 +299,9 @@
       "execution_state": "VERIFIED",
       "packaging_state": "n/a",
       "evidence": "7/7 externas; 3/3 rmw; defecto save_chain_memory reproducido y reparado",
-      "dependencies": ["storage"],
+      "dependencies": [
+        "storage"
+      ],
       "blockers": [],
       "next_action": "No reintroducir BEGIN diferido en rutas RMW."
     },
@@ -251,8 +317,12 @@
       "execution_state": "EVIDENCE_PENDING",
       "packaging_state": "PACKAGED_VERIFIED",
       "evidence": "EXE existe; GUI real no verificada",
-      "dependencies": ["shadow_ui"],
-      "blockers": ["requiere DISPLAY local"],
+      "dependencies": [
+        "shadow_ui"
+      ],
+      "blockers": [
+        "requiere DISPLAY local"
+      ],
       "next_action": "Verificar en PC local."
     }
   ]
