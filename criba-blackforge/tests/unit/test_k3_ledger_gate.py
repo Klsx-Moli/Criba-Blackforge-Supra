@@ -3,7 +3,7 @@
 Sin proveedor y sin red. Se comprueba que el adaptador:
   - produce EXACTAMENTE las 5 claves que exige el gate;
   - nunca inventa un veredicto: sin recibo cerrado -> NOT_RUN o ERROR;
-  - cuenta llamadas fisicas por recibo, no por veredicto;
+  - no acepta etiquetas planas ni infiere llamadas fisicas acreditadas;
   - respeta el caso exigido: el intento tardio (STALE) no se cuenta como
     exito del intento vigente.
 """
@@ -65,24 +65,24 @@ def test_reserva_activa_sin_recibo_es_not_run() -> None:
     assert r["physical_calls"] == 0
 
 
-def test_recibo_support_con_un_llamada() -> None:
+def test_recibo_support_sin_envelope_es_error() -> None:
     r = normalizar_slot(
         case_id="C:1", repetition=0, arm="S1",
         estado_reserva=_reserva(status="CLOSED", request=SHA1, receipt=SHA1),
         recibos=[_recibo(request=SHA1, cuerpo={"veredicto": "SUPPORT"})],
     )
-    assert r["outcome"] == "SUPPORT"
-    assert r["physical_calls"] == 1
+    assert r["outcome"] == "ERROR"
+    assert r["physical_calls"] == 0
 
 
-def test_recibo_reject_con_un_llamada() -> None:
+def test_recibo_reject_sin_envelope_es_error() -> None:
     r = normalizar_slot(
         case_id="C:1", repetition=0, arm="S1",
         estado_reserva=_reserva(status="CLOSED", request=SHA1, receipt=SHA1),
         recibos=[_recibo(request=SHA1, cuerpo={"veredicto": "REJECT"})],
     )
-    assert r["outcome"] == "REJECT"
-    assert r["physical_calls"] == 1
+    assert r["outcome"] == "ERROR"
+    assert r["physical_calls"] == 0
 
 
 def test_cerrada_sin_cuerpo_es_error_no_inventa() -> None:
@@ -92,7 +92,7 @@ def test_cerrada_sin_cuerpo_es_error_no_inventa() -> None:
         recibos=[_recibo(request=SHA1, cuerpo=None)],
     )
     assert r["outcome"] == "ERROR"
-    assert r["physical_calls"] == 1
+    assert r["physical_calls"] == 0
 
 
 def test_cuerpo_con_veredicto_invalido_es_error() -> None:
@@ -114,13 +114,13 @@ def test_intento_tardio_stale_no_cuenta_como_exito_del_vigente() -> None:
             _recibo(request=SHA2, cuerpo={"veredicto": "REJECT"}, status="CLOSED"),
         ],
     )
-    # El vigente es el del intento 2 (REJECT); la tardia no se cuenta.
-    assert r["outcome"] == "REJECT"
-    assert r["physical_calls"] == 1
+    # Ni la tardia ni la vigente acreditan una lectura sin el envelope original.
+    assert r["outcome"] == "ERROR"
+    assert r["physical_calls"] == 0
 
 
-def test_physical_calls_es_uno_por_intento_no_por_veredicto() -> None:
-    """Dos recibos (tardio + vigente) siguen siendo 1 llamada productiva."""
+def test_dos_metadatos_no_acreditan_ningun_recibo() -> None:
+    """Sin envelope ni contexto, el proxy de recibos aceptados es cero."""
     r = normalizar_slot(
         case_id="C:1", repetition=0, arm="S1",
         estado_reserva=_reserva(status="CLOSED", request=SHA2, receipt=SHA2),
@@ -129,7 +129,7 @@ def test_physical_calls_es_uno_por_intento_no_por_veredicto() -> None:
             _recibo(request=SHA2, cuerpo={"veredicto": "REJECT"}, status="CLOSED"),
         ],
     )
-    assert r["physical_calls"] == 1
+    assert r["physical_calls"] == 0
 
 
 def test_lote_completo_y_validacion_de_contrato() -> None:
@@ -143,7 +143,7 @@ def test_lote_completo_y_validacion_de_contrato() -> None:
         ("A", 0, "S1"): [_recibo(request=SHA1, cuerpo={"veredicto": "SUPPORT"})],
     }
     registros = normalizar_lote(slots, estado, recibos)
-    assert [r["outcome"] for r in registros] == ["NOT_RUN", "SUPPORT", "NOT_RUN"]
+    assert [r["outcome"] for r in registros] == ["NOT_RUN", "ERROR", "NOT_RUN"]
     assert validar_registros(registros) == []
 
 
@@ -197,8 +197,8 @@ def test_gate_rechaza_slot_desconocido(gate) -> None:
         gate["summarize"]("A", normalizar_lote(slots, {}))
 
 
-def test_gate_recibe_lexico_normalizado_sin_promocion_cientifica(gate) -> None:
-    """Synthetic receipt exercises the adapter, not a real model or physical call."""
+def test_gate_recibe_error_de_etiqueta_plana_sin_promocion_cientifica(gate) -> None:
+    """A flat label cannot become a reading or an accepted receipt proxy."""
     slots = [(s["case_id"], s["repetition"], s["arm"]) for s in gate["schedule"]("A")]
     slot = slots[0]
     registros = normalizar_lote(
@@ -206,9 +206,9 @@ def test_gate_recibe_lexico_normalizado_sin_promocion_cientifica(gate) -> None:
         {slot: _reserva(status="CLOSED", request=SHA1, receipt="b" * 64)},
         {slot: [_recibo(request=SHA1, cuerpo={"veredicto": "REJECT"})]},
     )
-    assert registros[0]["outcome"] == "REJECT"
+    assert registros[0]["outcome"] == "ERROR"
     resumen = gate["summarize"]("A", registros)
-    assert resumen["physical_calls_reported"] == 1
+    assert resumen["physical_calls_reported"] == 0
     assert resumen["status"] == "INCOMPLETE"
     assert resumen["provenance_status"] == "NOT_VALIDATED_BY_THIS_TOOL"
     assert resumen["p0_status"] == "OPEN"

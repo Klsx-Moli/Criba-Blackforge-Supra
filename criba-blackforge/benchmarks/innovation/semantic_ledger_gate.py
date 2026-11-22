@@ -1,68 +1,59 @@
-"""Puente ledger K3 -> registros normalizados que acepta pilot_gate.py.
+"""Offline K3 receipt reader, not evidence or an inference-budget authority.
 
-``pilot_gate.summarize`` exige registros EXACTOS con las claves
-``{case_id, repetition, arm, outcome, physical_calls}`` y
-``outcome`` en ``{SUPPORT, REJECT, UNRESOLVED, ERROR, NOT_RUN}``.
+A closed reservation alone cannot validate its response. The host supplies a
+frozen S1 context and the original receipt envelope; the persisted digest,
+identity and structured semantic reading must all agree. S0 is deliberately
+unsupported until its baseline mapping is specified. Old rows remain readable
+metadata, never silently upgraded to an accepted reading.
 
-Este modulo traduce el estado persistido del ledger semantico (reservas y
-recibos de ``criba.storage``) a esos registros SIN inventar:
-
-  - Si no hay reserva para el slot            -> NOT_RUN  (0 llamadas).
-  - Reserva activa sin recibo                 -> NOT_RUN  (0 llamadas).
-  - Reserva con recibo cerrado (CLOSED)       -> el veredicto del recibo.
-  - Reserva con recibo STALE o ERROR         -> ERROR    (1 llamada).
-  - Reserva cerrada con cuerpo no parseable   -> ERROR    (1 llamada).
-
-El veredicto del recibo lo declara el propio cuerpo de la critica, que es
-lo que el bridge produce. No se consulta ningun proveedor: esto es
-normalizacion offline sobre datos ya persistidos.
-
-DISENO: ``physical_calls`` se cuenta por recibo registrado (1 por intento
-que efectivamente llamo al modelo), nunca por veredicto. Asi el gate puede
-rechazar cualquier intento que declare llamadas que no hizo.
+The gate's legacy physical_calls field is a 0/1 *accepted receipt proxy*, not
+observed transport calls. An error/absence can hide a consumed call. No phase
+may be authorized using this proxy; a separate transport journal is required.
 """
-
 from __future__ import annotations
 
-from typing import Any, Iterable, Mapping, Sequence
+from collections.abc import Iterable, Mapping, Sequence
+from dataclasses import dataclass
+from typing import Any
 
-# Veredictos que el gate reconoce como etiqueta del corpus.
+from benchmarks.innovation.semantic_lab import Trial, direct_request, read_current
+
 ETIQUETAS = frozenset({"SUPPORT", "REJECT", "UNRESOLVED"})
-# Estados terminales que el gate acepta como outcome.
 OUTCOMES = frozenset({*ETIQUETAS, "ERROR", "NOT_RUN"})
-
-# Campos exactos que exige pilot_gate.summarize.
 CAMPOS = ("case_id", "repetition", "arm", "outcome", "physical_calls")
+Slot = tuple[str, int, str]
 
 
-def _outcome_desde_cuerpo(cuerpo: Mapping[str, Any] | None) -> str | None:
-    """Extrae el veredicto del cuerpo de la critica, o None si no es valido."""
-    if not isinstance(cuerpo, Mapping):
-        return None
-    # El cuerpo de la critica usa una etiqueta de veredicto. Se acepta
-    # cualquiera de las tres etiquetas del corpus; el resto es ERROR.
-    for clave in ("veredicto", "label", "etiqueta", "outcome", "decision"):
-        valor = cuerpo.get(clave)
-        if isinstance(valor, str):
-            v = valor.strip().upper()
-            if v in ETIQUETAS:
-                return v
-    # Algunos cuerpos anidan la decision bajo "critica".
-    critica = cuerpo.get("critica")
-    if isinstance(critica, Mapping):
-        return _outcome_desde_cuerpo(critica)
-    return None
+@dataclass(frozen=True)
+class SlotContext:
+    """Expected S1 identity from the host plan, never from a model callback."""
+
+    trial: Trial
+    repetition: int
+    reviewer: str
+    attempt_nonce: str
+
+    @property
+    def attempt(self) -> str:
+        # Bind arm/repetition through the existing Request.attempt field,
+        # without introducing a second request digest algorithm.
+        if type(self.repetition) is not int or self.repetition not in range(3):
+            raise ValueError("invalid repetition")
+        if not isinstance(self.attempt_nonce, str) or not self.attempt_nonce.strip():
+            raise ValueError("invalid attempt nonce")
+        return f"S1:{self.repetition}:{self.attempt_nonce}"
+
+    @property
+    def slot(self) -> Slot:
+        return self.trial.case_id, self.repetition, "S1"
+
+    @property
+    def request_sha256(self) -> str:
+        return direct_request(self.trial, self.reviewer, self.attempt).sha256
 
 
-def _registro(case_id: str, repetition: int, arm: str, outcome: str,
-              physical_calls: int) -> dict[str, Any]:
-    return {
-        "case_id": case_id,
-        "repetition": repetition,
-        "arm": arm,
-        "outcome": outcome,
-        "physical_calls": physical_calls,
-    }
+def _registro(slot: Slot, outcome: str, receipt_proxy: int = 0) -> dict[str, Any]:
+    return dict(zip(CAMPOS, (*slot, outcome, receipt_proxy), strict=True))
 
 
 def normalizar_slot(
@@ -72,105 +63,144 @@ def normalizar_slot(
     arm: str,
     estado_reserva: Mapping[str, Any] | None,
     recibos: Sequence[Mapping[str, Any]] | None = None,
+    contexto: SlotContext | None = None,
+    raw_receipt: str | None = None,
 ) -> dict[str, Any]:
-    """Traduce el estado de UN slot del ledger a un registro del gate.
+    """Read a coherent snapshot from Storage.load_semantic_snapshot (K3).
 
-    ``estado_reserva`` es lo que devuelve
-    ``Storage.semantic_attempt_status(scope, attempt)`` (o None).
-    ``recibos`` es lo que devuelve ``Storage.load_semantic_receipts``.
+    The input context and original envelope are separate host-owned inputs.
+    Do not infer a verdict from labels or a body attached to ledger metadata.
+    The legacy body_sha256 column identifies the *whole canonical envelope*
+    for a review, not its request or just the inner body. No DB migration.
     """
-    recibos = list(recibos or [])
-
-    # Sin reserva o reserva aun no cerrada: no hubo llamada productiva.
+    slot = (case_id, repetition, arm)
+    error = _registro(slot, "ERROR")
+    rows = recibos if recibos is not None else ()
+    if not isinstance(rows, Sequence) or isinstance(rows, (str, bytes)):
+        return error
+    if estado_reserva is None:
+        return error if rows or raw_receipt is not None else _registro(slot, "NOT_RUN")
     if not isinstance(estado_reserva, Mapping):
-        return _registro(case_id, repetition, arm, "NOT_RUN", 0)
-
-    status = str(estado_reserva.get("status", "")).upper()
-    request_sha = estado_reserva.get("request_sha256")
-    receipt_sha = estado_reserva.get("receipt_sha256")
-
-    # Reserva activa sin recibo: la llamada no se cerro, no hay veredicto.
-    if status != "CLOSED":
-        return _registro(case_id, repetition, arm, "NOT_RUN", 0)
-
-    # Recibo vigente (el que corresponde al request_sha de la reserva).
-    vigente = None
-    for r in recibos:
-        if str(r.get("request_sha256")) == str(request_sha):
-            vigente = r
-            break
-
-    # Si no hay recibos cargados pero la reserva se cerro con un
-    # receipt_sha256, se puede inferir que hubo 1 llamada fisica.
-    hubo_llamada = 1
-
-    cuerpo = None
-    if vigente is not None:
-        cuerpo = vigente.get("body") if isinstance(vigente, Mapping) else None
-        if cuerpo is None and isinstance(vigente.get("veredicto"), str):
-            cuerpo = {"veredicto": vigente.get("veredicto")}
-
-    veredicto = _outcome_desde_cuerpo(cuerpo)
-    if veredicto is None:
-        # Cerrada pero sin veredicto interpretable: ERROR, no invencion.
-        return _registro(case_id, repetition, arm, "ERROR", hubo_llamada)
-
-    # Un recibo cerrado que no corresponde al request vigente es STALE.
-    if receipt_sha is not None and str(receipt_sha) == str(request_sha):
-        return _registro(case_id, repetition, arm, veredicto, hubo_llamada)
-
-    return _registro(case_id, repetition, arm, veredicto, hubo_llamada)
+        return error
+    status = estado_reserva.get("status")
+    if status == "ACTIVE":
+        # Without a transport journal we cannot distinguish never sent from
+        # interrupted. NOT_RUN here means no closed receipt, NOT zero usage.
+        if estado_reserva.get("receipt_sha256") is None and not rows and raw_receipt is None:
+            return _registro(slot, "NOT_RUN")
+        return error
+    if status != "CLOSED" or not isinstance(contexto, SlotContext):
+        return error
+    if raw_receipt is None:
+        return error
+    try:
+        if contexto.slot != slot or type(repetition) is not int or repetition not in range(3):
+            return error
+        if type(contexto.repetition) is not int or not isinstance(contexto.trial, Trial):
+            return error
+        scope, attempt, request = (
+            contexto.trial.scope, contexto.attempt, contexto.request_sha256
+        )
+        if (
+            estado_reserva.get("scope") != scope
+            or estado_reserva.get("attempt") != attempt
+            or estado_reserva.get("reviewer") != contexto.reviewer
+            or estado_reserva.get("request_sha256") != request
+            or not estado_reserva.get("closed_at")
+        ):
+            return error
+        receipt = estado_reserva.get("receipt_sha256")
+        if not isinstance(receipt, str) or len(receipt) != 64:
+            return error
+        if any(
+            not isinstance(row, Mapping)
+            or row.get("scope") != scope
+            or row.get("attempt") != attempt
+            for row in rows
+        ):
+            return error
+        matches = [row for row in rows if row.get("body_sha256") == receipt]
+        if len(matches) != 1:
+            return error
+        match = matches[0]
+        # ACTIVE is the actual status-at-insertion of the winning receipt.
+        # STALE cannot become current even if other identity fields match.
+        if match.get("status") != "ACTIVE" or match.get("request_sha256") != request:
+            return error
+        reading = read_current(
+            contexto.trial, reviewer=contexto.reviewer, attempt=attempt,
+            current_request_sha256=request, raw=raw_receipt,
+        )
+        if reading.request_sha256 != request or reading.receipt_sha256 != receipt:
+            return error
+        outcome = {
+            "REVIEW_SUPPORTED": "SUPPORT",
+            "REVIEW_REJECTED": "REJECT",
+            "REVIEW_UNRESOLVED": "UNRESOLVED",
+        }.get(reading.outcome)
+        if outcome is None:
+            return error
+        return _registro(slot, outcome, 1)
+    except (AttributeError, KeyError, TypeError, ValueError, RecursionError, OverflowError):
+        return error
 
 
 def normalizar_lote(
-    slots: Iterable[tuple[str, int, str]],
-    estado_por_slot: Mapping[tuple[str, int, str], Mapping[str, Any] | None],
-    recibos_por_slot: Mapping[tuple[str, int, str], Sequence[Mapping[str, Any]]] | None = None,
+    slots: Iterable[Slot],
+    estado_por_slot: Mapping[Slot, Mapping[str, Any] | None],
+    recibos_por_slot: Mapping[Slot, Sequence[Mapping[str, Any]]] | None = None,
+    *,
+    contextos_por_slot: Mapping[Slot, SlotContext] | None = None,
+    raw_por_slot: Mapping[Slot, str] | None = None,
 ) -> list[dict[str, Any]]:
-    """Normaliza todos los slots de un lote en el orden dado."""
+    """Keep all planned slots, with no reuse of a request across repetitions."""
     recibos_por_slot = recibos_por_slot or {}
+    contextos_por_slot = contextos_por_slot or {}
+    raw_por_slot = raw_por_slot or {}
     salida: list[dict[str, Any]] = []
+    seen: set[str] = set()
     for case_id, repetition, arm in slots:
         key = (case_id, repetition, arm)
-        salida.append(normalizar_slot(
-            case_id=case_id,
-            repetition=repetition,
-            arm=arm,
-            estado_reserva=estado_por_slot.get(key),
-            recibos=recibos_por_slot.get(key),
-        ))
+        context = contextos_por_slot.get(key)
+        registro = normalizar_slot(
+            case_id=case_id, repetition=repetition, arm=arm,
+            estado_reserva=estado_por_slot.get(key), recibos=recibos_por_slot.get(key),
+            contexto=context, raw_receipt=raw_por_slot.get(key),
+        )
+        if registro["outcome"] in ETIQUETAS and context is not None:
+            request = context.request_sha256
+            if request in seen:
+                raise ValueError("review request reused across slots")
+            seen.add(request)
+        salida.append(registro)
     return salida
 
 
 def validar_registros(registros: Sequence[Mapping[str, Any]]) -> list[str]:
-    """Comprueba que los registros cumplen el contrato EXACTO del gate.
-
-    No llama a ``pilot_gate`` (que exige el manifiesto); replica sus
-    invariantes para poder verificar offline sin dependencias cruzadas.
-    """
+    """Validate the legacy five-field shape, not provenance or consumption."""
     errores: list[str] = []
-    vistos: set[tuple[str, int, str]] = set()
+    vistos: set[Slot] = set()
     for i, r in enumerate(registros):
-        if not isinstance(r, Mapping):
-            errores.append(f"[{i}] no es un mapeo")
+        if not isinstance(r, Mapping) or set(r) != set(CAMPOS):
+            errores.append(f"[{i}] campos invalidos")
             continue
-        if set(r) != set(CAMPOS):
-            errores.append(f"[{i}] claves {sorted(r)} != {list(CAMPOS)}")
+        case_id, repetition, arm = r["case_id"], r["repetition"], r["arm"]
+        if (not isinstance(case_id, str) or not case_id.strip()
+                or type(repetition) is not int or repetition not in range(3)
+                or not isinstance(arm, str) or arm not in ("S0", "S1")):
+            errores.append(f"[{i}] identidad de slot invalida")
             continue
-        if type(r["repetition"]) is not int:
-            errores.append(f"[{i}] repetition no es int")
-        if not isinstance(r["case_id"], str) or not isinstance(r["arm"], str):
-            errores.append(f"[{i}] case_id/arm no son str")
-        slot = (r["case_id"], r["repetition"], r["arm"])
+        slot = (case_id, repetition, arm)
         if slot in vistos:
             errores.append(f"[{i}] slot duplicado {slot}")
         vistos.add(slot)
-        outcome = r["outcome"]
-        calls = r["physical_calls"]
-        if outcome not in OUTCOMES:
+        outcome, calls = r["outcome"], r["physical_calls"]
+        if not isinstance(outcome, str) or outcome not in OUTCOMES:
             errores.append(f"[{i}] outcome invalido {outcome!r}")
+            continue
         if type(calls) is not int or calls not in (0, 1):
             errores.append(f"[{i}] physical_calls invalido {calls!r}")
+            continue
         if outcome == "NOT_RUN" and calls != 0:
             errores.append(f"[{i}] NOT_RUN con {calls} llamadas")
         if outcome in ETIQUETAS and calls != 1:

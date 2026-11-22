@@ -123,6 +123,11 @@ class Storage:
                   status TEXT NOT NULL,
                   received_at TEXT NOT NULL,
                   PRIMARY KEY (scope, attempt, body_sha256))''')
+                con.execute('''CREATE TABLE IF NOT EXISTS semantic_superseded_requests (
+                  scope TEXT NOT NULL,
+                  attempt TEXT NOT NULL,
+                  request_sha256 TEXT NOT NULL,
+                  PRIMARY KEY (scope, attempt, request_sha256))''')
                 if current_version < SCHEMA_VERSION:
                     con.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
         finally:
@@ -598,15 +603,32 @@ class Storage:
             # creerse ganadoras: la carrera real lo demostro.
             con.execute("BEGIN IMMEDIATE")
             fila = con.execute(
-                "SELECT request_sha256 FROM semantic_reservations "
+                "SELECT request_sha256, reviewer FROM semantic_reservations "
                 "WHERE scope=? AND attempt=?",
                 (scope, attempt),
             ).fetchone()
             if fila is not None and str(fila[0]) == request_sha256:
+                if fila[1] != reviewer:
+                    raise ValueError("conflicto: reviewer distinto para la misma peticion")
                 con.commit()
                 # Misma peticion repetida: idempotente, no es reserva nueva.
                 return False
+            # Remember superseded requests even when they never returned a receipt.
+            # Also reject a historically recorded response from a pre-migration DB.
+            historical = con.execute(
+                "SELECT 1 FROM semantic_superseded_requests "
+                "WHERE scope=? AND attempt=? AND request_sha256=? "
+                "UNION ALL SELECT 1 FROM semantic_receipts "
+                "WHERE scope=? AND attempt=? AND request_sha256=? LIMIT 1",
+                (scope, attempt, request_sha256, scope, attempt, request_sha256),
+            ).fetchone()
+            if historical is not None:
+                raise ValueError("una peticion superada no puede reactivarse")
             if fila is not None:
+                con.execute(
+                    "INSERT OR IGNORE INTO semantic_superseded_requests VALUES(?,?,?)",
+                    (scope, attempt, fila[0]),
+                )
                 # Reintento legitimo del mismo attempt: la reserva anterior
                 # queda superada. Con PK (scope, attempt) no pueden coexistir
                 # dos filas, asi que se reemplaza la vigente.
@@ -665,6 +687,23 @@ class Storage:
                 str(fila[0]), str(fila[1]), fila[2]
             )
             es_vigente = request_actual == request_sha256
+            existing_receipt = con.execute(
+                "SELECT request_sha256, status FROM semantic_receipts "
+                "WHERE scope=? AND attempt=? AND body_sha256=?",
+                (scope, attempt, receipt_sha256),
+            ).fetchone()
+            # A canonical envelope includes its request. Reusing its digest
+            # for another request is a conflict, not a successful INSERT OR IGNORE.
+            if existing_receipt is not None and existing_receipt[0] != request_sha256:
+                raise ValueError("conflicto: hash de recibo de otra peticion")
+            if es_vigente and status_actual != "ACTIVE":
+                if (status_actual == "CLOSED" and receipt_actual == receipt_sha256
+                        and existing_receipt is not None and existing_receipt[1] == "ACTIVE"):
+                    con.commit()
+                    return "ALREADY_CLOSED"
+                raise ValueError("conflicto: cierre previo inconsistente o distinto")
+            if es_vigente and existing_receipt is not None:
+                raise ValueError("conflicto: recibo previo para reserva activa")
             # El recibo se persiste siempre, incluso si llega tarde.
             con.execute(
                 "INSERT OR IGNORE INTO semantic_receipts "
@@ -682,15 +721,6 @@ class Storage:
             if not es_vigente:
                 con.commit()
                 return "STALE"
-            if status_actual != "ACTIVE":
-                if receipt_actual is not None and str(receipt_actual) == receipt_sha256:
-                    con.commit()
-                    return "ALREADY_CLOSED"
-                # Mismo intento, cuerpo distinto: conflicto, no reemplazo.
-                con.rollback()
-                raise ValueError(
-                    "conflicto: el intento ya esta cerrado con otro recibo"
-                )
             cursor = con.execute(
                 "UPDATE semantic_reservations SET status=?, closed_at=?, "
                 "receipt_sha256=? WHERE scope=? AND attempt=? "
@@ -757,5 +787,34 @@ class Storage:
                 }
                 for r in rows
             ]
+        finally:
+            con.close()
+
+    def load_semantic_snapshot(
+        self, scope: str, attempt: str
+    ) -> tuple[dict[str, Any] | None, list[dict[str, Any]]]:
+        """Read reservation and receipts with identities in one SQLite snapshot.
+
+        This is a historical read, not authorization to commit a new result.
+        Writers must still compare-and-set their reservation at close.
+        Legacy readers retain their existing return shapes.
+        """
+        con = self.connect()
+        try:
+            con.execute("BEGIN")  # Read transaction: both SELECTs see the same state.
+            reservation = con.execute(
+                "SELECT scope, attempt, request_sha256, reviewer, status, created_at, "
+                "closed_at, receipt_sha256 FROM semantic_reservations "
+                "WHERE scope=? AND attempt=?",
+                (scope, attempt),
+            ).fetchone()
+            receipts = con.execute(
+                "SELECT scope, attempt, request_sha256, body_sha256, status, received_at "
+                "FROM semantic_receipts WHERE scope=? AND attempt=? "
+                "ORDER BY received_at, body_sha256",
+                (scope, attempt),
+            ).fetchall()
+            return (dict(reservation) if reservation is not None else None,
+                    [dict(row) for row in receipts])
         finally:
             con.close()

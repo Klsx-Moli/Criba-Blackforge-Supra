@@ -216,7 +216,7 @@ def test_intento_tardio_no_cierra_la_reserva_del_intento_2(tmp_path: Path) -> No
     # Dos procesos cierran a la vez: el tardio trae sha1, el vigente trae sha2.
     estados = _lanzar_cierres(ruta, tmp_path / "b4", tmp_path,
                               [("intento-1", sha1, "r" * 64),
-                               ("intento-1", sha2, "r" * 64)])
+                               ("intento-1", sha2, "s" * 64)])
     # Solo el cierre con el sha vigente puede cerrar.
     assert estados.count("CLOSED") == 1, estados
     assert "STALE" in estados, estados

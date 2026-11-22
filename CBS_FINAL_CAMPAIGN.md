@@ -55,8 +55,44 @@ python -m compileall -q tests/unit/test_k3_ledger_gate.py ../docs/research/seman
 28 runtime local/cloud autorizado; 29 rendimiento y recursos; 30 seguridad y robustez; 31 regresión/CI y empaquetado; 32 aceptación final real y handoff.
 33–40 reserva de ciclos adicionales por hallazgos o puertas pendientes. Si una fase revela P0/P1 se puede reordenar con justificación. Las fases que requieren autorizaciones/inferencia/local se conservan bloqueadas mientras se sigue con trabajo independiente.
 
-## Siguiente acción exacta
+## Siguiente acción exacta (histórica, al cierre de fase 01)
 
 Fase 02: comprobar el contrato persistido de semantic_reservations/semantic_receipts y su unión con semantic_critic_bridge, semantic_lab y semantic_ledger_gate. Reproducir recibo de mismo request pero distinto body_sha, STALE con mismo request, mismo request en scopes/attempts distintos, cuerpo alterado, recibo ausente, campos contradictorios y filtro corrupto parseable. No tratar un hash de request como hash de respuesta ni etiqueta declarada como veredicto acreditado. Crear sentinelas que fallen sobre el código actual; reparar experimentalmente y verificar almacenamiento -> lector -> gate, sin activar productor productivo ni hacer inferencias. Mantener el gate reproducible. Si falta evidencia local, registrar exactamente y continuar con lo accesible.
 
 Local pendiente: conservar los 33 worktrees y WIP. No cambiar de rama con árbol sucio. Git fetch de la rama de campaña y worktree aislado para inspección; aún no cherry-pick sobre árbol de ERNIE. Solicitar más adelante el diff exacto de model_runtime.py/test_model_runtime_identity.py y cbs_corpus.py/tests, sin subir datos sensibles ni reserved. No exigir otra ejecución local durante las primeras fases remotas.
+
+## Fase 02 — Integridad de reservas, recibos y lectura semántica
+
+Baseline: `6d9a448f2d6c2d81c2c27a6fcfcdea6ae05da774`. Alcance: reparación experimental de identidad y persistencia, no activación productiva. Estado: candidato reparado y verificado de forma dirigida; regresión completa pendiente.
+
+### Reproducción y reparación F01-04 (VERIFIED_BY_EXECUTION)
+
+- Normalizador previo: aceptaba etiquetas planas inventadas, hashes de recibo incorrectos, STALE, primer recibo equivocado, identidad ajena y etiquetas contradictorias; no sabía traducir el envelope auténtico del laboratorio. También podía lanzar TypeError ante estados corruptos parseables.
+- Storage previo: secuencia A -> B -> A reactivaba una identidad superada; una respuesta antigua de A cerraba esa reserva. INSERT OR IGNORE podía confundir dos peticiones con un mismo hash de recibo.
+- Reparación: tabla aditiva semantic_superseded_requests, bloqueo de reactivación y conflicto de reviewer, comprobación de colisiones y cierres idempotentes coherentes. Sin borrar datos históricos ni reescribir el esquema existente. La historia ya perdida antes de esta versión no es reconstruible: iniciar campañas nuevas con namespace nuevo.
+- load_semantic_snapshot lee reserva y recibos con scope/attempt en una sola transacción SQLite de lectura. Los lectores antiguos conservan sus formas de retorno. Un snapshot es una lectura histórica; no autoriza un cierre sin compare-and-set.
+- SlotContext liga posición S1/repetición/nonce al Trial y Request de ASTRA, usando su algoritmo canónico, sin cambiar semantic_lab.py. Exige contexto del host, envelope original, scope, attempt, reviewer, request_sha256, cierre, exactamente un recibo que coincide con receipt_sha256 y estado de inserción ACTIVE. read_current verifica cuerpo estructurado, modelo declarado, finish_reason, citas y digest del envelope; solo sus outcomes se traducen a etiquetas diagnósticas. No se aceptan etiquetas planas. S0 sin implementación de adjudicación, fail closed hasta fase 05/06.
+- El campo legado physical_calls ahora es un proxy 0/1 de recibos aceptados, no un contador de transporte. ERROR/NOT_RUN con 0 no acredita ausencia de consumo. Prohibido autorizar presupuesto o ejecución a partir del proxy. Hashes coherentes no acreditan un proveedor honesto ni una llamada real. No persiste el envelope original en SQLite todavía.
+
+### Evidencia ejecutada
+
+Sandbox Linux aislado, sin clon íntegro (limitación de acceso DNS previamente constatada). Archivos exactos reconstruidos: normalizador original 3dcd28a193d650f7f640e72ebc098949e0393e3f, candidato 1a0393cd11b73049e126f1a8804a1c64423805e9; laboratorio 5f9b9c8121b7d4499bc50c713b986b68e785ae12; test fase 01 previo 1296fc9f606b54be6ea5d083f36b1954d3d2580a y candidato 4a42faf5c188e07d259892c621c2dfc3a8354a5d; test nuevo c86139996230ff1db9d3d513f1f291bcc49dd848. Gate y manifiesto exactos de fase 01. Storage probado con configuración mínima y fragmentos exactos de inicialización/conexión y métodos de reservas/recibos; resto del módulo no ejecutado. SHA1 de fragmentos candidatos 759251617a7979e7822eeaae1608cf163f077434 y 31b03b240d77394f3ffd219a7acf04cecdaf2b7e; blob completo candidato badd3bc981de139d3efaba7a32eeddd3f09ae7bc preparado preservando el resto.
+
+- 55 passed (39 integridad nueva + 16 normalizador/gate), última restauración 0.68 s. SQLite real en bases temporales: aceptación de tres lecturas estructurales sintéticas, hashes/citas/cuerpos alterados, conflictos de identidad y repetición, reordenamiento, replay, colisiones, migración aditiva y reapertura, cierre previo inconsistente, lectura concurrente de snapshot, y normalización hasta el gate real.
+- 9/9 mutantes detectados: receipt_digest, stale_status, scope_attempt, repetition_binding, pointer, aba, collision, snapshot, duplicate_request. Restauración posterior verde.
+- compileall dirigido PASS. diff --no-index --check sin diagnósticos sobre normalizador y test previo vs reparados.
+- Ajustados test_k3_contabilidad_fisica.py y test_k3_sqlite_race.py a nuevo contrato: etiquetas sin envelope ahora ERROR, proxy no prueba llamada; carrera usa hashes de envelopes diferentes (colisión tiene regresiones propias). Estos dos archivos históricos modificados NO EJECUTADOS en esta sesión; suite completa, Ruff, mypy, CI y Windows pendientes. No declarar todos los tests del repo verdes. Cero inferencias reales.
+
+Reproducción desde criba-blackforge en checkout completo:
+```sh
+python -m pytest -q tests/unit/test_k3_receipt_integrity.py tests/unit/test_k3_ledger_gate.py tests/unit/test_k3_contabilidad_fisica.py tests/unit/test_k3_sqlite_race.py tests/unit/test_k3_semantic_reservation.py
+```
+
+### Pendientes y continuidad
+
+- F01-04: reparación del lector de recibos y replay verificada en alcance experimental; identidad de transporte y verdad semántica siguen sin acreditar. F02-01: S0 bloqueado; el bridge anterior calcula digest de petición del lab mientras prepara prompt de crítica de producción, incluso para etapas distintas. Debe reconciliarse antes de un piloto comparable, sin inventar equivalencia.
+- G0=DRAFT_NOT_APPROVED, P0_SEMANTIC=OPEN, SCIENTIFIC_ADVANTAGE=NOT_ESTABLISHED, DESKTOP_VISUAL_ACCEPTANCE=NOT_VERIFIED. F01-03 (identidad GGUF) continúa pendiente. No activar producción.
+
+## Siguiente acción exacta
+
+Fase 03: contabilidad de transporte y presupuesto. Primero ejecutar las regresiones históricas de fase 02 que queden accesibles. Inspeccionar rutas reales de _pedir/cliente HTTP, retries, fallback, timeout, envío y respuesta. Diseñar registro durable de intento antes de enviar, identificación de tentativa física, resultado/ausencia de respuesta, recuperación tras crash, UNKNOWN cuando el envío es incierto; vincular recibo original a contexto y journal sin aceptar metadatos fabricados como prueba de llamadas. Distinguir slot lógico, intentos reservados, envío observado, respuesta y consumo acreditado por proveedor. No usar physical_calls del normalizador como presupuesto; no autorizar nuevos intentos si el estado de presupuesto es incierto. Probar replay, concurrencia, timeout, escritura parcial, reinicio y límites explícitos 16/36/108 offline, sin activar inferencia, sin cambiar ASTRA ni BLACKFORGE. Conservar G0 y P0. Si una decisión científica o cambio de contrato requiere aprobación, dejar puerta explícita y seguir trabajo independiente.

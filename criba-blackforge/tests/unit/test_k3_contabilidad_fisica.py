@@ -35,7 +35,7 @@ def _reserva(status="ACTIVE", request=SHA, receipt=None):
 
 # --- 1. Resultado declarado SIN llamada acreditada -------------------------
 
-def test_recibo_inventado_no_se_distingue_de_real(tmp_path) -> None:
+def test_metadato_inventado_no_es_recibo_acreditado(tmp_path) -> None:
     """Si alguien inserta un recibo a mano, el ledger no puede negarlo.
 
     El esquema no guarda evidencia de transporte (ni request_id del
@@ -56,14 +56,14 @@ def test_recibo_inventado_no_se_distingue_de_real(tmp_path) -> None:
     assert estado["status"] == "CLOSED"
     assert estado["receipt_sha256"] == "b" * 64
     assert len(recibo) == 1
-    # Y el normalizador lo reporta como etiqueta con 1 llamada fisica.
+    # Una etiqueta plana no acredita una lectura ni una llamada.
     reg = normalizar_slot(
         case_id="C:1", repetition=0, arm="S1",
         estado_reserva=estado,
         recibos=[{**recibo[0], "body": {"veredicto": "SUPPORT"}}],
     )
-    assert reg["outcome"] == "SUPPORT"
-    assert reg["physical_calls"] == 1  # <-- inferido, no acreditado
+    assert reg["outcome"] == "ERROR"
+    assert reg["physical_calls"] == 0  # <-- inferido, no acreditado
 
 
 def test_no_campo_de_transporte_en_el_recibo(tmp_path) -> None:
@@ -164,9 +164,9 @@ def test_respuesta_tardia_no_cuenta_en_el_recuento_del_vigente(tmp_path) -> None
         case_id="C:1", repetition=0, arm="S1", estado_reserva=estado,
         recibos=con_cuerpo,
     )
-    # Solo cuenta el vigente: 1 llamada fisica, no 2.
-    assert reg["physical_calls"] == 1
-    assert reg["outcome"] == "REJECT"
+    # Sin contexto y envelope, ninguna fila acredita una lectura.
+    assert reg["physical_calls"] == 0
+    assert reg["outcome"] == "ERROR"
     # La tardia sigue en el historial para auditoria (STALE).
     estados = sorted(r["status"] for r in recibos)
     assert estados == ["ACTIVE", "STALE"], estados
@@ -230,7 +230,7 @@ def test_normalizador_no_inventa_llamada_cuando_no_hay_cuerpo() -> None:
                   "status": "CLOSED", "received_at": "x", "body": None}],
     )
     assert reg["outcome"] == "ERROR"
-    assert reg["physical_calls"] == 1
+    assert reg["physical_calls"] == 0
 
 
 def test_validacion_rechaza_resultado_sin_llamada() -> None:
