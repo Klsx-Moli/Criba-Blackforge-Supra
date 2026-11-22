@@ -218,33 +218,24 @@ def test_shadow_expone_selector_real_y_salidas_copiables(qapp, tmp_path, monkeyp
     win = ShadowWindow(database=str(tmp_path / "shadow.sqlite3"))
     try:
         selector = win.topcards.interpreter_selector
-        from criba.interprete.seleccion import BACKEND_LOCAL, FREE_MODELS
+        from criba.interprete.seleccion import BACKEND_LOCAL
 
-        # El modelo externo configurado primero; luego los modelos gratuitos
-        # del proxy; "Cargar modelo" (local) al final.
-        assert selector.count() == 2 + len(FREE_MODELS)
-        assert selector.itemData(0) == "openai_compatible"
-        assert "Nous/Hermes" in selector.itemText(0)
-        from criba.interprete.openai_compatible import OpenAICompatibleInterpreter
-
-        assert OpenAICompatibleInterpreter().model in selector.itemText(0)
-        # Cada modelo free lleva (backend, model) con su id real del catálogo.
-        for offset, (model_id, label) in enumerate(FREE_MODELS, start=1):
-            data = selector.itemData(offset)
-            assert isinstance(data, tuple) and data[0] == "openai_compatible"
-            assert data[1] == model_id
-            assert label in selector.itemText(offset)
-            assert "free" in selector.itemText(offset)
-        # La entrada local sigue siendo la última y no es remota.
+        # No se anuncian modelos libres obsoletos ni se inicia un intérprete.
+        assert selector.count() == 5
+        assert selector.currentData() is None
+        assert selector.itemText(0) == "Cargar modelo"
+        assert [selector.itemData(i) for i in (1, 2, 3)] == [
+            "source:hermes", "source:opencode", "source:ollama"
+        ]
         local_index = selector.count() - 1
         assert selector.itemData(local_index) == BACKEND_LOCAL
-        assert selector.itemText(local_index) == "Cargar modelo"
+        assert "GGUF" in selector.itemText(local_index)
         from PySide6.QtCore import Qt
 
         assert selector.itemData(local_index, Qt.ItemDataRole.ToolTipRole) == actions._t(
             "shadow.interpreter.local"
         )
-        assert "al generar" in win.topcards.interpreter_status.text().lower()
+        assert "elige" in win.topcards.interpreter_status.text().lower()
         for widget in (
             win.candidates.raw_output,
             win.candidates.interpretation_output,
