@@ -722,7 +722,10 @@ def test_f32_queued_local_refinement_cannot_switch_model_before_dispatch(
     settings = default_model_settings()
     settings.enabled = True
     save_model_settings(settings)
-    _f30_refinement_sheet(win)["interpreter"] = {"backend": "local_llama"}
+    _f30_refinement_sheet(win)["interpreter"] = {
+        "backend": "local_llama",
+        "model_requested": settings.active_profile().model,
+    }
     queued = []
     monkeypatch.setattr(actions, "_start_worker",
                         lambda _w, worker, operation="": queued.append(worker))
@@ -782,3 +785,61 @@ def test_f32_hermes_cost_consent_rejects_parameters_changed_during_modal(
                         pytest.fail("changed cost settings must not be accepted"))
     actions.on_inventar(win)
     assert errors and errors[0][0] == "Hermes · consentimiento caducado"
+
+
+@pytest.mark.parametrize(("env", "override"), [
+    ("CRIBA_LOCAL_MODEL", "different-local-model"),
+    ("CRIBA_LOCAL_BASE", "http://127.0.0.1:9999"),
+])
+def test_f32_local_invent_rejects_preexisting_override_mismatch(
+    win, monkeypatch, env, override
+):
+    settings = default_model_settings()
+    settings.enabled = True
+    save_model_settings(settings)
+    selector = win.topcards.interpreter_selector
+    selector.setCurrentIndex(selector.findData("local_llama"))
+    win.problem = "fixture"
+    monkeypatch.setenv(env, override)
+    errors = []
+    monkeypatch.setattr(actions, "show_error", lambda _w, title, text:
+                        errors.append((title, text)))
+    monkeypatch.setattr(actions, "_lock_mutators", lambda _w:
+                        pytest.fail("preexisting local override mismatch must be blocked"))
+    actions.on_inventar(win)
+    assert errors and errors[0][0] == "Modelo local · identidad"
+
+
+def test_f32_local_refinement_rejects_historical_model_provenance_mismatch(
+    win, monkeypatch
+):
+    settings = default_model_settings()
+    settings.enabled = True
+    save_model_settings(settings)
+    sheet = _f30_refinement_sheet(win)
+    sheet["interpreter"] = {
+        "backend": "local_llama",
+        "model_requested": "historical/other-local-model",
+    }
+    errors = []
+    monkeypatch.setattr(actions, "show_error", lambda _w, title, msg:
+                        errors.append((title, msg)))
+    monkeypatch.setattr(actions, "_start_worker", lambda *_a, **_kw:
+                        pytest.fail("refinement must not change local model"))
+    actions.on_protocolo_operativo(win)
+    assert errors and errors[0][0] == "Protocolo operativo · identidad local"
+
+
+def test_f32_local_profile_matching_v1_endpoint_override_is_compatible(
+    win, monkeypatch
+):
+    settings = default_model_settings()
+    settings.enabled = True
+    save_model_settings(settings)
+    monkeypatch.setenv("CRIBA_LOCAL_BASE", settings.active_profile().endpoint + "/v1")
+    monkeypatch.setenv("CRIBA_LOCAL_MODEL", settings.active_profile().model)
+    assert actions._shadow_local_active_identity() == (
+        settings.active_profile().backend,
+        settings.active_profile().model,
+        settings.active_profile().endpoint,
+    )
