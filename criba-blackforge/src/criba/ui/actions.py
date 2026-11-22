@@ -468,12 +468,13 @@ def on_inventar(win: Any) -> None:
                    "OpenCode está disponible solo para explorar el catálogo.")
         return
     if chosen == "local_llama":
-        from ..model_config import load_model_settings
-        settings = load_model_settings()
-        active = settings.active_profile()
-        if not settings.enabled or active is None:
-            show_error(win, "Modelo local",
-                       "Configura y activa primero un perfil GGUF u Ollama.")
+        if _shadow_local_active_identity() is None:
+            show_error(
+                win, "Modelo local · identidad",
+                "No hay perfil local activo, o CRIBA_LOCAL_MODEL/CRIBA_LOCAL_BASE "
+                "no coincide con el perfil elegido. Ajusta la configuración "
+                "antes de Inventar."
+            )
             return
         if selected is not None:
             pinned = selected.itemData(
@@ -1466,6 +1467,29 @@ def _hermes_run_env_snapshot() -> tuple[str | None, ...]:
     ))
 
 
+def _shadow_local_active_identity() -> tuple[str, str, str] | None:
+    """Return active local profile identity only if runtime overrides agree."""
+    from ..model_config import load_model_settings
+
+    settings = load_model_settings()
+    profile = settings.active_profile() if settings.enabled else None
+    if profile is None or not profile.model or not profile.endpoint:
+        return None
+    override_model = os.environ.get("CRIBA_LOCAL_MODEL", "").strip()
+    if override_model and override_model != profile.model:
+        return None
+
+    def canonical_endpoint(value: str) -> str:
+        base = value.rstrip("/")
+        return base[:-3] if base.endswith("/v1") else base
+
+    override_base = os.environ.get("CRIBA_LOCAL_BASE", "").strip()
+    if (override_base and
+            canonical_endpoint(override_base) != canonical_endpoint(profile.endpoint)):
+        return None
+    return (profile.backend, profile.model, canonical_endpoint(profile.endpoint))
+
+
 def _local_run_state_snapshot() -> tuple[str, bytes | None, tuple[str | None, ...]]:
     """Bind queued local work to an unchanged shared model profile + overrides.
 
@@ -2455,6 +2479,14 @@ def on_protocolo_operativo(win: Any) -> None:
             return
     local_state_at_queue = None
     if shadow_selector is not None and backend == "local_llama":
+        active_local = _shadow_local_active_identity()
+        if active_local is None or not model or model != active_local[1]:
+            show_error(
+                win, "Protocolo operativo · identidad local",
+                "El perfil activo no corresponde al modelo que generó "
+                "la propuesta. No se permite refinar con otro modelo oculto."
+            )
+            return
         try:
             local_state_at_queue = _local_run_state_snapshot()
         except ValueError:
