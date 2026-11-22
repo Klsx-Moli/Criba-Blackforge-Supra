@@ -1611,7 +1611,9 @@ def _on_supra_dossiers_failed(
     show_error(win, "SUPRA", message)
 
 
-def _reconciliar_lote_supra_get(batch_id: str) -> dict[str, Any]:
+def _reconciliar_lote_supra_get(
+    batch_id: str, run_id: str, query: str,
+) -> dict[str, Any]:
     """Explicit GET-only reconciliation of the *active* batch, never POST.
 
     Unlike 'recover latest SUPRA', this uses the bound local batch_id and the
@@ -1621,29 +1623,32 @@ def _reconciliar_lote_supra_get(batch_id: str) -> dict[str, Any]:
     from ..integrations import SupraClient
 
     with SupraClient() as client:
-        return reconciliar_lote_por_get(batch_id, client)
+        return reconciliar_lote_por_get(
+            batch_id, client, expected_run_id=run_id, expected_problem=query,
+        )
 
 
 def _supra_batch_get_current(
     win: Any, token: object, sheet: dict[str, Any], batch_id: str,
-    run_id: Any, problem: Any,
+    run_id: Any, problem: Any, query: Any,
 ) -> bool:
     return (
         getattr(win, "_supra_batch_recovery_token", None) is token
         and getattr(win, "invent_sheet", None) is sheet
         and sheet.get("run_id") == run_id
         and sheet.get("dossier_batch_id") == batch_id
+        and sheet.get("query") == query
         and getattr(win, "problem", None) == problem
     )
 
 
 def _on_supra_batch_get_done(
     win: Any, result: Any, *, token: object, sheet: dict[str, Any],
-    batch_id: str, run_id: Any, problem: Any,
+    batch_id: str, run_id: Any, problem: Any, query: Any,
 ) -> None:
     if getattr(win, "_supra_batch_recovery_token", None) is not token:
         return
-    if not _supra_batch_get_current(win, token, sheet, batch_id, run_id, problem):
+    if not _supra_batch_get_current(win, token, sheet, batch_id, run_id, problem, query):
         # A stale response frees its own token but cannot alter newer UI.
         win._supra_batch_recovery_token = None
         return
@@ -1677,11 +1682,11 @@ def _on_supra_batch_get_done(
 
 def _on_supra_batch_get_failed(
     win: Any, message: str, *, token: object, sheet: dict[str, Any],
-    batch_id: str, run_id: Any, problem: Any,
+    batch_id: str, run_id: Any, problem: Any, query: Any,
 ) -> None:
     if getattr(win, "_supra_batch_recovery_token", None) is not token:
         return
-    if not _supra_batch_get_current(win, token, sheet, batch_id, run_id, problem):
+    if not _supra_batch_get_current(win, token, sheet, batch_id, run_id, problem, query):
         # A stale response frees its own token but cannot alter newer UI.
         win._supra_batch_recovery_token = None
         return
@@ -1712,6 +1717,7 @@ def _start_supra_batch_get(
         and getattr(win, "_supra_batch_recovery_run_id", None) == sheet.get("run_id")
         and getattr(win, "_supra_batch_recovery_problem", None)
         == getattr(win, "problem", None)
+        and getattr(win, "_supra_batch_recovery_query", None) == sheet.get("query")
     ):
         return
     token = object()
@@ -1721,8 +1727,10 @@ def _start_supra_batch_get(
     win._supra_batch_recovery_id = batch_id
     run_id = sheet.get("run_id")
     problem = getattr(win, "problem", None)
+    query = sheet.get("query")
     win._supra_batch_recovery_run_id = run_id
     win._supra_batch_recovery_problem = problem
+    win._supra_batch_recovery_query = query
     win.refs["ideaSummary"].setText(
         "Lote SUPRA previamente reservado · comprobando recibos mediante GET "
         "sin reenvío · evidencia NO VALIDADA · mecanismo NO EJECUTADO"
@@ -1730,9 +1738,9 @@ def _start_supra_batch_get(
     set_chip(win.refs["ideaEstadoChip"], "SUPRA · comprobando GET", "exploracion")
     context = {
         "token": token, "sheet": sheet, "batch_id": batch_id,
-        "run_id": run_id, "problem": problem,
+        "run_id": run_id, "problem": problem, "query": query,
     }
-    worker = Worker(lambda: _reconciliar_lote_supra_get(batch_id))
+    worker = Worker(lambda: _reconciliar_lote_supra_get(batch_id, run_id, query))
     worker.signals.done.connect(
         lambda report: _on_supra_batch_get_done(win, report, **context)
     )
@@ -1961,8 +1969,31 @@ def _on_protocolo_failed(win: Any, message: str) -> None:
 
 
 def on_desarrollar_supra(win: Any) -> None:
-    """Prepare local dossiers, then execute them asynchronously through SupraClient."""
+    """Prepare new dossiers OR reconcile an existing batch by GET only."""
     sheet = getattr(win, "invent_sheet", None)
+    if isinstance(sheet, dict):
+        persisted_batch_id = sheet.get("dossier_batch_id")
+        existing_remote = sheet.get("dossier_remote_state")
+        if (isinstance(persisted_batch_id, str) and persisted_batch_id
+                and existing_remote in ("UNKNOWN", "READBACK_OBSERVED")):
+            if (
+                getattr(win, "_supra_submission_token", None) is not None
+                and getattr(win, "_supra_submission_sheet", None) is sheet
+            ):
+                show_error(win, "SUPRA", "Lote UNKNOWN: worker original activo. "
+                           "No se inicia un segundo envío ni recuperación simultánea.")
+                return
+            if (not isinstance(sheet.get("run_id"), str)
+                    or not sheet["run_id"].strip()
+                    or not isinstance(sheet.get("query"), str)
+                    or not sheet["query"].strip()):
+                show_error(win, "SUPRA", "No se puede vincular el lote a su run_id "
+                           "y problema original. Recuperación no autorizada.")
+                return
+            # No need to rebuild the entries: even if the visible proposal
+            # changed after restart, PREPARED is the only authority for GET.
+            _start_supra_batch_get(win, sheet, persisted_batch_id)
+            return
     if not sheet or not sheet.get("entries"):
         show_error(win, "SUPRA", "Genera candidatos con Inventar antes de desarrollar.")
         return

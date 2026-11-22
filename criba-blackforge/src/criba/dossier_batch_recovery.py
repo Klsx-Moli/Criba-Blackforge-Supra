@@ -126,6 +126,8 @@ def _fresh_get_unconfirmed(
 def reconciliar_lote_por_get(
     batch_id: str, client: Any, directory: Path | None = None,
     *, registrar: bool = True,
+    expected_run_id: str | None = None,
+    expected_problem: str | None = None,
 ) -> dict[str, Any]:
     """Read only remote via GET; optionally journal the fully verified readback.
 
@@ -140,8 +142,17 @@ def reconciliar_lote_por_get(
             raise ValueError("batch_id not in journal")
         if not batch["committed"] or batch["remote"] not in ("UNKNOWN", "READBACK_OBSERVED"):
             raise ValueError("batch is not an uncertain remote attempt")
-        endpoint = batch.get("endpoint")
         dossiers = batch["intent"]["dossiers"]
+        # Bind the active Shadow sheet to the original fsynced PREPARED intent.
+        # Caller-supplied batch_id alone is insufficient lineage authority.
+        if ((expected_run_id is not None
+             and batch["intent"]["run_id"] != expected_run_id)
+                or (expected_problem is not None
+                    and batch["intent"]["problema"] != expected_problem)):
+            return {"batch_id": batch_id, "status": "UNKNOWN",
+                    "reason": "INTENT_LINEAGE_MISMATCH", "checked": 0,
+                    "expected": len(dossiers)}
+        endpoint = batch.get("endpoint")
         fingerprint = batch["intent"]["fingerprint"]
         history, ambiguous, _ = journal.sd._leer_historial(directory / "dossiers.jsonl")
         if any(d["dossier_id"] in ambiguous or

@@ -44,8 +44,9 @@ def test_second_click_after_failed_submission_is_get_only(harness, monkeypatch):
     calls = []
     monkeypatch.setattr(
         actions, "_reconciliar_lote_supra_get",
-        lambda batch_id: calls.append(("GET_ONLY", batch_id))
-        or _result(win, status="UNKNOWN", reason="GET_FAILED", fresh=None,
+        lambda batch_id, run_id, query: calls.append(
+            ("GET_ONLY", batch_id, run_id, query)
+        ) or _result(win, status="UNKNOWN", reason="GET_FAILED", fresh=None,
                    recorded=False),
     )
     monkeypatch.setattr(
@@ -53,7 +54,10 @@ def test_second_click_after_failed_submission_is_get_only(harness, monkeypatch):
         lambda *args, **kwargs: pytest.fail("second POST forbidden"),
     )
     result = workers[1].fn()
-    assert calls == [("GET_ONLY", win.invent_sheet["dossier_batch_id"])]
+    assert calls == [(
+        "GET_ONLY", win.invent_sheet["dossier_batch_id"],
+        win.invent_sheet["run_id"], win.invent_sheet["query"],
+    )]
     workers[1].signals.done.emit(result)
     assert win.invent_sheet["dossier_recovery_view_state"] == "UNKNOWN"
     assert "NO VALIDADA" in win.refs["ideaSummary"].text
@@ -189,9 +193,14 @@ def test_get_only_entrypoint_imports_reconciliation_not_post(monkeypatch):
     monkeypatch.setattr(integrations, "SupraClient", Client)
     monkeypatch.setattr(
         recovery, "reconciliar_lote_por_get",
-        lambda batch_id, client: calls.append((batch_id, client)) or
+        lambda batch_id, client, **kw: calls.append((batch_id, client, kw)) or
         {"batch_id": batch_id, "status": "UNKNOWN"},
     )
-    assert actions._reconciliar_lote_supra_get("batch-known")["batch_id"] == "batch-known"
+    assert actions._reconciliar_lote_supra_get(
+        "batch-known", "run-known", "problem-known"
+    )["batch_id"] == "batch-known"
     assert len(calls) == 1 and calls[0][0] == "batch-known"
     assert isinstance(calls[0][1], Client)
+    assert calls[0][2] == {
+        "expected_run_id": "run-known", "expected_problem": "problem-known",
+    }
