@@ -225,7 +225,10 @@ def main(argv: list[str] | None = None) -> int:
             args.batch_id, client, registrar=not args.dry_run
         )
     print(json.dumps(result, ensure_ascii=False, sort_keys=True))
-    return 0 if result["status"] == "READBACK_OBSERVED" else 2
+    # A previously recorded planning receipt is not a *fresh* remote check.
+    # Automation must not interpret stale/offline evidence as CLI success.
+    return 0 if (result["status"] == "READBACK_OBSERVED"
+                 and result.get("fresh_get_status") == "VERIFIED_FROM_ARTIFACT") else 2
 
 
 if __name__ == "__main__":
