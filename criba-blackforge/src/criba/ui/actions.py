@@ -516,11 +516,7 @@ def on_inventar(win: Any) -> None:
             and len(chosen) == 2 and chosen[0] == "openai_compatible"):
         consent_identity = (
             selected.currentIndex(), selected.currentData(), win.problem,
-            os.environ.get("CRIBA_EXTERNAL_BASE_URL", ""),
-            os.environ.get("CRIBA_EXTERNAL_API_KEY", ""),
-            os.environ.get("CRIBA_EXTERNAL_PROVIDER", ""),
-            os.environ.get("CRIBA_CRITIC_MODEL", ""),
-            mode, seed,
+            _hermes_run_env_snapshot(), mode, seed,
         )
         from PySide6.QtWidgets import QMessageBox
 
@@ -539,11 +535,7 @@ def on_inventar(win: Any) -> None:
         try:
             current_identity = (
                 selected.currentIndex(), selected.currentData(), win.problem,
-                os.environ.get("CRIBA_EXTERNAL_BASE_URL", ""),
-                os.environ.get("CRIBA_EXTERNAL_API_KEY", ""),
-                os.environ.get("CRIBA_EXTERNAL_PROVIDER", ""),
-                os.environ.get("CRIBA_CRITIC_MODEL", ""),
-                *_invention_controls(win),
+                _hermes_run_env_snapshot(), *_invention_controls(win),
             )
             current_data = selected.currentData()
             still_hermes = (
