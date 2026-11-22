@@ -463,6 +463,12 @@ def on_inventar(win: Any) -> None:
                    "Selecciona y activa primero un modelo desde Hermes, Ollama o GGUF. "
                    "OpenCode está disponible solo para explorar el catálogo.")
         return
+    if chosen == "local_llama":
+        from ..model_config import load_model_settings
+        if not load_model_settings().enabled:
+            show_error(win, "Modelo local",
+                       "Configura y activa primero un perfil GGUF u Ollama.")
+            return
     if isinstance(chosen, (tuple, list)) and chosen and chosen[0] == "openai_compatible":
         if not _hermes_proxy_base_ok():
             show_error(win, "Hermes",
