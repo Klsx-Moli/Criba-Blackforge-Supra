@@ -2316,6 +2316,56 @@ def on_protocolo_operativo(win: Any) -> None:
         # Duplicate click or an overlapping call must not spend another model
         # request for the exact same unmodified proposal.
         return
+    # F30: refinement is a NEW remote inference request, not covered by
+    # the consent given for Inventar. Keep classic GUI behavior unchanged,
+    # but require a new permission for each external Shadow refinement.
+    interpreter_state = intent["interpreter"]
+    backend = str(interpreter_state.get("backend") or "openai_compatible")
+    model = str(interpreter_state.get("model_requested") or "") or None
+    shadow_selector = getattr(win, "interpreter_selector", None)
+    if shadow_selector is not None and backend == "openai_compatible":
+        if not model or not _hermes_proxy_base_ok():
+            show_error(
+                win, "Protocolo operativo · proveedor",
+                "No se puede confirmar el modelo o la conexión de Hermes. "
+                "Revisa la selección y el endpoint antes de refinar."
+            )
+            return
+        from PySide6.QtWidgets import QMessageBox
+
+        # A nested Qt dialog may mutate source entry/identity. This token
+        # exists solely for the read-only current-intent check during consent.
+        intent["cancel"] = Event()
+        external_before = (
+            os.environ.get("CRIBA_EXTERNAL_BASE_URL", ""),
+            os.environ.get("CRIBA_EXTERNAL_API_KEY", ""),
+            os.environ.get("CRIBA_EXTERNAL_PROVIDER", ""),
+            os.environ.get("CRIBA_CRITIC_MODEL", ""),
+        )
+        consent = QMessageBox.question(
+            win, "Protocolo operativo · posible consumo",
+            f"Refinar con el modelo {model} puede consumir créditos; "
+            "precio y cuota NO verificados. "
+            "Es una llamada adicional a Inventar. ¿Autorizas el refinamiento?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        )
+        if consent != QMessageBox.StandardButton.Yes:
+            return
+        external_after = (
+            os.environ.get("CRIBA_EXTERNAL_BASE_URL", ""),
+            os.environ.get("CRIBA_EXTERNAL_API_KEY", ""),
+            os.environ.get("CRIBA_EXTERNAL_PROVIDER", ""),
+            os.environ.get("CRIBA_CRITIC_MODEL", ""),
+        )
+        if (external_before != external_after or not _hermes_proxy_base_ok()
+                or not _protocolo_intent_actual(win, intent)):
+            show_error(
+                win, "Protocolo operativo · consentimiento caducado",
+                "La propuesta, sesión, configuración o conexión cambió "
+                "durante la autorización. Vuelve a revisar y confirma."
+            )
+            return
     # A new request supersedes any queued prior task. It does NOT cancel a
     # provider invocation that has already entered its network call.
     _cancelar_protocolo_pendiente(win)
