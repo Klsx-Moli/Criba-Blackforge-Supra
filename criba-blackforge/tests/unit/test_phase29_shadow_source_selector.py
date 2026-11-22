@@ -372,3 +372,45 @@ def test_ollama_consent_cannot_overwrite_drifted_selection_or_file(
         )
     else:
         assert not config_path.exists()
+
+
+@pytest.mark.parametrize("corrupt", [
+    '{"schema_version":1,"enabled":true,"profiles":[]}',
+    '{"schema_version":1,"enabled":true,"active_profile_id":"missing",'
+    '"profiles":[{"id":"active"}]}',
+    '{"schema_version":1,"enabled":true,"active_profile_id":"same",'
+    '"profiles":[{"id":"same"},{"id":"same"}]}',
+    '{"schema_version":1,"enabled":true,"active_profile_id":"a",'
+    '"profiles":[{"id":"a"}],"enabled":false}',
+    '{"schema_version":1,"enabled":true,"active_profile_id":"a",'
+    '"profiles":[{"id":"a"}],"x":NaN}',
+    '{"schema_version":2,"enabled":true,"active_profile_id":"a",'
+    '"profiles":[{"id":"a"}]}',
+    "{invalid-json",
+])
+def test_ollama_activation_never_overwrites_untrusted_old_model_settings(
+    win, app, monkeypatch, corrupt
+):
+    config_path = Path(os.environ["CRIBA_MODEL_CONFIG"])
+    config_path.write_text(corrupt, encoding="utf-8")
+    selector = win.topcards.interpreter_selector
+    block = selector.blockSignals(True)
+    selector.setCurrentIndex(selector.findData("source:ollama"))
+    selector.blockSignals(block)
+    actions._on_source_catalog(win, "ollama", SourceCatalog(
+        "ollama", (ModelChoice("ollama", "f30:new"),), "catalog",
+    ))
+    index = next(
+        i for i in range(selector.count())
+        if selector.itemData(i) == ("ollama_catalog", "f30:new")
+    )
+    monkeypatch.setattr(
+        QMessageBox, "question",
+        lambda *_a, **_kw: pytest.fail(
+            "corrupt config must be rejected before confirmation"
+        ),
+    )
+    selector.setCurrentIndex(index)
+    app.processEvents()
+    assert config_path.read_text(encoding="utf-8") == corrupt
+    assert selector.currentData() == ("ollama_catalog", "f30:new")
