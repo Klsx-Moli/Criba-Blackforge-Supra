@@ -26,5 +26,10 @@ def offline_inference_boundary(monkeypatch, tmp_path, request):
             pytest.fail("Live acceptance requires the approved guarded proxy endpoint")
         model = os.environ.get("CRIBA_EXTERNAL_MODEL", "poolside/laguna-s-2.1:free")
         BudgetLedger(Path(ledger_path), model, "http://127.0.0.1:8645/v1")
+    # The production evidence database is shared across GUI/CLI/MCP at
+    # %LOCALAPPDATA%/CRIBA-Blackforge/intelligence.sqlite3. Isolation of
+    # CRIBA_MODEL_CONFIG alone does NOT protect that store. Route each test
+    # to its own temporary app-data directory before any model work starts.
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path / "isolated-appdata"))
     monkeypatch.setenv("CRIBA_MODEL_CONFIG", str(tmp_path / "isolated-model-settings.json"))
     install_offline_guard(monkeypatch, live_proxy=bool(ledger_path))
