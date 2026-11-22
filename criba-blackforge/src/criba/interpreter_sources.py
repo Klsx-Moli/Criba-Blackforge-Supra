@@ -80,7 +80,7 @@ def _name(value: Any) -> str:
 
 def discover_models(source: str) -> SourceCatalog:
     """Explicit GET-only refresh; never verify subscription or authenticate accounts."""
-    if source not in _URLS:
+    if not isinstance(source, str) or source not in _URLS:
         raise ValueError("unsupported interpreter source")
     try:
         payload = _get_local_json(source)
