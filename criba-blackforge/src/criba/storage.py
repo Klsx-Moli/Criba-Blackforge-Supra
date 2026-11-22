@@ -392,20 +392,26 @@ class Storage:
             con.close()
 
     def save_chain_memory(self, chain_id: str, stage: int, memory: Mapping[str, Any]) -> None:
+        # Serialize potentially large stage-memory payloads BEFORE acquiring
+        # SQLite's exclusive writer reservation. Keep the read+insert pair
+        # atomic for each field so concurrent identical saves still dedup.
+        # A bad value must fail before any transaction, not after partial writes.
+        fields = [
+            (
+                field_name,
+                json.dumps(value, ensure_ascii=False)
+                if isinstance(value, (list, dict))
+                else str(value),
+            )
+            for field_name, value in memory.items()
+        ]
         con = self.connect()
         try:
             with con:
-                # BEGIN IMMEDIATE: el SELECT de "ya guardado" y el INSERT
-                # deben ser una sola operacion atomica. Sin el lock, dos
-                # hilos podian no ver la fila del otro y guardar el mismo
-                # campo dos veces (duplicado de identidad), o pisarse el
-                # valor en el caso de campos con valores distintos.
+                # BEGIN IMMEDIATE protects the dedup SELECT + INSERT, but
+                # no CPU-heavy JSON serialization occurs while holding it.
                 con.execute("BEGIN IMMEDIATE")
-                for field_name, value in memory.items():
-                    if isinstance(value, (list, dict)):
-                        field_value = json.dumps(value, ensure_ascii=False)
-                    else:
-                        field_value = str(value)
+                for field_name, field_value in fields:
                     already_saved = con.execute(
                         "SELECT 1 FROM chain_memory WHERE chain_id=? AND stage=? "
                         "AND field_name=? AND field_value=? LIMIT 1",
