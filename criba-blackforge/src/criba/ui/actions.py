@@ -8,8 +8,8 @@ from __future__ import annotations
 
 import json
 import traceback
-from copy import deepcopy
 from collections.abc import Callable
+from copy import deepcopy
 from datetime import datetime
 from threading import Event
 from typing import Any
@@ -252,6 +252,7 @@ def _clear_journey_outputs(win: Any) -> None:
 
 
 def _apply_new_problem(win: Any, problem: str) -> None:
+    _cancelar_protocolo_pendiente(win)
     win.problem = problem
     win.packet = None
     win.invent_sheet = None
@@ -448,6 +449,7 @@ def on_inventar(win: Any) -> None:
     except ValueError as exc:
         show_error(win, "Inventar", str(exc))
         return
+    _cancelar_protocolo_pendiente(win)
     _lock_mutators(win)
     _suggest(win, None)
     win.nav["navInventar"].set_state("running", "Cruce → hipótesis → antecedentes...")
@@ -564,6 +566,7 @@ def _render_interpreter_outputs(win: Any, sheet: dict[str, Any]) -> None:
 
 def _on_invented(win: Any, sheet: dict[str, Any]) -> None:
     """Muestra la ficha honesta: pendientes como pendientes, sin fabricar."""
+    _cancelar_protocolo_pendiente(win)
     _finish_invent_controls(win)
     win.invent_sheet = sheet
     r = win.refs
@@ -904,6 +907,7 @@ def on_historial(win: Any) -> None:
     finally:
         win.nav["navHistorial"].setChecked(False)
     if loaded:
+        _cancelar_protocolo_pendiente(win)
         packet = loaded["packet"]
         if packet.get("kind") == "invention_sheet":
             sheet = packet["sheet"]
@@ -1583,6 +1587,22 @@ def _entry_para_desarrollo(win: Any, sheet: dict[str, Any]) -> tuple[int, dict[s
     return None
 
 
+def _cancelar_protocolo_pendiente(win: Any) -> bool:
+    """Invalidate a pending refinement on the GUI thread.
+
+    The Event is thread-safe and can stop only queued/pre-provider work.
+    An external provider call already started cannot be forcibly aborted.
+    """
+    previous = getattr(win, "_protocolo_intent", None)
+    if not isinstance(previous, dict):
+        return False
+    cancellation = previous.get("cancel")
+    if isinstance(cancellation, Event):
+        cancellation.set()
+    win._protocolo_intent = None
+    return True
+
+
 def _protocolo_intent_actual(win: Any, intent: dict[str, Any]) -> bool:
     """The async result belongs to the same sheet, run and unchanged entry."""
     sheet = getattr(win, "invent_sheet", None)
@@ -1671,11 +1691,15 @@ def on_protocolo_operativo(win: Any) -> None:
         # Duplicate click or an overlapping call must not spend another model
         # request for the exact same unmodified proposal.
         return
+    # A new request supersedes any queued prior task. It does NOT cancel a
+    # provider invocation that has already entered its network call.
+    _cancelar_protocolo_pendiente(win)
+    intent["cancel"] = Event()
     win._protocolo_intent = intent
-    interpreter_state = sheet.get("interpreter") or {}
+    interpreter_state = intent["interpreter"]
     backend = str(interpreter_state.get("backend") or "openai_compatible")
     model = str(interpreter_state.get("model_requested") or "") or None
-    query = str(sheet.get("query") or "")
+    query = str(intent["query"] or "")
     right_panel = getattr(win, "right_panel", None)
     boton = getattr(right_panel, "protocolo", None)
     if boton is not None:
@@ -1687,11 +1711,17 @@ def on_protocolo_operativo(win: Any) -> None:
     )
 
     def _task() -> dict[str, Any]:
+        if intent["cancel"].is_set():
+            return {"estado": "PENDIENTE", "error": "REFINEMENT_SUPERSEDED", "protocolo": None}
         from ..interprete.refinamiento import refinar_propuesta
         from ..interprete.seleccion import construir_interprete
 
         interprete = construir_interprete(backend, model=model)
-        return refinar_propuesta(interprete, query, entry)
+        if intent["cancel"].is_set():
+            return {"estado": "PENDIENTE", "error": "REFINEMENT_SUPERSEDED", "protocolo": None}
+        # Never give a live GUI-owned entry to an asynchronously invoked
+        # provider. Changes to the original entry cannot alter this payload.
+        return refinar_propuesta(interprete, query, deepcopy(intent["entry"]))
 
     worker = Worker(_task)
     worker.signals.done.connect(

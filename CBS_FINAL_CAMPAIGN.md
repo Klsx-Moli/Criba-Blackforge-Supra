@@ -594,3 +594,13 @@ git diff --check
 - Se añaden pruebas sin dependencia PySide6 que cargan y ejecutan **los cuerpos reales** de cuatro funciones del checkout (`_entry_para_desarrollo`, `_protocolo_intent_actual`, `_finalizar_protocolo_worker`, `on_protocolo_operativo`) mediante Python AST. Sustituyen solo la ejecución Qt/Worker/proveedor y el render final. Casos: dedup, señal terminal única, cambio de sheet, cambio de identidad de entry aunque tenga igual contenido, cambio de modelo, cambio de tarjeta y mutaciones de run/query/mecanismo/objetivo.
 - Estas pruebas son más fuertes que una reimplementación falsa de las guardas; su alcance sigue limitado: no prueban el ciclo real de Qt ni toda la integración.
 - **NOT_EXECUTED** contra checkout completo en este entorno. Sin CI automática en rama de campaña.
+
+
+## Fase 18 — Cancelación cooperativa del refinamiento sin cancelación ficticia de HTTP
+
+- Base `a638fda67450c58dd8d1d6aa487935d0f4ad8745`. Se detectó que el worker capturaba la referencia viva de `entry` y podía preparar inferencia sobre contenido cambiado después del clic, pese a descartar el callback. Se pasa `deepcopy(intent["entry"])` a `refinar_propuesta`.
+- Cada intent lleva `threading.Event`; una nueva solicitud cancela la anterior antes de construir intérprete o entrar en `refinar_propuesta`. Nuevo contexto invoca la misma invalidación en `_apply_new_problem`, `_on_invented`, `on_inventar` y `on_historial`. Sin lectura Qt desde el worker.
+- Idempotencia de doble clic: no se cancela la solicitud vigente si el intento repetido es semántica e identitariamente el mismo.
+- Límite explícito: **si `completar_json` ya comenzó, Event no interrumpe la llamada remota ni garantiza ahorro de tokens/coste**. Solo se descarta su señal final; no se afirma cancelación de red ni suspensión de thread.
+- Añadida `tests/unit/test_shadow_protocol_cancellation_phase18.py` con nueve pruebas AST de cuerpos reales y simulado del límite de proveedor: dedup, queued skip, cancel después de construir intérprete, entrada y modelo original, proveedor iniciado, idempotencia y wiring de cuatro rutas. Pruebas GUI Qt y suit completa: **NOT_EXECUTED**.
+- Estado: `IMPLEMENTED / EVIDENCE_PENDING` hasta test de checkout completo y validación Windows. G0 y P0 semántico no se elevan.
