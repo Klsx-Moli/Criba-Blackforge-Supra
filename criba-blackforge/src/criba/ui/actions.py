@@ -472,8 +472,9 @@ def on_inventar(win: Any) -> None:
     if isinstance(chosen, (tuple, list)) and chosen and chosen[0] == "openai_compatible":
         if not _hermes_proxy_base_ok():
             show_error(win, "Hermes",
-                       "El intérprete externo no apunta al proxy local de Hermes. "
-                       "Usa CRIBA_EXTERNAL_BASE_URL=http://127.0.0.1:8645/v1.")
+                       "Configura el proxy local Hermes con "
+                       "CRIBA_EXTERNAL_BASE_URL=http://127.0.0.1:8645/v1, "
+                       "CRIBA_EXTERNAL_API_KEY vacío y proveedor correcto.")
             return
     _cancelar_protocolo_pendiente(win)
     _lock_mutators(win)
@@ -1333,13 +1334,19 @@ def on_modelos(win: Any) -> None:
 
 
 def _hermes_proxy_base_ok() -> bool:
-    """Never silently route a Hermes catalog pick to another HTTP server."""
+    """Never route Hermes elsewhere or forward an unrelated external API key."""
     configured = os.environ.get(
         "CRIBA_EXTERNAL_BASE_URL", "http://127.0.0.1:8645/v1"
     ).strip().rstrip("/")
-    return configured in {
-        "http://127.0.0.1:8645/v1", "http://localhost:8645/v1"
-    }
+    return (
+        configured in {
+            "http://127.0.0.1:8645/v1", "http://localhost:8645/v1"
+        }
+        and not os.environ.get("CRIBA_EXTERNAL_API_KEY")
+        and os.environ.get(
+            "CRIBA_EXTERNAL_PROVIDER", "nous_oauth_subscription_proxy"
+        ) == "nous_oauth_subscription_proxy"
+    )
 
 
 def _refresh_interpreter_selector(win: Any) -> None:
@@ -1502,8 +1509,8 @@ def _on_interpreter_changed(win: Any, index: int) -> None:
         if backend == "openai_compatible" and not _hermes_proxy_base_ok():
             if cards is not None:
                 cards.interpreter_status.setText(
-                    "Hermes: el intérprete externo apunta a otro endpoint. "
-                    "Configura CRIBA_EXTERNAL_BASE_URL=http://127.0.0.1:8645/v1."
+                    "Hermes: comprueba endpoint local, CRIBA_EXTERNAL_API_KEY vacío "
+                    "y CRIBA_EXTERNAL_PROVIDER correcto. No se envió un prompt."
                 )
             return
     label = selector.currentText() if data is not None else "Cargar modelo"
