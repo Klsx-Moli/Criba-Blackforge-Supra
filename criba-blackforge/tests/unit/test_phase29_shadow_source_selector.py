@@ -672,7 +672,6 @@ def test_f31_hermes_explicit_fallback_is_not_silent(win, monkeypatch):
     ("gpu_layers", -1.0),
     ("parallel_slots", 1.0),
     ("timeout", 300),
-    ("temperature", 0),
 ])
 def test_f31_json_roundtrip_rejects_type_changes_even_when_python_equals(
     field, value
@@ -685,6 +684,18 @@ def test_f31_json_roundtrip_rejects_type_changes_even_when_python_equals(
     payload["profiles"][0][field] = value
     raw = json.dumps(payload, ensure_ascii=False).encode("utf-8")
     assert not actions._editable_model_settings_bytes(raw)
+
+
+def test_f31_json_roundtrip_rejects_changed_temperature():
+    """Temperature has nonintegral 0.45 default; it is not a type-equality case."""
+    import json
+
+    payload = default_model_settings().to_dict()
+    assert payload["profiles"][0]["temperature"] == 0.45
+    payload["profiles"][0]["temperature"] = 0
+    assert not actions._editable_model_settings_bytes(
+        json.dumps(payload, ensure_ascii=False).encode("utf-8")
+    )
 
 
 @pytest.mark.parametrize("mutation", [
