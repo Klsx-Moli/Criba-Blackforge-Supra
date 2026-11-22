@@ -12,7 +12,6 @@ import hashlib
 import json
 import os
 import shutil
-import stat
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -64,7 +63,7 @@ def _inventory(directory: Path) -> dict[str, dict[str, Any]]:
 def _inspect_locked(directory: Path) -> dict[str, Any]:
     files = _inventory(directory)
     report: dict[str, Any] = {
-        "classification": "UNKNOWN", "replay_authorized": False,
+        "classification": "UNKNOWN", "local_replay_parseable": False,
         "remote_execution_proven": False, "scientific_validation_proven": False,
         "files": files, "event_count": None, "batch_count": None,
     }
@@ -88,6 +87,12 @@ def _inspect_locked(directory: Path) -> dict[str, Any]:
         )
         return report
     report["event_count"] = len(events)
+    report["requires_partial_event_reader"] = any(
+        e.get("event") == "REMOTE_PARTIAL_READBACK_OBSERVED" for e in events
+    )
+    report["requires_dispatch_event_reader"] = any(
+        e.get("event") == "REMOTE_DISPATCH_STARTED" for e in events
+    )
     if any(event.get("event") not in KNOWN_EVENTS for event in events):
         report["classification"] = "UNSUPPORTED_EVENT_VERSION"
         return report
@@ -127,7 +132,7 @@ def _inspect_locked(directory: Path) -> dict[str, Any]:
                 report["classification"] = "DOSSIER_HISTORY_MISMATCH"
                 return report
     report["classification"] = "REPLAY_VALID_LOCAL_ONLY"
-    report["replay_authorized"] = True
+    report["local_replay_parseable"] = True
     # Locally valid batches can still be UNKNOWN remotely and scientifically.
     return report
 
@@ -193,6 +198,13 @@ def crear_snapshot_forense(directory: Path, out_dir: Path) -> dict[str, Any]:
             file.write("\n")
             file.flush()
             os.fsync(file.fileno())
+        if os.name == "posix":
+            # Durably publish the directory entries, not just file contents.
+            handle = os.open(out, os.O_RDONLY)
+            try:
+                os.fsync(handle)
+            finally:
+                os.close(handle)
     return {
         "snapshot": str(out), "classification": analysis["classification"],
         "status": "RAW_BYTES_PRESERVED_NOT_RESTORED",
@@ -219,13 +231,20 @@ def verificar_snapshot_forense(out_dir: Path) -> dict[str, Any]:
         raise ValueError("forensic manifest is malformed") from exc
     if (not isinstance(manifest, dict)
             or manifest.get("schema") != SNAPSHOT_SCHEMA
-            or set(manifest.get("files", {})) != set(FILES)
-            or manifest.get("authorizes_post") is not False):
+            or not isinstance(manifest.get("files"), dict)
+            or set(manifest["files"]) != set(FILES)
+            or manifest.get("authorizes_post") is not False
+            or manifest.get("remote_execution_proven") is not False
+            or manifest.get("scientific_validation_proven") is not False):
         raise ValueError("forensic manifest schema invalid")
-    if set(item.name for item in root.iterdir()) != (
-        {"manifest.json"} |
-        {name for name in FILES if manifest["files"][name].get("present") is True}
-    ):
+    inventory = manifest["files"]
+    if any(not isinstance(inventory[name], dict)
+           or type(inventory[name].get("present")) is not bool for name in FILES):
+        raise ValueError("forensic inventory invalid")
+    expected_names = {"manifest.json"} | {
+        name for name in FILES if inventory[name]["present"]
+    }
+    if {item.name for item in root.iterdir()} != expected_names:
         raise ValueError("forensic snapshot contains missing or unexpected files")
     for name in FILES:
         expected = manifest["files"][name]
@@ -233,7 +252,9 @@ def verificar_snapshot_forense(out_dir: Path) -> dict[str, Any]:
             raise ValueError("forensic inventory invalid")
         path = root / name
         if not expected["present"]:
-            if expected.get("bytes") != 0 or expected.get("sha256") is not None:
+            if (type(expected.get("bytes")) is not int
+                    or expected["bytes"] != 0
+                    or expected.get("sha256") is not None):
                 raise ValueError("forensic absence descriptor inconsistent")
             continue
         if (path.is_symlink() or not path.is_file()
@@ -241,6 +262,9 @@ def verificar_snapshot_forense(out_dir: Path) -> dict[str, Any]:
                 or expected["bytes"] < 0
                 or not isinstance(expected.get("sha256"), str)):
             raise ValueError("forensic inventory invalid")
+        digest = expected["sha256"]
+        if len(digest) != 64 or any(c not in "0123456789abcdef" for c in digest):
+            raise ValueError("forensic SHA256 descriptor invalid")
         if _digest(path) != expected:
             raise ValueError("forensic snapshot digest mismatch")
     return {
