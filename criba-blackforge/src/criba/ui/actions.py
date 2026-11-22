@@ -1537,6 +1537,50 @@ def _on_source_catalog_error(win: Any, source: str, error: str) -> None:
         )
 
 
+def _editable_model_settings_bytes(raw_bytes: bytes | None) -> bool:
+    """Before a shared-config WRITE, reject malformed or ambiguous old state.
+
+    The normal model loader is intentionally tolerant for reads. Reusing that
+    normalized value as the basis of a write can destroy unknown/legacy data.
+    """
+    if raw_bytes is None:  # first creation; load_model_settings has safe defaults
+        return True
+
+    def unique(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+        data: dict[str, Any] = {}
+        for key, value in pairs:
+            if key in data:
+                raise ValueError("duplicate model configuration JSON key")
+            data[key] = value
+        return data
+
+    def reject_constant(_value: str) -> Any:
+        raise ValueError("invalid model configuration JSON number")
+
+    try:
+        raw = json.loads(raw_bytes.decode("utf-8"), object_pairs_hook=unique,
+                         parse_constant=reject_constant)
+        if not isinstance(raw, dict):
+            return False
+        if type(raw.get("schema_version")) is not int or raw["schema_version"] != 1:
+            return False
+        if type(raw.get("enabled")) is not bool:
+            return False
+        profiles = raw.get("profiles")
+        active_id = raw.get("active_profile_id")
+        if (not isinstance(profiles, list) or not profiles or
+                not isinstance(active_id, str) or not active_id):
+            return False
+        ids = [p.get("id") if isinstance(p, dict) else None for p in profiles]
+        if (any(not isinstance(ident, str) or not ident.strip()
+                for ident in ids) or len(set(ids)) != len(ids)
+                or active_id not in ids):
+            return False
+    except (ValueError, UnicodeError, RecursionError, TypeError):
+        return False
+    return True
+
+
 def _activate_ollama_choice(win: Any, model_id: str) -> bool:
     """Explicit user selection writes a new local profile, never provider secrets."""
     from ..model_config import (
@@ -1549,6 +1593,8 @@ def _activate_ollama_choice(win: Any, model_id: str) -> bool:
     try:
         before_bytes = config_path.read_bytes() if config_path.is_file() else None
     except OSError:
+        return False
+    if not _editable_model_settings_bytes(before_bytes):
         return False
     selector = getattr(win, "interpreter_selector", None)
     if selector is None:
