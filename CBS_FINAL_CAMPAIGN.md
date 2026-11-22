@@ -667,3 +667,18 @@ git diff --check
 - NOT_EXECUTED: tests nuevos de journal sobre checkout completo, PySide6/GUI, Ruff, mypy, suite íntegra y CI remoto para el HEAD de campaña; todas las afirmaciones de integración plena siguen EVIDENCE_PENDING.
 - RESEARCH_QUESTION para F22: la ficha Inventar archivada puede no conservar los nuevos campos dossier_batch_id/dossier_remote_state después de desarrollar; revisar persistencia tras cambios y recuperación directa desde PREPARED, sin asumir continuidad GUI tras reinicio.
 - NO-GO: G0 NO-GO, P0 semántico OPEN; estados UNKNOWN no se elevan a evidencia ejecutada. No auto POST, merge, desplegar ni modificar el motor ASTRA.
+
+
+## Fase 22 — Recuperación de propuestas archivadas antes del envío SUPRA
+
+- BASE: c880d9dd530be6f43bb60431b483ddab44ac801b. Aislamiento en campaign/cbs-final-32-40; main, handoff y ASTRA no se modifican.
+- **P1 / STATICALLY_INSPECTED:** Storage.save_invention escribe una copia SQLite del sheet. Si la propuesta se guardó ANTES del primer envío SUPRA, esa copia no contiene dossier_batch_id ni dossier_remote_state; la reserva posterior solo modifica el sheet activo y dossier_batches.jsonl. Al reabrir, Shadow podía reconstruir un lote nuevo o rechazarlo por fingerprint, en vez de recuperar el intento original.
+- **Implementado:** dossier_batch.buscar_lote_por_sesion consulta bajo lock el journal PREPARED por run_id y problema exactos, valida replay, commit y contenido de dossiers locales y devuelve el batch original sin POST/GET ni mutaciones del journal. Problemas diferentes, corrupciones, dossiers ambiguos o alterados fallan cerrado.
+- **Implementado:** ui/supra_batch_resume.resolve_archived_batch contrasta pistas de la ficha archivada con el journal y rechaza batch_id falsificado, falta de journal con metadatos de dossier y estados remotos inválidos. Un indicio de dossier parcial no autoriza nuevo POST.
+- **Implementado:** on_desarrollar_supra ejecuta esa búsqueda ANTES de preparar nuevos dossiers. Los originales UNKNOWN/READBACK_OBSERVED se consultan por GET-only con el batch, run y query originales. Un PREPARED sin commit o NOT_ATTEMPTED nunca se reenvía automáticamente; queda bloqueado hasta un flujo explícito de recuperación local/primer envío.
+- **Implementado:** cuando la ficha restaurada tiene cero propuestas válidas, _on_invented consulta el journal y habilita la acción SUPRA solo si existe un batch original committed UNKNOWN/READBACK_OBSERVED; el botón de protocolo sigue deshabilitado. No infiere validación científica ni ejecución del mecanismo.
+- **Tests añadidos:** 14 funciones de tests headless (20 casos incluyendo parámetros) con SQLite y JSONL reales, un proceso Python independiente tras reinicio y mutaciones de lineage/JSONL; 12 tests Qt de Shadow, incluyendo 3 controles reales de botón offscreen. Total 32 casos declarados, todavía NOT_EXECUTED contra checkout completo.
+- **FALSE_COVERAGE corregida:** test de clave JSON duplicada esperaba error interno, pero _events encapsula el mensaje público batch journal corrupt y conserva la causa original. Se comprueban ambos. Imports sobrantes y QT_QPA_PLATFORM offscreen corregidos.
+- **NOT_EXECUTED:** suite de checkout íntegro, PySide6, Ruff, mypy, CI Windows. Se verificaron archivos y commits en GitHub; una compilación Python aislada comprobó la sintaxis de la nueva expresión de resumen, no de la totalidad de actions.py.
+- **Limitación controlada:** NOT_ATTEMPTED que persistió tras un corte antes de reservar sigue sin tener reanudación de primer envío desde el sheet antiguo. No confundirlo con UNKNOWN. Requiere diseño y prueba de reanudación explícita, no auto-retry de POST. Próximo punto F23.
+- **Gates:** G0 NO-GO; P0 semántico OPEN. Implementación F22 EVIDENCE_PENDING.
