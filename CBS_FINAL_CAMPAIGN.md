@@ -604,3 +604,8 @@ git diff --check
 - Límite explícito: **si `completar_json` ya comenzó, Event no interrumpe la llamada remota ni garantiza ahorro de tokens/coste**. Solo se descarta su señal final; no se afirma cancelación de red ni suspensión de thread.
 - Añadida `tests/unit/test_shadow_protocol_cancellation_phase18.py` con nueve pruebas AST de cuerpos reales y simulado del límite de proveedor: dedup, queued skip, cancel después de construir intérprete, entrada y modelo original, proveedor iniciado, idempotencia y wiring de cuatro rutas. Pruebas GUI Qt y suit completa: **NOT_EXECUTED**.
 - Estado: `IMPLEMENTED / EVIDENCE_PENDING` hasta test de checkout completo y validación Windows. G0 y P0 semántico no se elevan.
+
+### F18 reconciliación retrocompatibilidad de pruebas F17
+
+- **P1 / STATICALLY_INSPECTED / corrected:** `test_shadow_protocol_headless_phase17.py` compila en un namespace AST el cuerpo de `on_protocolo_operativo`; F18 introdujo una llamada global a `_cancelar_protocolo_pendiente` y `Event` que no se importaban en esa suite. Sin parche, las regresiones históricas sufrirían `NameError` (FALSE_COVERAGE del conjunto F18). El harness ahora extrae la función real y suministra `threading.Event`; test adicional verifica invalidación de la solicitud previa por el cuerpo real.
+- **NOT_EXECUTED:** checkout integral de F17/F18 aún pendiente. La reparación conserva el contrato del harness, sin introducir sustitutos de la función productiva.

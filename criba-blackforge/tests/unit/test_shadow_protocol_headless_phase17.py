@@ -9,6 +9,7 @@ from __future__ import annotations
 import ast
 from copy import deepcopy
 from pathlib import Path
+from threading import Event
 from types import SimpleNamespace
 from typing import Any
 
@@ -65,6 +66,7 @@ def harness():
     original_tree = ast.parse(source.read_text(encoding="utf-8"), filename=str(source))
     required = {
         "_entry_para_desarrollo",
+        "_cancelar_protocolo_pendiente",
         "_protocolo_intent_actual",
         "_finalizar_protocolo_worker",
         "on_protocolo_operativo",
@@ -81,6 +83,7 @@ def harness():
     namespace = {
         "Any": Any,
         "deepcopy": deepcopy,
+        "Event": Event,
         "Worker": Worker,
         "_start_worker": lambda _win, w: workers.append(w),
         "_activity": lambda *_args: None,
@@ -181,3 +184,21 @@ def test_context_mutation_rejects_inflight_result(harness, mutation):
     mutation(w)
     workers[0].signals.done.emit({"estado": "PROTOCOLO"})
     assert not applies and not fails
+
+
+
+def test_cancel_helper_is_extracted_and_preprovider_event_available(harness):
+    start, workers, applied, fails, _ = harness
+    w = _window(_sheet())
+    start(w)
+    assert len(workers) == 1
+    assert isinstance(w._protocolo_intent["cancel"], Event)
+    assert not w._protocolo_intent["cancel"].is_set()
+    # Calling another, distinct request invalidates the old Event and keeps
+    # original F17 one-shot tests viable after F18's helper introduction.
+    first = w._protocolo_intent
+    w.invent_sheet["entries"][0]["mecanismo"] = "modified"
+    start(w)
+    assert first["cancel"].is_set()
+    workers[0].signals.done.emit({"estado": "PROTOCOLO"})
+    assert not applied and not fails
