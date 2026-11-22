@@ -565,3 +565,11 @@ git diff --check
 
 - La primera suite F16 inyectaba los tres estados contradictorios solo a través del recuperador GET, que ya los filtraba en F14; una mutación que eliminase la validación del escritor directo de Shadow podría seguir pasando. Se añaden tres sentinels dirigidos a `marcar_readback_observado` con status falsificado y GET separado, más versión de evidencia desconocida que debe fallar cerrada.
 - Quedan diez casos F16 en total (incluidos parametrizados). **NOT_EXECUTED** con checkout íntegro; no se promocionan por el número de casos.
+
+
+## Fase 17 — Protocolo operativo: invalidación de callbacks asíncronos
+
+- **STATICALLY_INSPECTED P1:** `on_protocolo_operativo` ligaba done/fail al `sheet` original sin comprobar `invent_sheet` al devolver el worker; `_on_protocolo_done` reasignaba el sheet antiguo a la ventana. Un callback retrasado puede borrar la sesión nueva. Un fail retrasado puede reactivar controles o mostrar error incorrecto. 
+- **FIX:** request intent no persistido en ventana, con identidad de sheet, run, query, problem, índice y copia del entry. Callback consume solo su solicitud actual; si cambió sesión, propuesta u objetivo no altera datos y libera el botón únicamente cuando pertenece a la solicitud vigente. Duplicación del mismo request no lanza otro proveedor.
+- **TESTS:** `tests/unit/test_shadow_protocol_stale_phase17.py`: nueva sesión, run, query, problema, mutación del entry, cambio de selección/orden, señales dobles, fallo viejo y llamadas duplicadas. Worker simulado: no implica ninguna inferencia ni modelo real.
+- **EVIDENCE_PENDING:** suite Qt completa y Windows, CI remoto y comprobación de interacciones con estado de navegación. `main` y ASTRA no modificados.

@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import traceback
+from copy import deepcopy
 from collections.abc import Callable
 from datetime import datetime
 from threading import Event
@@ -1582,12 +1583,46 @@ def _entry_para_desarrollo(win: Any, sheet: dict[str, Any]) -> tuple[int, dict[s
     return None
 
 
-def on_protocolo_operativo(win: Any) -> None:
-    """Refina la propuesta visible en un protocolo operativo medible.
+def _protocolo_intent_actual(win: Any, intent: dict[str, Any]) -> bool:
+    """The async result belongs to the same sheet, run and unchanged entry."""
+    sheet = getattr(win, "invent_sheet", None)
+    if not isinstance(sheet, dict) or sheet is not intent["sheet"]:
+        return False
+    entries = sheet.get("entries")
+    index = intent["index"]
+    return (
+        sheet.get("run_id") == intent["run_id"]
+        and sheet.get("query") == intent["query"]
+        and getattr(win, "problem", None) == intent["problem"]
+        and isinstance(entries, list)
+        and 0 <= index < len(entries)
+        and entries[index] == intent["entry"]
+    )
 
-    Es una segunda pasada del intérprete sobre la propuesta y su crítica. No
-    valida nada: el resultado queda como protocolo propuesto, no como evidencia.
-    """
+
+def _finalizar_protocolo_worker(
+    win: Any, intent: dict[str, Any], result: Any, *, failed: bool = False,
+) -> None:
+    """Consume at most one terminal signal; stale workers cannot mutate UI."""
+    if getattr(win, "_protocolo_intent", None) is not intent:
+        return
+    current = _protocolo_intent_actual(win, intent)
+    win._protocolo_intent = None
+    if not current:
+        # Release controls only if this is still the latest request.
+        panel = getattr(win, "right_panel", None)
+        button = getattr(panel, "protocolo", None)
+        if button is not None:
+            button.setEnabled(True)
+        return
+    if failed:
+        _on_protocolo_failed(win, str(result))
+    else:
+        _on_protocolo_done(win, intent["sheet"], intent["index"], result)
+
+
+def on_protocolo_operativo(win: Any) -> None:
+    """Refine an interpreted proposal without applying stale async results."""
     sheet = getattr(win, "invent_sheet", None)
     if not sheet or not sheet.get("entries"):
         show_error(win, "Protocolo operativo", "Genera propuestas con Inventar primero.")
@@ -1602,6 +1637,28 @@ def on_protocolo_operativo(win: Any) -> None:
         )
         return
     index, entry = elegido
+    intent: dict[str, Any] = {
+        "sheet": sheet,
+        "index": index,
+        "entry": deepcopy(entry),
+        "run_id": sheet.get("run_id"),
+        "query": sheet.get("query"),
+        "problem": getattr(win, "problem", None),
+    }
+    previous = getattr(win, "_protocolo_intent", None)
+    if (
+        isinstance(previous, dict)
+        and previous["sheet"] is sheet
+        and previous["index"] == index
+        and previous["entry"] == intent["entry"]
+        and previous["run_id"] == intent["run_id"]
+        and previous["query"] == intent["query"]
+        and previous["problem"] == intent["problem"]
+    ):
+        # Duplicate click or an overlapping call must not spend another model
+        # request for the exact same unmodified proposal.
+        return
+    win._protocolo_intent = intent
     interpreter_state = sheet.get("interpreter") or {}
     backend = str(interpreter_state.get("backend") or "openai_compatible")
     model = str(interpreter_state.get("model_requested") or "") or None
@@ -1624,8 +1681,12 @@ def on_protocolo_operativo(win: Any) -> None:
         return refinar_propuesta(interprete, query, entry)
 
     worker = Worker(_task)
-    worker.signals.done.connect(lambda informe: _on_protocolo_done(win, sheet, index, informe))
-    worker.signals.fail.connect(lambda msg: _on_protocolo_failed(win, msg))
+    worker.signals.done.connect(
+        lambda report: _finalizar_protocolo_worker(win, intent, report)
+    )
+    worker.signals.fail.connect(
+        lambda message: _finalizar_protocolo_worker(win, intent, message, failed=True)
+    )
     _start_worker(win, worker)
 
 
