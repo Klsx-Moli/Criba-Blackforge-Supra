@@ -198,3 +198,37 @@ def test_claimed_batch_cannot_override_deterministic_project_id(
             batch_dispatch_id=key, expected_endpoint=ENDPOINT,
         )
     assert client.health_calls == client.post_calls == 0
+
+
+def test_cli_send_obeys_same_batch_boundary_without_network(
+    tmp_path, monkeypatch, capsys,
+):
+    from criba.dossier_workflow_cli import main as dossier_cli_main
+
+    directory, _, items = prepared(tmp_path, monkeypatch)
+    client = NoPostClient()
+    exit_status = dossier_cli_main(
+        ["--home", str(tmp_path), "send", "--dossier-id", items[0]["dossier_id"]],
+        workflow_factory=lambda _endpoint: DossierWorkflow(client=client),
+    )
+    output = capsys.readouterr()
+    assert exit_status == 2
+    assert "BATCH_DISPATCH_BOUNDARY" in output.out
+    assert client.health_calls == client.post_calls == 0
+    assert (directory / batch.JOURNAL).is_file()
+
+
+def test_worker_with_claim_cannot_send_without_original_endpoint(
+    tmp_path, monkeypatch,
+):
+    directory, key, items = prepared(tmp_path, monkeypatch)
+    batch.marcar_envio_incierto(key, directory, endpoint=ENDPOINT)
+    claimed = batch.reclamar_inicio_envio_remoto(
+        key, items, directory, endpoint=ENDPOINT,
+    )
+    client = NoPostClient()
+    with pytest.raises(WorkflowError, match="BATCH_DISPATCH_BOUNDARY"):
+        DossierWorkflow(client=client).submit(
+            claimed[0], batch_dispatch_id=key,
+        )
+    assert client.health_calls == client.post_calls == 0
