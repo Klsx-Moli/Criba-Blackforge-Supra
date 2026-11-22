@@ -1396,6 +1396,7 @@ def _execute_supra_dossiers(
     client: Any | None = None,
     *,
     batch_id: str | None = None,
+    expected_endpoint: str | None = None,
 ) -> dict[str, Any]:
     """Execute prepared dossiers through the single canonical SupraClient."""
     from ..dossier_workflow import DossierWorkflow as _DossierWorkflow
@@ -1409,6 +1410,9 @@ def _execute_supra_dossiers(
     owned = client is None
     supra = client or SupraClient()
     try:
+        if (expected_endpoint is not None
+                and supra.config.endpoint.rstrip("/") != expected_endpoint):
+            raise ValueError("SUPRA endpoint changed after journal reservation")
         health = supra.health()
         runs: list[dict[str, Any]] = []
         for dossier in dossiers:
@@ -1439,7 +1443,8 @@ def _execute_supra_dossiers(
             )
         if batch_id is not None:
             from ..dossier_batch import marcar_readback_observado
-            marcar_readback_observado(batch_id, runs)
+            marcar_readback_observado(batch_id, runs,
+                                       endpoint=supra.config.endpoint)
         return {
             "workflow_batch_schema": "criba-dossier-workflow/batch-1",
             "confirmed_runs": _workflow_runs,
@@ -1703,6 +1708,7 @@ def on_desarrollar_supra(win: Any) -> None:
         return
     from ..supra_dossier import preparar_dossier
     from ..dossier_batch import guardar_lote_dossiers, marcar_envio_incierto
+    from ..integrations.supra_client import SupraClientConfig
 
     dossier_payloads: list[dict[str, Any]] = []
     try:
@@ -1732,7 +1738,8 @@ def on_desarrollar_supra(win: Any) -> None:
                    "recupera y verifica cada proyecto remoto antes de actuar.")
         return
     try:
-        if not marcar_envio_incierto(batch["batch_id"]):
+        endpoint = SupraClientConfig.from_env().endpoint.rstrip("/")
+        if not marcar_envio_incierto(batch["batch_id"], endpoint=endpoint):
             show_error(win, "SUPRA", "El envío ya fue reservado; no se duplica.")
             return
     except (TypeError, ValueError, OSError) as exc:
@@ -1764,7 +1771,12 @@ def on_desarrollar_supra(win: Any) -> None:
     submission_token = object()
     win._supra_submission_token = submission_token
     expected_run_id = sheet.get("run_id")
-    worker = Worker(lambda: _execute_supra_dossiers(dossier_payloads, batch_id=batch["batch_id"]))
+    worker = Worker(
+        lambda: _execute_supra_dossiers(
+            dossier_payloads, batch_id=batch["batch_id"],
+            expected_endpoint=endpoint,
+        )
+    )
     worker.signals.done.connect(
         lambda report: _on_supra_dossiers_done(
             win, report, expected_sheet=sheet,

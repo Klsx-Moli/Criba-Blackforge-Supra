@@ -117,19 +117,22 @@ def test_duplicate_json_keys_in_journal_fail_closed(tmp_path):
         b.guardar_lote_dossiers(dossiers(), tmp_path)
 
 
-def test_torn_commit_tail_preserves_intent_and_recovers(tmp_path):
+def test_torn_commit_tail_fails_closed_and_preserves_bytes(tmp_path):
     b.guardar_lote_dossiers(dossiers(), tmp_path)
     path = tmp_path / b.JOURNAL
-    with path.open("ab") as f: f.write(b'{"schema":"crippled"')
-    result = b.guardar_lote_dossiers(dossiers(attempt=2), tmp_path)
-    assert result["replayed"] and len(lines(tmp_path)) == 2
+    with path.open("ab") as f:
+        f.write(b'{"schema":"crippled"')
+    before = path.read_bytes()
+    with pytest.raises(ValueError, match="journal corrupt"):
+        b.guardar_lote_dossiers(dossiers(attempt=2), tmp_path)
+    assert path.read_bytes() == before and len(lines(tmp_path)) == 2
 
 
 def test_remote_unknown_is_write_ahead_and_never_auto_retried(tmp_path):
     result = b.guardar_lote_dossiers(dossiers(), tmp_path)
     key = result["batch_id"]
-    assert b.marcar_envio_incierto(key, tmp_path) is True
-    assert b.marcar_envio_incierto(key, tmp_path) is False
+    assert b.marcar_envio_incierto(key, tmp_path, endpoint="https://supra.test") is True
+    assert b.marcar_envio_incierto(key, tmp_path, endpoint="https://supra.test") is False
     replay = b.guardar_lote_dossiers(dossiers(attempt=2), tmp_path)
     assert replay["remote_state"] == "UNKNOWN"
     assert len(lines(tmp_path, b.JOURNAL)) == 3
@@ -148,16 +151,20 @@ def readback(dossier):
                 "receipt_scope": "PLANNED_DISCRIMINANT_PROTOCOL_ONLY",
                 "execution_status": "NOT_EXECUTED", "scientific_status": "NOT_VALIDATED",
                 "integration_version": "criba-supra/1",
-                "payload_fingerprint": _dossier_payload_fingerprint(dossier)}}}
+                "payload_fingerprint": _dossier_payload_fingerprint(dossier)},
+                "status_source": "PERSISTED_STATE",
+                "persisted_artifact_status": "VERIFIED_FROM_ARTIFACT"}}
 
 
 def test_readback_requires_all_dossiers_and_remains_unknown_on_bad_report(tmp_path):
     key = b.guardar_lote_dossiers(dossiers(), tmp_path)["batch_id"]
-    b.marcar_envio_incierto(key, tmp_path)
-    with pytest.raises(ValueError, match="exact batch"):
+    b.marcar_envio_incierto(key, tmp_path, endpoint="https://supra.test")
+    with pytest.raises(ValueError, match="entire batch"):
         b.marcar_readback_observado(key, [{"dossier_id": "d1-1", "project_id": "p1", "read": {}}], tmp_path)
     assert b.guardar_lote_dossiers(dossiers(attempt=2), tmp_path)["remote_state"] == "UNKNOWN"
-    b.marcar_readback_observado(key, [readback(d) for d in dossiers()], tmp_path)
+    b.marcar_readback_observado(
+        key, [readback(d) for d in dossiers()], tmp_path, endpoint="https://supra.test"
+    )
     assert b.guardar_lote_dossiers(dossiers(attempt=2), tmp_path)["remote_state"] == "READBACK_OBSERVED"
     assert b.marcar_envio_incierto(key, tmp_path) is False
 
@@ -191,7 +198,7 @@ def test_legacy_local_preservation_without_replay_claim(tmp_path):
 
 def test_readback_other_dossier_or_project_rejected(tmp_path):
     key = b.guardar_lote_dossiers(dossiers(), tmp_path)["batch_id"]
-    b.marcar_envio_incierto(key, tmp_path)
+    b.marcar_envio_incierto(key, tmp_path, endpoint="https://supra.test")
     for mutation in ("project", "receipt"):
         wrong = [readback(d) for d in dossiers()]
         if mutation == "project":
@@ -199,7 +206,7 @@ def test_readback_other_dossier_or_project_rejected(tmp_path):
         else:
             wrong[0]["read"]["receipt"]["criba_candidate_id"] = "another"
         with pytest.raises(ValueError, match="bind"):
-            b.marcar_readback_observado(key, wrong, tmp_path)
+            b.marcar_readback_observado(key, wrong, tmp_path, endpoint="https://supra.test")
     assert b.guardar_lote_dossiers(dossiers(attempt=2), tmp_path)["remote_state"] == "UNKNOWN"
 
 
