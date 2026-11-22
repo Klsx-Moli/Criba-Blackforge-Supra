@@ -630,4 +630,4 @@ git diff --check
 ### F19 re-scan: reinicio real de proceso
 
 - Dos sentinels adicionales ejecutan sys.executable en subprocess independiente: un journal v2 fsynced se reabre como READBACK_OBSERVED sin reenvíos ni alteración de bytes, y otro journal con JSONL truncado falla cerrado en el nuevo proceso, preservando el tail corrupto.
-- La suite F19 consta de 12 funciones y 16 casos expandidos (incluidos 4 CLI parametrizados). La ejecución íntegra real continúa NOT_EXECUTED; no confundir pruebas publicadas con pruebas ejecutadas.
+- La suite F19 consta de 13 funciones y 16 casos expandidos (incluidos 4 CLI parametrizados). La ejecución íntegra real continúa NOT_EXECUTED; no confundir pruebas publicadas con pruebas ejecutadas.
