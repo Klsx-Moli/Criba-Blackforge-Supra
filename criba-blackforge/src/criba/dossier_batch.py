@@ -78,7 +78,7 @@ def _events(path: Path) -> list[dict[str, Any]]:
     # A JSON-complete but unterminated tail is not a fsynced JSONL event.
     # The F26 forensic reader already refuses it; production must agree.
     if raw and not raw.endswith(b"\n"):
-        raise ValueError("batch journal unterminated final JSONL record")
+        raise ValueError("batch journal corrupt: unterminated final JSONL record")
     lines = raw.splitlines(keepends=True)
     result: list[dict[str, Any]] = []
     for index, line in enumerate(lines):
