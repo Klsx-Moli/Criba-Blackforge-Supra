@@ -108,9 +108,14 @@ def test_locally_prepared_without_remote_reservation_never_post(
         actions, "_execute_supra_dossiers",
         lambda *a, **kw: pytest.fail("unreserved archive must not post"),
     )
+    before = (tmp_path / journal.JOURNAL).read_bytes()
+    monkeypatch.setattr(
+        actions, "_confirm_first_prepared_dispatch", lambda *_args: False,
+    )
     actions.on_desarrollar_supra(win)
     assert workers == []
-    assert len(errors) == 1 and "PREPARED" in errors[0][2]
+    assert errors == []
+    assert (tmp_path / journal.JOURNAL).read_bytes() == before
 
 
 def test_local_intent_not_committed_cannot_start_any_worker(harness, tmp_path):
