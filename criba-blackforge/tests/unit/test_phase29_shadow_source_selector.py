@@ -295,3 +295,43 @@ def test_ollama_profile_drift_blocks_before_mutator(win, monkeypatch):
                         pytest.fail("changed active profile cannot start work"))
     actions.on_inventar(win)
     assert errors and errors[0][0] == "Ollama · perfil cambiado"
+
+
+@pytest.mark.parametrize("change", ["model", "problem", "critic", "seed"])
+def test_hermes_modal_approval_is_not_reusable_after_change(
+    win, monkeypatch, change
+):
+    selector = win.topcards.interpreter_selector
+    block = selector.blockSignals(True)
+    selector.setCurrentIndex(selector.findData("source:hermes"))
+    selector.blockSignals(block)
+    actions._on_source_catalog(win, "hermes", SourceCatalog(
+        "hermes", (ModelChoice("hermes", "provider/consented"),), "unknown",
+    ))
+    index = next(
+        i for i in range(selector.count())
+        if selector.itemData(i) == ("openai_compatible", "provider/consented")
+    )
+    selector.setCurrentIndex(index)
+    win.problem = "original"
+    win.topcards.seed_input.clear()
+    errors = []
+    monkeypatch.setattr(actions, "show_error", lambda _win, title, msg:
+                        errors.append((title, msg)))
+
+    def user_changes_during_modal(*_a, **_kw):
+        if change == "model":
+            selector.setCurrentIndex(0)
+        elif change == "problem":
+            win.problem = "modified"
+        elif change == "critic":
+            monkeypatch.setenv("CRIBA_CRITIC_MODEL", "another/provider")
+        else:
+            win.topcards.seed_input.setText("invalid")
+        return QMessageBox.StandardButton.Yes
+
+    monkeypatch.setattr(QMessageBox, "question", user_changes_during_modal)
+    monkeypatch.setattr(actions, "_lock_mutators", lambda _win:
+                        pytest.fail("stale consent may never start inference"))
+    actions.on_inventar(win)
+    assert errors and errors[0][0] == "Hermes · consentimiento caducado"
