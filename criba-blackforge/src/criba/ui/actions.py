@@ -561,6 +561,17 @@ def on_inventar(win: Any) -> None:
                 "la autorización. Revisa la selección y vuelve a confirmar."
             )
             return
+    local_state_at_queue = None
+    if selected is not None and chosen == "local_llama":
+        try:
+            local_state_at_queue = _local_run_state_snapshot()
+        except ValueError:
+            show_error(
+                win, "Modelo local · configuración",
+                "No es seguro leer el perfil actual. Revisa el archivo "
+                "de configuración antes de generar."
+            )
+            return
     _cancelar_protocolo_pendiente(win)
     _lock_mutators(win)
     _suggest(win, None)
@@ -624,6 +635,16 @@ def on_inventar(win: Any) -> None:
                 "REMOTE_CONFIG_CHANGED_BEFORE_DISPATCH: "
                 "la configuración de Hermes cambió antes de iniciar."
             )
+        if local_state_at_queue is not None:
+            try:
+                current_local_state = _local_run_state_snapshot()
+            except ValueError:
+                current_local_state = None
+            if current_local_state != local_state_at_queue:
+                raise RuntimeError(
+                    "LOCAL_CONFIG_CHANGED_BEFORE_DISPATCH: "
+                    "el perfil local cambió antes de iniciar."
+                )
         sheet = _run_inventar(
             problem_snapshot,
             backend=backend,
@@ -1437,12 +1458,49 @@ def on_modelos(win: Any) -> None:
 
 
 def _hermes_run_env_snapshot() -> tuple[str | None, ...]:
-    """Read only the remote identity/credential routing env; never log values."""
+    """Snapshot all known request-affecting remote env; never log values."""
     return tuple(os.environ.get(key) for key in (
         "CRIBA_EXTERNAL_BASE_URL", "CRIBA_EXTERNAL_API_KEY",
         "CRIBA_EXTERNAL_PROVIDER", "CRIBA_EXTERNAL_MODEL",
         "CRIBA_CRITIC_MODEL", "CRIBA_EXTERNAL_FALLBACK_LOCAL",
+        "CRIBA_EXTERNAL_TIMEOUT_S", "CRIBA_EXTERNAL_MAX_TOKENS",
+        "CRIBA_EXTERNAL_REASONING_EFFORT",
+        "CRIBA_EXTERNAL_CRITIQUE_MAX_TOKENS",
+        "CRIBA_EXTERNAL_CRITIQUE_TEMPERATURE",
+        "CRIBA_EXTERNAL_CRITIQUE_TIMEOUT_S",
+        "CRIBA_EXTERNAL_CRITIQUE_REASONING_EFFORT",
+        "CRIBA_EXTERNAL_SEED", "CRIBA_CONSTRAINED_DECODING",
+        "CRIBA_REFINEMENT_MAX_TOKENS", "CRIBA_ACCEPTANCE_NO_RETRIES",
     ))
+
+
+def _local_run_state_snapshot() -> tuple[str, bytes | None, tuple[str | None, ...]]:
+    """Bind queued local work to an unchanged shared model profile + overrides.
+
+    This is a read-only pre-dispatch sentinel, not a cross-process transaction.
+    Never include the actual bytes or environment values in logs/errors.
+    """
+    from ..model_config import model_config_path
+
+    path = model_config_path()
+    try:
+        if path.is_symlink() and not path.is_file():
+            raise ValueError("model config symlink does not resolve")
+        if path.is_file():
+            with path.open("rb") as handle:
+                content = handle.read(1_048_577)
+            if len(content) > 1_048_576:
+                raise ValueError("model config exceeds snapshot limit")
+        else:
+            content = None
+    except OSError as exc:
+        raise ValueError("model config could not be read") from exc
+    overrides = tuple(os.environ.get(key) for key in (
+        "CRIBA_MODEL_CONFIG", "LOCALAPPDATA",
+        "CRIBA_LOCAL_BASE", "CRIBA_LOCAL_MODEL",
+        "CRIBA_CONSTRAINED_DECODING",
+    ))
+    return (str(path), content, overrides)
 
 
 def _hermes_proxy_base_ok() -> bool:
@@ -2403,6 +2461,17 @@ def on_protocolo_operativo(win: Any) -> None:
                 "durante la autorización. Vuelve a revisar y confirma."
             )
             return
+    local_state_at_queue = None
+    if shadow_selector is not None and backend == "local_llama":
+        try:
+            local_state_at_queue = _local_run_state_snapshot()
+        except ValueError:
+            show_error(
+                win, "Protocolo operativo · perfil local",
+                "No es seguro leer la configuración local. "
+                "Revisa el perfil antes de refinar."
+            )
+            return
     # A new request supersedes any queued prior task. It does NOT cancel a
     # provider invocation that has already entered its network call.
     _cancelar_protocolo_pendiente(win)
@@ -2439,6 +2508,17 @@ def on_protocolo_operativo(win: Any) -> None:
                 "error": "REMOTE_CONFIG_CHANGED_BEFORE_DISPATCH",
                 "protocolo": None,
             }
+        if local_state_at_queue is not None:
+            try:
+                current_local_state = _local_run_state_snapshot()
+            except ValueError:
+                current_local_state = None
+            if current_local_state != local_state_at_queue:
+                return {
+                    "estado": "PENDIENTE",
+                    "error": "LOCAL_CONFIG_CHANGED_BEFORE_DISPATCH",
+                    "protocolo": None,
+                }
         from ..interprete.refinamiento import refinar_propuesta
         from ..interprete.seleccion import construir_interprete
 
