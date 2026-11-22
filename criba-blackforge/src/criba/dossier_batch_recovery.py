@@ -13,6 +13,8 @@ from typing import Any
 from . import dossier_batch as journal
 from .integrations.supra_client import _dossier_payload_fingerprint
 
+MAX_PARTIAL_GETS = 64  # bounded recovery effort; never auto-sweep arbitrary batches
+
 
 def _field(value: Any, name: str) -> Any:
     return value.get(name) if isinstance(value, Mapping) else getattr(value, name, None)
@@ -275,6 +277,8 @@ def inspeccionar_lote_parcial_por_get(
         ):
             return refusal("BATCH_NOT_REMOTELY_RESERVED")
         original = batch["intent"]["dossiers"]
+        if len(original) > MAX_PARTIAL_GETS:
+            return refusal("PARTIAL_SWEEP_LIMIT_EXCEEDED", len(original))
         if ((expected_run_id is not None
              and batch["intent"]["run_id"] != expected_run_id)
                 or (expected_problem is not None

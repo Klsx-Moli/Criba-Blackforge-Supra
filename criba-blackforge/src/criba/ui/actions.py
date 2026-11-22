@@ -1778,6 +1778,7 @@ def _on_supra_batch_get_failed(
     view = present_batch_recovery(None)
     sheet["dossier_recovery_view_state"] = view["state"]
     sheet["dossier_fresh_get_status"] = "GET_FAILED"
+    sheet["dossier_partial_diagnostics"] = None
     win._dossier_workflow_report = None
     win.refs["ideaSummary"].setText(view["summary"])
     set_chip(win.refs["ideaEstadoChip"], view["chip"], "exploracion")
@@ -1813,6 +1814,7 @@ def _start_supra_batch_get(
     win._supra_batch_recovery_run_id = run_id
     win._supra_batch_recovery_problem = problem
     win._supra_batch_recovery_query = query
+    sheet["dossier_partial_diagnostics"] = None
     win.refs["ideaSummary"].setText(
         "Lote SUPRA previamente reservado · comprobando recibos mediante GET "
         "sin reenvío · evidencia NO VALIDADA · mecanismo NO EJECUTADO"

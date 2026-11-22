@@ -311,3 +311,25 @@ def test_full_readback_subsequent_partial_get_never_rewrites_old_receipts(tmp_pa
     assert report["full_batch_recorded"] is True
     assert report["fresh_verified"] == 2
     assert path.read_bytes() == before
+
+
+
+def test_oversized_partial_sweep_does_not_launch_unbounded_gets(tmp_path):
+    originals = []
+    for n in range(65):
+        d = deepcopy(dossiers()[0])
+        d["dossier_id"] = f"dossier-large-{n}"
+        d["candidate_id"] = f"candidate-large-{n}"
+        originals.append(d)
+    key = journal.guardar_lote_dossiers(originals, tmp_path)["batch_id"]
+    assert journal.marcar_envio_incierto(key, tmp_path, endpoint=ENDPOINT)
+    client = OnlyGet(originals)
+    source = tmp_path / journal.JOURNAL
+    before = source.read_bytes()
+    result = inspect(key, client, tmp_path)
+    assert result["reason"] == "PARTIAL_SWEEP_LIMIT_EXCEEDED"
+    assert result["status"] == "UNKNOWN"
+    assert result["expected"] == 65
+    assert result["rows"] == []
+    assert client.calls == []
+    assert source.read_bytes() == before
