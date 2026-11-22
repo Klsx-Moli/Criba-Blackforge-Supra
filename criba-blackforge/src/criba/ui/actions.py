@@ -1539,8 +1539,26 @@ def _on_source_catalog_error(win: Any, source: str, error: str) -> None:
 
 def _activate_ollama_choice(win: Any, model_id: str) -> bool:
     """Explicit user selection writes a new local profile, never provider secrets."""
-    from ..model_config import ModelProfile, load_model_settings, save_model_settings
+    from ..model_config import (
+        ModelProfile, load_model_settings, model_config_path, save_model_settings,
+    )
 
+    # Snapshot the shared file before a Qt modal nested event loop. A changed
+    # file or another chosen model must invalidate the consent before save.
+    config_path = model_config_path()
+    try:
+        before_bytes = config_path.read_bytes() if config_path.is_file() else None
+    except OSError:
+        return False
+    selector = getattr(win, "interpreter_selector", None)
+    if selector is None:
+        return False
+    try:
+        selection = (selector.currentIndex(), selector.currentData())
+    except RuntimeError:
+        return False
+    if selection[1] != ("ollama_catalog", model_id):
+        return False
     settings = load_model_settings()
     existing = next(
         (p for p in settings.profiles
@@ -1570,6 +1588,15 @@ def _activate_ollama_choice(win: Any, model_id: str) -> bool:
         )
         if answer != QMessageBox.StandardButton.Yes:
             return False
+    try:
+        current_selection = (selector.currentIndex(), selector.currentData())
+        current_bytes = config_path.read_bytes() if config_path.is_file() else None
+    except (OSError, RuntimeError):
+        return False
+    if current_selection != selection or current_bytes != before_bytes:
+        # Does not claim an atomic cross-process transaction; never knowingly
+        # replace settings edited while the consent dialog was displayed.
+        return False
     if existing is None:
         settings.profiles.append(profile)
     settings.enabled = True
