@@ -751,3 +751,34 @@ def test_f32_local_snapshot_does_not_read_more_than_one_megabyte(
     monkeypatch.setenv("CRIBA_MODEL_CONFIG", str(target))
     with pytest.raises(ValueError, match="snapshot limit"):
         actions._local_run_state_snapshot()
+
+
+@pytest.mark.parametrize("setting", [
+    "CRIBA_EXTERNAL_MAX_TOKENS",
+    "CRIBA_EXTERNAL_CRITIQUE_MAX_TOKENS",
+    "CRIBA_EXTERNAL_TIMEOUT_S",
+    "CRIBA_EXTERNAL_REASONING_EFFORT",
+    "CRIBA_EXTERNAL_CRITIQUE_REASONING_EFFORT",
+    "CRIBA_CONSTRAINED_DECODING",
+    "CRIBA_ACCEPTANCE_NO_RETRIES",
+])
+def test_f32_hermes_cost_consent_rejects_parameters_changed_during_modal(
+    win, monkeypatch, setting
+):
+    selector = win.topcards.interpreter_selector
+    selector.addItem("Hermes · cost fixture", ("openai_compatible", "provider/cost"))
+    selector.setCurrentIndex(selector.count() - 1)
+    win.problem = "approved subject"
+    errors = []
+    monkeypatch.setattr(actions, "show_error", lambda _win, title, msg:
+                        errors.append((title, msg)))
+
+    def mutate_while_modal_open(*_args, **_kwargs):
+        monkeypatch.setenv(setting, "changed-in-modal")
+        return QMessageBox.StandardButton.Yes
+
+    monkeypatch.setattr(QMessageBox, "question", mutate_while_modal_open)
+    monkeypatch.setattr(actions, "_lock_mutators", lambda _win:
+                        pytest.fail("changed cost settings must not be accepted"))
+    actions.on_inventar(win)
+    assert errors and errors[0][0] == "Hermes · consentimiento caducado"
