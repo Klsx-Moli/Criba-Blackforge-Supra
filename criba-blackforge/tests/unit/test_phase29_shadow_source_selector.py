@@ -569,6 +569,14 @@ def test_f30_lossy_config_normalization_rejected_before_write(mutation):
     "CRIBA_EXTERNAL_BASE_URL", "CRIBA_EXTERNAL_API_KEY",
     "CRIBA_EXTERNAL_PROVIDER", "CRIBA_EXTERNAL_MODEL",
     "CRIBA_CRITIC_MODEL", "CRIBA_EXTERNAL_FALLBACK_LOCAL",
+    "CRIBA_EXTERNAL_TIMEOUT_S", "CRIBA_EXTERNAL_MAX_TOKENS",
+    "CRIBA_EXTERNAL_REASONING_EFFORT",
+    "CRIBA_EXTERNAL_CRITIQUE_MAX_TOKENS",
+    "CRIBA_EXTERNAL_CRITIQUE_TEMPERATURE",
+    "CRIBA_EXTERNAL_CRITIQUE_TIMEOUT_S",
+    "CRIBA_EXTERNAL_CRITIQUE_REASONING_EFFORT",
+    "CRIBA_EXTERNAL_SEED", "CRIBA_CONSTRAINED_DECODING",
+    "CRIBA_REFINEMENT_MAX_TOKENS", "CRIBA_ACCEPTANCE_NO_RETRIES",
 ])
 def test_f31_queued_shadow_invent_never_uses_changed_remote_config(
     win, monkeypatch, changed_var
@@ -605,6 +613,14 @@ def test_f31_queued_shadow_invent_never_uses_changed_remote_config(
     "CRIBA_EXTERNAL_BASE_URL", "CRIBA_EXTERNAL_API_KEY",
     "CRIBA_EXTERNAL_PROVIDER", "CRIBA_EXTERNAL_MODEL",
     "CRIBA_CRITIC_MODEL", "CRIBA_EXTERNAL_FALLBACK_LOCAL",
+    "CRIBA_EXTERNAL_TIMEOUT_S", "CRIBA_EXTERNAL_MAX_TOKENS",
+    "CRIBA_EXTERNAL_REASONING_EFFORT",
+    "CRIBA_EXTERNAL_CRITIQUE_MAX_TOKENS",
+    "CRIBA_EXTERNAL_CRITIQUE_TEMPERATURE",
+    "CRIBA_EXTERNAL_CRITIQUE_TIMEOUT_S",
+    "CRIBA_EXTERNAL_CRITIQUE_REASONING_EFFORT",
+    "CRIBA_EXTERNAL_SEED", "CRIBA_CONSTRAINED_DECODING",
+    "CRIBA_REFINEMENT_MAX_TOKENS", "CRIBA_ACCEPTANCE_NO_RETRIES",
 ])
 def test_f31_queued_shadow_refinement_never_uses_changed_remote_config(
     win, monkeypatch, changed_var
@@ -655,3 +671,83 @@ def test_f31_json_roundtrip_rejects_type_changes_even_when_python_equals(
     payload["profiles"][0][field] = value
     raw = json.dumps(payload, ensure_ascii=False).encode("utf-8")
     assert not actions._editable_model_settings_bytes(raw)
+
+
+@pytest.mark.parametrize("mutation", [
+    "profile_change", "local_model_override", "local_base_override",
+    "decoding_override", "config_path_override", "unreadable_large_config",
+])
+def test_f32_queued_local_invent_cannot_switch_model_before_dispatch(
+    win, monkeypatch, tmp_path, mutation
+):
+    settings = default_model_settings()
+    settings.enabled = True
+    save_model_settings(settings)
+    selector = win.topcards.interpreter_selector
+    local_idx = selector.findData("local_llama")
+    assert local_idx >= 0
+    selector.setCurrentIndex(local_idx)
+    win.problem = "local fixture"
+    queued = []
+    monkeypatch.setattr(actions, "_start_worker",
+                        lambda _w, worker, operation="": queued.append(worker))
+    monkeypatch.setattr(actions, "_run_inventar", lambda *_a, **_kw:
+                        pytest.fail("changed local profile may not dispatch"))
+    actions.on_inventar(win)
+    assert len(queued) == 1
+    if mutation == "profile_change":
+        settings.profiles[0].model = "another-local-model"
+        save_model_settings(settings)
+    elif mutation == "local_model_override":
+        monkeypatch.setenv("CRIBA_LOCAL_MODEL", "unexpected-model")
+    elif mutation == "local_base_override":
+        monkeypatch.setenv("CRIBA_LOCAL_BASE", "http://127.0.0.1:9998")
+    elif mutation == "decoding_override":
+        monkeypatch.setenv("CRIBA_CONSTRAINED_DECODING", "json_schema")
+    elif mutation == "config_path_override":
+        monkeypatch.setenv("CRIBA_MODEL_CONFIG",
+                           str(tmp_path / "different-models.json"))
+    else:
+        Path(os.environ["CRIBA_MODEL_CONFIG"]).write_bytes(b"x" * 1_048_577)
+    with pytest.raises(RuntimeError, match="LOCAL_CONFIG_CHANGED_BEFORE_DISPATCH"):
+        queued[0].fn()
+
+
+@pytest.mark.parametrize("mutation", [
+    "profile_change", "local_model_override", "config_path_override",
+])
+def test_f32_queued_local_refinement_cannot_switch_model_before_dispatch(
+    win, monkeypatch, tmp_path, mutation
+):
+    settings = default_model_settings()
+    settings.enabled = True
+    save_model_settings(settings)
+    _f30_refinement_sheet(win)["interpreter"] = {"backend": "local_llama"}
+    queued = []
+    monkeypatch.setattr(actions, "_start_worker",
+                        lambda _w, worker, operation="": queued.append(worker))
+    actions.on_protocolo_operativo(win)
+    assert len(queued) == 1
+    if mutation == "profile_change":
+        settings.profiles[0].model = "different"
+        save_model_settings(settings)
+    elif mutation == "local_model_override":
+        monkeypatch.setenv("CRIBA_LOCAL_MODEL", "unconsented")
+    else:
+        monkeypatch.setenv("CRIBA_MODEL_CONFIG",
+                           str(tmp_path / "other-models.json"))
+    assert queued[0].fn() == {
+        "estado": "PENDIENTE",
+        "error": "LOCAL_CONFIG_CHANGED_BEFORE_DISPATCH",
+        "protocolo": None,
+    }
+
+
+def test_f32_local_snapshot_does_not_read_more_than_one_megabyte(
+    tmp_path, monkeypatch
+):
+    target = tmp_path / "oversized.json"
+    target.write_bytes(b"x" * 1_048_577)
+    monkeypatch.setenv("CRIBA_MODEL_CONFIG", str(target))
+    with pytest.raises(ValueError, match="snapshot limit"):
+        actions._local_run_state_snapshot()
