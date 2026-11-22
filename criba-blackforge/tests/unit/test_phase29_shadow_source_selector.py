@@ -635,3 +635,23 @@ def test_f31_hermes_explicit_fallback_is_not_silent(win, monkeypatch):
     assert not actions._hermes_proxy_base_ok()
     monkeypatch.setenv("CRIBA_EXTERNAL_FALLBACK_LOCAL", "false")
     assert actions._hermes_proxy_base_ok()
+
+
+@pytest.mark.parametrize(("field", "value"), [
+    ("context_size", 8192.0),
+    ("gpu_layers", -1.0),
+    ("parallel_slots", 1.0),
+    ("timeout", 300),
+    ("temperature", 0),
+])
+def test_f31_json_roundtrip_rejects_type_changes_even_when_python_equals(
+    field, value
+):
+    import json
+
+    payload = default_model_settings().to_dict()
+    assert payload["profiles"][0][field] == value
+    assert type(payload["profiles"][0][field]) is not type(value)
+    payload["profiles"][0][field] = value
+    raw = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+    assert not actions._editable_model_settings_bytes(raw)
