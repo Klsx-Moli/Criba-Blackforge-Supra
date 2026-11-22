@@ -1,8 +1,6 @@
 """F29 source discovery: no cloud calls, token reading or inference."""
 from __future__ import annotations
 
-import json
-
 import pytest
 
 from criba import interpreter_sources as sources
