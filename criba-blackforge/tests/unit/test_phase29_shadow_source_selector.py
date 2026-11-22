@@ -414,3 +414,41 @@ def test_ollama_activation_never_overwrites_untrusted_old_model_settings(
     app.processEvents()
     assert config_path.read_text(encoding="utf-8") == corrupt
     assert selector.currentData() == ("ollama_catalog", "f30:new")
+
+
+def test_manual_remote_combo_cannot_bypass_consent_by_missing_source_role(
+    win, monkeypatch
+):
+    selector = win.topcards.interpreter_selector
+    selector.addItem(
+        "manual external", ("openai_compatible", "provider/needs-consent"),
+    )  # intentionally no UserRole+1 marker
+    index = selector.count() - 1
+    assert selector.itemData(index, Qt.ItemDataRole.UserRole + 1) is None
+    selector.setCurrentIndex(index)
+    win.problem = "fixture"
+    monkeypatch.setattr(
+        QMessageBox, "question",
+        lambda *_args, **_kwargs: QMessageBox.StandardButton.No,
+    )
+    monkeypatch.setattr(actions, "_lock_mutators", lambda _win:
+                        pytest.fail("unmarked external model must not bypass consent"))
+    actions.on_inventar(win)
+    assert selector.isEnabled()
+
+
+def test_manual_remote_combo_still_rejects_hidden_critic(win, monkeypatch):
+    selector = win.topcards.interpreter_selector
+    selector.addItem("manual external", ("openai_compatible", "selected"))
+    selector.setCurrentIndex(selector.count() - 1)
+    win.problem = "fixture"
+    monkeypatch.setenv("CRIBA_CRITIC_MODEL", "another-model")
+    errors = []
+    monkeypatch.setattr(actions, "show_error", lambda _win, title, msg:
+                        errors.append((title, msg)))
+    monkeypatch.setattr(
+        QMessageBox, "question",
+        lambda *_args, **_kwargs: pytest.fail("hidden critic not authorized"),
+    )
+    actions.on_inventar(win)
+    assert errors and errors[0][0] == "Hermes · modelo de crítica"
