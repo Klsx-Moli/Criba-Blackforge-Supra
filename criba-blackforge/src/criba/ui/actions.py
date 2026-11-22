@@ -2038,7 +2038,20 @@ def on_desarrollar_supra(win: Any) -> None:
                 # A click alone must not accidentally turn a restored local
                 # intent into a network operation. The explicit confirmation
                 # happens before any remote reservation or marker.
+                visible_problem_before_dialog = getattr(win, "problem", None)
                 if not _confirm_first_prepared_dispatch(win, existing):
+                    return
+                # QMessageBox runs a nested Qt event loop. Signals and other
+                # actions may replace/mutate the active sheet during consent.
+                # Authorizing an OLD session must not reserve any POST.
+                if (
+                    getattr(win, "invent_sheet", None) is not sheet
+                    or sheet.get("run_id") != existing["run_id"]
+                    or sheet.get("query") != existing["problema"]
+                    or getattr(win, "problem", None) != visible_problem_before_dialog
+                ):
+                    show_error(win, "SUPRA", "La sesión cambió durante la "
+                               "confirmación. No se reserva ningún envío.")
                     return
                 try:
                     from ..dossier_batch import reservar_primer_envio_preparado

@@ -253,3 +253,52 @@ def test_real_shadow_zero_proposal_prepared_shows_first_dispatch_consent(
         assert "primer envío SUPRA requiere confirmación" in win.refs["ideaSummary"].text()
     finally:
         win.close()
+
+
+
+def test_late_dialog_acceptance_after_window_switched_sheet_has_no_effect(
+    harness, monkeypatch, tmp_path,
+):
+    workers, errors = harness
+    key, _ = _prepared(tmp_path)
+    win = window(old_sheet())
+    before = (tmp_path / journal.JOURNAL).read_bytes()
+
+    def switch_session_then_approve(win, _batch):
+        win.invent_sheet = {
+            "run_id": "other-run", "query": "Other problem", "entries": [],
+        }
+        return True
+
+    monkeypatch.setattr(
+        actions, "_confirm_first_prepared_dispatch", switch_session_then_approve,
+    )
+    actions.on_desarrollar_supra(win)
+    assert workers == []
+    assert len(errors) == 1 and "sesión cambió" in errors[0][2]
+    assert (tmp_path / journal.JOURNAL).read_bytes() == before
+    assert journal._state(journal._events(tmp_path / journal.JOURNAL))[key]["remote"] == "NOT_ATTEMPTED"
+
+
+@pytest.mark.parametrize("mutation", ["run_id", "query", "problem"])
+def test_in_place_mutation_during_consent_prevents_first_remote_reservation(
+    harness, monkeypatch, tmp_path, mutation,
+):
+    workers, errors = harness
+    _prepared(tmp_path)
+    win = window(old_sheet())
+    journal_file = tmp_path / journal.JOURNAL
+    before = journal_file.read_bytes()
+
+    def change_context(win, _batch):
+        if mutation == "problem":
+            win.problem = "unrelated visible problem"
+        else:
+            win.invent_sheet[mutation] = "unrelated value"
+        return True
+
+    monkeypatch.setattr(actions, "_confirm_first_prepared_dispatch", change_context)
+    actions.on_desarrollar_supra(win)
+    assert workers == []
+    assert len(errors) == 1 and "sesión cambió" in errors[0][2]
+    assert journal_file.read_bytes() == before
