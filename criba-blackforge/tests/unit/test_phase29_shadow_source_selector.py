@@ -18,7 +18,7 @@ from PySide6.QtCore import Qt  # noqa: E402
 from PySide6.QtWidgets import QApplication, QMessageBox  # noqa: E402
 
 from criba.interpreter_sources import ModelChoice, SourceCatalog  # noqa: E402
-from criba.model_config import load_model_settings  # noqa: E402
+from criba.model_config import load_model_settings, save_model_settings, ModelProfile  # noqa: E402
 from criba.ui import actions  # noqa: E402
 from shadow_window import ShadowWindow  # noqa: E402
 
@@ -260,3 +260,38 @@ def test_hidden_second_critic_model_is_denied_before_cost_consent(win, monkeypat
                         pytest.fail("must not run with unselected critic"))
     actions.on_inventar(win)
     assert messages and messages[0][0] == "Hermes · modelo de crítica"
+
+
+def test_ollama_profile_drift_blocks_before_mutator(win, monkeypatch):
+    selector = win.topcards.interpreter_selector
+    monkeypatch.setattr(
+        QMessageBox, "question",
+        lambda *args, **kwargs: QMessageBox.StandardButton.Yes,
+    )
+    block = selector.blockSignals(True)
+    selector.setCurrentIndex(selector.findData("source:ollama"))
+    selector.blockSignals(block)
+    actions._on_source_catalog(win, "ollama", SourceCatalog(
+        "ollama", (ModelChoice("ollama", "qwen:original"),), "catalog",
+    ))
+    index = next(i for i in range(selector.count())
+                 if selector.itemData(i) == ("ollama_catalog", "qwen:original"))
+    selector.setCurrentIndex(index)
+    assert selector.itemData(index, Qt.ItemDataRole.UserRole + 2) == (
+        "ollama", "qwen:original"
+    )
+    settings = load_model_settings()
+    replacement = ModelProfile(backend="ollama", model="qwen:replacement",
+                               endpoint="http://127.0.0.1:11434")
+    settings.profiles.append(replacement)
+    settings.active_profile_id = replacement.id
+    save_model_settings(settings)
+
+    win.problem = "fixture"
+    errors = []
+    monkeypatch.setattr(actions, "show_error", lambda _win, title, msg:
+                        errors.append((title, msg)))
+    monkeypatch.setattr(actions, "_lock_mutators", lambda _win:
+                        pytest.fail("changed active profile cannot start work"))
+    actions.on_inventar(win)
+    assert errors and errors[0][0] == "Ollama · perfil cambiado"
