@@ -288,6 +288,57 @@ def guardar_lote_dossiers(dossiers: list[dict[str, Any]],
         return result
 
 
+def buscar_lote_por_sesion(
+    run_id: str, problema: str, directory: Path | None = None,
+) -> dict[str, Any] | None:
+    """Find a durable PREPARED intent by exact run and problem, without POST.
+
+    Archive snapshots saved *before* a remote reservation lack batch fields.
+    The journal, not a reconstructed dossier or archived UI hint, determines
+    whether this run already has a reserved remote attempt.
+
+    Returns None only if this run has no PREPARED record. A conflicting
+    problem, invalid/ambiguous replay, incomplete local commit or altered
+    dossier is never silently reclassified as a new batch.
+    """
+    if not _exact(run_id) or not _exact(problema):
+        raise ValueError("session lookup requires exact run_id and problem")
+    directory = sd._dossiers_dir(directory)
+    with sd._historial_exclusive(directory):
+        state = _state(_events(directory / JOURNAL))
+        found = [
+            (key, batch)
+            for key, batch in state.items()
+            if batch["intent"]["run_id"] == run_id
+        ]
+        if not found:
+            return None
+        if len(found) != 1:
+            raise ValueError("ambiguous run_id in batch journal")
+        key, batch = found[0]
+        intent = batch["intent"]
+        if intent["problema"] != problema:
+            raise ValueError("archived session problem conflicts with batch journal")
+        if batch["committed"]:
+            stored, ambiguous, _ = sd._leer_historial(directory / "dossiers.jsonl")
+            if any(
+                d["dossier_id"] in ambiguous
+                or d["dossier_id"] not in stored
+                or sd._contexto(stored[d["dossier_id"]]) != sd._contexto(d)
+                for d in intent["dossiers"]
+            ):
+                raise ValueError("batch journal references missing or changed local dossier history")
+        return {
+            "batch_id": key,
+            "remote_state": batch["remote"],
+            "committed": batch["committed"],
+            "run_id": run_id,
+            "problema": problema,
+            "dossiers": [d["dossier_id"] for d in intent["dossiers"]],
+            "dossiers_path": str(directory / "dossiers.jsonl"),
+        }
+
+
 def recuperar_lotes_pendientes(directory: Path | None = None) -> list[str]:
     """Resume local-only pending intents across restarts. Never issue POST."""
     directory = sd._dossiers_dir(directory)
