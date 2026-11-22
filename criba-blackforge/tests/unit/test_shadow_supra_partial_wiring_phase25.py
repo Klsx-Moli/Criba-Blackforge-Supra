@@ -16,7 +16,6 @@ pytest.importorskip("PySide6")
 from criba import dossier_batch as journal
 from criba import supra_dossier as sd
 from criba.ui import actions
-from criba.integrations import supra_client
 from criba import dossier_workflow
 from test_dossier_batch_phase15_integration import (
     ENDPOINT, OnlyGet, lookup, prepared, project,
@@ -39,14 +38,14 @@ def typed_lookup(dossier):
         criba_dossier_receipt=Struct(**raw),
         checkpoints=[],
     )
-    rest = {k: v for k, v in src.items() if k != "posture"}
-    return Struct(
-        **rest, posture=posture,
-        status="blocked", status_scope="WORKFLOW_EXECUTION_ONLY",
-        completion_status="BLOCKED", workflow_status="BLOCKED",
-        verification_status="FAIL", secure_sandbox_status="NOT_VERIFIED",
-        persisted_artifact_error_kind=None,
-    )
+    fields = {k: v for k, v in src.items() if k != "posture"}
+    fields.update({
+        "status": "blocked", "status_scope": "WORKFLOW_EXECUTION_ONLY",
+        "completion_status": "BLOCKED", "workflow_status": "BLOCKED",
+        "verification_status": "FAIL", "secure_sandbox_status": "NOT_VERIFIED",
+        "persisted_artifact_error_kind": None,
+    })
+    return Struct(**fields, posture=posture)
 
 
 class FakeOutcome:
