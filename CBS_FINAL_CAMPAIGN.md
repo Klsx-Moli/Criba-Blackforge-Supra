@@ -158,6 +158,43 @@ El último comando necesita archivos privados obtenidos localmente; no exponerlo
 
 G0=DRAFT_NOT_APPROVED, P0_SEMANTIC=OPEN, SCIENTIFIC_ADVANTAGE=NOT_ESTABLISHED, DESKTOP_VISUAL_ACCEPTANCE=NOT_VERIFIED. ASTRA y BLACKFORGE intactos.
 
-## Siguiente acción exacta
+## Siguiente acción exacta (histórica, al cierre de fase 04)
 
 Fase 05: contrato semántico experimental y adjudicación, desde semantic_lab.py, semantic_critic_bridge.py, semantic_ledger_gate.py y los preregistros existentes. Resolver F02-01: contrastar digest de Trial/Request canónico con prompt realmente preparado en producción; construir o exponer contrato explícito de brazo S0 (LLM directo) y S1 (CRIBA), sin inventar equivalencia, sin etiqueta de éxito por texto autorreportado. Adjudicación determinista de integridad no debe confundirse con juicio científico: separar lectura evaluable, insuficiencia, UNRESOLVED, rechazo de evidencia y ERROR/NOT_RUN; no usar proxy de recibos como verdad ni consumo. Verificar qué datos recibe cada judge, presupuesto, rúbrica, información simétrica, cegamiento a brazo y prevención de leakage; no usar reserved ni realizar llamadas reales. Probar mutaciones semánticas de consultas, respuestas, citas, identidad, redundancia, negatividad y corrupción; conservar originales y mostrar si control detecta falso coverage. Dejar decisiones científicas por aprobar y los límites epistemológicos; no convertir un criterio provisional en contrato productivo. Reejecutar regresiones dirigidas acumuladas accesibles, sin tocar ASTRA ni activar BLACKFORGE. Identidad de modelo físico y conexión real del journal continúan como puertas para G0; adaptador local faltante no se da por integrado.
+
+## Fase 05 — Contrato semántico, prompt realmente enviado y evidencia del evaluador
+
+Base: `448123cdf7a8913df7cf22e06499dee3467c5dd6`. Estado: CORRECCIÓN DE INTEGRIDAD EXPERIMENTAL VERIFICADA EN AISLAMIENTO; VALIDACIÓN CIENTÍFICA PENDIENTE.
+
+### Hallazgos
+
+- **F05-01 P1 / STATICALLY_INSPECTED + REPRODUCED_IN_ISOLATED_SEAM:** `semantic_critic_bridge.preparar_critica` obtenía `request_sha256` de `semantic_lab.direct_request` o `blind_request` pero construía el mensaje real con `contrato.prompt_critica`. Los prompts tienen instrucciones, datos y esquemas distintos. Dos hashes correctos por separado NO vinculan un mismo mensaje: el recibo podía aparentar el request del laboratorio sin que ese prompt se hubiera enviado. Para BLIND el mensaje preparado incluía el problema original; por tanto no era ciego. No se verificó una llamada productiva ni se modificó el transporte.
+- **F05-02 P1 / VERIFIED_BY_EXECUTION:** `CritiqueCall` era `frozen=True` pero contenía `mensajes: list[dict]` mutable. Se podía alterar el texto tras calcular `message_sha256`. La nueva estructura almacena JSON canónico como string privado y expone una copia nueva; **esto no autentica los bytes que efectivamente despache un futuro cliente HTTP**. El payload final deberá ligarse en la frontera real del envío.
+- **F05-03 P0 SEMÁNTICO / VERIFIED_BY_EXECUTION, NO FIX CIENTÍFICO:** se construyó un recibo sintético conforme a `semantic_lab.evaluate` que marca SUPPORTS en todos los ejes con citas literales auténticas, pero para `CBS500-01-01:incident` (mecanismo de registros administrativos aplicado a desperdicio de agua). El laboratorio devolvió `REVIEW_SUPPORTED`; la referencia de desarrollo es `REJECT`. Esto demuestra que citas/estructura/etiquetas no acreditan pertinencia, no que el modelo real haya juzgado así. La función declara `evaluator assertion only` y `ResearchReading.__bool__` rechaza el uso como PASS. No cambiar el scoring ni promover una supuesta solución. La referencia es provisional, no gold.
+
+### Reparación aplicada
+
+En `criba-blackforge/benchmarks/innovation/semantic_critic_bridge.py`:
+1. Centralizar la construcción de Request canónico para SHA y etapa.
+2. `preparar_critica` comprueba igualdad exacta de `[system,user]` que se pretende enviar frente al prompt solicitado al laboratorio, antes de crear CritiqueCall. Si difieren, `ValueError("critica_no_vinculada...")`; **la llamada productiva actual no puede legitimarse como equivalente a S1**. No hay fallback ni conversión silenciosa. El comportamiento de fallo cerrado es intencional.
+3. `CritiqueCall` guarda instantánea textual canónica y entrega copias de mensajes, preservando hash contra mutaciones de referencias.
+4. Actualizar la prueba de K3 que antes afirmaba que los dos hashes demostraban mismo mensaje; ahora exige el bloqueo. Añadir sentinelas positivos de construcción alineada **simulada**, rechazo BLIND, episodio distinto, stage inválido, cita falso positivo, protección de copia.
+
+### Evidencia y límites exactos
+
+- Sandbox Linux Python 3.13.5 con `semantic_lab.py` (blob 5f9b9c8121b7d4499bc50c713b986b68e785ae12), `semantic_cases.py` (cc713aee9d7198fdef38e4d9bbf5e351ff6eee95) y puente original (7b69c3eaff799b8c6c2b79fdfa909b83c8a9ec4a) reconstruidos y verificados por identidad Git. En sandbox, `contrato.py` y `_SYSTEM` fueron **seams mínimos** porque no hay clon íntegro accesible; el hecho de que los prompts de laboratorio y producción difieren se contrastó también contra el código productivo exacto mediante inspección estática. No afirmar ejecución real de todo `contrato.py` ni del transporte. El puente modificado tiene blob b665af294d1741ebcb093ec6549f83f42fd0426d.
+- Suite dirigida: 143 regresiones previas + 15 sentinelas nuevos = **158 PASS** en sandbox. Ocho mutantes iniciales más uno de instantánea mutable: **9/9 detectados**, restaurados y nueva pasada verde. `compileall` dirigido PASS, líneas de los dos archivos nuevos/modificados <=100. Ruff completo, mypy, CI y suite del repo **NOT_EXECUTED**.
+- `test_k3_semantic_bridge.py` modificado en remoto para reflejar contrato fail-closed; **NO EJECUTADO** completo en el sandbox, que emplea un seam de contrato. Ejecutar en checkout íntegro y corregir cualquier otra expectativa obsoleta antes de considerar CI verde.
+- Ningún cambio bajo `src/` o `shadow_ui/`, sin inference real, sin gasto, sin push a main, sin G0. No atribuir este cambio a reparación científica del P0.
+- Comando para checkout completo, desde `criba-blackforge`:
+```sh
+python -m pytest -q tests/unit/test_k3_semantic_binding_phase05.py tests/unit/test_k3_semantic_bridge.py tests/unit/test_semantic_lab.py tests/unit/test_k3_semantic_no_evidence.py tests/unit/test_k3_receipt_integrity.py tests/unit/test_k3_ledger_gate.py tests/unit/test_k3_transport_journal.py tests/unit/test_model_identity_preflight.py
+```
+
+### G0 y rutas alternativas
+
+La crítica original S0 usa campos booleanos, objeciones y once preguntas; S1 usa assessment por eje y citas contra propuesta proyectada. **No existe todavía una traducción científica preregistrada, validada y comparable**. S0 y S1 no reciben exactamente el mismo conjunto de datos (S0 recibe dominio/cruce/evidencia; S1 trabaja sobre proyección y restricciones), y los presupuestos/esquemas difieren. No declarar un ensayo A/B comparable por hashes iguales, por `REVIEW_SUPPORTED` o por una tabla sintética. El flujo de validación científica necesita referencias revisadas independientemente y una métrica congelada; no hay tres revisores competentes acreditados. Los indicadores P0_SEMANTIC=OPEN; G0=DRAFT_NOT_APPROVED; SCIENTIFIC_ADVANTAGE=NOT_ESTABLISHED; DESKTOP_VISUAL_ACCEPTANCE=NOT_VERIFIED no cambian.
+
+## Siguiente acción exacta
+
+Fase 06 — Comparabilidad S0/S1 y preflight experimental: analizar por caso la información efectiva de `prompt_critica` y `direct_request`, identidad del candidato, restricciones, dominio/evidencia y output schemas; crear manifiesto de asimetrías y contrato de resolución (sistema, usuario, schema, modelo, muestreo, timeout, retries, budget, tokenización), dejando BLOCKED donde no hay equivalencia. No hacer de un mensaje S0 una petición S1 por renombrar el hash. Proponer adaptación mínima del prompt a igualdad de hechos manteniendo la diferencia de método; medir tamaño y política de tokenización offline sin inferencias. Resolver política de adjudicación S0 con rechazo/unknown/errores y coste antes de solicitar G0; respetar tres revisores, fuentes, los 18 casos de desarrollo y los 8 de A, sin abrir reserved. Mutar stuffing/transferencia legítima/dominio equivocado/metric swap, conservar desconocido y proteger el resultado. Ejecutar regresión íntegra si se obtiene acceso a un checkout completo, no inventar resultados. No modificar ASTRA, BLACKFORGE ni el runtime productivo sin G0.

@@ -1,16 +1,9 @@
-"""Puente entre la MISMA llamada de critica de produccion y el laboratorio.
+"""Experimental bridge between production critique and semantic lab.
 
-No es un tercer viaje al modelo ni un evaluador nuevo: reutiliza
-``prompt_critica`` y ``validar_critica`` del contrato real.
-
-El laboratorio (``semantic_lab``) identifica una peticion con el hash de su
-propio request canonico. Este adaptador NO inventa un segundo formato de
-identidad: delega en ``direct_request``/``blind_request`` del laboratorio,
-de modo que no puede divergir de el. Aparte, liga el MENSAJE COMPUESTO
-realmente enviado (system + user) para dejar constancia de lo que viajo.
-
-El laboratorio exige un recibo con ``request_sha256``, ``observed_model``,
-``transport_id``, ``finish_reason`` y ``body``.
+The production critic and lab use DIFFERENT prompts. An old call object
+could combine the lab request SHA with the unrelated production message SHA.
+preparar_critica now fails closed until the host uses a genuinely bound
+request. No production wiring, extra inference, or adjudication is enabled.
 """
 
 from __future__ import annotations
@@ -69,17 +62,21 @@ def request_sha_de_critica(
     attempt: str,
     stage: str = "DIRECT",
 ) -> str:
-    """Hash del request TAL COMO LO ENTIENDE ``semantic_lab``.
+    """Canonical laboratory request hash, NOT a hash of the production message.
 
-    Delega en la funcion canonica del laboratorio: si el laboratorio cambia
-    su contrato, este puente lo sigue sin duplicar logica.
+    Only preparar_critica checks whether these prompts actually correspond.
     """
+    return _solicitud_laboratorio(trial, reviewer, attempt, stage).sha256
+
+
+def _solicitud_laboratorio(trial: Any, reviewer: str, attempt: str, stage: str) -> Any:
+    """Single canonical source for what the receipt claims was sent."""
     from benchmarks.innovation import semantic_lab
 
     if stage == "DIRECT":
-        return semantic_lab.direct_request(trial, reviewer, attempt).sha256
+        return semantic_lab.direct_request(trial, reviewer, attempt)
     if stage == "BLIND":
-        return semantic_lab.blind_request(trial, reviewer, attempt).sha256
+        return semantic_lab.blind_request(trial, reviewer, attempt)
     raise ValueError(f"stage no soportado: {stage}")
 
 
@@ -88,11 +85,16 @@ class CritiqueCall:
     """Todo lo que el host necesita para enviar y luego verificar la critica."""
 
     request_sha256: str
-    mensajes: list[dict[str, str]]
+    _mensajes_json: str
     message_sha256: str
     reviewer: str
     attempt: str
     stage: str
+
+    @property
+    def mensajes(self) -> list[dict[str, str]]:
+        """Return a fresh copy; do not mutate an already hashed snapshot."""
+        return json.loads(self._mensajes_json)
 
 
 def preparar_critica(
@@ -107,15 +109,29 @@ def preparar_critica(
     attempt: str,
     stage: str = "DIRECT",
 ) -> CritiqueCall:
-    """Prepara la llamada ligando identidad del laboratorio y mensaje real."""
+    """Reject any source-prompt mismatch before claiming a bound request.
+
+    An identical request digest does not authenticate the production HTTP call.
+    This experimental bridge does not authorize production or G0 inference.
+    """
+    solicitud = _solicitud_laboratorio(trial, reviewer, attempt, stage)
     mensajes = mensaje_de_critica(
         query=query, idea=idea, domain=domain, evidence=evidence, propuesta=propuesta
     )
+    # The old bridge hashed the lab DIRECT/BLIND request but prepared the
+    # production critique prompt. A receipt could then claim the lab's SHA
+    # for different instructions and different source material. Most critically,
+    # the production prompt includes query even for BLIND. The two hashes in
+    # CritiqueCall are not evidence of equivalence. Fail BEFORE any dispatch.
+    if mensajes != mensaje_compuesto(solicitud.prompt):
+        raise ValueError(
+            "critica_no_vinculada: mensaje enviado distinto de la solicitud del laboratorio"
+        )
     return CritiqueCall(
-        request_sha256=request_sha_de_critica(
-            trial, reviewer=reviewer, attempt=attempt, stage=stage
+        request_sha256=solicitud.sha256,
+        _mensajes_json=json.dumps(
+            mensajes, ensure_ascii=False, sort_keys=True, separators=(",", ":")
         ),
-        mensajes=mensajes,
         message_sha256=sha_mensaje_compuesto(mensajes),
         reviewer=reviewer,
         attempt=attempt,

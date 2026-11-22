@@ -1,8 +1,7 @@
-"""K3 paso 2 - Adaptador de la MISMA llamada de critica.
+"""K3: lab request identity must not be substituted for the production prompt.
 
-Protege que el puente delegue su identidad en ``semantic_lab`` (sin
-inventar un segundo formato) y que el recibo del transporte real cierre
-el ciclo del laboratorio.
+The two original prompts differ. The bridge must refuse an unbound request,
+even when both hashes are correctly computed. No real transport is exercised.
 """
 
 from __future__ import annotations
@@ -156,14 +155,17 @@ def test_hash_del_mensaje_cambia_con_el_system() -> None:
     assert sha_mensaje_compuesto(base) != sha_mensaje_compuesto(alterado)
 
 
-def test_preparar_critica_liga_ambos_hashes() -> None:
-    call = preparar_critica(
-        _trial(), query=QUERY, idea=IDEA, domain=None, evidence=evidence(),
-        propuesta=PROPUESTA, reviewer=REVIEWER, attempt=ATTEMPT,
-    )
-    assert call.request_sha256 == _sha()
-    assert call.message_sha256 == sha_mensaje_compuesto(call.mensajes)
-    assert "ducha" in call.mensajes[1]["content"].lower()
+def test_preparar_critica_no_finge_que_dos_prompts_distintos_son_uno() -> None:
+    """The old bridge hashed the lab request but built production messages.
+
+    Reject before any transport rather than claiming both hashes identify
+    the same critique. A distinct correct S1 message requires separate design.
+    """
+    with pytest.raises(ValueError, match="critica_no_vinculada"):
+        preparar_critica(
+            _trial(), query=QUERY, idea=IDEA, domain=None, evidence=evidence(),
+            propuesta=PROPUESTA, reviewer=REVIEWER, attempt=ATTEMPT,
+        )
 
 
 # --- Recibo del transporte real ---
