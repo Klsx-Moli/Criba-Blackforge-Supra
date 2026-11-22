@@ -277,10 +277,41 @@ class DossierWorkflow:
                use_model: bool = False, provider: str | None = None, model: str | None = None,
                domain: str = "criba_blackforge", allow_disruptive: bool = True,
                objective: str | None = None,
-               expected_endpoint: str | None = None) -> Outcome:
+               expected_endpoint: str | None = None,
+               batch_dispatch_id: str | None = None) -> Outcome:
         value = self.validate(dossier)
         target = project_id or "astram2-" + hashlib.sha256(value["dossier_id"].encode()).hexdigest()[:32]
         target = self.bindings.project_id(target)
+        # A batch worker is only allowed to target the canonical project ID.
+        # Standalone --project-id overrides remain supported for unbatched
+        # dossiers, but cannot repoint a claimed batch to another project.
+        canonical_target = "astram2-" + hashlib.sha256(
+            value["dossier_id"].encode("utf-8")
+        ).hexdigest()[:32]
+        if batch_dispatch_id is not None and target != canonical_target:
+            raise WorkflowError(
+                "BATCH_DISPATCH_BOUNDARY", "pre_post",
+                "El proyecto no corresponde al dossier del lote reservado.",
+                project_id=target,
+            )
+
+        def check_dispatch_boundary() -> None:
+            from .dossier_batch import comprobar_autorizacion_envio_dossier
+            try:
+                comprobar_autorizacion_envio_dossier(
+                    value, batch_dispatch_id=batch_dispatch_id,
+                    endpoint=expected_endpoint,
+                )
+            except (OSError, ValueError, TypeError, RecursionError,
+                    OverflowError, KeyError, AttributeError) as exc:
+                raise WorkflowError(
+                    "BATCH_DISPATCH_BOUNDARY", "pre_post",
+                    "El journal no autoriza este envío de dossier.",
+                    project_id=target,
+                ) from exc
+
+        # Fail before persistence, transport health, or POST for mixed callers.
+        check_dispatch_boundary()
         self.persist(value)
         client = self.http()
         health = self.health(client, target)
@@ -301,6 +332,10 @@ class DossierWorkflow:
                 "El origen SUPRA cambió después de la reserva; no hacer POST.",
                 project_id=target, remote_unknown=True,
             )
+        # A CLI/direct caller may have raced a new batch PREPARED while
+        # awaiting health. Do not use the pre-health authorization as a POST
+        # permit; repeat the journal/intent check immediately before POST.
+        check_dispatch_boundary()
         try:
             post = client.run_project(**kwargs)
         except ValueError as exc:
