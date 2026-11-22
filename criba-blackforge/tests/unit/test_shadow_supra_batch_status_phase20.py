@@ -17,6 +17,8 @@ def good(**changes):
         "expected": 2,
         "journal_recorded": True,
         "fresh_get_status": "VERIFIED_FROM_ARTIFACT",
+        "scientific_status": "NOT_VALIDATED",
+        "mechanism_execution": "NOT_EXECUTED",
     }
     result.update(changes)
     return result
@@ -69,3 +71,50 @@ def test_status_projection_is_strict(changes, state):
 ])
 def test_invalid_result_cannot_promote(value):
     assert present_batch_recovery(value)["state"] == "UNKNOWN"
+
+
+@pytest.mark.parametrize("mutation", [
+    {"scientific_status": "VALIDATED"},
+    {"scientific_status": "PASS"},
+    {"scientific_status": "UNKNOWN"},
+    {"scientific_status": None},
+    {"scientific_status": ""},
+    {"scientific_status": 0},
+    {"scientific_status": True},
+    {"mechanism_execution": "COMPLETED"},
+    {"mechanism_execution": "EXECUTED"},
+    {"mechanism_execution": "UNKNOWN"},
+    {"mechanism_execution": None},
+    {"mechanism_execution": ""},
+    {"mechanism_execution": False},
+    {"mechanism_execution": 0},
+    {"scientific_status": "VALIDATED", "mechanism_execution": "EXECUTED"},
+])
+def test_conflicting_epistemic_channels_never_confirm_receipt(mutation):
+    forged = good(**mutation)
+    state = present_batch_recovery(forged)
+    assert state["state"] == "UNKNOWN"
+    assert "remoto no confirmado" in state["chip"]
+
+
+@pytest.mark.parametrize("missing", ["scientific_status", "mechanism_execution"])
+def test_missing_epistemic_channel_is_unknown(missing):
+    forged = good()
+    del forged[missing]
+    assert present_batch_recovery(forged)["state"] == "UNKNOWN"
+
+
+@pytest.mark.parametrize("fresh, reason, checked, expected", [
+    ("VERIFIED_FROM_ARTIFACT", "PERSISTED_PLANNING_RECEIPTS_ONLY", 2, 2),
+    ("GET_FAILED", "PREVIOUSLY_RECORDED_NOT_FRESHLY_VERIFIED", 0, 2),
+])
+def test_valid_epistemic_channels_preserve_fresh_and_historical_receipts(
+    fresh, reason, checked, expected,
+):
+    report = good(fresh_get_status=fresh, reason=reason,
+                  checked=checked, expected=expected)
+    output = present_batch_recovery(report)
+    assert output["state"] == (
+        "FRESH_JOURNALED" if fresh == "VERIFIED_FROM_ARTIFACT"
+        else "HISTORICAL_ONLY"
+    )

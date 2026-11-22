@@ -22,6 +22,12 @@ def present_batch_recovery(report: Any) -> dict[str, str]:
     }
     if not isinstance(report, dict):
         return baseline
+    # The reconciler explicitly preserves these epistemic channels.
+    # A contradictory or partial transport object has no authority to label
+    # a receipt verified, even if it copies the expected counters/reason.
+    if (report.get("scientific_status") != "NOT_VALIDATED"
+            or report.get("mechanism_execution") != "NOT_EXECUTED"):
+        return baseline
     status = report.get("status")
     fresh = report.get("fresh_get_status")
     reason = report.get("reason")
