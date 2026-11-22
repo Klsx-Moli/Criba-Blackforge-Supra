@@ -217,6 +217,7 @@ def test_desarrollar_con_supra_prepara_dossier_pendiente(qapp, tmp_path, monkeyp
     sheet["ficha_bloqueo"] = {"bloqueo": "permisos reutilizables", "origen_bloqueo": "hipotesis"}
 
     sheet["run_id"] = "gui-phase13-synthetic-run"
+    monkeypatch.setenv("SUPRA_ENDPOINT", "http://127.0.0.1:8000")
     monkeypatch.setattr(sd, "_dossiers_dir", lambda override=None: tmp_path)
 
     # El despacho SUPRA se sustituye por un resultado controlado: este test
@@ -225,7 +226,8 @@ def test_desarrollar_con_supra_prepara_dossier_pendiente(qapp, tmp_path, monkeyp
     # aserción (dependencia del orden de hilo) y la aserción sería flaky.
     dispatched: list[list[dict]] = []
 
-    def fake_execute(dossiers, client=None, *, batch_id=None):
+    def fake_execute(dossiers, client=None, *, batch_id=None, expected_endpoint=None):
+        assert batch_id and expected_endpoint == "http://127.0.0.1:8000"
         dispatched.append(dossiers)
         return {
             "health": {"status": "ok", "service": "SUPRA"},

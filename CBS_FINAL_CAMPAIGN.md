@@ -534,3 +534,10 @@ python -m compileall -q src/criba/dossier_batch.py src/criba/dossier_batch_recov
 python -m ruff check src/criba/dossier_batch.py src/criba/dossier_batch_recovery.py tests/unit/test_dossier_batch_phase13.py tests/unit/test_dossier_batch_recovery_phase14.py
 git diff --check
 ```
+
+
+## Fase 15 — Reconciliación de regresión GUI y pruebas de integración
+
+- REPRODUCED_BY_ME en ejecución Python mínima: la fixture `fake_execute` antigua fallaba con TypeError ante `expected_endpoint`, agregado en F14. Se acepta/verifica el keyword y se fija `SUPRA_ENDPOINT` en el test para que sea determinista.
+- EVIDENCE_PENDING: prueba GUI Qt (PySide6 no instalado en sandbox), suite de producto y Windows. No promover a PASS por inspección.
+- Política CI real: workflow `ci.yml` se ejecuta por PR, push en main o manual; los pushes a campaña no lo activan por defecto.
