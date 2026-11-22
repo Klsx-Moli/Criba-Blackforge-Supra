@@ -1641,7 +1641,11 @@ def _on_supra_batch_get_done(
     win: Any, result: Any, *, token: object, sheet: dict[str, Any],
     batch_id: str, run_id: Any, problem: Any,
 ) -> None:
+    if getattr(win, "_supra_batch_recovery_token", None) is not token:
+        return
     if not _supra_batch_get_current(win, token, sheet, batch_id, run_id, problem):
+        # A stale response frees its own token but cannot alter newer UI.
+        win._supra_batch_recovery_token = None
         return
     win._supra_batch_recovery_token = None
     from .supra_batch_status import present_batch_recovery
@@ -1675,7 +1679,11 @@ def _on_supra_batch_get_failed(
     win: Any, message: str, *, token: object, sheet: dict[str, Any],
     batch_id: str, run_id: Any, problem: Any,
 ) -> None:
+    if getattr(win, "_supra_batch_recovery_token", None) is not token:
+        return
     if not _supra_batch_get_current(win, token, sheet, batch_id, run_id, problem):
+        # A stale response frees its own token but cannot alter newer UI.
+        win._supra_batch_recovery_token = None
         return
     win._supra_batch_recovery_token = None
     from .supra_batch_status import present_batch_recovery
@@ -1701,6 +1709,9 @@ def _start_supra_batch_get(
         getattr(win, "_supra_batch_recovery_token", None) is not None
         and getattr(win, "_supra_batch_recovery_sheet", None) is sheet
         and getattr(win, "_supra_batch_recovery_id", None) == batch_id
+        and getattr(win, "_supra_batch_recovery_run_id", None) == sheet.get("run_id")
+        and getattr(win, "_supra_batch_recovery_problem", None)
+        == getattr(win, "problem", None)
     ):
         return
     token = object()
@@ -1710,6 +1721,8 @@ def _start_supra_batch_get(
     win._supra_batch_recovery_id = batch_id
     run_id = sheet.get("run_id")
     problem = getattr(win, "problem", None)
+    win._supra_batch_recovery_run_id = run_id
+    win._supra_batch_recovery_problem = problem
     win.refs["ideaSummary"].setText(
         "Lote SUPRA previamente reservado · comprobando recibos mediante GET "
         "sin reenvío · evidencia NO VALIDADA · mecanismo NO EJECUTADO"
