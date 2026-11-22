@@ -2006,7 +2006,7 @@ def _confirm_first_prepared_dispatch(win: Any, batch: dict[str, Any]) -> bool:
 
 
 def on_desarrollar_supra(win: Any) -> None:
-    """Prepare new dossiers OR reconcile an existing batch by GET only."""
+    """Prepare a new batch, recover by GET or explicitly send a local-only batch."""
     sheet = getattr(win, "invent_sheet", None)
     if isinstance(sheet, dict):
         from .supra_batch_resume import resolve_archived_batch

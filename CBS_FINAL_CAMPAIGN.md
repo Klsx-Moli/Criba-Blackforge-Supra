@@ -682,3 +682,18 @@ git diff --check
 - **NOT_EXECUTED:** suite de checkout íntegro, PySide6, Ruff, mypy, CI Windows. Se verificaron archivos y commits en GitHub; una compilación Python aislada comprobó la sintaxis de la nueva expresión de resumen, no de la totalidad de actions.py.
 - **Limitación controlada:** NOT_ATTEMPTED que persistió tras un corte antes de reservar sigue sin tener reanudación de primer envío desde el sheet antiguo. No confundirlo con UNKNOWN. Requiere diseño y prueba de reanudación explícita, no auto-retry de POST. Próximo punto F23.
 - **Gates:** G0 NO-GO; P0 semántico OPEN. Implementación F22 EVIDENCE_PENDING.
+
+## Fase 23 — Primer envío EXPLÍCITO de un PREPARED antiguo
+
+- BASE: 2fc01fbb428ba38ae901ec4f57798d45f74156e2; main, handoff y ASTRA protegidos.
+- Contratos: un PREPARED duradero puede quedar NOT_ATTEMPTED tras reiniciar. Nunca hay POST por abrir, renderizar, restaurar o listar el journal. Solo pulsar Desarrollar con SUPRA y confirmar expresamente Sí autoriza reservar el PRIMER envío remoto de ese lote.
+- Backend: reservar_primer_envio_preparado verifica batch_id, run_id, problema, commit local, cada dossier original y el endpoint de origen. Bajo un mismo lock relee el journal y fsync REMOTE_UNKNOWN, devolviendo únicamente copia de los payloads originales. Sin red ni reconstrucción de dossiers.
+- Shadow: para un lote NOT_ATTEMPTED recuperado, muestra diálogo de consentimiento antes de reservar. Cancelar no cambia el journal. Relee bajo lock tras la aceptación; una reserva de otro proceso o una alteración del historial bloquea el POST.
+- Worker: primer envío recuperado y envío nuevo comparten _start_reserved_supra_submission. Si se interrumpe después del marker UNKNOWN, no hay segundo POST automático; únicamente recuperación GET.
+- UI: aun con cero propuestas válidas, un PREPARED committed NOT_ATTEMPTED permite mostrar Desarrollar con SUPRA con el texto primer envío requiere confirmación; el botón de protocolo sigue deshabilitado.
+- Adversarial: se valida win.problem antes de consentir y se cotejan identity del sheet, run_id, query y problema visible después del diálogo Qt anidado y antes del marker. Una aceptación de sesión antigua no autoriza escritura.
+- Regresiones F23: 13 funciones backend (18 casos expandidos) con JSONL y fsync reales, y 12 funciones Qt (14 casos expandidos), total 32 casos publicados, NOT_EXECUTED contra checkout oficial. Thread race, subprocess restart, corrupción, invalid run/endpoint, cancelación, doble clic, cambio de sesión durante consentimiento, GET-only tras fallo.
+- La antigua prueba F22 que exigía bloqueo de todo NOT_ATTEMPTED ahora comprueba denegación expresa sin escritura. Esta es una actualización de contrato, no la desaparición de la protección contra auto-POST.
+- Evidencia: STATICALLY_INSPECTED en remoto; checkout completo, tests Qt, Ruff, mypy, CI son NOT_EXECUTED. Clonado por HTTPS desde contenedor no disponible (DNS github.com).
+- Límite: fsync y fingerprints demuestran coherencia del journal local, no envío exitoso, integridad externa o resultado científico. UNKNOWN no autoriza reintento.
+- Gates: G0 NO-GO, P0 semántico OPEN. F23 IMPLEMENTED / EVIDENCE_PENDING.
