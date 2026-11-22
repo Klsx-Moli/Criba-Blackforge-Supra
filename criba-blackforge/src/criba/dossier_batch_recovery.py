@@ -81,6 +81,48 @@ def _readback(dossier: dict[str, Any], lookup: Any) -> dict[str, Any] | None:
                      "stage": _field(lookup, "stage")}}
 
 
+def _confirmed_v2_still_local(
+    batch_id: str, directory: Path, endpoint: str, fingerprint: str,
+) -> bool:
+    """Verify durable v2 receipt and local original dossiers under one lock.
+
+    The durable receipt is NOT proof of a current GET, scientific validation
+    or successful execution of any proposed CRIBA mechanism.
+    """
+    with journal.sd._historial_exclusive(directory):
+        state = journal._state(journal._events(directory / journal.JOURNAL))
+        batch = state.get(batch_id)
+        if (batch is None or not batch["committed"]
+                or batch["remote"] != "READBACK_OBSERVED"
+                or batch["endpoint"] != endpoint
+                or batch["intent"].get("fingerprint") != fingerprint):
+            return False
+        history, ambiguous, _ = journal.sd._leer_historial(directory / "dossiers.jsonl")
+        return all(
+            d["dossier_id"] not in ambiguous
+            and d["dossier_id"] in history
+            and journal.sd._contexto(d) == journal.sd._contexto(history[d["dossier_id"]])
+            for d in batch["intent"]["dossiers"]
+        )
+
+
+def _fresh_get_unconfirmed(
+    batch_id: str, directory: Path, endpoint: str, fingerprint: str,
+    reason: str, checked: int, expected: int,
+) -> dict[str, Any]:
+    """Separate prior local verification from fresh GET failure, never promote."""
+    if _confirmed_v2_still_local(batch_id, directory, endpoint, fingerprint):
+        return {
+            "batch_id": batch_id, "status": "READBACK_OBSERVED",
+            "reason": "PREVIOUSLY_RECORDED_NOT_FRESHLY_VERIFIED",
+            "fresh_get_status": reason, "checked": checked, "expected": expected,
+            "journal_recorded": True, "scientific_status": "NOT_VALIDATED",
+            "mechanism_execution": "NOT_EXECUTED",
+        }
+    return {"batch_id": batch_id, "status": "UNKNOWN", "reason": reason,
+            "checked": checked, "expected": expected}
+
+
 def reconciliar_lote_por_get(
     batch_id: str, client: Any, directory: Path | None = None,
     *, registrar: bool = True,
@@ -100,6 +142,7 @@ def reconciliar_lote_por_get(
             raise ValueError("batch is not an uncertain remote attempt")
         endpoint = batch.get("endpoint")
         dossiers = batch["intent"]["dossiers"]
+        fingerprint = batch["intent"]["fingerprint"]
         history, ambiguous, _ = journal.sd._leer_historial(directory / "dossiers.jsonl")
         if any(d["dossier_id"] in ambiguous or
                d["dossier_id"] not in history or
@@ -122,27 +165,48 @@ def reconciliar_lote_por_get(
         try:
             lookup = client.get_project(_expected_project(dossier["dossier_id"]))
         except Exception:
-            return {"batch_id": batch_id, "status": "UNKNOWN",
-                    "reason": "GET_FAILED", "checked": len(verified),
-                    "expected": len(dossiers)}
+            return _fresh_get_unconfirmed(
+                batch_id, directory, endpoint, fingerprint,
+                "GET_FAILED", len(verified), len(dossiers),
+            )
         read = _readback(dossier, lookup)
         if read is None:
-            return {"batch_id": batch_id, "status": "UNKNOWN",
-                    "reason": "READBACK_NOT_DURABLY_BOUND", "checked": len(verified),
-                    "expected": len(dossiers)}
+            return _fresh_get_unconfirmed(
+                batch_id, directory, endpoint, fingerprint,
+                "READBACK_NOT_DURABLY_BOUND", len(verified), len(dossiers),
+            )
         verified.append(read)
     if registrar and batch["remote"] == "UNKNOWN":
         try:
             journal.marcar_readback_observado(batch_id, verified, directory,
                                                endpoint=endpoint)
         except (OSError, ValueError):
+            # Another GET worker may have committed the SAME audited receipt.
+            # A stale pre-GET batch snapshot is never sufficient evidence.
+            if _confirmed_v2_still_local(batch_id, directory, endpoint, fingerprint):
+                return {
+                    "batch_id": batch_id, "status": "READBACK_OBSERVED",
+                    "reason": "JOURNAL_CONFIRMED_CONCURRENTLY",
+                    "fresh_get_status": "VERIFIED_FROM_ARTIFACT",
+                    "checked": len(verified), "expected": len(dossiers),
+                    "scientific_status": "NOT_VALIDATED",
+                    "mechanism_execution": "NOT_EXECUTED",
+                    "journal_recorded": True,
+                }
             return {"batch_id": batch_id, "status": "UNKNOWN",
                     "reason": "JOURNAL_COMMIT_UNCONFIRMED", "checked": len(verified),
                     "expected": len(dossiers)}
+    if batch["remote"] == "READBACK_OBSERVED" and not _confirmed_v2_still_local(
+        batch_id, directory, endpoint, fingerprint,
+    ):
+        return {"batch_id": batch_id, "status": "UNKNOWN",
+                "reason": "LOCAL_OR_JOURNAL_CHANGED_DURING_GET",
+                "checked": len(verified), "expected": len(dossiers)}
     return {"batch_id": batch_id, "status": "READBACK_OBSERVED",
             "reason": "PERSISTED_PLANNING_RECEIPTS_ONLY", "checked": len(verified),
             "expected": len(dossiers), "scientific_status": "NOT_VALIDATED",
             "mechanism_execution": "NOT_EXECUTED",
+            "fresh_get_status": "VERIFIED_FROM_ARTIFACT",
             "journal_recorded": registrar or batch["remote"] == "READBACK_OBSERVED"}
 
 
