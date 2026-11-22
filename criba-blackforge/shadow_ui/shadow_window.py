@@ -953,6 +953,14 @@ class TopCardsWidget(QWidget):
         self.btn_inv = btn_inv
         btn_inv.clicked.connect(lambda: actions.on_inventar(win))
         btn_row.addWidget(btn_inv, stretch=1)
+        # btnHibrido: pipeline completo ensemble -> cadena -> adversarial.
+        # Estaba declarado en SHADOW_BINDINGS y en el contrato de 26 targets,
+        # pero Shadow no lo construia: el trabajo estaba muerto.
+        btn_hib = QPushButton("⇶ Híbrido")
+        bind_text(btn_hib, "shadow.hibrido")
+        self.btn_hibrido = btn_hib
+        btn_hib.clicked.connect(lambda: actions.on_hibrido(win))
+        btn_row.addWidget(btn_hib, stretch=1)
         l2.addLayout(btn_row)
         lay.addWidget(f2, stretch=1)
 
@@ -1893,6 +1901,8 @@ class ShadowWindow(QMainWindow):
 
     def _nav(self, key: str) -> None:
         callback_map = {
+            "navNuevaIdea": actions.on_nueva_idea,
+            "navGenerar": actions.on_generar,
             "navRed": actions.on_red,
             "navHistorial": actions.on_historial,
             "navRetro": actions.on_retro,
