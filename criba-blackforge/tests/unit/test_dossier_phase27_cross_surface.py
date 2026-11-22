@@ -212,8 +212,9 @@ def test_cli_send_obeys_same_batch_boundary_without_network(
         workflow_factory=lambda _endpoint: DossierWorkflow(client=client),
     )
     output = capsys.readouterr()
+    # CLI rejects multi-dossier batches even before asking for consent.
     assert exit_status == 2
-    assert "BATCH_DISPATCH_BOUNDARY" in output.out
+    assert '"code": "CLI_SINGLE_BATCH_REQUIRED"' in output.out
     assert client.health_calls == client.post_calls == 0
     assert (directory / batch.JOURNAL).is_file()
 
@@ -232,3 +233,29 @@ def test_worker_with_claim_cannot_send_without_original_endpoint(
             claimed[0], batch_dispatch_id=key,
         )
     assert client.health_calls == client.post_calls == 0
+
+
+def test_real_cli_claim_reaches_health_before_post_and_stays_unknown(
+    tmp_path, monkeypatch, capsys,
+):
+    """A fake-workflow test cannot catch the missing batch_dispatch_id wire."""
+    from criba.dossier_workflow_cli import main as dossier_cli_main
+
+    monkeypatch.setenv("CRIBASHADOW_HOME", str(tmp_path))
+    directory = tmp_path / "dossiers"
+    item = dossiers(run="phase27-cli-single")[0]
+    key = batch.guardar_lote_dossiers([item], directory)["batch_id"]
+    client = NoPostClient()
+    exit_status = dossier_cli_main(
+        ["--home", str(tmp_path), "send", "--dossier-id", item["dossier_id"],
+         "--confirm-first-send"],
+        workflow_factory=lambda _endpoint: DossierWorkflow(client=client),
+    )
+    output = capsys.readouterr()
+    assert exit_status == 2
+    assert '"code": "SUPRA_UNAVAILABLE"' in output.out
+    assert client.health_calls == 1
+    assert client.post_calls == 0
+    current = batch._state(batch._events(directory / batch.JOURNAL))[key]
+    assert current["remote"] == "UNKNOWN"
+    assert current["dispatch_started"] is True
