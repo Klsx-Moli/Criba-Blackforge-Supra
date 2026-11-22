@@ -89,7 +89,10 @@ def test_shadow_labels_show_configured_cloud_model_without_claiming_connection(
         qapp.processEvents()
 
 
-def test_shadow_model_selection_updates_all_labels(qapp, tmp_path):
+def test_shadow_model_selection_updates_all_labels(qapp, tmp_path, monkeypatch):
+    monkeypatch.delenv("CRIBA_EXTERNAL_API_KEY", raising=False)
+    monkeypatch.delenv("CRIBA_EXTERNAL_PROVIDER", raising=False)
+    monkeypatch.setenv("CRIBA_EXTERNAL_BASE_URL", "http://127.0.0.1:8645/v1")
     win = ShadowWindow(database=str(tmp_path / "selected-labels.sqlite3"))
     try:
         selector = win.topcards.interpreter_selector
