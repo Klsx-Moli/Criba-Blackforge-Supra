@@ -1597,6 +1597,9 @@ def _protocolo_intent_actual(win: Any, intent: dict[str, Any]) -> bool:
         and isinstance(entries, list)
         and 0 <= index < len(entries)
         and entries[index] == intent["entry"]
+        and getattr(
+            getattr(win, "candidates", None), "interpretation_index", None
+        ) == intent["selection_index"]
     )
 
 
@@ -1644,6 +1647,9 @@ def on_protocolo_operativo(win: Any) -> None:
         "run_id": sheet.get("run_id"),
         "query": sheet.get("query"),
         "problem": getattr(win, "problem", None),
+        "selection_index": getattr(
+            getattr(win, "candidates", None), "interpretation_index", None
+        ),
     }
     previous = getattr(win, "_protocolo_intent", None)
     if (
@@ -1654,6 +1660,7 @@ def on_protocolo_operativo(win: Any) -> None:
         and previous["run_id"] == intent["run_id"]
         and previous["query"] == intent["query"]
         and previous["problem"] == intent["problem"]
+        and previous["selection_index"] == intent["selection_index"]
     ):
         # Duplicate click or an overlapping call must not spend another model
         # request for the exact same unmodified proposal.

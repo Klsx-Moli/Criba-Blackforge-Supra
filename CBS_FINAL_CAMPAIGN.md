@@ -573,3 +573,8 @@ git diff --check
 - **FIX:** request intent no persistido en ventana, con identidad de sheet, run, query, problem, índice y copia del entry. Callback consume solo su solicitud actual; si cambió sesión, propuesta u objetivo no altera datos y libera el botón únicamente cuando pertenece a la solicitud vigente. Duplicación del mismo request no lanza otro proveedor.
 - **TESTS:** `tests/unit/test_shadow_protocol_stale_phase17.py`: nueva sesión, run, query, problema, mutación del entry, cambio de selección/orden, señales dobles, fallo viejo y llamadas duplicadas. Worker simulado: no implica ninguna inferencia ni modelo real.
 - **EVIDENCE_PENDING:** suite Qt completa y Windows, CI remoto y comprobación de interacciones con estado de navegación. `main` y ASTRA no modificados.
+
+### F17 re-scan — cambio de selección sin cambio de sesión
+
+- **FALSE_COVERAGE evitada:** igualdad de sheet, run y entry no acredita que continúe seleccionada la misma tarjeta; un callback válido en contenido podía forzar la navegación al índice antiguo. Se vincula `interpretation_index` de la selección original. Al cambiar de tarjeta, el resultado obsoleto es descartado, incluso si el mismo `sheet` continúa en memoria.
+- Dos pruebas nuevas: cambio de selección durante la solicitud, y una segunda solicitud de otra selección que anula la primera sin deshabilitar los controles de la nueva.

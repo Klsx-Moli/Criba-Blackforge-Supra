@@ -165,3 +165,48 @@ def test_old_failure_on_replaced_sheet_is_silent(rig):
     workers[0].signals.fail.emit("old error")
     assert errors == []
     assert win.right_panel.protocolo.enabled
+
+
+
+def test_selection_change_in_same_sheet_discards_old_result(rig):
+    workers, errors, _, applied = rig
+    s = sheet()
+    s["entries"].append({
+        "candidate_id": "candidate-2",
+        "estado_interpretacion": "PROPUESTA",
+        "hipotesis": "not validated",
+        "mecanismo": "different",
+    })
+    win = window(s)
+    win.candidates = SimpleNamespace(interpretation_index=0)
+    actions.on_protocolo_operativo(win)
+    win.candidates.interpretation_index = 1
+    workers[0].signals.done.emit({"estado": "PROTOCOLO"})
+    assert not applied and not errors
+    assert win.candidates.interpretation_index == 1
+    assert "protocolo_operativo" not in s["entries"][0]
+
+
+def test_new_selection_supersedes_old_request_even_with_same_sheet(rig):
+    workers, errors, _, applied = rig
+    s = sheet()
+    s["entries"].append({
+        "candidate_id": "candidate-2",
+        "estado_interpretacion": "PROPUESTA",
+        "hipotesis": "not validated",
+        "mecanismo": "different",
+    })
+    win = window(s)
+    win.candidates = SimpleNamespace(interpretation_index=0)
+    actions.on_protocolo_operativo(win)
+    win.candidates.interpretation_index = 1
+    actions.on_protocolo_operativo(win)
+    assert len(workers) == 2
+    workers[0].signals.fail.emit("old worker")
+    assert not errors
+    assert not win.right_panel.protocolo.enabled
+    # A controlled failure from the currently selected proposal is delivered.
+    workers[1].signals.fail.emit("new worker")
+    assert len(errors) == 1
+    assert win.right_panel.protocolo.enabled
+    assert not applied
