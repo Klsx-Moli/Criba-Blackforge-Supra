@@ -2,7 +2,7 @@
 
 **Base F32:** `f68bb1ed225fb9630519bf175f8b8a539fcecfe3`.
 **Rama:** `campaign/cbs-final-32-40`.
-**Alcance:** un cambio mínimo en `criba-blackforge/src/criba/storage.py:Storage.save_chain_memory`, cuatro tests nuevos en `criba-blackforge/tests/unit/test_chain_memory_lock_scope.py`; NO toca ASTRA, motor de intérprete, base de datos real, procesos SUPRA, `main` ni handoff.
+**Alcance:** un cambio mínimo en `criba-blackforge/src/criba/storage.py:Storage.save_chain_memory`, cinco tests nuevos en `criba-blackforge/tests/unit/test_chain_memory_lock_scope.py`; NO toca ASTRA, motor de intérprete, base de datos real, procesos SUPRA, `main` ni handoff.
 **Estado:** implementación publicada; F33 pytest de repositorio **NOT_EXECUTED**.
 
 ## Hallazgo F33-S01 — escritura SQLite bloqueada durante serialización CPU
@@ -20,6 +20,7 @@
 2. `test_concurrent_identical_writes_still_deduplicate_atomically`: 12 escrituras concurrentes de los mismos valores producen 1 fila exacta.
 3. `test_bad_later_json_value_never_causes_partial_chain_memory_write`: un campo incorrecto no permite que campos anteriores se guarden parcialmente.
 4. `test_distinct_field_values_preserve_original_dedup_semantics`: los valores diferentes no se pierden, los idénticos no se duplican; mantiene Unicode y `str(None)` heredados.
+5. `test_chain_memory_dedup_still_uses_begin_immediate`: SQL trace verifica la presencia de `BEGIN IMMEDIATE`, para que eliminar el lock no deje verde una prueba concurrente por casualidad (FALSE_COVERAGE).
 
 **Límites y alternativas:** `Storage.record_event` y `record_decision` siguen haciendo parse/serialización de `evidence_json` tras tomar `BEGIN IMMEDIATE` porque hacen read-modify-write concurrente. Cambiar esos códigos requiere estrategia distinta (por ejemplo, event ledger append-only) y pruebas contra lost update; NO mover directamente `json.dumps(updated)` fuera del lock, porque usaría un snapshot obsoleto. `Storage.reserve_semantic_attempt` y `BlackforgeBroker.reserve` requieren la transacción atómica para identidad/autorización y no se alteraron.
 
@@ -48,4 +49,4 @@ python -B -m pytest -p no:cacheprovider -q tests/unit/test_storage_decision_evid
 git diff --check
 ```
 
-F33 GATE: sentinels 1–4 verificadas con `pytest` sobre Windows y no regresiones de `chain.py`; sólo entonces actualizar estado. G0 científico NO-GO, P0 semántico OPEN, F28 contabilidad física P1 OPEN.
+F33 GATE: sentinels 1–5 verificadas con `pytest` sobre Windows y no regresiones de `chain.py`; sólo entonces actualizar estado. G0 científico NO-GO, P0 semántico OPEN, F28 contabilidad física P1 OPEN.
