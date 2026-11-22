@@ -20,6 +20,12 @@ def _field(value: Any, name: str) -> Any:
     return value.get(name) if isinstance(value, Mapping) else getattr(value, name, None)
 
 
+def _origin_still_bound(client: Any, endpoint: str) -> bool:
+    """Reject receipt provenance when mutable transport origin changed."""
+    value = _field(_field(client, "config"), "endpoint")
+    return isinstance(value, str) and value.rstrip("/") == endpoint
+
+
 def _object(value: Any) -> dict[str, Any] | None:
     if isinstance(value, Mapping):
         return dict(value)
@@ -189,12 +195,26 @@ def reconciliar_lote_por_get(
                 "expected": len(dossiers)}
     verified: list[dict[str, Any]] = []
     for dossier in dossiers:
+        if not _origin_still_bound(client, endpoint):
+            return _fresh_get_unconfirmed(
+                batch_id, directory, endpoint, fingerprint,
+                "ENDPOINT_CHANGED_DURING_GET", len(verified), len(dossiers),
+            )
         try:
             lookup = client.get_project(_expected_project(dossier["dossier_id"]))
         except Exception:
+            reason = (
+                "GET_FAILED" if _origin_still_bound(client, endpoint)
+                else "ENDPOINT_CHANGED_DURING_GET"
+            )
             return _fresh_get_unconfirmed(
                 batch_id, directory, endpoint, fingerprint,
-                "GET_FAILED", len(verified), len(dossiers),
+                reason, len(verified), len(dossiers),
+            )
+        if not _origin_still_bound(client, endpoint):
+            return _fresh_get_unconfirmed(
+                batch_id, directory, endpoint, fingerprint,
+                "ENDPOINT_CHANGED_DURING_GET", len(verified), len(dossiers),
             )
         read = _readback(dossier, lookup)
         if read is None:
@@ -203,6 +223,11 @@ def reconciliar_lote_por_get(
                 "READBACK_NOT_DURABLY_BOUND", len(verified), len(dossiers),
             )
         verified.append(read)
+    if not _origin_still_bound(client, endpoint):
+        return _fresh_get_unconfirmed(
+            batch_id, directory, endpoint, fingerprint,
+            "ENDPOINT_CHANGED_DURING_GET", len(verified), len(dossiers),
+        )
     if registrar and batch["remote"] == "UNKNOWN":
         try:
             journal.marcar_readback_observado(batch_id, verified, directory,
@@ -302,21 +327,29 @@ def inspeccionar_lote_parcial_por_get(
         return refusal("ENDPOINT_MISMATCH", len(original))
     rows: list[dict[str, Any]] = []
     for dossier in original:
+        if not _origin_still_bound(client, endpoint):
+            return refusal("ENDPOINT_CHANGED_DURING_GET", len(original))
         identity = dossier["dossier_id"]
         try:
             lookup = client.get_project(_expected_project(identity))
         except Exception:
+            if not _origin_still_bound(client, endpoint):
+                return refusal("ENDPOINT_CHANGED_DURING_GET", len(original))
             # Includes HTTP 404: a failed GET is not proof that no POST ran.
             rows.append({
                 "dossier_id": identity, "get_status": "GET_UNAVAILABLE_UNKNOWN",
             })
             continue
+        if not _origin_still_bound(client, endpoint):
+            return refusal("ENDPOINT_CHANGED_DURING_GET", len(original))
         verified = _readback(dossier, lookup)
         if verified is None:
             rows.append({
                 "dossier_id": identity, "get_status": "UNBOUND_READBACK_UNKNOWN",
             })
             continue
+        if not _origin_still_bound(client, endpoint):
+            return refusal("ENDPOINT_CHANGED_DURING_GET", len(original))
         recorded = False
         if registrar:
             try:
@@ -335,6 +368,8 @@ def inspeccionar_lote_parcial_por_get(
             "get_status": "FRESH_PLANNING_RECEIPT_VERIFIED",
             "partial_written_now": recorded,
         })
+    if not _origin_still_bound(client, endpoint):
+        return refusal("ENDPOINT_CHANGED_DURING_GET", len(original))
     # The journal or local originals can change during network I/O. Always
     # recheck after sweep; no freshness result survives a lineage change.
     with journal.sd._historial_exclusive(directory):
