@@ -1960,27 +1960,49 @@ def on_desarrollar_supra(win: Any) -> None:
     """Prepare new dossiers OR reconcile an existing batch by GET only."""
     sheet = getattr(win, "invent_sheet", None)
     if isinstance(sheet, dict):
-        persisted_batch_id = sheet.get("dossier_batch_id")
-        existing_remote = sheet.get("dossier_remote_state")
-        if (isinstance(persisted_batch_id, str) and persisted_batch_id
-                and existing_remote in ("UNKNOWN", "READBACK_OBSERVED")):
+        from .supra_batch_resume import resolve_archived_batch
+
+        # Always consult the durable PREPARED journal by run/problem first.
+        # A SQLite invention saved before SUPRA does not receive an automatic
+        # update with dossier_batch_id after the remote reservation.
+        try:
+            existing = resolve_archived_batch(sheet)
+        except (OSError, ValueError, TypeError) as exc:
+            show_error(win, "SUPRA",
+                       f"No se autoriza reenvío: journal local no verificable ({exc})")
+            return
+        if existing is not None:
+            if not existing["committed"]:
+                show_error(win, "SUPRA",
+                           "Lote PREPARED con commit local incompleto. "
+                           "Requiere recuperación local explícita; sin POST.")
+                return
+            if existing["remote_state"] not in ("UNKNOWN", "READBACK_OBSERVED"):
+                show_error(win, "SUPRA",
+                           "Lote local PREPARED sin reserva remota. "
+                           "No se reconstruye ni envía automáticamente.")
+                return
             if (
                 getattr(win, "_supra_submission_token", None) is not None
                 and getattr(win, "_supra_submission_sheet", None) is sheet
             ):
-                show_error(win, "SUPRA", "Lote UNKNOWN: worker original activo. "
-                           "No se inicia un segundo envío ni recuperación simultánea.")
+                show_error(win, "SUPRA", "Lote UNKNOWN con worker original activo. "
+                           "No se inicia otra operación remota.")
                 return
-            if (not isinstance(sheet.get("run_id"), str)
-                    or not sheet["run_id"].strip()
-                    or not isinstance(sheet.get("query"), str)
-                    or not sheet["query"].strip()):
-                show_error(win, "SUPRA", "No se puede vincular el lote a su run_id "
-                           "y problema original. Recuperación no autorizada.")
+            # A mismatched visible problem must not host a valid old receipt.
+            current_problem = getattr(win, "problem", None)
+            if current_problem is not None and current_problem != sheet["query"]:
+                show_error(win, "SUPRA",
+                           "El problema visible difiere de la ficha archivada. "
+                           "Recuperación no autorizada.")
                 return
-            # No need to rebuild the entries: even if the visible proposal
-            # changed after restart, PREPARED is the only authority for GET.
-            _start_supra_batch_get(win, sheet, persisted_batch_id)
+            sheet["dossier_batch_id"] = existing["batch_id"]
+            sheet["dossier_remote_state"] = existing["remote_state"]
+            sheet["dossiers"] = existing["dossiers"]
+            sheet["dossiers_path"] = existing["dossiers_path"]
+            # No proposal reconstruction or POST: GET exactly this PREPARED
+            # batch, even if the archived sheet has zero interpretable entries.
+            _start_supra_batch_get(win, sheet, existing["batch_id"])
             return
     if not sheet or not sheet.get("entries"):
         show_error(win, "SUPRA", "Genera candidatos con Inventar antes de desarrollar.")
