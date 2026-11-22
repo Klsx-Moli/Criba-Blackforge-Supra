@@ -1452,6 +1452,8 @@ def _execute_supra_dossiers(
                                        endpoint=supra.config.endpoint)
         return {
             "workflow_batch_schema": "criba-dossier-workflow/batch-1",
+            "batch_id": batch_id,
+            "journal_recorded": batch_id is not None,
             "confirmed_runs": _workflow_runs,
             "endpoint": supra.config.endpoint,
             "health": health.model_dump(),
@@ -1504,7 +1506,31 @@ def _on_supra_dossiers_done(
     if submission_token is not None:
         # A second done/fail signal must not reapply a completed operation.
         win._supra_submission_token = None
-    runs = report.get("runs", [])
+    runs = report.get("runs")
+    ids = sheet.get("dossiers")
+    journal_confirmed = (
+        report.get("journal_recorded") is True
+        and report.get("batch_id") == sheet.get("dossier_batch_id")
+        and isinstance(ids, list) and bool(ids)
+        and len(ids) == len(set(ids))
+        and isinstance(runs, list)
+        and len(runs) == len(ids)
+        and all(isinstance(item, dict) for item in runs)
+        and {item.get("dossier_id") for item in runs} == set(ids)
+    )
+    if not journal_confirmed:
+        # Worker completion or a POST alone is not a fsynced GET receipt.
+        sheet["dossier_recovery_view_state"] = "UNKNOWN"
+        win.refs["ideaSummary"].setText(
+            "SUPRA respondió, pero el lote NO tiene recibo de planificación "
+            "comprobado en journal · evidencia NO VALIDADA · mecanismo NO EJECUTADO"
+        )
+        set_chip(win.refs["ideaEstadoChip"], "SUPRA · journal no confirmado", "exploracion")
+        _activity(win, "amber", "SUPRA: callback sin confirmación de journal; no promover.")
+        return
+    sheet["dossier_remote_state"] = "READBACK_OBSERVED"
+    sheet["dossier_recovery_view_state"] = "FRESH_JOURNALED"
+    sheet["dossier_fresh_get_status"] = "VERIFIED_FROM_ARTIFACT"
     sheet["supra_runs"] = runs
     readbacks = sum(1 for item in runs if isinstance(item.get("read"), dict))
     candidates = getattr(win, "candidates", None)
@@ -1533,10 +1559,11 @@ def _on_supra_dossiers_done(
     sandbox_note = f" · {sandbox_blocked} sin aislamiento acreditado" if sandbox_blocked else ""
     r["ideaSummary"].setText(
         f"SUPRA workflow: {completed} completado(s) · {blocked} bloqueado(s)"
-        f"{sandbox_note} · GET/readback: {readbacks}/{len(runs)} · "
-        f"mecanismo CRIBA NO EJECUTADO: {criba_not_executed}/{len(runs)}"
+        f"{sandbox_note} · recibo GET/journal: {readbacks}/{len(runs)} · "
+        f"mecanismo CRIBA NO EJECUTADO: {criba_not_executed}/{len(runs)} · "
+        "evidencia científica NO VALIDADA"
     )
-    chip = "SUPRA workflow completado" if runs and blocked == 0 else "SUPRA bloqueado"
+    chip = "SUPRA · recibo de planificación GET registrado"
     set_chip(r["ideaEstadoChip"], chip, "exploracion")
     _activity(
         win,

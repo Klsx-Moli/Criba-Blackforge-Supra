@@ -95,8 +95,10 @@ def window(s):
     )
 
 
-def reply(candidate_id):
+def reply(candidate_id, batch_id=None):
     return {
+        "batch_id": batch_id,
+        "journal_recorded": batch_id is not None,
         "dossiers": [{"dossier_id": "dossier-" + candidate_id}],
         "runs": [{
             "dossier_id": "dossier-" + candidate_id,
@@ -123,7 +125,7 @@ def test_old_completion_cannot_write_new_run(harness):
     assert "supra_runs" not in old and "supra_runs" not in new
     assert win.refs["ideaSummary"].text == summary
 
-    workers[1].signals.done.emit(reply("new"))
+    workers[1].signals.done.emit(reply("new", new["dossier_batch_id"]))
     assert new["supra_runs"] == reply("new")["runs"]
     assert "supra_runs" not in old
     assert win._supra_submission_token is None
@@ -149,7 +151,7 @@ def test_duplicate_done_or_late_failure_does_not_undo_first_terminal_signal(harn
     workers, errors = harness
     win = window(sheet("run", "one"))
     actions.on_desarrollar_supra(win)
-    workers[0].signals.done.emit(reply("one"))
+    workers[0].signals.done.emit(reply("one", win.invent_sheet["dossier_batch_id"]))
     before = win.refs["ideaSummary"].text
     committed = list(win.invent_sheet["supra_runs"])
     workers[0].signals.done.emit(reply("wrong"))
