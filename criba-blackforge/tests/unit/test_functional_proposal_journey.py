@@ -11,7 +11,7 @@ import pytest
 from criba.lottery import VALID_LOTTERY_MODES
 from criba.ui import actions
 from PySide6.QtCore import QEventLoop, QTimer
-from PySide6.QtWidgets import QApplication, QDialog, QListWidget, QPushButton
+from PySide6.QtWidgets import QApplication, QDialog, QListWidget, QMessageBox, QPushButton
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "shadow_ui"))
@@ -252,7 +252,26 @@ def test_shadow_primary_generate_uses_canonical_invention_service(
             operativo=lambda: (True, "double"),
         ),
     )
+    # Since F29, Shadow deliberately starts at "Cargar modelo". The old
+    # test clicked Generate without selecting one, and the new safety gate
+    # correctly rejected it. Select a synthetic backend and authorize only
+    # the mocked request, never a real provider.
+    monkeypatch.delenv("CRIBA_EXTERNAL_API_KEY", raising=False)
+    monkeypatch.delenv("CRIBA_CRITIC_MODEL", raising=False)
+    monkeypatch.delenv("CRIBA_EXTERNAL_FALLBACK_LOCAL", raising=False)
+    monkeypatch.delenv("CRIBA_EXTERNAL_PROVIDER", raising=False)
+    monkeypatch.setenv("CRIBA_EXTERNAL_BASE_URL", "http://127.0.0.1:8645/v1")
+    monkeypatch.setattr(
+        QMessageBox, "question",
+        lambda *_args, **_kwargs: QMessageBox.StandardButton.Yes,
+    )
     win = ShadowWindow(database=str(tmp_path / "primary.sqlite3"))
+    selector = win.topcards.interpreter_selector
+    selector.addItem(
+        "Hermes · fixture sin red",
+        ("openai_compatible", "fixture-no-model"),
+    )
+    selector.setCurrentIndex(selector.count() - 1)
     loop = QEventLoop()
     timer = QTimer()
     timer.timeout.connect(lambda: loop.quit() if win.invent_sheet is not None else None)
