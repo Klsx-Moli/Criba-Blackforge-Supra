@@ -454,11 +454,15 @@ def on_inventar(win: Any) -> None:
     # Preflight before locking mutators or creating any provider attempts.
     selected = getattr(getattr(win, "topcards", None), "interpreter_selector", None)
     chosen = selected.currentData() if selected is not None else None
-    if chosen is None or (
-        isinstance(chosen, str) and
-        (chosen.startswith("source:") or chosen.startswith("catalog:"))
-    ) or (isinstance(chosen, (tuple, list)) and chosen and
-           chosen[0] in {"opencode_catalog", "ollama_catalog"}):
+    # The classic CribaMainWindow has no Shadow interpreter selector.
+    # Preserve its original default path; apply this gate only to Shadow.
+    if selected is not None and (
+        chosen is None or (
+            isinstance(chosen, str) and
+            (chosen.startswith("source:") or chosen.startswith("catalog:"))
+        ) or (isinstance(chosen, (tuple, list)) and chosen and
+               chosen[0] in {"opencode_catalog", "ollama_catalog"})
+    ):
         show_error(win, "Cargar modelo",
                    "Selecciona y activa primero un modelo desde Hermes, Ollama o GGUF. "
                    "OpenCode está disponible solo para explorar el catálogo.")
