@@ -587,3 +587,10 @@ git diff --check
 
 - El worker preserva backend/model al crear la solicitud, pero el sheet activo puede cambiar su configuración durante la inferencia. La nueva identidad de solicitud incluye una copia profunda de `sheet.interpreter` y la invalida si se modifica el backend o modelo. Evita atribuir a la configuración actual un protocolo generado con otra.
 - Tres casos dirigidos adicionales: mutación de backend, mutación de modelo y segunda solicitud que reemplaza a la primera.
+
+
+### F17 headless AST real-body sentinels
+
+- Se añaden pruebas sin dependencia PySide6 que cargan y ejecutan **los cuerpos reales** de cuatro funciones del checkout (`_entry_para_desarrollo`, `_protocolo_intent_actual`, `_finalizar_protocolo_worker`, `on_protocolo_operativo`) mediante Python AST. Sustituyen solo la ejecución Qt/Worker/proveedor y el render final. Casos: dedup, señal terminal única, cambio de sheet, cambio de identidad de entry aunque tenga igual contenido, cambio de modelo, cambio de tarjeta y mutaciones de run/query/mecanismo/objetivo.
+- Estas pruebas son más fuertes que una reimplementación falsa de las guardas; su alcance sigue limitado: no prueban el ciclo real de Qt ni toda la integración.
+- **NOT_EXECUTED** contra checkout completo en este entorno. Sin CI automática en rama de campaña.
