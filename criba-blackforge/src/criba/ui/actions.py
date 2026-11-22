@@ -585,6 +585,9 @@ def on_inventar(win: Any) -> None:
         data = selector.currentData()
         if isinstance(data, (tuple, list)) and len(data) == 2:
             backend, model = str(data[0]), (str(data[1]) or None)
+    # Snapshot the accepted question; a queued worker must not read a later
+    # mutable UI field and attribute it to the selected model/consent.
+    problem_snapshot = str(win.problem)
     win.interpreter_cancel_requested = False
     topcards = getattr(win, "topcards", None)
     evidence_selector = (
@@ -611,7 +614,7 @@ def on_inventar(win: Any) -> None:
 
     def _task() -> dict[str, Any]:
         sheet = _run_inventar(
-            win.problem,
+            problem_snapshot,
             backend=backend,
             model=model,
             mode=mode,
