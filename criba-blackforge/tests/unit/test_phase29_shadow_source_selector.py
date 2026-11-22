@@ -335,3 +335,40 @@ def test_hermes_modal_approval_is_not_reusable_after_change(
                         pytest.fail("stale consent may never start inference"))
     actions.on_inventar(win)
     assert errors and errors[0][0] == "Hermes · consentimiento caducado"
+
+
+@pytest.mark.parametrize("mutation", ["selection", "disk"])
+def test_ollama_consent_cannot_overwrite_drifted_selection_or_file(
+    win, app, monkeypatch, mutation
+):
+    selector = win.topcards.interpreter_selector
+    block = selector.blockSignals(True)
+    selector.setCurrentIndex(selector.findData("source:ollama"))
+    selector.blockSignals(block)
+    actions._on_source_catalog(win, "ollama", SourceCatalog(
+        "ollama", (ModelChoice("ollama", "f30:pending"),), "catalog",
+    ))
+    index = next(
+        i for i in range(selector.count())
+        if selector.itemData(i) == ("ollama_catalog", "f30:pending")
+    )
+    config_path = Path(os.environ["CRIBA_MODEL_CONFIG"])
+
+    def mutate_during_modal(*_args, **_kwargs):
+        if mutation == "selection":
+            selector.setCurrentIndex(0)
+        else:
+            config_path.write_text('{"sentinel":"external-edit"}', encoding="utf-8")
+        return QMessageBox.StandardButton.Yes
+
+    monkeypatch.setattr(QMessageBox, "question", mutate_during_modal)
+    selector.setCurrentIndex(index)
+    app.processEvents()
+    assert not any(p.model == "f30:pending"
+                   for p in load_model_settings().profiles)
+    if mutation == "disk":
+        assert config_path.read_text(encoding="utf-8") == (
+            '{"sentinel":"external-edit"}'
+        )
+    else:
+        assert not config_path.exists()
