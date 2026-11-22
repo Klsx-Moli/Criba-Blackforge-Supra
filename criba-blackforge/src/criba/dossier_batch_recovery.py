@@ -374,14 +374,26 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Reconcilia un lote SUPRA sin POST")
     parser.add_argument("--batch-id", required=True)
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument(
+        "--inspect-partial", action="store_true",
+        help="GET each dossier; does NOT confirm a complete batch",
+    )
     args = parser.parse_args(argv)
     with SupraClient() as client:
-        result = reconciliar_lote_por_get(
-            args.batch_id, client, registrar=not args.dry_run
-        )
+        if args.inspect_partial:
+            result = inspeccionar_lote_parcial_por_get(
+                args.batch_id, client, registrar=not args.dry_run,
+            )
+        else:
+            result = reconciliar_lote_por_get(
+                args.batch_id, client, registrar=not args.dry_run,
+            )
     print(json.dumps(result, ensure_ascii=False, sort_keys=True))
     # A previously recorded planning receipt is not a *fresh* remote check.
     # Automation must not interpret stale/offline evidence as CLI success.
+    if args.inspect_partial:
+        # A partial diagnostic is never a successful full-batch confirmation.
+        return 2
     return 0 if (result["status"] == "READBACK_OBSERVED"
                  and result.get("fresh_get_status") == "VERIFIED_FROM_ARTIFACT") else 2
 
