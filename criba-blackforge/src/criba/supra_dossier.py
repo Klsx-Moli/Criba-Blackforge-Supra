@@ -15,7 +15,8 @@ import hashlib
 import json
 import os
 import warnings
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
+from contextlib import contextmanager
 from copy import deepcopy
 from datetime import UTC, datetime
 from pathlib import Path
@@ -182,6 +183,59 @@ def _contexto(dossier: dict[str, Any]) -> dict[str, Any]:
     return {k: v for k, v in dossier.items() if k not in ("creado_at", "dossier_id")}
 
 
+@contextmanager
+def _historial_exclusive(directory: Path) -> Iterator[None]:
+    """Cross-process advisory lock for all JSONL read-modify-append writers.
+
+    The sidecar is never unlinked: removing an in-use lock inode can split
+    Windows/POSIX coordination into two independent lock domains.
+    """
+    directory.mkdir(parents=True, exist_ok=True)
+    with (directory / ".dossiers.jsonl.lock").open("a+b") as stream:
+        if os.name == "nt":
+            import msvcrt
+
+            stream.seek(0, os.SEEK_END)
+            if not stream.tell():
+                stream.write(b"0")
+                stream.flush()
+            stream.seek(0)
+            msvcrt.locking(stream.fileno(), msvcrt.LK_LOCK, 1)
+            try:
+                yield
+            finally:
+                stream.seek(0)
+                msvcrt.locking(stream.fileno(), msvcrt.LK_UNLCK, 1)
+        else:
+            import fcntl
+
+            fcntl.flock(stream.fileno(), fcntl.LOCK_EX)
+            try:
+                yield
+            finally:
+                fcntl.flock(stream.fileno(), fcntl.LOCK_UN)
+
+
+def _append_historial(path: Path, record: dict[str, Any]) -> None:
+    """Durable append under _historial_exclusive, separating any torn tail.
+
+    Never remove or rewrite existing bytes, even if a previous partial line
+    cannot be decoded. The following complete record starts on a new line.
+    """
+    payload = json.dumps(record, ensure_ascii=False, allow_nan=False).encode("utf-8")
+    with path.open("a+b") as handle:
+        handle.seek(0, os.SEEK_END)
+        if handle.tell():
+            handle.seek(-1, os.SEEK_END)
+            if handle.read(1) != b"\n":
+                handle.seek(0, os.SEEK_END)
+                handle.write(b"\n")
+        handle.seek(0, os.SEEK_END)
+        handle.write(payload + b"\n")
+        handle.flush()
+        os.fsync(handle.fileno())
+
+
 def _leer_historial(
     path: Path,
 ) -> tuple[dict[str, dict[str, Any]], set[str], list[dict[str, Any]]]:
@@ -190,24 +244,41 @@ def _leer_historial(
     resultados: list[dict[str, Any]] = []
     if not path.exists():
         return dossiers, ambiguos, resultados
-    for line in path.read_text(encoding="utf-8").splitlines():
-        try:
-            rec = json.loads(line)
-        except json.JSONDecodeError:
-            continue
-        if not isinstance(rec, dict):
-            continue
-        identity = rec.get("dossier_id")
-        if not isinstance(identity, str) or not identity.strip():
-            continue
-        if rec.get("tipo") == "resultado_observado":
-            resultados.append(rec)
-            continue
-        if identity in dossiers and _contexto(dossiers[identity]) != _contexto(rec):
-            ambiguos.add(identity)
-        else:
-            dossiers.setdefault(identity, rec)
+    # A torn multi-byte UTF-8 tail or malformed row must not mask subsequent
+    # intact entries. Reject parseable duplicates and nonfinite tokens, too.
+    def unique(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+        result: dict[str, Any] = {}
+        for key, value in pairs:
+            if key in result:
+                raise ValueError("duplicate JSON key")
+            result[key] = value
+        return result
+
+    def nonfinite(value: str) -> None:
+        raise ValueError("nonfinite JSON constant")
+
+    with path.open("rb") as stream:
+        for line in stream:
+            try:
+                rec = json.loads(
+                    line, object_pairs_hook=unique, parse_constant=nonfinite
+                )
+            except (UnicodeDecodeError, ValueError):
+                continue
+            if not isinstance(rec, dict):
+                continue
+            identity = rec.get("dossier_id")
+            if not isinstance(identity, str) or not identity.strip():
+                continue
+            if rec.get("tipo") == "resultado_observado":
+                resultados.append(rec)
+                continue
+            if identity in dossiers and _contexto(dossiers[identity]) != _contexto(rec):
+                ambiguos.add(identity)
+            else:
+                dossiers.setdefault(identity, rec)
     return dossiers, ambiguos, resultados
+
 
 
 def preparar_dossier(
@@ -378,24 +449,25 @@ def preparar_dossier(
 
 
 def guardar_dossier(dossier: dict[str, Any], directory: Path | None = None) -> Path:
-    directory = _dossiers_dir(directory)
-    path = directory / "dossiers.jsonl"
+    """Serialize identity validation and append across processes."""
     identity = dossier.get("dossier_id")
     if not _exact_identity_text(identity):
         raise ValueError("dossier_id es obligatorio")
     if dossier.get("tipo") == "resultado_observado":
         raise ValueError("usar registrar_resultado para observaciones")
-    existentes, ambiguos, _ = _leer_historial(path)
-    if identity in ambiguos or (
-        identity in existentes and _contexto(existentes[identity]) != _contexto(dossier)
-    ):
-        raise ValueError("dossier_id ambiguo: crear un dossier nuevo para cambiar su contenido")
-    if identity in existentes:
+    directory = _dossiers_dir(directory)
+    with _historial_exclusive(directory):
+        path = directory / "dossiers.jsonl"
+        existentes, ambiguos, _ = _leer_historial(path)
+        if identity in ambiguos or (
+            identity in existentes and _contexto(existentes[identity]) != _contexto(dossier)
+        ):
+            raise ValueError(
+                "dossier_id ambiguo: crear un dossier nuevo para cambiar su contenido"
+            )
+        if identity not in existentes:
+            _append_historial(path, dossier)
         return path
-    directory.mkdir(parents=True, exist_ok=True)
-    with path.open("a", encoding="utf-8") as handle:
-        handle.write(json.dumps(dossier, ensure_ascii=False) + "\n")
-    return path
 
 
 def cargar_dossier(
@@ -509,6 +581,48 @@ def registrar_resultado(
     execution_resolver: Callable[[str], dict[str, Any] | None] | None = None,
     directory: Path | None = None,
 ) -> dict[str, Any]:
+    """Serialize observation revisions against concurrent dossier writers."""
+    if resultado not in ("positivo", "negativo", "indeterminado"):
+        raise ValueError("resultado debe ser positivo|negativo|indeterminado")
+    directory = _dossiers_dir(directory)
+    # Never contact an external resolver for a missing or ambiguous dossier.
+    # Recheck while locked after resolving: a concurrent writer could have
+    # modified the history between these two reads.
+    known, ambiguous, _ = _leer_historial(directory / "dossiers.jsonl")
+    if dossier_id not in known or dossier_id in ambiguous:
+        raise ValueError("el resultado requiere un dossier existente y no ambiguo")
+    # Resolver callbacks may invoke other storage paths. Never hold a file
+    # lock while calling external/user-provided code: prevent reentrant
+    # deadlocks and unbounded provider latency inside the critical section.
+    resolved_receipt: dict[str, str] = {}
+    if execution_resolver is not None and _exact_identity_text(execution_id):
+        try:
+            resolved_receipt = _normalizar_execution_receipt(
+                execution_resolver(execution_id)
+            )
+        except Exception:  # A failed lookup never grants accreditation.
+            resolved_receipt = {}
+    with _historial_exclusive(directory):
+        return _registrar_resultado_locked(
+            dossier_id, resultado, condiciones=condiciones,
+            execution_id=execution_id, protocol_version=protocol_version,
+            execution_receipt=execution_receipt, execution_resolver=execution_resolver,
+            directory=directory, _resolved_receipt=resolved_receipt,
+        )
+
+
+def _registrar_resultado_locked(
+    dossier_id: str,
+    resultado: str,
+    *,
+    condiciones: str = "",
+    execution_id: str = "",
+    protocol_version: str = "",
+    execution_receipt: dict[str, Any] | None = None,
+    execution_resolver: Callable[[str], dict[str, Any] | None] | None = None,
+    directory: Path | None = None,
+    _resolved_receipt: dict[str, str] | None = None,
+) -> dict[str, Any]:
     """Record a declared result, accrediting it only to a bound execution.
 
     A result without a matching execution/protocol identity is preserved as
@@ -524,16 +638,9 @@ def registrar_resultado(
     dossier = dossiers[dossier_id]
     bound_protocol = str(dossier.get("protocol_version") or "")
     declared_receipt = _normalizar_execution_receipt(execution_receipt)
-    resolved_receipt: dict[str, str] = {}
+    resolved_receipt = dict(_resolved_receipt or {})
     execution_identity_valid = _exact_identity_text(execution_id)
     protocol_identity_valid = _exact_identity_text(protocol_version)
-    if execution_resolver is not None and execution_identity_valid:
-        try:
-            resolved_receipt = _normalizar_execution_receipt(
-                execution_resolver(execution_id)
-            )
-        except Exception:  # noqa: BLE001 — resolver failure cannot fabricate accreditation
-            resolved_receipt = {}
     protocol_complete = _discriminant_protocol_complete(dossier)
     accredited = bool(
         protocol_complete
@@ -606,9 +713,7 @@ def registrar_resultado(
         "registrado_at": registered_at,
         "autor": "humano/experimento",
     }
-    with path.open("a", encoding="utf-8") as handle:
-        handle.write(json.dumps(
-            {**registro, "tipo": "resultado_observado"}, ensure_ascii=False) + "\n")
+    _append_historial(path, {**registro, "tipo": "resultado_observado"})
     return registro
 
 

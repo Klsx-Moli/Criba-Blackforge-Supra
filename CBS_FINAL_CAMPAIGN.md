@@ -390,6 +390,51 @@ python -m ruff check src/criba/invention_acceptance.py src/criba/storage.py src/
 git diff --check
 ```
 
-## Siguiente acción exacta
+## Siguiente acción exacta (histórica, al cierre de fase 10)
 
 **Fase 11 — Persistencia de sesiones y evidencia**: reproducir y proteger consistencia entre `Storage.save_invention`, `sessions`, JSONL de dossiers y `InterpreteStore`. Foco: concurrencia de escritura/lectura, archive vs certified, reemplazo de fila corrupta sin borrar historia, comprobación de pertenencia candidate_id+run_id+problema, recuperación tras reinicio y error de disco entre dossiers; diseño mínimo de journaling sin mutar archivos de usuario existentes. Antes, si se dispone de checkout, ejecutar las pruebas completas introducidas en F08–F10 y corregir regresiones; en caso contrario registrar NOT_EXECUTED y seguir con verificaciones independientes. Analizar callback `on_supra_vertical` tardío contra cambios de sesión. No inferencia, no aprobación de G0, no tocar ASTRA/BLACKFORGE/main, no forzar borrados ni despliegues.
+
+## Fase 11 — Consistencia JSONL: escritores, revisiones y recuperación
+
+Baseline: `54c0530fcfb78ace9120df38d0188d555886dfbd`. Alcance ejecutado: **corrección dirigida del log JSONL de dossiers/observaciones**. Las uniones SQLite↔JSONL y callbacks verticales no se declaran completadas; pasarán a F12. G0=NO_GO; P0_SEMANTIC=OPEN; ASTRA/main sin modificar.
+
+### F11-01 P1 — Dos escritores aceptan simultáneamente el mismo dossier_id
+
+- **STATICALLY_INSPECTED:** `src/criba/supra_dossier.py` original Git blob `9c15940c56b58747bcdcf470e1266f12c43fce2d`, `guardar_dossier`: `_leer_historial` → comprobación de identidad → `path.open("a")` sin exclusión. `registrar_resultado` calculaba `revision_index = len(previous_revisions)` del historial y añadía sin lock, permitiendo dos revisiones con el mismo índice.
+- **VERIFIED_BY_EXECUTION / RECONSTRUCTED_FUNCTIONS:** reproducción determinista de carrera con `Barrier(2)` antes del append del código original; 3 rondas con **2/2 escritores que devolvían éxito** y 2 líneas del mismo dossier_id con mecanismos distintos. Esto provoca identidad ambigua al volver a leer, no una exportación acreditada. El fragmento es fiel al original remoto pero no importado desde el clon íntegro.
+- **FIX:** `_historial_exclusive` crea `.dossiers.jsonl.lock` persistente y usa `fcntl.flock` POSIX / `msvcrt.locking` Windows. **Ambas escrituras productivas** `guardar_dossier` y `registrar_resultado` toman el mismo bloqueo alrededor de leer, validar, asignar revisión y añadir. No se elimina el sidecar, pues la eliminación durante uso separaría el dominio de exclusión. El lock es ADVISORY: requiere que todos los escritores usen el código reparado. Windows **NOT_EXECUTED**.
+- **VERIFIED_BY_EXECUTION / RECONSTRUCTED_FUNCTIONS:** 12 hilos con idéntico dossier_id y cuerpos distintos → exactamente 1 guardado, 11 rechazados; 5 procesos con `multiprocessing.spawn` → exactamente 1 guardado y 4 rechazados; 50 escrituras concurrentes del mismo cuerpo → una sola línea idempotente. Para observaciones con misma `execution_id`/protocolo, 12 hilos y 6 procesos produjeron índices 0..N-1 sin colisión. Casos sintéticos no acreditan ejecución causal.
+- El `execution_resolver` se consulta **fuera del lock**, tras comprobar que el dossier existe y no es ambiguo; se vuelve a verificar dentro del lock. Así no se llama a proveedores por dossiers huérfanos ni se provoca deadlock por callbacks reentrantes que necesiten escribir historial. Una lectura previa puede quedar obsoleta y provocar rechazo conservador, nunca atribución automática. `lecciones_previas` mantiene la reverificación del recibo por lectura. Una vez confirmado un resultado, las correcciones siguen siendo revisiones; no se reescribe ni se borra el historial.
+
+### F11-02 P1 — Un final de JSONL incompleto destruye la legibilidad del siguiente append
+
+- **VERIFIED_BY_EXECUTION / RECONSTRUCTED_FUNCTIONS:** un archivo terminado en `{"dossier_id":"old","mecanismo":"torn"` recibía otro JSON sin separador. Ambos quedaron fusionados en una sola línea inválida; `_leer_historial` omitió ambas entradas.
+- **FIX:** `_append_historial` construye la línea íntegra, valida JSON finito, añade separador si el archivo termina sin LF, escribe y ejecuta `flush+os.fsync` antes de devolver éxito. Nunca trunca ni reescribe el fragmento roto original. El lector trata cada línea como bytes independientes; un UTF-8 final incompleto no impide recuperar líneas posteriores. JSON con claves duplicadas o `NaN/Infinity` se considera no fiable y se ignora, sin convertirlo a identidad válida. Se conserva físicamente el contenido anterior. **No se garantiza recuperación del fragmento corrupto**, reparación automática del historial, atomicidad de batch ni durabilidad del directorio tras apagón.
+- Un `fsync` que lanza excepción no se convierte en `NOT_WRITTEN`: los bytes podrían haberse añadido. Un reintento con la misma identidad/cuerpo debe ser idempotente. Si el segundo dossier de un lote falla, sigue pudiendo quedar persistido el primero (F10); el nuevo lock serializa registros individuales, **no** crea una transacción multi-dossier.
+
+### F11-03 pruebas y mutaciones
+
+- **VERIFIED_BY_ME:** sandbox `/mnt/data/cbs_final_phase11_sandbox`, Python 3.13, fuentes de secciones críticas copiadas y cotejadas con el código original/candidato GitHub, no un import productivo íntegro. **30/30 PASS** en 4.24 s, tests de concurrencia de hilos/procesos `spawn`, tail truncado, UTF-8 incompleto, JSON ambiguo/no finito, idempotencia, reinicio, resolución reentrante, revisión 2021→2035, recibos no concordantes, cero crédito sin resolver, error `fsync` e intento huérfano. `compileall` dirigido PASS. **10/10 mutantes detectados**: lock de escritor, lock de revisión, cola truncada, duplicados, `NaN`, omisión de `fsync`, doble escritura, invocación de resolver huérfano, reinicio del timestamp y aceptación de recibo errado. Restaurado código y repetida suite. Estas pruebas verifican la lógica reconstruida, no el módulo completo tras importar dependencias.
+- **VERIFIED_BY_ME:** regresión exacta anterior de laboratorio reejecutada por separado en `cbs_final_phase07_sandbox`: **242/242 PASS** (4.84 s). No sumarla a una suite íntegra del repo ni afirmar CI verde. La rama de campaña recibe `test_dossier_jsonl_lock_phase11.py` y `test_dossier_observation_revision_phase11.py`, pruebas que sí importan el módulo productivo y deben ejecutarse en checkout completo. Ruff/mypy/Qt/Windows/CI/full pytest **NOT_EXECUTED**.
+- **STATICALLY_INSPECTED:** `DossierWorkflow.bind_local` ya contrasta identidades, estado y `payload_fingerprint` entre recibo SUPRA y JSONL; `lecciones_previas` ya verifica autoridad del recibo de nuevo tras reiniciar. No deshacer esas defensas ni presentarlas como nuevas.
+
+### Límites y decisión
+
+- El lock no cubre escritores ajenos que editen JSONL sin usar el sidecar. En sistemas de archivos de red, o bajo interrupción de alimentación, la semántica de locks/`fsync` debe validarse aparte. El archivo `.dossiers.jsonl.lock` es una nueva entrada persistente; no borrarlo para “limpiar”. No existe `fsync` del directorio, transacción global SQLite+JSONL, verificador físico del proceso remoto, ni sistema de recuperación/restauración del fragmento parcial.
+- `_leer_historial` omite líneas corruptas y conserva los bytes, pero aún falta un informe de integridad visible para operadores. No promocionar registros omitidos a recuentos de 0, PASSED, evidencias o recompensas.
+- **F11-04 EVIDENCE_PENDING:** pertenencia candidato+run+problema entre `sessions`, `InterpreteStore`, dossiers y respuestas SUPRA; estado persistente tras crash/reintentos multi-run; callbacks `on_supra_vertical` todavía sin bloqueo de contexto equivalente; idempotencia multi-dossier; verificación Windows. Incluir expresamente en F12.
+- CRIBA app no se ha ejecutado íntegra en este entorno, no hay inferencias ni cargos, no merge/push a main, sin cambios ASTRA/BLACKFORGE.
+
+Comando en checkout íntegro desde `criba-blackforge`:
+
+```sh
+python -m pytest -q tests/unit/test_dossier_jsonl_lock_phase11.py tests/unit/test_dossier_observation_revision_phase11.py tests/unit/test_dossier_integrity.py tests/unit/test_invention_persistence.py tests/unit/test_invention_boundaries_phase10.py tests/unit/test_shadow_supra_restore_phase10.py tests/unit/test_shadow_supra_stale_callback_phase09.py
+python -m compileall -q src/criba/supra_dossier.py
+python -m ruff check src/criba/supra_dossier.py tests/unit/test_dossier_jsonl_lock_phase11.py tests/unit/test_dossier_observation_revision_phase11.py
+python -m mypy src/criba/supra_dossier.py
+git diff --check
+```
+
+## Siguiente acción exacta
+
+**Fase 12 — Recuperación cruzada SQLite↔JSONL y contexto del worker vertical.** Reconciliar `Storage.save_invention` y `InterpreteStore` con `candidate_id`, `run_id`, `query_hash` y recibo de dossier. Probar doble guardado con contenido distinto, cursor histórico, duplicados de IDs en múltiples ejecuciones, reinicio tras error en segundo dossier y recuperación de proyecto remoto con identidad correcta pero otro problema. Revisar `_on_supra_vertical_done/failed` contra sesión nueva y reintentos; usar tokens y guardas sin tocar SUPRA remoto. Ejecutar primero las regresiones completas F08–F11 si existe checkout real, corrigiendo fallos de integración documentados, con preferencia por pruebas de SQLite real. No tocar ASTRA, BLACKFORGE, G0 ni main; ninguna inferencia/acción externa de pago.
