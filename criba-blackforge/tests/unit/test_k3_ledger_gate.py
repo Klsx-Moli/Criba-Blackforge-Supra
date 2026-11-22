@@ -10,7 +10,7 @@ Sin proveedor y sin red. Se comprueba que el adaptador:
 
 from __future__ import annotations
 
-import sys
+import runpy
 from pathlib import Path
 
 import pytest
@@ -27,7 +27,7 @@ SHA1 = "1" * 64
 SHA2 = "2" * 64
 
 # Ruta al gate real, para comparar el contrato sin duplicarlo a mano.
-GATE_DIR = Path(r"C:/ASTRA_WORK/cbs-g0-review/docs/research/semantic-correspondence/g0-draft")
+GATE_DIR = Path(__file__).resolve().parents[3] / "docs/research/semantic-correspondence/g0-draft"
 
 
 def _reserva(status="ACTIVE", request=SHA1, receipt=None):
@@ -165,49 +165,50 @@ def test_claves_exactas_del_gate() -> None:
     assert set(CAMPOS) == {"case_id", "repetition", "arm", "outcome", "physical_calls"}
 
 
-@pytest.mark.skipif(not (GATE_DIR / "pilot_gate.py").exists(),
-                    reason="gate de referencia no disponible")
-def test_acepta_salida_del_gate_real() -> None:
-    """El gate real debe aceptar nuestros registros sin excepcion.
+@pytest.fixture
+def gate():
+    """Load the vendored gate without global import-path or module-cache changes."""
+    return runpy.run_path(str(GATE_DIR / "pilot_gate.py"))
 
-    Se invoca ``summarize`` del gate en un subproceso con un plan A
-    sintetico que cumple los slots; si el contrato no coincidiera, el gate
-    lanzaria ValueError.
-    """
-    # Plan A completo: 16 slots. Relleno NOT_RUN para probar el contrato.
-    sys.path.insert(0, str(GATE_DIR))
-    import pilot_gate as gate
-    slots = [(s["case_id"], s["repetition"], s["arm"]) for s in gate.schedule("A")]
-    registros = [
-        {"case_id": c, "repetition": r, "arm": a,
-         "outcome": "NOT_RUN", "physical_calls": 0}
-        for c, r, a in slots
-    ]
-    # summarize exige el manifiesto y los slots exactos: debe aceptar el lote.
-    resumen = gate.summarize("A", registros)
+
+@pytest.mark.parametrize("phase,expected", [("A", 16), ("B", 36), ("C", 108)])
+def test_acepta_salida_del_gate_real(gate, phase, expected) -> None:
+    """Feed actual normalizer output to the gate from a fresh checkout."""
+    slots = [(s["case_id"], s["repetition"], s["arm"]) for s in gate["schedule"](phase)]
+    registros = normalizar_lote(slots, {})
+    assert len(registros) == expected
+    assert validar_registros(registros) == []
+    assert all(r["outcome"] == "NOT_RUN" and r["physical_calls"] == 0 for r in registros)
+    resumen = gate["summarize"](phase, registros)
+    assert resumen["status"] == "INCOMPLETE"
     assert resumen["physical_calls_reported"] == 0
-    assert resumen["expected_slots"] == 16
+    assert resumen["expected_slots"] == expected
     assert resumen["reference_status"] == "PROVISIONAL_AUTHOR_REVIEW_NOT_GOLD"
     assert resumen["provenance_status"] == "NOT_VALIDATED_BY_THIS_TOOL"
     assert resumen["authorization"] == "NOT_GRANTED_BY_THIS_TOOL"
     assert resumen["p0_status"] == "OPEN"
 
 
-def test_gate_rechaza_slot_desconocido() -> None:
-    """Un slot que no esta en el plan A debe ser rechazado por el gate."""
-    sys.path.insert(0, str(GATE_DIR))
-    try:
-        import pilot_gate as gate
-        slots = [(s["case_id"], s["repetition"], s["arm"]) for s in gate.schedule("A")]
-        registros = [
-            {"case_id": c, "repetition": r, "arm": a,
-             "outcome": "NOT_RUN", "physical_calls": 0}
-            for c, r, a in slots
-        ]
-        # Cuelo un slot que no existe en el plan.
-        registros.append({"case_id": "NO-EXISTE:aligned", "repetition": 99,
-                          "arm": "S1", "outcome": "NOT_RUN", "physical_calls": 0})
-        with pytest.raises(ValueError):
-            gate.summarize("A", registros)
-    finally:
-        sys.path.remove(str(GATE_DIR))
+def test_gate_rechaza_slot_desconocido(gate) -> None:
+    """An unknown slot emitted by the normalizer must fail the gate."""
+    slots = [(s["case_id"], s["repetition"], s["arm"]) for s in gate["schedule"]("A")]
+    slots.append(("NO-EXISTE:aligned", 99, "S1"))
+    with pytest.raises(ValueError, match="unexpected or duplicate slot"):
+        gate["summarize"]("A", normalizar_lote(slots, {}))
+
+
+def test_gate_recibe_lexico_normalizado_sin_promocion_cientifica(gate) -> None:
+    """Synthetic receipt exercises the adapter, not a real model or physical call."""
+    slots = [(s["case_id"], s["repetition"], s["arm"]) for s in gate["schedule"]("A")]
+    slot = slots[0]
+    registros = normalizar_lote(
+        slots,
+        {slot: _reserva(status="CLOSED", request=SHA1, receipt="b" * 64)},
+        {slot: [_recibo(request=SHA1, cuerpo={"veredicto": "REJECT"})]},
+    )
+    assert registros[0]["outcome"] == "REJECT"
+    resumen = gate["summarize"]("A", registros)
+    assert resumen["physical_calls_reported"] == 1
+    assert resumen["status"] == "INCOMPLETE"
+    assert resumen["provenance_status"] == "NOT_VALIDATED_BY_THIS_TOOL"
+    assert resumen["p0_status"] == "OPEN"
