@@ -1605,6 +1605,9 @@ def _cancelar_protocolo_pendiente(win: Any) -> bool:
 
 def _protocolo_intent_actual(win: Any, intent: dict[str, Any]) -> bool:
     """The async result belongs to the same sheet, run and unchanged entry."""
+    # Reject a cancelled token even if a caller has not cleared its pointer.
+    if intent["cancel"].is_set():
+        return False
     sheet = getattr(win, "invent_sheet", None)
     if not isinstance(sheet, dict) or sheet is not intent["sheet"]:
         return False
@@ -1721,7 +1724,10 @@ def on_protocolo_operativo(win: Any) -> None:
             return {"estado": "PENDIENTE", "error": "REFINEMENT_SUPERSEDED", "protocolo": None}
         # Never give a live GUI-owned entry to an asynchronously invoked
         # provider. Changes to the original entry cannot alter this payload.
-        return refinar_propuesta(interprete, query, deepcopy(intent["entry"]))
+        payload = deepcopy(intent["entry"])
+        if intent["cancel"].is_set():
+            return {"estado": "PENDIENTE", "error": "REFINEMENT_SUPERSEDED", "protocolo": None}
+        return refinar_propuesta(interprete, query, payload)
 
     worker = Worker(_task)
     worker.signals.done.connect(

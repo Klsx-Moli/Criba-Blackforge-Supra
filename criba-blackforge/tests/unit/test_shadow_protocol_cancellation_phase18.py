@@ -111,7 +111,8 @@ def harness(monkeypatch):
                            cancel=namespace["_cancelar_protocolo_pendiente"],
                            workers=workers, constructed=constructed,
                            dispatched=dispatched, applied=applied, failures=failures,
-                           hooks=hooks, window=window, source=tree)
+                           hooks=hooks, window=window, source=tree,
+                           namespace=namespace)
 
 
 def test_duplicate_request_does_not_cancel_its_own_event(harness):
@@ -223,3 +224,36 @@ def test_navigation_entrypoints_invalidate_pending_protocol(harness):
             and node.func.id == "_cancelar_protocolo_pendiente"
         ]
         assert invocations, name
+
+
+
+def test_cancel_during_payload_copy_skips_provider(harness):
+    w = harness.window()
+    harness.start(w)
+    worker = harness.workers[0]
+    original_deepcopy = harness.namespace["deepcopy"]
+    original_entry = w._protocolo_intent["entry"]
+
+    def copy_with_cancellation(value):
+        if value is original_entry:
+            assert harness.cancel(w)
+        return original_deepcopy(value)
+
+    # This changes the AST-extracted function's global deepcopy only after
+    # the request has been prepared. It forces cancellation during the
+    # final provider-bound copy without invoking an actual model.
+    harness.namespace["deepcopy"] = copy_with_cancellation
+    result = worker.fn()
+    assert result["error"] == "REFINEMENT_SUPERSEDED"
+    assert harness.constructed and harness.dispatched == []
+
+
+def test_cancelled_token_fails_closed_even_if_pointer_was_not_cleared(harness):
+    w = harness.window()
+    harness.start(w)
+    intent = w._protocolo_intent
+    intent["cancel"].set()
+    harness.workers[0].signals.done.emit({"estado": "PROTOCOLO"})
+    assert harness.applied == [] and harness.failures == []
+    assert w._protocolo_intent is None
+    assert w.right_panel.protocolo.enabled

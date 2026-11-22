@@ -609,3 +609,9 @@ git diff --check
 
 - **P1 / STATICALLY_INSPECTED / corrected:** `test_shadow_protocol_headless_phase17.py` compila en un namespace AST el cuerpo de `on_protocolo_operativo`; F18 introdujo una llamada global a `_cancelar_protocolo_pendiente` y `Event` que no se importaban en esa suite. Sin parche, las regresiones históricas sufrirían `NameError` (FALSE_COVERAGE del conjunto F18). El harness ahora extrae la función real y suministra `threading.Event`; test adicional verifica invalidación de la solicitud previa por el cuerpo real.
 - **NOT_EXECUTED:** checkout integral de F17/F18 aún pendiente. La reparación conserva el contrato del harness, sin introducir sustitutos de la función productiva.
+
+### F18 re-scan de cancelación durante copia de payload y token cancelado
+
+- Se añadió un tercer control `Event.is_set()` **después** de construir el payload independiente y **antes** de llamar a `refinar_propuesta`. Evita iniciar gasto en un proveedor cuando la cancelación se activa durante una copia lenta de la propuesta.
+- Se añadió el rechazo de `intent.cancel` en `_protocolo_intent_actual`, aun si el puntero a la solicitud no ha sido limpiado; una señal terminal de ese intent no puede publicar resultados.
+- Dos pruebas adversariales nuevas en F18. El conjunto es 11 casos F18. **VERIFIED_BY_ME**: smoke espejo de cinco funciones productivas en sandbox local: 9/9 PASS y py_compile PASS, pero los bytes del checkout completo no son accesibles en contenedor; **NOT_EXECUTED**: suite F18 oficial, Qt, CI y tests globales.
