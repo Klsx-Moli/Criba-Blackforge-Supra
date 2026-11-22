@@ -105,7 +105,22 @@ def reply(candidate_id, batch_id=None):
             "completion_status": "COMPLETED",
             "secure_sandbox_status": "NOT_VERIFIED",
             "criba_mechanism_execution_status": "NOT_EXECUTED",
-            "read": {"project_id": "synthetic-" + candidate_id},
+            "scientific_status": "NOT_VALIDATED",
+            "read": {
+                "project_id": "synthetic-" + candidate_id,
+                "status_source": "PERSISTED_STATE",
+                "persisted_artifact_status": "VERIFIED_FROM_ARTIFACT",
+                "scientific_status": "NOT_VALIDATED",
+                "criba_mechanism_execution_status": "NOT_EXECUTED",
+                "criba_planning_receipt_status": "PRESERVED_NOT_EXECUTED",
+                "receipt": {
+                    "criba_dossier_id": "dossier-" + candidate_id,
+                    "receipt_scope": "PLANNED_DISCRIMINANT_PROTOCOL_ONLY",
+                    "integration_version": "criba-supra/1",
+                    "execution_status": "NOT_EXECUTED",
+                    "scientific_status": "NOT_VALIDATED",
+                },
+            },
         }],
     }
 

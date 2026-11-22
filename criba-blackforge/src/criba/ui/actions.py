@@ -1508,23 +1508,11 @@ def _on_supra_dossiers_done(
         win._supra_submission_token = None
     if not isinstance(report, dict):
         report = {}
+    from .supra_batch_status import submitted_batch_receipt_valid
+
     runs = report.get("runs")
-    ids = sheet.get("dossiers")
-    journal_confirmed = (
-        report.get("journal_recorded") is True
-        and report.get("batch_id") == sheet.get("dossier_batch_id")
-        and isinstance(ids, list) and bool(ids)
-        and all(isinstance(identity, str) and identity for identity in ids)
-        and len(ids) == len(set(ids))
-        and isinstance(runs, list)
-        and len(runs) == len(ids)
-        and all(
-            isinstance(item, dict)
-            and isinstance(item.get("dossier_id"), str)
-            and isinstance(item.get("read"), dict)
-            for item in runs
-        )
-        and {item["dossier_id"] for item in runs} == set(ids)
+    journal_confirmed = submitted_batch_receipt_valid(
+        report, sheet.get("dossiers"), sheet.get("dossier_batch_id"),
     )
     if not journal_confirmed:
         # Worker completion or a POST alone is not a fsynced GET receipt.

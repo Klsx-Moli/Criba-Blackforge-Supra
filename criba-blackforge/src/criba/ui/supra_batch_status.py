@@ -79,3 +79,56 @@ def present_batch_recovery(report: Any) -> dict[str, str]:
             "fresh_get_status": fresh,
         }
     return baseline
+
+
+
+def submitted_batch_receipt_valid(
+    report: Any, dossier_ids: Any, batch_id: Any,
+) -> bool:
+    """Verify the worker-to-Shadow *presentation* contract.
+
+    This is defense-in-depth, not a substitute for the underlying fsynced
+    journal. The actual producer must only return journal_recorded=True after
+    successful v2 receipt persistence. This function refuses conflicting
+    execution/scientific/status-source fields even with that flag set.
+    """
+    if (not isinstance(report, dict) or not isinstance(batch_id, str)
+            or not batch_id or report.get("batch_id") != batch_id
+            or report.get("journal_recorded") is not True):
+        return False
+    if (not isinstance(dossier_ids, list) or not dossier_ids
+            or any(not isinstance(x, str) or not x or x.strip() != x
+                   for x in dossier_ids)
+            or len(set(dossier_ids)) != len(dossier_ids)):
+        return False
+    runs = report.get("runs")
+    if not isinstance(runs, list) or len(runs) != len(dossier_ids):
+        return False
+    seen: set[str] = set()
+    for run in runs:
+        if not isinstance(run, dict):
+            return False
+        identity = run.get("dossier_id")
+        if not isinstance(identity, str) or identity not in dossier_ids or identity in seen:
+            return False
+        seen.add(identity)
+        read = run.get("read")
+        if not isinstance(read, dict):
+            return False
+        receipt = read.get("receipt")
+        if (not isinstance(receipt, dict)
+                or receipt.get("criba_dossier_id") != identity
+                or receipt.get("receipt_scope") != "PLANNED_DISCRIMINANT_PROTOCOL_ONLY"
+                or receipt.get("integration_version") != "criba-supra/1"
+                or receipt.get("execution_status") != "NOT_EXECUTED"
+                or receipt.get("scientific_status") != "NOT_VALIDATED"
+                or read.get("status_source") != "PERSISTED_STATE"
+                or read.get("persisted_artifact_status") != "VERIFIED_FROM_ARTIFACT"
+                or read.get("scientific_status") != "NOT_VALIDATED"
+                or read.get("criba_mechanism_execution_status") != "NOT_EXECUTED"
+                or read.get("criba_planning_receipt_status")
+                   != "PRESERVED_NOT_EXECUTED"
+                or run.get("scientific_status") != "NOT_VALIDATED"
+                or run.get("criba_mechanism_execution_status") != "NOT_EXECUTED"):
+            return False
+    return seen == set(dossier_ids)
