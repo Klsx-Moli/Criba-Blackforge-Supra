@@ -596,10 +596,12 @@ def _on_invented(win: Any, sheet: dict[str, Any]) -> None:
             f"interpretación válida {valid}/{n_entries}"
         )
     _render_interpreter_outputs(win, sheet)
-    # A recovered invention sheet may have no interpretable proposals while
-    # its original SUPRA batch survives in the fsynced journal. Keep the
-    # GET-only recovery action reachable without authorising fresh POST.
+    # A recovered invention sheet may have no interpretable proposals but
+    # still have an original fsynced local intent. The button may perform a
+    # GET-only recovery, or after explicit separate consent reserve the
+    # original local batch's FIRST POST. Never POST during rendering.
     recoverable_supra_batch = False
+    first_prepared_dispatch_available = False
     if valid == 0 and isinstance(sheet.get("run_id"), str):
         try:
             from .supra_batch_resume import resolve_archived_batch
@@ -608,12 +610,18 @@ def _on_invented(win: Any, sheet: dict[str, Any]) -> None:
                 prior is not None and prior["committed"]
                 and prior["remote_state"] in ("UNKNOWN", "READBACK_OBSERVED")
             )
+            first_prepared_dispatch_available = (
+                prior is not None and prior["committed"]
+                and prior["remote_state"] == "NOT_ATTEMPTED"
+            )
         except (OSError, ValueError, TypeError):
             # Fail closed on a corrupt journal; no GET/POST in render path.
             recoverable_supra_batch = False
     right_panel = getattr(win, "right_panel", None)
     if right_panel is not None:
-        right_panel.supra.setEnabled(valid > 0 or recoverable_supra_batch)
+        right_panel.supra.setEnabled(
+            valid > 0 or recoverable_supra_batch or first_prepared_dispatch_available
+        )
         right_panel.protocolo.setEnabled(valid > 0)
 
     evidence_label = str(sheet.get("evidence_mode_label") or "Creativo")
@@ -624,6 +632,8 @@ def _on_invented(win: Any, sheet: dict[str, Any]) -> None:
         f"{n_entries} candidatos · {valid} propuestas válidas · "
         f"interpretación pendiente: {pending} · SUPRA no ejecutado · "
         + ("recuperación GET-only disponible · " if recoverable_supra_batch else "")
+        + ("primer envío SUPRA requiere confirmación · "
+           if first_prepared_dispatch_available else "")
         + f"UNRESOLVED: {totals['unresolved']} · "
         f"PARTIAL: {totals['partial_prior_art']} · SURVIVED: {totals['survived_search']}"
     )
@@ -2016,6 +2026,14 @@ def on_desarrollar_supra(win: Any) -> None:
                            "Lote PREPARED con commit local incompleto. "
                            "Requiere recuperación local explícita; sin POST.")
                 return
+            # The restored row and the visible problem must agree before
+            # asking for consent; a dialog cannot cure wrong session binding.
+            current_problem = getattr(win, "problem", None)
+            if current_problem is not None and current_problem != sheet["query"]:
+                show_error(win, "SUPRA",
+                           "El problema visible difiere de la ficha archivada. "
+                           "Recuperación o primer envío no autorizado.")
+                return
             if existing["remote_state"] == "NOT_ATTEMPTED":
                 # A click alone must not accidentally turn a restored local
                 # intent into a network operation. The explicit confirmation
@@ -2051,13 +2069,6 @@ def on_desarrollar_supra(win: Any) -> None:
             ):
                 show_error(win, "SUPRA", "Lote UNKNOWN con worker original activo. "
                            "No se inicia otra operación remota.")
-                return
-            # A mismatched visible problem must not host a valid old receipt.
-            current_problem = getattr(win, "problem", None)
-            if current_problem is not None and current_problem != sheet["query"]:
-                show_error(win, "SUPRA",
-                           "El problema visible difiere de la ficha archivada. "
-                           "Recuperación no autorizada.")
                 return
             sheet["dossier_batch_id"] = existing["batch_id"]
             sheet["dossier_remote_state"] = existing["remote_state"]
