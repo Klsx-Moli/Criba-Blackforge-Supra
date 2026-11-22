@@ -560,3 +560,8 @@ git diff --check
 - Tests añadidos F16: endpoint nulo, tres mutaciones de canales superiores, marcador antiguo y adulteración del evento v2. Adaptadas fixtures F13 y F15. Test de readback real y GUI/CI requieren checkout completo.
 - **NOT_EXECUTED:** nuevo conjunto de pruebas F16 contra el código exacto (contenedor sin acceso GitHub por DNS y sin PySide6). No elevar G0 ni P0 semántico, y no declarar fase 16 aceptada antes de suite y verificación.
 
+
+### F16 re-scan adversarial: evitar falsa cobertura
+
+- La primera suite F16 inyectaba los tres estados contradictorios solo a través del recuperador GET, que ya los filtraba en F14; una mutación que eliminase la validación del escritor directo de Shadow podría seguir pasando. Se añaden tres sentinels dirigidos a `marcar_readback_observado` con status falsificado y GET separado, más versión de evidencia desconocida que debe fallar cerrada.
+- Quedan diez casos F16 en total (incluidos parametrizados). **NOT_EXECUTED** con checkout íntegro; no se promocionan por el número de casos.
