@@ -6,6 +6,8 @@ Tests never mutate user data: every journal is in pytest tmp_path.
 from __future__ import annotations
 
 import json
+import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -203,3 +205,55 @@ def test_cli_exit_code_requires_fresh_get_not_only_historical_status(
     )
     assert main(["--batch-id", "batch-synthetic"]) == expected_exit
     assert json.loads(capsys.readouterr().out) == report
+
+
+
+def test_separate_python_process_reopens_fsynced_v2_receipt_without_post(tmp_path):
+    """Actual second interpreter, not another call in the same process."""
+    key, _ = _confirm(tmp_path)
+    before = (tmp_path / journal.JOURNAL).read_bytes()
+    child = (
+        "import json,sys\n"
+        "from pathlib import Path\n"
+        "sys.path.insert(0, sys.argv[1])\n"
+        "from criba import dossier_batch as b\n"
+        "directory = Path(sys.argv[2])\n"
+        "state = b._state(b._events(directory / b.JOURNAL))\n"
+        "print(json.dumps({'remote':state[sys.argv[3]]['remote'],"
+        "'pending':b.recuperar_lotes_pendientes(directory)}, sort_keys=True))\n"
+    )
+    result = subprocess.run(
+        [
+            sys.executable, "-c", child,
+            str(Path(__file__).resolve().parents[2] / "src"),
+            str(tmp_path), key,
+        ],
+        text=True, capture_output=True, check=True, timeout=20,
+    )
+    reopened = json.loads(result.stdout.strip())
+    assert reopened == {"remote": "READBACK_OBSERVED", "pending": []}
+    assert (tmp_path / journal.JOURNAL).read_bytes() == before
+
+
+def test_separate_python_process_fails_closed_on_corrupt_v2_journal(tmp_path):
+    key, _ = _confirm(tmp_path)
+    path = tmp_path / journal.JOURNAL
+    with path.open("ab") as handle:
+        handle.write(b'{"schema":"criba-dossier-batch/1","event":')
+    child = (
+        "import sys\n"
+        "from pathlib import Path\n"
+        "sys.path.insert(0, sys.argv[1])\n"
+        "from criba import dossier_batch as b\n"
+        "b._state(b._events(Path(sys.argv[2]) / b.JOURNAL))\n"
+    )
+    result = subprocess.run(
+        [
+            sys.executable, "-c", child,
+            str(Path(__file__).resolve().parents[2] / "src"), str(tmp_path),
+        ],
+        text=True, capture_output=True, timeout=20,
+    )
+    assert result.returncode != 0
+    assert "batch journal corrupt" in result.stderr
+    assert path.read_bytes().endswith(b'{"schema":"criba-dossier-batch/1","event":')

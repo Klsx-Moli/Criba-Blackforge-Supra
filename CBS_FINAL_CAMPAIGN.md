@@ -626,3 +626,8 @@ git diff --check
 - Se conservan journal bytes, no se repite POST y nunca se promociona UNKNOWN ni evidencia científica ausente.
 - Tests F19: 10 escenarios reales de journal/lock/ficheros, más 4 escenarios parametrizados de salida CLI. Solo se simula GET/cliente CLI. NOT_EXECUTED: suite oficial contra checkout completo y CI Windows.
 - Estado: IMPLEMENTED / EVIDENCE_PENDING. G0=NO-GO; P0 semántico=OPEN.
+
+### F19 re-scan: reinicio real de proceso
+
+- Dos sentinels adicionales ejecutan sys.executable en subprocess independiente: un journal v2 fsynced se reabre como READBACK_OBSERVED sin reenvíos ni alteración de bytes, y otro journal con JSONL truncado falla cerrado en el nuevo proceso, preservando el tail corrupto.
+- La suite F19 consta de 12 funciones y 16 casos expandidos (incluidos 4 CLI parametrizados). La ejecución íntegra real continúa NOT_EXECUTED; no confundir pruebas publicadas con pruebas ejecutadas.
