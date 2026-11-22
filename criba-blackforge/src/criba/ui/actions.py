@@ -1524,6 +1524,9 @@ def _on_interpreter_changed(win: Any, index: int) -> None:
         return
     data = selector.itemData(index)
     cards = getattr(win, "topcards", None)
+    # A -> B -> A must not accept the first A's late catalog as the new A.
+    generation = int(getattr(win, "_model_source_generation", 0)) + 1
+    win._model_source_generation = generation
     if isinstance(data, str) and data.startswith("source:"):
         source = data.split(":", 1)[1]
         if cards is not None:
@@ -1535,9 +1538,13 @@ def _on_interpreter_changed(win: Any, index: int) -> None:
         worker = Worker(lambda: discover_models(source))
         worker.signals.done.connect(
             lambda catalog: _on_source_catalog(win, source, catalog)
+            if getattr(win, "_model_source_generation", -1) == generation
+            else None
         )
         worker.signals.fail.connect(
             lambda error: _on_source_catalog_error(win, source, error)
+            if getattr(win, "_model_source_generation", -1) == generation
+            else None
         )
         _start_worker(win, worker)
         return
