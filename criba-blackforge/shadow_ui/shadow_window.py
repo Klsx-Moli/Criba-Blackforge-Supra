@@ -659,7 +659,8 @@ def _selected_interpreter_label(win: Any) -> str:
         return "Cargar modelo"
     backend, model = data if isinstance(data, (tuple, list)) else (data, None)
     if backend == "local_llama":
-        return active_model_label()
+        settings = load_model_settings()
+        return active_model_label(settings) if settings.enabled else "Cargar modelo"
     if backend == "openai_compatible" and model:
         return str(model)
     # Do not silently fall back to the obsolete default remote model.
