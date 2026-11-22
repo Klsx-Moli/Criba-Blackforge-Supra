@@ -1475,6 +1475,31 @@ def _execute_supra_dossiers(
             # GET is mandatory: POST success alone does not prove durable
             # readback, and is not what a reopened Shadow instance consumes.
             lookup = supra.get_project(result.project_id)
+            if batch_id is not None:
+                # Commit each verifiably persisted GET receipt BEFORE the
+                # next POST. If POST N+1 fails, receipt N survives restart,
+                # but the whole batch remains UNKNOWN. Never fabricate
+                # receipts from a successful POST response alone.
+                if (expected_endpoint is None
+                        or supra.config.endpoint.rstrip("/") != expected_endpoint):
+                    raise ValueError("SUPRA endpoint changed before partial GET receipt")
+                from ..dossier_batch import registrar_readback_parcial
+                from ..dossier_batch_recovery import _readback
+
+                audited = _readback(dossier, lookup)
+                if audited is None:
+                    raise ValueError(
+                        "SUPRA persisted GET does not bind original planning dossier"
+                    )
+                if not registrar_readback_parcial(
+                    batch_id, audited, endpoint=expected_endpoint,
+                ):
+                    # Could be a previously recorded partial/full receipt by
+                    # another worker. Never treat it as a new POST authority.
+                    raise ValueError(
+                        "SUPRA partial receipt already recorded; "
+                        "worker cannot continue uncertain POST sequence"
+                    )
             runs.append(
                 {
                     "dossier_id": dossier["dossier_id"],
