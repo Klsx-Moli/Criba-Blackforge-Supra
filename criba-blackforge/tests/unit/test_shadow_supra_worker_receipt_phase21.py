@@ -28,6 +28,11 @@ def valid_report():
                 "criba_planning_receipt_status": "PRESERVED_NOT_EXECUTED",
                 "receipt": {
                     "criba_dossier_id": "dossier-1",
+                    "criba_candidate_id": "candidate-1",
+                    "claim_id": "claim-1",
+                    "mechanism_version": "sha256:" + "a" * 64,
+                    "protocol_version": "sha256:" + "b" * 64,
+                    "payload_fingerprint": "sha256:" + "c" * 64,
                     "receipt_scope": "PLANNED_DISCRIMINANT_PROTOCOL_ONLY",
                     "integration_version": "criba-supra/1",
                     "execution_status": "NOT_EXECUTED",
@@ -98,4 +103,23 @@ def test_unexpected_or_missing_rows_do_not_count_as_complete():
     report = valid_report()
     assert not submitted_batch_receipt_valid(report, ["dossier-1", "dossier-2"], "batch-1")
     report["runs"] = []
+    assert not submitted_batch_receipt_valid(report, ["dossier-1"], "batch-1")
+
+
+
+@pytest.mark.parametrize("field, value", [
+    ("criba_candidate_id", None),
+    ("criba_candidate_id", " "),
+    ("claim_id", None),
+    ("claim_id", ""),
+    ("mechanism_version", None),
+    ("mechanism_version", "sha256:bad"),
+    ("protocol_version", "sha256:" + "Z" * 64),
+    ("payload_fingerprint", None),
+    ("payload_fingerprint", "sha256:" + "0" * 63),
+    ("payload_fingerprint", "sha256:" + "G" * 64),
+])
+def test_missing_or_malformed_receipt_lineage_is_rejected(field, value):
+    report = valid_report()
+    report["runs"][0]["read"]["receipt"][field] = value
     assert not submitted_batch_receipt_valid(report, ["dossier-1"], "batch-1")

@@ -116,6 +116,20 @@ def submitted_batch_receipt_valid(
         if not isinstance(read, dict):
             return False
         receipt = read.get("receipt")
+        if not isinstance(receipt, dict):
+            return False
+        # Schema shape only: the journal validates these hashes against the
+        # original payload. A syntactically valid hash is not independent proof.
+        for name in ("criba_candidate_id", "claim_id"):
+            value = receipt.get(name)
+            if not isinstance(value, str) or not value or value != value.strip():
+                return False
+        for name in ("mechanism_version", "protocol_version", "payload_fingerprint"):
+            value = receipt.get(name)
+            if (not isinstance(value, str) or len(value) != 71
+                    or not value.startswith("sha256:")
+                    or any(c not in "0123456789abcdef" for c in value[7:])):
+                return False
         if (not isinstance(receipt, dict)
                 or receipt.get("criba_dossier_id") != identity
                 or receipt.get("receipt_scope") != "PLANNED_DISCRIMINANT_PROTOCOL_ONLY"

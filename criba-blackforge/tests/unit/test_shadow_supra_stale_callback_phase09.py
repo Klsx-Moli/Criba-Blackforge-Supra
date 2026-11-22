@@ -115,6 +115,11 @@ def reply(candidate_id, batch_id=None):
                 "criba_planning_receipt_status": "PRESERVED_NOT_EXECUTED",
                 "receipt": {
                     "criba_dossier_id": "dossier-" + candidate_id,
+                    "criba_candidate_id": candidate_id,
+                    "claim_id": "synthetic-claim-" + candidate_id,
+                    "mechanism_version": "sha256:" + "a" * 64,
+                    "protocol_version": "sha256:" + "b" * 64,
+                    "payload_fingerprint": "sha256:" + "c" * 64,
                     "receipt_scope": "PLANNED_DISCRIMINANT_PROTOCOL_ONLY",
                     "integration_version": "criba-supra/1",
                     "execution_status": "NOT_EXECUTED",
