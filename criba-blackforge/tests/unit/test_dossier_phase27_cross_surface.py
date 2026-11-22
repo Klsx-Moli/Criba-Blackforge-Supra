@@ -259,3 +259,53 @@ def test_real_cli_claim_reaches_health_before_post_and_stays_unknown(
     current = batch._state(batch._events(directory / batch.JOURNAL))[key]
     assert current["remote"] == "UNKNOWN"
     assert current["dispatch_started"] is True
+
+
+@pytest.mark.parametrize("tail", [
+    b'{"dossier_id":"broken"',
+    b'{"dossier_id":"bad","dossier_id":"duplicate"}\n',
+    b'{"dossier_id":"bad","resultado":NaN}\n',
+    b'{}\n',
+])
+def test_batch_post_refuses_corrupt_but_partially_readable_dossier_history(
+    tmp_path, monkeypatch, tail,
+):
+    directory, key, originals = prepared(tmp_path, monkeypatch)
+    batch.marcar_envio_incierto(key, directory, endpoint=ENDPOINT)
+    accepted = batch.reclamar_inicio_envio_remoto(
+        key, originals, directory, endpoint=ENDPOINT,
+    )
+    path = directory / "dossiers.jsonl"
+    # Raw corruption is preserved for forensics, not repaired in this test.
+    # The original first record remains intact and is still readable via the
+    # permissive legacy helper: that MUST NOT grant authorization to POST.
+    with path.open("ab") as stream:
+        stream.write(tail)
+    before = path.read_bytes()
+    client = NoPostClient()
+    with pytest.raises(WorkflowError, match="BATCH_DISPATCH_BOUNDARY"):
+        DossierWorkflow(client=client).submit(
+            accepted[0], batch_dispatch_id=key, expected_endpoint=ENDPOINT,
+        )
+    assert client.health_calls == client.post_calls == 0
+    assert path.read_bytes() == before
+
+
+def test_batch_post_refuses_parseable_unterminated_dossier_history(
+    tmp_path, monkeypatch,
+):
+    directory, key, originals = prepared(tmp_path, monkeypatch)
+    batch.marcar_envio_incierto(key, directory, endpoint=ENDPOINT)
+    accepted = batch.reclamar_inicio_envio_remoto(
+        key, originals, directory, endpoint=ENDPOINT,
+    )
+    path = directory / "dossiers.jsonl"
+    path.write_bytes(path.read_bytes()[:-1])
+    before = path.read_bytes()
+    client = NoPostClient()
+    with pytest.raises(WorkflowError, match="BATCH_DISPATCH_BOUNDARY"):
+        DossierWorkflow(client=client).submit(
+            accepted[0], batch_dispatch_id=key, expected_endpoint=ENDPOINT,
+        )
+    assert client.health_calls == client.post_calls == 0
+    assert path.read_bytes() == before
