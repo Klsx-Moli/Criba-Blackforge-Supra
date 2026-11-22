@@ -1972,6 +1972,29 @@ def _on_protocolo_failed(win: Any, message: str) -> None:
     _activity(win, "amber", f"Protocolo operativo falló: {message[:160]}")
 
 
+def _confirm_first_prepared_dispatch(win: Any, batch: dict[str, Any]) -> bool:
+    """Require an explicit second consent when resuming a local-only batch.
+
+    A previously saved PREPARED intent may be old; reopening the sheet must
+    never silently send it. A cancelled dialog makes no journal mutation.
+    """
+    from PySide6.QtWidgets import QMessageBox
+
+    response = QMessageBox.question(
+        win,
+        "SUPRA · autorizar primer envío",
+        "Este lote ya está conservado en el journal local y nunca se "
+        "ha reservado para envío remoto.\n\n"
+        f"Dossiers originales: {len(batch['dossiers'])}\n"
+        "¿Autorizar ahora su PRIMER envío a SUPRA?\n\n"
+        "Se registrará UNKNOWN ANTES del primer POST. Si se interrumpe "
+        "la operación, no habrá reintento automático.",
+        QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+        QMessageBox.StandardButton.No,
+    )
+    return response == QMessageBox.StandardButton.Yes
+
+
 def on_desarrollar_supra(win: Any) -> None:
     """Prepare new dossiers OR reconcile an existing batch by GET only."""
     sheet = getattr(win, "invent_sheet", None)
@@ -1993,10 +2016,34 @@ def on_desarrollar_supra(win: Any) -> None:
                            "Lote PREPARED con commit local incompleto. "
                            "Requiere recuperación local explícita; sin POST.")
                 return
+            if existing["remote_state"] == "NOT_ATTEMPTED":
+                # A click alone must not accidentally turn a restored local
+                # intent into a network operation. The explicit confirmation
+                # happens before any remote reservation or marker.
+                if not _confirm_first_prepared_dispatch(win, existing):
+                    return
+                try:
+                    from ..dossier_batch import reservar_primer_envio_preparado
+                    from ..integrations.supra_client import SupraClientConfig
+
+                    origin = SupraClientConfig.from_env().endpoint
+                    reservation = reservar_primer_envio_preparado(
+                        existing["batch_id"], sheet["run_id"], sheet["query"],
+                        endpoint=origin,
+                    )
+                except (OSError, ValueError, TypeError) as exc:
+                    show_error(win, "SUPRA",
+                               f"Primer envío no autorizado: {exc}")
+                    return
+                _start_reserved_supra_submission(
+                    win, sheet, reservation["dossiers"],
+                    batch_id=reservation["batch_id"],
+                    path=reservation["path"],
+                    endpoint=reservation["endpoint"],
+                )
+                return
             if existing["remote_state"] not in ("UNKNOWN", "READBACK_OBSERVED"):
-                show_error(win, "SUPRA",
-                           "Lote local PREPARED sin reserva remota. "
-                           "No se reconstruye ni envía automáticamente.")
+                show_error(win, "SUPRA", "Estado remoto original no admitido.")
                 return
             if (
                 getattr(win, "_supra_submission_token", None) is not None
@@ -2095,6 +2142,24 @@ def on_desarrollar_supra(win: Any) -> None:
     except (TypeError, ValueError, OSError) as exc:
         show_error(win, "SUPRA", f"No se autorizó el envío del lote: {exc}")
         return
+    _start_reserved_supra_submission(
+        win, sheet, dossier_payloads,
+        batch_id=batch["batch_id"], path=str(path), endpoint=endpoint,
+    )
+
+
+def _start_reserved_supra_submission(
+    win: Any, sheet: dict[str, Any], dossier_payloads: list[dict[str, Any]],
+    *, batch_id: str, path: str, endpoint: str,
+) -> None:
+    """Use the SAME worker for fresh and explicitly resumed first sends.
+
+    Caller MUST have fsynced REMOTE_UNKNOWN first. The worker never regenerates
+    any original dossier and cannot be invoked by journal lookup alone.
+    """
+    sheet["dossiers"] = [item["dossier_id"] for item in dossier_payloads]
+    sheet["dossiers_path"] = str(path)
+    sheet["dossier_batch_id"] = batch_id
     sheet["dossier_remote_state"] = "UNKNOWN"
     win._supra_batch_recovery_token = None
     candidates = getattr(win, "candidates", None)
@@ -2125,7 +2190,7 @@ def on_desarrollar_supra(win: Any) -> None:
     expected_run_id = sheet.get("run_id")
     worker = Worker(
         lambda: _execute_supra_dossiers(
-            dossier_payloads, batch_id=batch["batch_id"],
+            dossier_payloads, batch_id=batch_id,
             expected_endpoint=endpoint,
         )
     )
