@@ -651,7 +651,6 @@ class SidebarWidget(QWidget):
 
 def _selected_interpreter_label(win: Any) -> str:
     """Configuration is not availability; never contact a model for a label."""
-    from criba.interprete.openai_compatible import OpenAICompatibleInterpreter
     from criba.model_config import active_model_label
 
     selector = getattr(getattr(win, "topcards", None), "interpreter_selector", None)
