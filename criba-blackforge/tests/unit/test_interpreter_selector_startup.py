@@ -26,10 +26,14 @@ def test_interpreter_selector_shows_cargar_modelo_on_startup(qapp) -> None:
 
     win = ShadowWindow()
     selector = win.topcards.interpreter_selector
-    # La entrada local ya no está en un índice fijo: entre el externo y ella
-    # están los modelos gratuitos del proxy. Se localiza por su userData.
+    # No una cuota gratuita caducada ni un modelo remoto por defecto.
+    assert selector.currentIndex() == 0
+    assert selector.currentData() is None
+    assert selector.itemText(0) == "Cargar modelo"
+    assert [selector.itemData(i) for i in range(1, 4)] == [
+        "source:hermes", "source:opencode", "source:ollama"
+    ]
     local_index = next(
         i for i in range(selector.count()) if selector.itemData(i) == BACKEND_LOCAL
     )
-    # On startup, the local option should say "Cargar modelo", not "Local"
-    assert selector.itemText(local_index) == "Cargar modelo"
+    assert "GGUF" in selector.itemText(local_index)
