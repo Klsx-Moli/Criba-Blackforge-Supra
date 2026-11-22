@@ -281,6 +281,7 @@ def test_desarrollar_con_supra_prepara_dossier_pendiente(qapp, tmp_path, monkeyp
         assert dispatched, "el dossier nunca se despachó a SUPRA"
         summary = win.refs["ideaSummary"].text().upper()
         assert "MECANISMO CRIBA NO EJECUTADO: 1/1" in summary
+        assert "JOURNAL SIN RECIBO" in summary
         assert summary.count("EJECUTADO") > 0, "el resumen debe declarar el estado de ejecución"
         assert summary.count("NO EJECUTADO") == summary.count("EJECUTADO"), (
             f"B02: el resumen afirma ejecución del mecanismo CRIBA sin negarla -> {summary!r}"
@@ -293,10 +294,9 @@ def test_desarrollar_con_supra_prepara_dossier_pendiente(qapp, tmp_path, monkeyp
             assert claimed not in summary, (
                 f"B02: el resumen eleva un resultado NOT_VALIDATED a {claimed} -> {summary!r}"
             )
-        assert "SIN AISLAMIENTO ACREDITADO" in summary, (
-            f"B02: se perdió la marca de aislamiento no acreditado -> {summary!r}"
-        )
-        assert "SUPRA bloqueado" in win.refs["ideaEstadoChip"].text()
+        # A mocked worker has not committed a journal receipt, so the
+        # UI must not promote even its declared BLOCKED/completion values.
+        assert "SUPRA · journal sin recibo" in win.refs["ideaEstadoChip"].text()
 
         # sin propuesta no hay dossier y hay aviso honesto
         sheet2 = _sheet_stub("x")
@@ -337,8 +337,8 @@ def test_supra_result_ui_does_not_call_planning_receipt_criba_execution(qapp) ->
             },
         )
         summary = win.refs["ideaSummary"].text()
-        assert "SUPRA workflow" in summary
+        assert "journal SIN RECIBO" in summary
         assert "mecanismo CRIBA NO EJECUTADO: 1/1" in summary
-        assert "SUPRA bloqueado" in win.refs["ideaEstadoChip"].text()
+        assert "SUPRA · journal sin recibo" in win.refs["ideaEstadoChip"].text()
     finally:
         win.close()

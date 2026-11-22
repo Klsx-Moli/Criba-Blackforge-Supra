@@ -1506,26 +1506,40 @@ def _on_supra_dossiers_done(
     if submission_token is not None:
         # A second done/fail signal must not reapply a completed operation.
         win._supra_submission_token = None
+    if not isinstance(report, dict):
+        report = {}
     runs = report.get("runs")
     ids = sheet.get("dossiers")
     journal_confirmed = (
         report.get("journal_recorded") is True
         and report.get("batch_id") == sheet.get("dossier_batch_id")
         and isinstance(ids, list) and bool(ids)
+        and all(isinstance(identity, str) and identity for identity in ids)
         and len(ids) == len(set(ids))
         and isinstance(runs, list)
         and len(runs) == len(ids)
-        and all(isinstance(item, dict) for item in runs)
-        and {item.get("dossier_id") for item in runs} == set(ids)
+        and all(
+            isinstance(item, dict)
+            and isinstance(item.get("dossier_id"), str)
+            and isinstance(item.get("read"), dict)
+            for item in runs
+        )
+        and {item["dossier_id"] for item in runs} == set(ids)
     )
     if not journal_confirmed:
         # Worker completion or a POST alone is not a fsynced GET receipt.
         sheet["dossier_recovery_view_state"] = "UNKNOWN"
-        win.refs["ideaSummary"].setText(
-            "SUPRA respondió, pero el lote NO tiene recibo de planificación "
-            "comprobado en journal · evidencia NO VALIDADA · mecanismo NO EJECUTADO"
+        known_runs = runs if isinstance(runs, list) else []
+        not_executed = sum(
+            1 for item in known_runs if isinstance(item, dict)
+            and item.get("criba_mechanism_execution_status") == "NOT_EXECUTED"
         )
-        set_chip(win.refs["ideaEstadoChip"], "SUPRA · journal no confirmado", "exploracion")
+        win.refs["ideaSummary"].setText(
+            "SUPRA respondió, pero journal SIN RECIBO verificable · "
+            f"mecanismo CRIBA NO EJECUTADO: {not_executed}/{len(known_runs)} · "
+            "evidencia científica NO VALIDADA"
+        )
+        set_chip(win.refs["ideaEstadoChip"], "SUPRA · journal sin recibo", "exploracion")
         _activity(win, "amber", "SUPRA: callback sin confirmación de journal; no promover.")
         return
     sheet["dossier_remote_state"] = "READBACK_OBSERVED"
