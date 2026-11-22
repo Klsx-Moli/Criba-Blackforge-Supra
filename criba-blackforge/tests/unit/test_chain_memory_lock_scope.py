@@ -18,7 +18,7 @@ def _prepare_store(tmp_path):
 
 
 def _rows(store):
-    with store.connect() as con:
+    with closing(store.connect()) as con:
         return [
             (row["field_name"], row["field_value"])
             for row in con.execute(
