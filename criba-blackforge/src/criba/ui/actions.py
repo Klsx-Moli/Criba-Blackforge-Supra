@@ -1433,7 +1433,10 @@ def _execute_supra_dossiers(
     from ..dossier_workflow import DossierWorkflow as _DossierWorkflow
     _workflow_runs: list[dict[str, Any]] = []
     def _workflow_submit_batch(_workflow_client: Any, **kwargs: Any) -> Any:
-        outcome = _DossierWorkflow(client=_workflow_client).submit(**kwargs)
+        outcome = _DossierWorkflow(client=_workflow_client).submit(
+            **kwargs, batch_dispatch_id=batch_id,
+            expected_endpoint=expected_endpoint,
+        )
         _workflow_runs.append(outcome.report(_supra_lookup_read))
         return outcome.post
     from ..integrations import SupraClient, objective_from_dossier
