@@ -642,3 +642,9 @@ git diff --check
 - **Callbacks:** identidad de token, `sheet is`, `run_id`, `batch_id` y `problem`. Duplicados GET bloqueados mientras corre la misma solicitud; abandonar sesión o recuperar el último proyecto invalida el GET antiguo. Nunca se invoca POST en reconciliación.
 - **Tests:** 24 casos de proyección headless reproducidos localmente (24/24 PASS, Python 3.13), más 11 pruebas de cableado Qt publicadas (no ejecutadas por falta de PySide6). Fases 09 y GUI Inventar actualizadas para no exigir falsos resultados de un worker simulado sin journal.
 - **EVIDENCE_PENDING:** tests oficiales contra checkout real, Qt Windows, suite completa, Ruff, mypy, CI. G0 NO-GO y P0 semántico OPEN.
+
+### F20 re-scan — identidad del lote tras restauración
+
+- El botón de recuperación consulta ahora un `dossier_batch_id` previamente reservado **antes de validar propuestas actuales**. El replay no depende de que una sesión antigua siga teniendo entradas interpretables; el journal local es la única autoridad de lo que se envió.
+- `reconciliar_lote_por_get` acepta precondiciones opcionales `expected_run_id` / `expected_problem`. La ruta Shadow las exige y las coteja con el `PREPARED` duradero bajo lock, antes de abrir GET; un batch_id de otra sesión retorna `INTENT_LINEAGE_MISMATCH` y no toca remoto ni journal.
+- Cuatro casos GET lineage con JSONL real y cuatro casos Qt adicionales de ficha sin propuestas, dedup, run_id ausente y cambio de query durante GET. **NOT_EXECUTED** contra checkout completo; no se interpreta la publicación de pruebas como PASS.

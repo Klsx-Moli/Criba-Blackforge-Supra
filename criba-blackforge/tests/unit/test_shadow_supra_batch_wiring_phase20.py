@@ -204,3 +204,49 @@ def test_get_only_entrypoint_imports_reconciliation_not_post(monkeypatch):
     assert calls[0][2] == {
         "expected_run_id": "run-known", "expected_problem": "problem-known",
     }
+
+
+
+def test_restart_sheet_without_entries_still_reconciles_bound_batch(harness):
+    win, workers, errors = _queued_recovery(harness)
+    win.invent_sheet["entries"] = []
+    actions.on_desarrollar_supra(win)
+    # Same active GET must be deduplicated despite missing entries.
+    assert len(workers) == 2
+    workers[1].signals.done.emit(_result(win))
+    assert win.invent_sheet["dossier_recovery_view_state"] == "FRESH_JOURNALED"
+    assert len(errors) == 1
+
+
+def test_restored_sheet_with_no_entries_starts_get_only_after_timeout(harness):
+    workers, errors = harness
+    win = window(sheet("restart", "one"))
+    actions.on_desarrollar_supra(win)
+    workers[0].signals.fail.emit("timeout")
+    win.invent_sheet["entries"] = []
+    actions.on_desarrollar_supra(win)
+    assert len(workers) == 2
+    assert len(errors) == 1
+    workers[1].signals.done.emit(_result(win))
+    assert win.invent_sheet["dossier_recovery_view_state"] == "FRESH_JOURNALED"
+
+
+def test_missing_run_lineage_blocks_get_before_worker(harness):
+    win, workers, errors = _queued_recovery(harness)
+    workers[1].signals.done.emit(_result(win))
+    win.invent_sheet["run_id"] = None
+    actions.on_desarrollar_supra(win)
+    assert len(workers) == 2
+    assert len(errors) == 2
+    assert "run_id" in errors[-1][2]
+
+
+def test_sheet_query_mutated_while_get_pending_discards_late_result(harness):
+    win, workers, errors = _queued_recovery(harness)
+    before = win.refs["ideaSummary"].text
+    win.invent_sheet["query"] = "changed after GET began"
+    workers[1].signals.done.emit(_result(win))
+    assert win.refs["ideaSummary"].text == before
+    assert win._supra_batch_recovery_token is None
+    assert "dossier_recovery_view_state" not in win.invent_sheet
+    assert len(errors) == 1
