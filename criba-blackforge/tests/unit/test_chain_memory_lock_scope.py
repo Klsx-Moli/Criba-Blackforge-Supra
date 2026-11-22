@@ -107,3 +107,22 @@ def test_distinct_field_values_preserve_original_dedup_semantics(tmp_path):
         ("plain", "None"),
         ("repeated", "[1, 2]"),
     ]
+
+
+def test_chain_memory_dedup_still_uses_begin_immediate(tmp_path, monkeypatch):
+    """An eventual green concurrency run cannot conceal removal of the lock."""
+    store = _prepare_store(tmp_path)
+    original_connect = store.connect
+    sql_trace = []
+
+    def observed_connect():
+        con = original_connect()
+        con.set_trace_callback(sql_trace.append)
+        return con
+
+    monkeypatch.setattr(store, "connect", observed_connect)
+    store.save_chain_memory(
+        "chain-f33", 1, {"serialized": {"identity": "same"}},
+    )
+    assert any(sql.strip().upper() == "BEGIN IMMEDIATE" for sql in sql_trace)
+    assert _rows(store) == [("serialized", '{"identity": "same"}')]
