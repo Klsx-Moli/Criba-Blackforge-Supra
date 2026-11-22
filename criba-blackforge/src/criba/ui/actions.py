@@ -541,18 +541,24 @@ def on_inventar(win: Any) -> None:
             return
         # Qt's nested modal loop allows selection/problem/env changes during
         # consent. An approval for A must never launch model B or a new problem.
-        current_identity = (
-            selected.currentIndex(), selected.currentData(), win.problem,
-            os.environ.get("CRIBA_EXTERNAL_BASE_URL", ""),
-            os.environ.get("CRIBA_EXTERNAL_API_KEY", ""),
-            os.environ.get("CRIBA_EXTERNAL_PROVIDER", ""),
-            os.environ.get("CRIBA_CRITIC_MODEL", ""),
-            *_invention_controls(win),
-        )
-        if (current_identity != consent_identity or not _hermes_proxy_base_ok()
-                or selected.itemData(
+        try:
+            current_identity = (
+                selected.currentIndex(), selected.currentData(), win.problem,
+                os.environ.get("CRIBA_EXTERNAL_BASE_URL", ""),
+                os.environ.get("CRIBA_EXTERNAL_API_KEY", ""),
+                os.environ.get("CRIBA_EXTERNAL_PROVIDER", ""),
+                os.environ.get("CRIBA_CRITIC_MODEL", ""),
+                *_invention_controls(win),
+            )
+            still_hermes = (
+                selected.itemData(
                     selected.currentIndex(), Qt.ItemDataRole.UserRole + 1
-                ) != "hermes"):
+                ) == "hermes"
+            )
+        except (RuntimeError, ValueError):
+            current_identity, still_hermes = None, False
+        if (current_identity != consent_identity or not _hermes_proxy_base_ok()
+                or not still_hermes):
             show_error(
                 win, "Hermes · consentimiento caducado",
                 "El modelo, problema, ajustes o conexión cambiaron durante "
