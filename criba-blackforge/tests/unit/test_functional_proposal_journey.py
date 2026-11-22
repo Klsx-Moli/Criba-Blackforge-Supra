@@ -78,11 +78,12 @@ def test_shadow_labels_show_configured_cloud_model_without_claiming_connection(
     monkeypatch.setenv("CRIBA_MODEL_CONFIG", str(tmp_path / "no-local-model.json"))
     win = ShadowWindow(database=str(tmp_path / "labels.sqlite3"))
     try:
-        assert "fixture/selected-model:free" in win.topcards.interpreter_selector.itemText(0)
-        assert "fixture/selected-model:free" in win.header.model_btn.text()
-        assert "fixture/selected-model:free" in win.footer.model_block._title_label.text()
+        assert win.topcards.interpreter_selector.currentData() is None
+        assert "Cargar modelo" in win.topcards.interpreter_selector.itemText(0)
+        assert "Cargar modelo" in win.header.model_btn.text()
+        assert "Cargar modelo" in win.footer.model_block._title_label.text()
+        assert "fixture/selected-model:free" not in win.header.model_btn.text()
         assert "al generar" in win.header.model_btn.toolTip()
-        assert "local" not in win.header.model_btn.text().casefold()
     finally:
         win.close()
         qapp.processEvents()
@@ -92,10 +93,9 @@ def test_shadow_model_selection_updates_all_labels(qapp, tmp_path):
     win = ShadowWindow(database=str(tmp_path / "selected-labels.sqlite3"))
     try:
         selector = win.topcards.interpreter_selector
-        index = next(
-            i for i in range(selector.count()) if isinstance(selector.itemData(i), (tuple, list))
-        )
-        model = selector.itemData(index)[1]
+        model = "fixture/manual-hermes-model"
+        selector.addItem(f"Hermes · {model}", ("openai_compatible", model))
+        index = selector.count() - 1
         selector.setCurrentIndex(index)
         qapp.processEvents()
         assert model in win.header.model_btn.text()
@@ -121,8 +121,10 @@ def test_model_label_refresh_preserves_choice_and_never_contacts_provider(
     win = ShadowWindow(database=str(tmp_path / "no-network-labels.sqlite3"))
     try:
         selector = win.topcards.interpreter_selector
-        assert selector.currentData() == "openai_compatible"
-        selector.setCurrentIndex(1)
+        assert selector.currentData() is None
+        # Do not sync a live provider for a label-only test.
+        selector.addItem("Hermes · modelo de prueba", ("openai_compatible", "fixture"))
+        selector.setCurrentIndex(selector.count() - 1)
         selected = selector.currentData()
         actions._refresh_interpreter_selector(win)
         assert selector.currentData() == selected
