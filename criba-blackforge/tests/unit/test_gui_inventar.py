@@ -216,9 +216,7 @@ def test_desarrollar_con_supra_prepara_dossier_pendiente(qapp, tmp_path, monkeyp
     })
     sheet["ficha_bloqueo"] = {"bloqueo": "permisos reutilizables", "origen_bloqueo": "hipotesis"}
 
-    rutas = []
-    monkeypatch.setattr(sd, "guardar_dossier",
-                        lambda d, directory=None: (rutas.append(d), tmp_path / "d.jsonl")[1])
+    sheet["run_id"] = "gui-phase13-synthetic-run"
     monkeypatch.setattr(sd, "_dossiers_dir", lambda override=None: tmp_path)
 
     # El despacho SUPRA se sustituye por un resultado controlado: este test
@@ -227,7 +225,7 @@ def test_desarrollar_con_supra_prepara_dossier_pendiente(qapp, tmp_path, monkeyp
     # aserción (dependencia del orden de hilo) y la aserción sería flaky.
     dispatched: list[list[dict]] = []
 
-    def fake_execute(dossiers, client=None):
+    def fake_execute(dossiers, client=None, *, batch_id=None):
         dispatched.append(dossiers)
         return {
             "health": {"status": "ok", "service": "SUPRA"},
@@ -255,7 +253,8 @@ def test_desarrollar_con_supra_prepara_dossier_pendiente(qapp, tmp_path, monkeyp
         actions.on_desarrollar_supra(win)
 
         assert sheet["dossiers"] and sheet["dossiers"][0].startswith("dossier-")
-        dossier_guardado = rutas[0]
+        dossier_guardado = sd.cargar_dossier(sheet["dossiers"][0], tmp_path)
+        assert dossier_guardado is not None
         assert dossier_guardado["estado"] == "SUPRA_EJECUCION_PENDIENTE"
         assert dossier_guardado["prueba_discriminante"]["estado_prueba"] == "NO_EJECUTADA"
         assert dossier_guardado["prueba_discriminante"]["afirmacion_decisiva"]

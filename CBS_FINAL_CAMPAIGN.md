@@ -501,3 +501,10 @@ git diff --check
 ## Siguiente acción exacta (tras fase 13)
 
 **Fase 14 — Reconciliación remota y recuperación verificada tras reinicio.** Consultar por GET las identidades deterministas de proyectos de un batch UNKNOWN; verificar receipt, fingerprint, estado persistido y endpoint, sin mandar POST. No promover UNKNOWN a éxito ni reintentar automáticamente. Antes, ejecutar suite real de fase 13 y resolver incompatibilidades del wiring. Probar cierres, fallos tras POST, reinicios, cambios de endpoint y pruebas de falsas coberturas, sin tocar ASTRA, BLACKFORGE ni main.
+
+
+### Fase 13 — reconciliación de pruebas históricas (compatibilidad pendiente de ejecutar)
+
+- **STATICALLY_INSPECTED:** La prueba de callbacks Phase09 exigía dos workers al pulsar dos veces el MISMO sheet; ahora ese comportamiento es inseguro y se sustituye por una aserción de un solo worker y segundo intento bloqueado como UNKNOWN. La fixture usa directorio temporal real, no un fake guardar_dossier que ya no es la escritura productiva.
+- **STATICALLY_INSPECTED:** test_gui_inventar.py interceptaba guardar_dossier, que el lote nuevo ya no invoca, y su fake de _execute_supra_dossiers no aceptaba batch_id. Se adapta para comprobar persistencia real mediante cargar_dossier y aceptar ese argumento sin ejecutar red.
+- Estos cambios siguen **NOT_EXECUTED** en PySide6/Qt y checkout completo: son adaptación de expectativas e instrumentación, no nuevos PASS. El scheduler global y la integración visual requieren validación.

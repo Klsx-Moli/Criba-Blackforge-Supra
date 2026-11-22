@@ -1,11 +1,10 @@
 """F09: stale SUPRA worker signals must never contaminate another Shadow run.
 
-All workers, dossier writes and UI widgets are doubles. No SUPRA client,
-network, filesystem write, model call or Qt event loop is started.
+Workers/UI widgets are doubles; dossier/journal fsync uses pytest's temporary
+folder. No SUPRA client, network, model call or Qt event loop is started.
 """
 from __future__ import annotations
 
-from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
@@ -42,7 +41,7 @@ class FakeWorker:
 
 
 @pytest.fixture
-def harness(monkeypatch):
+def harness(monkeypatch, tmp_path):
     workers = []
     errors = []
     monkeypatch.setattr(actions, "Worker", FakeWorker)
@@ -55,12 +54,12 @@ def harness(monkeypatch):
         lambda entry, query, ficha_bloqueo=None: {
             "dossier_id": "dossier-" + entry["candidate_id"],
             "candidate_id": entry["candidate_id"],
+            "run_id": entry["run_id"],
+            "problema": query,
+            "estado": "SUPRA_EJECUCION_PENDIENTE",
         },
     )
-    monkeypatch.setattr(
-        supra_dossier, "guardar_dossier",
-        lambda dossier: Path("/synthetic/no-dossier-written.jsonl"),
-    )
+    monkeypatch.setattr(supra_dossier, "_dossiers_dir", lambda override=None: tmp_path)
     return workers, errors
 
 
@@ -131,20 +130,18 @@ def test_old_completion_cannot_write_new_run(harness):
     assert errors == []
 
 
-def test_old_failure_does_not_overwrite_new_submission_same_sheet(harness):
+def test_same_sheet_repeat_blocked_before_second_worker(harness):
     workers, errors = harness
     current = sheet("same", "candidate")
     win = window(current)
     actions.on_desarrollar_supra(win)
+    assert len(workers) == 1
     actions.on_desarrollar_supra(win)
-    assert len(workers) == 2
-    before = win.refs["ideaSummary"].text
-    workers[0].signals.fail.emit("old synthetic timeout")
-    assert win.refs["ideaSummary"].text == before
-    assert errors == []
-    workers[1].signals.fail.emit("new synthetic timeout")
+    assert len(workers) == 1
+    assert len(errors) == 1 and "UNKNOWN" in errors[0][2]
+    workers[0].signals.fail.emit("synthetic timeout")
     assert "NO CONFIRMADA" in win.refs["ideaSummary"].text
-    assert len(errors) == 1
+    assert len(errors) == 2
     assert win._supra_submission_token is None
 
 
