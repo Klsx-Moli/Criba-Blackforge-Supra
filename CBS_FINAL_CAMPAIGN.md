@@ -435,6 +435,44 @@ python -m mypy src/criba/supra_dossier.py
 git diff --check
 ```
 
-## Siguiente acción exacta
+## Siguiente acción exacta (histórica, al cierre de fase 11)
 
 **Fase 12 — Recuperación cruzada SQLite↔JSONL y contexto del worker vertical.** Reconciliar `Storage.save_invention` y `InterpreteStore` con `candidate_id`, `run_id`, `query_hash` y recibo de dossier. Probar doble guardado con contenido distinto, cursor histórico, duplicados de IDs en múltiples ejecuciones, reinicio tras error en segundo dossier y recuperación de proyecto remoto con identidad correcta pero otro problema. Revisar `_on_supra_vertical_done/failed` contra sesión nueva y reintentos; usar tokens y guardas sin tocar SUPRA remoto. Ejecutar primero las regresiones completas F08–F11 si existe checkout real, corrigiendo fallos de integración documentados, con preferencia por pruebas de SQLite real. No tocar ASTRA, BLACKFORGE, G0 ni main; ninguna inferencia/acción externa de pago.
+
+## Fase 12 — Identidad de candidatos entre runs y barrera de callbacks SUPRA vertical
+
+Base: `6c6bb8a35985d4862e2454a2682924e1657ca93e`. Resultado: correcciones de trazabilidad y protección del GUI en fuente, con regresión aislada; **NO se declara integrado/verificado en PySide6 ni se cierra atomicidad SQLite↔JSONL**.
+
+### F12-01 — Reconciliación del contrato run_id / candidate_id / problema
+
+- **STATICALLY_INSPECTED / REFUTACIÓN:** `src/criba/inventar.py` crea `run_id = uuid.uuid4().hex` por corrida y **ya copia** ese valor a cada entry. No había pérdida sistemática de run_id en el productor vigente. El defecto residía en las rutas consumidoras: `supra_dossier.preparar_dossier` usa `entry.get("run_id","")` y las tres rutas de exportación no rechazaban explícitamente un entry legado, alterado o que perteneciese a otra sesión. `Storage.save_invention` escribe otra identidad de archivo (`invention-uuid`) y guarda query_hash; ni ese ID ni el hash prueban que el modelo fue auténtico.
+- **FIX:** `src/criba/invention_lineage.py` introduce `bind_entry_to_sheet`. Comprueba query del sheet, candidate_id exacto, pertenencia por contenido a una única entrada del sheet, run_id explícito consistente, campos query/problema contradichos; devuelve copia profunda y copia el run_id canónico sin modificar la entrada. Legacy sin run_id permanece representable como **no acreditado**, sin fabricar identidad. `ui.actions.on_desarrollar_supra`, `_prepare_dossier_for_selected_idea` y `cli inventar --dossier` llaman a esa función ANTES de construir el dossier. La validación de F10, preparación completa y bloqueo de escrituras F11 se conservan.
+- **FIX:** `verify_archived_invention` protege la activación de una sesión histórica: contrasta status=PROPUESTA, tipo del paquete, query exacta, sha256 almacenado, selected_index entero y válido (no bool), current_id frente a candidate_id/id/índice, estado interno, análisis de error, hipótesis/mecanismo y run_id cuando existe. `ui.dialogs.show_history` lo invoca tras `Storage.get` y antes de aceptar el diálogo, y comunica el rechazo; `Storage.get` sigue siendo lectura forense y no se borran ni corrigen bytes históricos. Es una comprobación de consistencia, NO firma ni verdad histórica.
+- **VERIFIED_BY_EXECUTION:** archivo de la lógica pura exacto SHA Git `a46999768b1043dc458f9669e5b8eb1e15eeab58`, probado en sandbox Linux. `30/30 PASS`, incluida lectura desde archivo SQLite de pruebas tras reinicio y 15 mutaciones de campos corruptos parseables; 8/8 mutantes dirigidos detectados tras restauración. Test del checkout `tests/unit/test_invention_lineage_phase12.py` SHA `e33f4b55b4c63b2d7cfd5d977df2811eb92f1a8a` corresponde al test ejecutado salvo que importa por su ruta productiva `criba.invention_lineage`; esa ruta se probó también en sandbox.
+
+### F12-02 — Worker vertical y respuestas tardías
+
+- **STATICALLY_INSPECTED:** `on_supra_vertical` rechazaba una segunda pulsación durante el envío, pero conectaba `done/fail` exclusivamente con `win`. Ambos callbacks alteraban el GUI y el flag `_supra_vertical_running` sin identificar el proyecto, la sesión ni el candidato del trabajo original. F09/F10 ya protegían los callbacks de lote y restore, pero **NO** el slice vertical.
+- **FIX:** `actions._supra_vertical_context_current` vincula token único, proyecto remoto esperado, objeto invent_sheet, paquete activo, problema, run_id, índice seleccionado y snapshot de contenido del candidato. Al cambiar contexto puede iniciarse explícitamente otro envío; los callbacks de la petición antigua no mutan la nueva. La señal terminal consume el token una sola vez; si `done` informa otro project_id, se muestra fallo y no éxito. Una operación de origen desconocido todavía activa no autoriza un segundo envío. Compatibilidad de firmas legacy preservada para llamadas directas sin contexto, **sin garantía de identidad para esas llamadas**.
+- **VERIFIED_BY_EXECUTION, ISOLATED_SEAM:** guardas lógicas del módulo copiadas de la candidata y ejecutadas sin Qt/HTTP; 12/12 PASS (incluido mismo contenido en dos índices distintos, mismo run_id en otro objeto, mutación in-place, problema/paquete cambiados, señales repetidas). 8/8 mutaciones dirigidas detectadas, tras corregir un falso coverage inicial por candidatos distintos. El test que importa `criba.ui.actions` productivo `test_vertical_context_phase12.py` se ha creado, pero es **NOT_EXECUTED en un checkout Qt**. No confundir el fragmento aislado con un signal Qt entregado en el hilo real.
+- **NO CAMBIO** en `_execute_supra_vertical`, DossierWorkflow, clientes HTTP ni SUPRA remoto. No se han ejecutado inferencias ni callbacks reales.
+
+### Estado verificable y límites
+
+- 42/42 pruebas locales dirigidas (30 módulo puro + 12 guardas extraídas) PASS; `python -m compileall` dirigido PASS. Dos pasadas de mutaciones separadas: 8/8 + 8/8 detectadas y restauradas. PySide6 no instalado. No existe clon completo en la sesión; `git ls-remote` falla por DNS. **NOT_EXECUTED:** pytest completo fases 08–12, interfaz Windows, Ruff, mypy, CI, integración real SQLite/JSONL/remote SUPRA. No reetiquetar 242 pruebas históricas de otra sesión como reejecutadas en F12.
+- `DossierWorkflow.bind_local` ya conserva contrato de payload_fingerprint y recibo; `recover_latest` selecciona un proyecto remoto por orden, pero **no autentica pertenencia a la sesión actualmente visible**. La UI lo presenta como resultado PREVIO. Mantener ese alcance, sin presentarlo como resultado del candidato actual.
+- **EVIDENCE_PENDING:** transacción atómica multi-dossier, recuperación de escrituras parciales, vinculación persistente entre archive-id SQLite y dossier-id JSONL (la creación de dossier no exige guardar antes en SQLite), aceptación Qt y consistencia cuando cambian versiones durante el replay. El nuevo control impide contradicciones observables, pero no proporciona identidad criptográfica del productor ni prueba causal.
+- G0=NO_GO, P0_SEMANTIC=OPEN, SCIENTIFIC_ADVANTAGE=NOT_ESTABLISHED, ASTRA/BLACKFORGE/main/handoff sin cambios, sin despliegues ni gastos.
+
+Comandos para checkout íntegro:
+
+```sh
+python -m pytest -q tests/unit/test_invention_lineage_phase12.py tests/unit/test_vertical_context_phase12.py tests/unit/test_invention_persistence.py tests/unit/test_shadow_supra_restore_phase10.py tests/unit/test_shadow_supra_stale_callback_phase09.py tests/unit/test_dossier_jsonl_lock_phase11.py tests/unit/test_dossier_observation_revision_phase11.py
+python -m compileall -q src/criba/invention_lineage.py src/criba/ui/actions.py src/criba/ui/dialogs.py src/criba/cli.py
+python -m ruff check src/criba/invention_lineage.py src/criba/ui/actions.py src/criba/ui/dialogs.py src/criba/cli.py tests/unit/test_invention_lineage_phase12.py tests/unit/test_vertical_context_phase12.py
+git diff --check
+```
+
+## Siguiente acción exacta
+
+**Fase 13 — Replay y recuperación de lotes tras fallo parcial.** Probar y diseñar la recuperación idempotente cuando el dossier 1 se escribe y el dossier 2 falla antes del envío; separar preparation/commit del lote respecto a resultados remotos UNKNOWN. Construir journal durable mínimo (sin borrar ni editar JSONL existente), reanudar sin duplicar efectos externos ante timeout/reinicio y registrar estado incierto como UNKNOWN, no 0 o PASS. Primero ejecutar pruebas productivas pendientes F08–F12 si se logra checkout completo y resolver regresiones causadas por nuevas precondiciones. Inspeccionar CLI/exportadores y ergonomía Windows sin activar proveedores. Mantener protección ASTRA, BLACKFORGE, main, G0 y datos privados.

@@ -1675,6 +1675,7 @@ def on_desarrollar_supra(win: Any) -> None:
         show_error(win, "SUPRA", "Genera candidatos con Inventar antes de desarrollar.")
         return
     from ..invention_acceptance import propuestas_para_supra
+    from ..invention_lineage import bind_entry_to_sheet
 
     if not isinstance(sheet.get("query"), str) or not sheet["query"].strip():
         show_error(win, "SUPRA", "No hay problema válido para asociar al dossier.")
@@ -1702,7 +1703,9 @@ def on_desarrollar_supra(win: Any) -> None:
         # Build the whole batch before the first filesystem write.
         dossier_payloads = [
             preparar_dossier(
-                entry, sheet["query"], ficha_bloqueo=sheet.get("ficha_bloqueo")
+                bind_entry_to_sheet(sheet, entry),
+                sheet["query"],
+                ficha_bloqueo=sheet.get("ficha_bloqueo"),
             )
             for entry in propuestas
         ]
@@ -2033,7 +2036,12 @@ def _prepare_dossier_for_selected_idea(win: Any) -> dict[str, Any]:
         ):
             if not isinstance(protocol.get(field), str) or not protocol[field].strip():
                 raise ValueError(f"prueba interpretada sin {field}; no se rellena")
-        return preparar_dossier(entry, sheet["query"], ficha_bloqueo=sheet.get("ficha_bloqueo"))
+        from ..invention_lineage import bind_entry_to_sheet
+
+        bound_entry = bind_entry_to_sheet(sheet, entry)
+        return preparar_dossier(
+            bound_entry, sheet["query"], ficha_bloqueo=sheet.get("ficha_bloqueo")
+        )
 
     idea = _selected_idea(win)
     if idea is None:
@@ -2097,8 +2105,66 @@ def _planning_status_text(read: dict[str, Any]) -> str:
     return text
 
 
-def _on_supra_vertical_done(win: Any, report: dict[str, Any]) -> None:
-    """Show the real SUPRA read-back state. BLOCKED stays BLOCKED."""
+def _supra_vertical_context_current(win: Any, context: dict[str, Any]) -> bool:
+    """Bind callbacks to one submission, active session and selected candidate."""
+    if getattr(win, "_supra_vertical_token", None) is not context["token"]:
+        return False
+    if getattr(win, "invent_sheet", None) is not context["sheet"]:
+        return False
+    if getattr(win, "packet", None) is not context["packet"]:
+        return False
+    if getattr(win, "problem", None) != context["problem"]:
+        return False
+    sheet = context["sheet"]
+    if sheet is not None:
+        if not isinstance(sheet, dict) or sheet.get("run_id") != context["run_id"]:
+            return False
+        entries = sheet.get("entries")
+        candidates = getattr(win, "candidates", None)
+        index = getattr(candidates, "interpretation_index", None)
+        if (
+            not isinstance(entries, list)
+            or type(index) is not int
+            or index != context["selected_index"]
+            or not 0 <= index < len(entries)
+        ):
+            return False
+        return entries[index] == context["candidate_snapshot"]
+    selected = _selected_idea(win)
+    return selected == context["candidate_snapshot"]
+
+
+def _supra_vertical_consume_if_current(
+    win: Any, context: dict[str, Any] | None
+) -> bool:
+    """Ignore stale and duplicate signals without modifying a newer run."""
+    if context is None:
+        return True  # Compatibility with direct legacy callback consumers.
+    if not _supra_vertical_context_current(win, context):
+        if getattr(win, "_supra_vertical_token", None) is context["token"]:
+            win._supra_vertical_token = None
+            win._supra_vertical_running = False
+        return False
+    win._supra_vertical_token = None
+    win._supra_vertical_running = False
+    return True
+
+
+def _on_supra_vertical_done(
+    win: Any, report: dict[str, Any], *, context: dict[str, Any] | None = None
+) -> None:
+    """Show only the matching SUPRA read-back. BLOCKED stays BLOCKED."""
+    if context is not None and (
+        not isinstance(report, dict)
+        or report.get("project_id") != context["project_id"]
+    ):
+        _on_supra_vertical_failed(
+            win, "SUPRA devolvió una identidad de proyecto diferente.",
+            context=context,
+        )
+        return
+    if not _supra_vertical_consume_if_current(win, context):
+        return
     win._supra_vertical_running = False
     r = win.refs
     read = report["read"]
@@ -2165,8 +2231,12 @@ def _on_supra_vertical_done(win: Any, report: dict[str, Any]) -> None:
     apply_dossier_report(win, report)
 
 
-def _on_supra_vertical_failed(win: Any, message: str) -> None:
-    """Failure is shown as failure. No fabricated state on the error path."""
+def _on_supra_vertical_failed(
+    win: Any, message: str, *, context: dict[str, Any] | None = None
+) -> None:
+    """Failure from a stale session cannot overwrite a newer run."""
+    if not _supra_vertical_consume_if_current(win, context):
+        return
     win._supra_vertical_running = False
     win.nav["navSupra"].set_state("error", "SUPRA no disponible")
     set_chip(win.refs["ideaEstadoChip"], "SUPRA no confirmado", "exploracion")
@@ -2191,10 +2261,17 @@ def on_supra_vertical(win: Any) -> None:
     """
     import uuid
 
-    # A second click while this dispatch is outstanding is the same user
-    # attempt, not permission to create another remote project.
+    # A second click in the SAME context must not create another project.
+    # A changed session/candidate may start a new request; the old completion
+    # is then quarantined by its token and cannot overwrite the new session.
     if getattr(win, "_supra_vertical_running", False):
-        return
+        prior = getattr(win, "_supra_vertical_context", None)
+        if not isinstance(prior, dict):
+            return  # Unidentified in-flight call: never auto-duplicate.
+        if _supra_vertical_context_current(win, prior):
+            return
+        win._supra_vertical_running = False
+        win._supra_vertical_token = None
     if not getattr(win, "problem", ""):
         show_error(win, "SUPRA", "Define primero el problema base (Nueva idea).")
         return
@@ -2230,9 +2307,34 @@ def on_supra_vertical(win: Any) -> None:
     )
     win.nav["navSupra"].set_state("running", "Enviando a SUPRA…")
 
+    from copy import deepcopy
+
+    sheet = getattr(win, "invent_sheet", None)
+    selected = (
+        sheet["entries"][win.candidates.interpretation_index]
+        if isinstance(sheet, dict) else _selected_idea(win)
+    )
+    context = {
+        "token": object(),
+        "project_id": project_id,
+        "sheet": sheet,
+        "packet": getattr(win, "packet", None),
+        "problem": getattr(win, "problem", None),
+        "run_id": sheet.get("run_id") if isinstance(sheet, dict) else None,
+        "selected_index": (
+            win.candidates.interpretation_index if isinstance(sheet, dict) else None
+        ),
+        "candidate_snapshot": deepcopy(selected),
+    }
+    win._supra_vertical_token = context["token"]
+    win._supra_vertical_context = context
     worker = Worker(lambda: _execute_supra_vertical(dossier, project_id))
-    worker.signals.done.connect(lambda report: _on_supra_vertical_done(win, report))
-    worker.signals.fail.connect(lambda message: _on_supra_vertical_failed(win, message))
+    worker.signals.done.connect(
+        lambda report: _on_supra_vertical_done(win, report, context=context)
+    )
+    worker.signals.fail.connect(
+        lambda message: _on_supra_vertical_failed(win, message, context=context)
+    )
     win._supra_vertical_running = True
     _start_worker(win, worker)
 

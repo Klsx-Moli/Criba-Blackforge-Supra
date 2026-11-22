@@ -12,6 +12,7 @@ from PySide6.QtWidgets import (
     QLabel,
     QListWidget,
     QListWidgetItem,
+    QMessageBox,
     QPushButton,
     QTextEdit,
     QVBoxLayout,
@@ -94,7 +95,23 @@ def show_history(win: Any) -> dict[str, Any] | None:
                 return
             try:
                 session = win.store.get(item.data(Qt.ItemDataRole.UserRole))
-            except ValueError:
+                packet = session.get("packet")
+                if not isinstance(packet, dict):
+                    raise ValueError("El paquete histórico no es un objeto.")
+                config = session.get("config")
+                archival = (
+                    isinstance(config, dict)
+                    and config.get("kind") == "invention_sheet"
+                ) or packet.get("kind") == "invention_sheet"
+                if archival:
+                    from ..invention_lineage import verify_archived_invention
+
+                    verify_archived_invention(session)
+            except (TypeError, ValueError) as exc:
+                QMessageBox.warning(
+                    dlg, "Historial no verificable",
+                    f"No se puede activar esta sesión: {exc}",
+                )
                 return
             result["packet"] = session["packet"]
             dlg.accept()

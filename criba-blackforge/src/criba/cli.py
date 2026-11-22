@@ -442,6 +442,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             )
             if args.dossier:
                 from .supra_dossier import guardar_dossier, preparar_dossier
+                from .invention_lineage import bind_entry_to_sheet
 
                 if not isinstance(sheet.get("query"), str) or not sheet["query"].strip():
                     print("Dossier SUPRA bloqueado: problema inválido", file=sys.stderr)
@@ -458,7 +459,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                 try:
                     payloads = [
                         preparar_dossier(
-                            entry, sheet["query"],
+                            bind_entry_to_sheet(sheet, entry),
+                            sheet["query"],
                             ficha_bloqueo=sheet.get("ficha_bloqueo"),
                         )
                         for entry in propuestas
