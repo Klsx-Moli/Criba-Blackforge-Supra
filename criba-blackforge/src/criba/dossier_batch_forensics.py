@@ -237,7 +237,15 @@ def verificar_snapshot_forense(out_dir: Path) -> dict[str, Any]:
     except (UnicodeDecodeError, ValueError) as exc:
         raise ValueError("forensic manifest is malformed") from exc
     if (not isinstance(manifest, dict)
+            or set(manifest) != {
+                "schema", "created_utc", "source_classification", "files",
+                "authorizes_post", "remote_execution_proven",
+                "scientific_validation_proven",
+            }
             or manifest.get("schema") != SNAPSHOT_SCHEMA
+            or not isinstance(manifest.get("created_utc"), str)
+            or not manifest["created_utc"]
+            or not isinstance(manifest.get("source_classification"), str)
             or not isinstance(manifest.get("files"), dict)
             or set(manifest["files"]) != set(FILES)
             or manifest.get("authorizes_post") is not False
@@ -246,6 +254,7 @@ def verificar_snapshot_forense(out_dir: Path) -> dict[str, Any]:
         raise ValueError("forensic manifest schema invalid")
     inventory = manifest["files"]
     if any(not isinstance(inventory[name], dict)
+           or set(inventory[name]) != {"present", "bytes", "sha256"}
            or type(inventory[name].get("present")) is not bool for name in FILES):
         raise ValueError("forensic inventory invalid")
     expected_names = {"manifest.json"} | {
@@ -275,8 +284,10 @@ def verificar_snapshot_forense(out_dir: Path) -> dict[str, Any]:
         if _digest(path) != expected:
             raise ValueError("forensic snapshot digest mismatch")
     return {
-        "status": "RAW_BYTES_MATCH_MANIFEST_ONLY", "files_verified": len(FILES),
-        "source_classification": manifest.get("source_classification"),
+        "status": "RAW_BYTES_MATCH_MANIFEST_ONLY",
+        "files_verified": sum(inventory[n]["present"] for n in FILES),
+        "absences_recorded": sum(not inventory[n]["present"] for n in FILES),
+        "recorded_source_classification": manifest["source_classification"],
         "authorizes_post": False,
         "scientific_validation_proven": False,
     }

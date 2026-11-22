@@ -443,3 +443,35 @@ def test_incomplete_prepared_is_locally_parseable_but_not_committed(tmp_path):
     # No dossier history exists: this incomplete write remains non-authoritative.
     assert report["classification"] == "DOSSIER_HISTORY_MISSING"
     assert report["local_replay_parseable"] is False
+
+
+
+def test_snapshot_verifier_does_not_count_absent_evidence_as_verified_file(tmp_path):
+    root = tmp_path / "source"
+    root.mkdir()
+    (root / "dossiers.jsonl").write_bytes(b'{"dossier_id":"orphan"}\n')
+    out = backup(tmp_path)
+    crear_snapshot_forense(root, out)
+    result = verificar_snapshot_forense(out)
+    assert result["files_verified"] == 1
+    assert result["absences_recorded"] == 1
+    assert result["recorded_source_classification"] == "JOURNAL_MISSING"
+    assert result["authorizes_post"] is False
+
+
+@pytest.mark.parametrize("mutation", [
+    lambda m: m["files"]["dossiers.jsonl"].__setitem__("scientific_pass", True),
+    lambda m: m.__setitem__("scientific_pass", True),
+    lambda m: m.__setitem__("created_utc", 42),
+    lambda m: m.__setitem__("source_classification", None),
+])
+def test_unknown_manifest_claims_are_not_accepted_as_raw_evidence(tmp_path, mutation):
+    root, _, _ = source(tmp_path)
+    out = backup(tmp_path)
+    crear_snapshot_forense(root, out)
+    manifest = out / "manifest.json"
+    data = json.loads(manifest.read_text(encoding="utf-8"))
+    mutation(data)
+    manifest.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
+    with pytest.raises(ValueError, match="manifest|inventory"):
+        verificar_snapshot_forense(out)
