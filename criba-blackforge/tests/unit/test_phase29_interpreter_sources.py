@@ -120,3 +120,65 @@ def test_invalid_get_never_leaks_upstream_message(monkeypatch):
     with pytest.raises(ValueError) as exc:
         sources.discover_models("hermes")
     assert "secret-upstream" not in str(exc.value)
+
+
+def test_network_boundary_is_get_only_no_proxy_no_redirect(monkeypatch):
+    from io import BytesIO
+
+    calls = []
+    class Reply(BytesIO):
+        status = 200
+
+    class FakeOpener:
+        def open(self, request, *, timeout):
+            calls.append((request.full_url, request.get_method(),
+                          request.headers, timeout))
+            return Reply(b'{"data":[{"id":"provider/model"}]}')
+
+    def fake_build(*handlers):
+        assert any(isinstance(h, sources.ProxyHandler) and h.proxies == {}
+                   for h in handlers)
+        assert any(isinstance(h, sources._NoRedirect) for h in handlers)
+        return FakeOpener()
+
+    monkeypatch.setattr(sources, "build_opener", fake_build)
+    result = sources._get_local_json("hermes")
+    assert result["data"][0]["id"] == "provider/model"
+    assert calls == [
+        (sources._URLS["hermes"], "GET", {"Accept": "application/json"}, 3)
+    ]
+    assert sources._NoRedirect().redirect_request(
+        None, None, 301, "moved", {}, "https://untrusted.invalid"
+    ) is None
+
+
+def test_catalog_size_limit_fails_without_reading_more(monkeypatch):
+    from io import BytesIO
+
+    class Reply(BytesIO):
+        status = 200
+
+    class FakeOpener:
+        def open(self, request, *, timeout):
+            return Reply(b"X" * (sources._LIMIT + 100))
+
+    monkeypatch.setattr(sources, "build_opener", lambda *args: FakeOpener())
+    with pytest.raises(ValueError, match="exceeds safety limit"):
+        sources._get_local_json("hermes")
+
+
+@pytest.mark.parametrize("source", [None, [], {}, 3, True])
+def test_unhashable_or_invalid_source_fails_closed(source):
+    with pytest.raises(ValueError, match="unsupported"):
+        sources.discover_models(source)
+
+
+@pytest.mark.parametrize("label", ["bad\\nmodel", "<b>spoofed</b>", "a&b", " "])
+def test_model_id_never_contains_rich_text_or_control_chars(monkeypatch, label):
+    monkeypatch.setattr(
+        sources, "_get_local_json",
+        lambda source: {"data": [{"id": label}, {"id": "normal:1"}]},
+    )
+    assert [m.model_id for m in sources.discover_models("hermes").models] == [
+        "normal:1"
+    ]
