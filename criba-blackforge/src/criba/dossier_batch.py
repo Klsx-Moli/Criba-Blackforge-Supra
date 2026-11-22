@@ -466,7 +466,7 @@ def marcar_envio_incierto(
 def reclamar_inicio_envio_remoto(
     batch_id: str, dossiers: list[dict[str, Any]],
     directory: Path | None = None, *, endpoint: str | None = None,
-) -> None:
+) -> list[dict[str, Any]]:
     """Claim a single worker dispatch before any external transport.
 
     The durable REMOTE_UNKNOWN reservation alone does not prevent two
@@ -504,11 +504,15 @@ def reclamar_inicio_envio_remoto(
             for d in original
         ):
             raise ValueError("remote dispatch local dossier history changed")
+        # Detached source owned by the worker. Later mutations to the input
+        # list cannot change the exact on-wire payload after the fsynced claim.
+        safe_payload = json.loads(_canonical(original))
         sd._append_historial(
             directory / JOURNAL,
             _event("REMOTE_DISPATCH_STARTED", batch_id, endpoint=origin,
                    fingerprint=batch["intent"]["fingerprint"]),
         )
+        return safe_payload
 
 
 def marcar_readback_observado(

@@ -1453,7 +1453,7 @@ def _execute_supra_dossiers(
                 raise ValueError("reserved SUPRA worker requires original endpoint")
             from ..dossier_batch import reclamar_inicio_envio_remoto
 
-            reclamar_inicio_envio_remoto(
+            dossiers = reclamar_inicio_envio_remoto(
                 batch_id, dossiers, endpoint=expected_endpoint,
             )
         health = supra.health()

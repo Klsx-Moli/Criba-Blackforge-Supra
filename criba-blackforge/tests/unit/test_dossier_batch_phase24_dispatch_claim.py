@@ -35,7 +35,7 @@ def claim(key, original, directory, *, endpoint=ENDPOINT):
 
 def test_claim_adds_exactly_one_fsynced_event_without_claiming_http_success(tmp_path):
     key, original = local_reserved(tmp_path)
-    assert claim(key, original, tmp_path) is None
+    assert claim(key, original, tmp_path) == original
     events = batch._events(tmp_path / batch.JOURNAL)
     assert [x["event"] for x in events] == [
         "PREPARED", "LOCAL_COMMITTED", "REMOTE_UNKNOWN",
@@ -344,3 +344,18 @@ def test_malformed_intermediate_marker_still_rejected(tmp_path):
     )
     with pytest.raises(ValueError, match="remote dispatch start lineage mismatch"):
         batch._state(batch._events(tmp_path / batch.JOURNAL))
+
+
+
+def test_mutating_input_after_claim_does_not_change_detached_payload(tmp_path):
+    key, original = local_reserved(tmp_path)
+    accepted = claim(key, original, tmp_path)
+    assert accepted == original
+    assert accepted is not original
+    assert accepted[0] is not original[0]
+    original[0]["mecanismo"] = "mutation after fsync"
+    original.reverse()
+    assert accepted[0]["mecanismo"] == "mechanism-1"
+    assert [x["dossier_id"] for x in accepted] == [
+        "dossier-first-1", "dossier-first-2",
+    ]
