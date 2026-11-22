@@ -2078,7 +2078,7 @@ def on_desarrollar_supra(win: Any) -> None:
                     show_error(win, "SUPRA",
                                f"Primer envío no autorizado: {exc}")
                     return
-                _start_reserved_supra_submission(
+                _queue_reserved_supra_safely(
                     win, sheet, reservation["dossiers"],
                     batch_id=reservation["batch_id"],
                     path=reservation["path"],
@@ -2178,10 +2178,40 @@ def on_desarrollar_supra(win: Any) -> None:
     except (TypeError, ValueError, OSError) as exc:
         show_error(win, "SUPRA", f"No se autorizó el envío del lote: {exc}")
         return
-    _start_reserved_supra_submission(
+    _queue_reserved_supra_safely(
         win, sheet, dossier_payloads,
         batch_id=batch["batch_id"], path=str(path), endpoint=endpoint,
     )
+
+
+def _queue_reserved_supra_safely(
+    win: Any, sheet: dict[str, Any], dossiers: list[dict[str, Any]],
+    *, batch_id: str, path: str, endpoint: str,
+) -> None:
+    """A failed Qt/presentation launch cannot undo the durable reservation.
+
+    Whether the pool accepted the worker is UNKNOWN after an exception, so
+    never retry POST. Release the UI token and permit only journal-bound GET
+    recovery on the next explicit click. A late worker callback is ignored.
+    """
+    try:
+        _start_reserved_supra_submission(
+            win, sheet, dossiers,
+            batch_id=batch_id, path=path, endpoint=endpoint,
+        )
+    except Exception as exc:  # noqa: BLE001 — Qt pool can fail after reservation
+        if getattr(win, "_supra_submission_sheet", None) is sheet:
+            win._supra_submission_token = None
+            win._supra_submission_sheet = None
+        if getattr(win, "invent_sheet", None) is sheet:
+            sheet["dossier_remote_state"] = "UNKNOWN"
+            sheet["dossier_batch_id"] = batch_id
+            sheet["dossiers"] = [d["dossier_id"] for d in dossiers]
+            show_error(
+                win, "SUPRA",
+                "El lote quedó reservado como UNKNOWN antes del error de "
+                f"arranque ({exc}). No se repetirá POST; recuperar solo por GET.",
+            )
 
 
 def _start_reserved_supra_submission(
