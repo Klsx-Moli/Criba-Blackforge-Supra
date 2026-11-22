@@ -210,3 +210,22 @@ def test_new_selection_supersedes_old_request_even_with_same_sheet(rig):
     assert len(errors) == 1
     assert win.right_panel.protocolo.enabled
     assert not applied
+
+
+
+def test_equal_content_replacement_is_new_entry_identity(rig):
+    workers, errors, _, applied = rig
+    s = sheet()
+    win = window(s)
+    actions.on_protocolo_operativo(win)
+    original = s["entries"][0]
+    s["entries"][0] = dict(original)
+    assert s["entries"][0] == original and s["entries"][0] is not original
+    actions.on_protocolo_operativo(win)
+    assert len(workers) == 2
+    workers[0].signals.done.emit({"estado": "PROTOCOLO"})
+    assert applied == [] and errors == []
+    assert not win.right_panel.protocolo.enabled
+    workers[1].signals.fail.emit("current")
+    assert len(errors) == 1
+    assert win.right_panel.protocolo.enabled

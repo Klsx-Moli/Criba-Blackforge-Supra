@@ -578,3 +578,7 @@ git diff --check
 
 - **FALSE_COVERAGE evitada:** igualdad de sheet, run y entry no acredita que continúe seleccionada la misma tarjeta; un callback válido en contenido podía forzar la navegación al índice antiguo. Se vincula `interpretation_index` de la selección original. Al cambiar de tarjeta, el resultado obsoleto es descartado, incluso si el mismo `sheet` continúa en memoria.
 - Dos pruebas nuevas: cambio de selección durante la solicitud, y una segunda solicitud de otra selección que anula la primera sin deshabilitar los controles de la nueva.
+
+### F17 mutación adicional — objeto reemplazado con mismos campos
+
+- Una sustitución del objeto `entries[index]` por `dict(old)` puede conservar igualdad de contenido y seguir representando una nueva revisión de sesión. Se comprueba además `is entry_ref` y se permite una nueva solicitud en ese caso. Test dirigido añadió escenario de dos workers en secuencia, done antiguo descartado y fail vigente respetado.

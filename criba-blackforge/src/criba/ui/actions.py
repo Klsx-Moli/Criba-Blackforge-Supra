@@ -1596,6 +1596,7 @@ def _protocolo_intent_actual(win: Any, intent: dict[str, Any]) -> bool:
         and getattr(win, "problem", None) == intent["problem"]
         and isinstance(entries, list)
         and 0 <= index < len(entries)
+        and entries[index] is intent["entry_ref"]
         and entries[index] == intent["entry"]
         and getattr(
             getattr(win, "candidates", None), "interpretation_index", None
@@ -1644,6 +1645,7 @@ def on_protocolo_operativo(win: Any) -> None:
         "sheet": sheet,
         "index": index,
         "entry": deepcopy(entry),
+        "entry_ref": entry,
         "run_id": sheet.get("run_id"),
         "query": sheet.get("query"),
         "problem": getattr(win, "problem", None),
@@ -1656,6 +1658,7 @@ def on_protocolo_operativo(win: Any) -> None:
         isinstance(previous, dict)
         and previous["sheet"] is sheet
         and previous["index"] == index
+        and previous["entry_ref"] is entry
         and previous["entry"] == intent["entry"]
         and previous["run_id"] == intent["run_id"]
         and previous["query"] == intent["query"]
