@@ -1394,6 +1394,8 @@ def _supra_lookup_read(lookup: Any) -> dict[str, Any]:
 def _execute_supra_dossiers(
     dossiers: list[dict[str, Any]],
     client: Any | None = None,
+    *,
+    batch_id: str | None = None,
 ) -> dict[str, Any]:
     """Execute prepared dossiers through the single canonical SupraClient."""
     from ..dossier_workflow import DossierWorkflow as _DossierWorkflow
@@ -1435,6 +1437,9 @@ def _execute_supra_dossiers(
                     "read": _supra_lookup_read(lookup),
                 }
             )
+        if batch_id is not None:
+            from ..dossier_batch import marcar_readback_observado
+            marcar_readback_observado(batch_id, runs)
         return {
             "workflow_batch_schema": "criba-dossier-workflow/batch-1",
             "confirmed_runs": _workflow_runs,
@@ -1696,7 +1701,8 @@ def on_desarrollar_supra(win: Any) -> None:
             "(se requiere modelo) y no hay mecanismo que desarrollar.",
         )
         return
-    from ..supra_dossier import guardar_dossier, preparar_dossier
+    from ..supra_dossier import preparar_dossier
+    from ..dossier_batch import guardar_lote_dossiers, marcar_envio_incierto
 
     dossier_payloads: list[dict[str, Any]] = []
     try:
@@ -1709,14 +1715,30 @@ def on_desarrollar_supra(win: Any) -> None:
             )
             for entry in propuestas
         ]
-        for dossier in dossier_payloads:
-            path = guardar_dossier(dossier)
+        batch = guardar_lote_dossiers(dossier_payloads)
+        dossier_payloads = batch["dossiers"]
+        path = batch["path"]
     except (TypeError, ValueError, OSError) as exc:
         show_error(win, "SUPRA", f"No se pudo preparar o preservar el dossier: {exc}")
         return
 
     sheet["dossiers"] = [item["dossier_id"] for item in dossier_payloads]
     sheet["dossiers_path"] = str(path)
+    sheet["dossier_batch_id"] = batch["batch_id"]
+    sheet["dossier_remote_state"] = batch["remote_state"]
+    if batch["remote_state"] != "NOT_ATTEMPTED":
+        show_error(win, "SUPRA",
+                   "Lote previamente enviado o de resultado UNKNOWN. No se reenvía: "
+                   "recupera y verifica cada proyecto remoto antes de actuar.")
+        return
+    try:
+        if not marcar_envio_incierto(batch["batch_id"]):
+            show_error(win, "SUPRA", "El envío ya fue reservado; no se duplica.")
+            return
+    except (TypeError, ValueError, OSError) as exc:
+        show_error(win, "SUPRA", f"No se autorizó el envío del lote: {exc}")
+        return
+    sheet["dossier_remote_state"] = "UNKNOWN"
     candidates = getattr(win, "candidates", None)
     if candidates is not None:
         candidates.dossier_output.setPlainText(
@@ -1742,7 +1764,7 @@ def on_desarrollar_supra(win: Any) -> None:
     submission_token = object()
     win._supra_submission_token = submission_token
     expected_run_id = sheet.get("run_id")
-    worker = Worker(lambda: _execute_supra_dossiers(dossier_payloads))
+    worker = Worker(lambda: _execute_supra_dossiers(dossier_payloads, batch_id=batch["batch_id"]))
     worker.signals.done.connect(
         lambda report: _on_supra_dossiers_done(
             win, report, expected_sheet=sheet,

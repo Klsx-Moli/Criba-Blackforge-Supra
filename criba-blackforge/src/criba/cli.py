@@ -441,7 +441,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                 canon_version=canon,
             )
             if args.dossier:
-                from .supra_dossier import guardar_dossier, preparar_dossier
+                from .supra_dossier import preparar_dossier
+                from .dossier_batch import guardar_lote_dossiers
                 from .invention_lineage import bind_entry_to_sheet
 
                 if not isinstance(sheet.get("query"), str) or not sheet["query"].strip():
@@ -468,16 +469,16 @@ def main(argv: Sequence[str] | None = None) -> int:
                 except (TypeError, ValueError, OSError) as exc:
                     print(f"Dossier SUPRA no preparado: {exc}", file=sys.stderr)
                     return 2
-                dossiers = []
-                for dossier in payloads:
-                    try:
-                        path = guardar_dossier(dossier)
-                    except (TypeError, ValueError, OSError) as exc:
-                        print(f"Dossier SUPRA no preservado: {exc}", file=sys.stderr)
-                        return 2
-                    dossiers.append(dossier["dossier_id"])
-                    print(f"Dossier SUPRA pendiente: {dossier['dossier_id']} -> {path}")
-                sheet["dossiers"] = dossiers
+                try:
+                    batch = guardar_lote_dossiers(payloads)
+                except (TypeError, ValueError, OSError) as exc:
+                    print(f"Dossier SUPRA no preservado: {exc}", file=sys.stderr)
+                    return 2
+                sheet["dossiers"] = [d["dossier_id"] for d in batch["dossiers"]]
+                sheet["dossier_batch_id"] = batch["batch_id"]
+                sheet["dossier_remote_state"] = batch["remote_state"]
+                for identity in sheet["dossiers"]:
+                    print(f"Dossier SUPRA pendiente: {identity} -> {batch['path']}")
             print_sheet(sheet)
             ledger = append_ledger(sheet)
             print(f"Ledger: {ledger}")

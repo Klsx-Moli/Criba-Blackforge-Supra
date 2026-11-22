@@ -476,3 +476,28 @@ git diff --check
 ## Siguiente acción exacta
 
 **Fase 13 — Replay y recuperación de lotes tras fallo parcial.** Probar y diseñar la recuperación idempotente cuando el dossier 1 se escribe y el dossier 2 falla antes del envío; separar preparation/commit del lote respecto a resultados remotos UNKNOWN. Construir journal durable mínimo (sin borrar ni editar JSONL existente), reanudar sin duplicar efectos externos ante timeout/reinicio y registrar estado incierto como UNKNOWN, no 0 o PASS. Primero ejecutar pruebas productivas pendientes F08–F12 si se logra checkout completo y resolver regresiones causadas por nuevas precondiciones. Inspeccionar CLI/exportadores y ergonomía Windows sin activar proveedores. Mantener protección ASTRA, BLACKFORGE, main, G0 y datos privados.
+
+
+## Fase 13 — Lotes de dossiers reanudables y write-ahead UNKNOWN
+
+Baseline: `3a85e2dea7887e672ce10f5882e193c45e3220b6`. Cambio dirigido con journal local nuevo y cableado CLI/Shadow; no sustituye transacción SQLite↔JSONL, validación de Qt ni pruebas contra SUPRA real.
+
+- **Defecto de partida / STATICALLY_INSPECTED:** CLI y Shadow guardaban el primer dossier antes de intentar el segundo. Si fallaba, quedaba un prefijo persistido sin manifest de lote; repetir Inventar regeneraba IDs aleatorios. En Shadow la reserva previa al POST tampoco tenía estado remoto durable por lote.
+- **Corrección local:** `src/criba/dossier_batch.py` escribe `dossier_batches.jsonl` bajo el mismo bloqueo de `dossiers.jsonl`, `PREPARED` con payloads/identidad/fingerprint y `LOCAL_COMMITTED` tras guardar cada dossier, fsync en cada transición. Recuperar reusa dossier_ids originales y no duplica los ya guardados; `recuperar_lotes_pendientes()` no contacta ningún servicio. Un `run_id` válido más problema vincula el lote; misma ejecución con contenido distinto se rechaza, no sobrescribe. Legacy sin run_id puede archivarse localmente, pero no iniciarse automáticamente en SUPRA desde este camino.
+- **Límite remoto:** Shadow registra `REMOTE_UNKNOWN` de forma durable **antes** de arrancar un worker. Si el registro ya existe o el lote llegó a `READBACK_OBSERVED`, la UI rechaza un segundo POST automático. Sólo se registra `REMOTE_READBACK_OBSERVED` después de obtener el conjunto completo de GETs y cotejar la identidad de dossier/proyecto/recibo. El marcador NO significa validación científica, ejecución física del mecanismo ni garantía de persistencia remota. Un fallo de red, disco, aplicación o readback conserva UNKNOWN y requiere reconciliación por GET antes de cualquier reenvío manual.
+- **Evidencia ejecutada:** 19/19 pruebas locales dirigidas en Linux/Python con módulo nuevo real e interfaz `supra_dossier` sustituida por seam mínimo compatible, uso real de archivos/fsync/flock; primera corrida reveló fallo del bloqueo same-run/different-problem y fue reparado. Incluye reinicio, fallo en segunda escritura, concurrencia, replay, intent truncado, corrupción parseable, solicitudes duplicadas, readback de otro proyecto/recibo. `compileall` dirigido PASS. **NOT_EXECUTED** módulo de persistencia completo en checkout, Qt/PySide6, Ruff, mypy, CI, regresión del monorepo, tests contra SUPRA y Windows. Las 19 pruebas no equivalen a suite de producto ni certificación de atomicidad.
+- **Límites conservados:** journal local no es firma/autenticación; JSONL+SQLite no es transacción distribuida; fallo físico de fsync/almacenamiento no modelado; cambios de esquema y migración todavía abiertos. La recuperación completa de proyectos externos es **EVIDENCE_PENDING**. No se ejecutaron inferencias, gastos ni despliegues. G0=NO_GO, P0_SEMANTIC=OPEN, main/handoff/ASTRA/BLACKFORGE intactos.
+
+### Ejecutar en checkout integral
+
+```sh
+cd criba-blackforge
+python -m pytest -q tests/unit/test_dossier_batch_phase13.py tests/unit/test_dossier_jsonl_lock_phase11.py tests/unit/test_invention_lineage_phase12.py tests/unit/test_vertical_context_phase12.py tests/unit/test_shadow_supra_export_boundary_phase10.py tests/integration/test_supra_client_contract.py
+python -m compileall -q src/criba/dossier_batch.py src/criba/cli.py src/criba/ui/actions.py
+python -m ruff check src/criba/dossier_batch.py src/criba/cli.py src/criba/ui/actions.py tests/unit/test_dossier_batch_phase13.py
+git diff --check
+```
+
+## Siguiente acción exacta (tras fase 13)
+
+**Fase 14 — Reconciliación remota y recuperación verificada tras reinicio.** Consultar por GET las identidades deterministas de proyectos de un batch UNKNOWN; verificar receipt, fingerprint, estado persistido y endpoint, sin mandar POST. No promover UNKNOWN a éxito ni reintentar automáticamente. Antes, ejecutar suite real de fase 13 y resolver incompatibilidades del wiring. Probar cierres, fallos tras POST, reinicios, cambios de endpoint y pruebas de falsas coberturas, sin tocar ASTRA, BLACKFORGE ni main.
