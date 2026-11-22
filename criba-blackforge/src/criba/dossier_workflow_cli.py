@@ -135,6 +135,7 @@ def _send_one_journal_bound(
             use_model=args.use_model, provider=args.provider, model=args.model,
             domain=args.domain, allow_disruptive=not args.no_disruptive,
             expected_endpoint=origin,
+            batch_dispatch_id=reservation["batch_id"],
         )
     except WorkflowError as exc:
         # A worker acquired its durable claim; even a local validation failure
