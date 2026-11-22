@@ -129,6 +129,15 @@ def _inspect_locked(directory: Path) -> dict[str, Any]:
             "DOSSIER_HISTORY_MISSING" if state else "VALID_EMPTY_HISTORY"
         )
         return report
+    # A parseable final dossier without a newline may be a non-fsynced
+    # append. The journal inspector already rejects this; do not certify
+    # the same raw evidence through a more permissive dossier reader.
+    if files["dossiers.jsonl"]["bytes"]:
+        with dpath.open("rb") as stream:
+            stream.seek(-1, os.SEEK_END)
+            if stream.read(1) != b"\n":
+                report["classification"] = "DOSSIER_HISTORY_PARSE_INVALID"
+                return report
     try:
         with dpath.open("rb") as stream:
             for line in stream:
