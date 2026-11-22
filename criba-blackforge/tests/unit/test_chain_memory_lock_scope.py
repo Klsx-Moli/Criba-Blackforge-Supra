@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
+from contextlib import closing
 from concurrent.futures import ThreadPoolExecutor
 
 import pytest
@@ -39,9 +40,11 @@ def test_serialization_happens_before_sqlite_begin_immediate(tmp_path, monkeypat
     def probe_dumps(value, *args, **kwargs):
         # During JSON serialization another connection must be able to
         # reserve a writer, proving no SQLite write lock has been acquired.
-        with sqlite3.connect(
+        # sqlite3.Connection.__exit__ commits but does not close: use closing
+        # so Windows can release temporary-file handles deterministically.
+        with closing(sqlite3.connect(
             store.path, timeout=0.05, isolation_level=None,
-        ) as observer:
+        )) as observer:
             observer.execute("PRAGMA busy_timeout=50")
             observer.execute("BEGIN IMMEDIATE")
             observer.execute("ROLLBACK")
