@@ -16,6 +16,7 @@ from . import supra_dossier as sd
 
 SCHEMA = "criba-dossier-batch/1"
 JOURNAL = "dossier_batches.jsonl"
+DISPATCH_POLICY = "criba-single-worker-dispatch/1"
 
 
 def _exact(value: object) -> bool:
@@ -114,7 +115,8 @@ def _state(events: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
                     raise ValueError("batch id does not match run")
             batches[key] = {"intent": event, "committed": False,
                             "remote": "NOT_ATTEMPTED", "endpoint": None,
-                            "dispatch_started": False}
+                            "dispatch_started": False,
+                            "dispatch_policy": None}
         elif key not in batches:
             raise ValueError("orphan batch event")
         else:
@@ -124,11 +126,21 @@ def _state(events: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
             elif (kind == "REMOTE_UNKNOWN" and batch["committed"]
                   and batch["remote"] == "NOT_ATTEMPTED"):
                 ep = event.get("endpoint")
+                policy = event.get("dispatch_policy")
+                if policy not in (None, DISPATCH_POLICY):
+                    raise ValueError("unknown remote dispatch policy")
+                if policy is not None and (
+                    ep is None or batch["intent"]["run_id"] is None
+                ):
+                    raise ValueError("remote dispatch policy requires bound run and endpoint")
                 batch["endpoint"] = _endpoint_identity(ep) if ep is not None else None
+                batch["dispatch_policy"] = policy
                 batch["remote"] = "UNKNOWN"
             elif (kind == "REMOTE_DISPATCH_STARTED"
                   and batch["remote"] == "UNKNOWN"
                   and not batch["dispatch_started"]
+                  and batch["dispatch_policy"] == DISPATCH_POLICY
+                  and batch["intent"]["run_id"] is not None
                   and batch["endpoint"] is not None):
                 if (event.get("endpoint") != batch["endpoint"]
                         or event.get("fingerprint") != batch["intent"]["fingerprint"]):
@@ -402,7 +414,8 @@ def reservar_primer_envio_preparado(
         # No remote transport can start before this fsynced write-ahead marker.
         sd._append_historial(
             directory / JOURNAL,
-            _event("REMOTE_UNKNOWN", batch_id, endpoint=origin),
+            _event("REMOTE_UNKNOWN", batch_id, endpoint=origin,
+                   dispatch_policy=DISPATCH_POLICY),
         )
         return {
             "batch_id": batch_id, "run_id": run_id, "problema": problema,
@@ -441,7 +454,8 @@ def marcar_envio_incierto(
         # readable but are never silently assigned today's endpoint.
         bound_endpoint = _endpoint_identity(endpoint)
         sd._append_historial(directory / JOURNAL,
-                            _event("REMOTE_UNKNOWN", batch_id, endpoint=bound_endpoint))
+                            _event("REMOTE_UNKNOWN", batch_id, endpoint=bound_endpoint,
+                                   dispatch_policy=DISPATCH_POLICY))
         return True
 
 
@@ -468,6 +482,10 @@ def reclamar_inicio_envio_remoto(
                 or batch["remote"] != "UNKNOWN"
                 or batch.get("dispatch_started")):
             raise ValueError("remote dispatch already claimed or not pending UNKNOWN")
+        if batch.get("dispatch_policy") != DISPATCH_POLICY:
+            # Historical UNKNOWN may already have POSTed before this event
+            # existed. An unversioned marker cannot be promoted to a new POST.
+            raise ValueError("historical UNKNOWN has no single-worker dispatch authority")
         if batch["endpoint"] != origin:
             raise ValueError("remote dispatch endpoint differs from journal")
         original = batch["intent"]["dossiers"]
