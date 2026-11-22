@@ -157,3 +157,83 @@ def test_repeat_click_while_original_get_inflight_is_deduplicated(harness, tmp_p
     actions.on_desarrollar_supra(win)
     actions.on_desarrollar_supra(win)
     assert len(workers) == 1 and errors == []
+
+
+
+@pytest.fixture
+def qapp():
+    from PySide6.QtWidgets import QApplication
+
+    return QApplication.instance() or QApplication([])
+
+
+def _zero_proposal_sheet():
+    return {
+        "query": "Synthetic recovery problem",
+        "run_id": "phase15-run",
+        "seed": 42,
+        "mode": "stratified",
+        "entries": [],
+        "totals": {
+            "ideas": 0, "pending_interpretation": 0,
+            "unresolved": 0, "partial_prior_art": 0,
+            "survived_search": 0,
+        },
+    }
+
+
+def test_real_shadow_button_enabled_for_journal_recovery_without_proposals(
+    qapp, monkeypatch, tmp_path,
+):
+    from criba.ui.main_window import CribaMainWindow
+
+    key, _ = prepared(tmp_path)
+    monkeypatch.setattr(sd, "_dossiers_dir", lambda override=None: tmp_path)
+    win = CribaMainWindow(database=tmp_path / "shadow.sqlite")
+    try:
+        win.problem = "Synthetic recovery problem"
+        actions._on_invented(win, _zero_proposal_sheet())
+        assert win.right_panel.supra.isEnabled()
+        assert not win.right_panel.protocolo.isEnabled()
+        assert "GET-only" in win.refs["ideaSummary"].text()
+        assert "NO EJECUTADO" not in win.refs["ideaEstadoChip"].text()
+        assert journal._state(journal._events(tmp_path / journal.JOURNAL))[key][
+            "remote"
+        ] == "UNKNOWN"
+    finally:
+        win.close()
+
+
+def test_real_shadow_button_disabled_for_new_sheet_without_any_proposals(
+    qapp, monkeypatch, tmp_path,
+):
+    from criba.ui.main_window import CribaMainWindow
+
+    monkeypatch.setattr(sd, "_dossiers_dir", lambda override=None: tmp_path)
+    win = CribaMainWindow(database=tmp_path / "shadow.sqlite")
+    try:
+        win.problem = "Synthetic recovery problem"
+        actions._on_invented(win, _zero_proposal_sheet())
+        assert not win.right_panel.supra.isEnabled()
+        assert not win.right_panel.protocolo.isEnabled()
+    finally:
+        win.close()
+
+
+def test_real_shadow_button_disabled_on_corrupt_original_journal(
+    qapp, monkeypatch, tmp_path,
+):
+    from criba.ui.main_window import CribaMainWindow
+
+    prepared(tmp_path)
+    with (tmp_path / journal.JOURNAL).open("ab") as output:
+        output.write(b'{"event":')
+    monkeypatch.setattr(sd, "_dossiers_dir", lambda override=None: tmp_path)
+    win = CribaMainWindow(database=tmp_path / "shadow.sqlite")
+    try:
+        win.problem = "Synthetic recovery problem"
+        actions._on_invented(win, _zero_proposal_sheet())
+        assert not win.right_panel.supra.isEnabled()
+        assert not win.right_panel.protocolo.isEnabled()
+    finally:
+        win.close()
