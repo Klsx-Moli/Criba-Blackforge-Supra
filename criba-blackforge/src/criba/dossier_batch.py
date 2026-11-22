@@ -116,7 +116,8 @@ def _state(events: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
             batches[key] = {"intent": event, "committed": False,
                             "remote": "NOT_ATTEMPTED", "endpoint": None,
                             "dispatch_started": False,
-                            "dispatch_policy": None}
+                            "dispatch_policy": None,
+                            "partial_readbacks": {}}
         elif key not in batches:
             raise ValueError("orphan batch event")
         else:
@@ -150,6 +151,24 @@ def _state(events: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
                 if (batch["dispatch_policy"] != DISPATCH_POLICY
                         or batch["intent"]["run_id"] is None):
                     batch["legacy_dispatch_unversioned"] = True
+            elif (kind == "REMOTE_PARTIAL_READBACK_OBSERVED"
+                  and batch["remote"] == "UNKNOWN"
+                  and batch["committed"]
+                  and batch["endpoint"] is not None):
+                if (event.get("evidence_version") != "criba-batch-partial-readback/1"
+                        or event.get("endpoint") != batch["endpoint"]
+                        or event.get("fingerprint") != batch["intent"]["fingerprint"]):
+                    raise ValueError("partial readback lineage mismatch")
+                row = event.get("run")
+                identity = row.get("dossier_id") if isinstance(row, dict) else None
+                source = next(
+                    (d for d in batch["intent"]["dossiers"]
+                     if d["dossier_id"] == identity), None,
+                )
+                if source is None or identity in batch["partial_readbacks"]:
+                    raise ValueError("partial readback duplicate or foreign identity")
+                minimal = _verified_readbacks([source], [row])[0]
+                batch["partial_readbacks"][identity] = minimal
             elif kind == "REMOTE_READBACK_OBSERVED" and batch["remote"] == "UNKNOWN":
                 if event.get("evidence_version") is None:
                     # Phase13/14 evidence does not prove top-level execution
@@ -513,6 +532,65 @@ def reclamar_inicio_envio_remoto(
                    fingerprint=batch["intent"]["fingerprint"]),
         )
         return safe_payload
+
+
+def registrar_readback_parcial(
+    batch_id: str, run: dict[str, Any],
+    directory: Path | None = None, *, endpoint: str | None = None,
+) -> bool:
+    """Persist ONE verified GET planning receipt without confirming the batch.
+
+    No remote calls, no POST, no mechanism execution. A partial observation
+    NEVER changes remote=UNKNOWN into READBACK_OBSERVED. Exact duplicates are
+    idempotent; conflicting observations and orphan IDs fail closed.
+    """
+    if not _exact(batch_id):
+        raise ValueError("partial readback batch id invalid")
+    origin = _endpoint_identity(endpoint)
+    directory = sd._dossiers_dir(directory)
+    with sd._historial_exclusive(directory):
+        batches = _state(_events(directory / JOURNAL))
+        batch = batches.get(batch_id)
+        if batch is None or not batch["committed"]:
+            raise ValueError("partial readback has no committed local intent")
+        if batch["endpoint"] != origin:
+            raise ValueError("partial readback endpoint mismatch")
+        if batch["remote"] == "READBACK_OBSERVED":
+            # Complete v2 historical evidence is already stronger than an
+            # additional standalone partial marker. This does not mean that
+            # the current GET has been verified.
+            return False
+        if batch["remote"] != "UNKNOWN":
+            raise ValueError("partial readback requires an uncertain remote batch")
+        identity = run.get("dossier_id") if isinstance(run, dict) else None
+        original = next(
+            (d for d in batch["intent"]["dossiers"]
+             if d["dossier_id"] == identity), None,
+        )
+        if original is None:
+            raise ValueError("partial readback dossier not in original batch")
+        history, ambiguous, _ = sd._leer_historial(directory / "dossiers.jsonl")
+        if any(
+            d["dossier_id"] in ambiguous
+            or d["dossier_id"] not in history
+            or sd._contexto(history[d["dossier_id"]]) != sd._contexto(d)
+            for d in batch["intent"]["dossiers"]
+        ):
+            raise ValueError("partial readback local dossier history changed")
+        minimal = _verified_readbacks([original], [run])[0]
+        old = batch["partial_readbacks"].get(identity)
+        if old is not None:
+            if old != minimal:
+                raise ValueError("partial readback conflicts with prior receipt")
+            return False
+        sd._append_historial(
+            directory / JOURNAL,
+            _event("REMOTE_PARTIAL_READBACK_OBSERVED", batch_id,
+                   endpoint=origin,
+                   evidence_version="criba-batch-partial-readback/1",
+                   fingerprint=batch["intent"]["fingerprint"], run=minimal),
+        )
+        return True
 
 
 def marcar_readback_observado(
