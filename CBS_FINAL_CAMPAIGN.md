@@ -541,3 +541,11 @@ git diff --check
 - REPRODUCED_BY_ME en ejecución Python mínima: la fixture `fake_execute` antigua fallaba con TypeError ante `expected_endpoint`, agregado en F14. Se acepta/verifica el keyword y se fija `SUPRA_ENDPOINT` en el test para que sea determinista.
 - EVIDENCE_PENDING: prueba GUI Qt (PySide6 no instalado en sandbox), suite de producto y Windows. No promover a PASS por inspección.
 - Política CI real: workflow `ci.yml` se ejecuta por PR, push en main o manual; los pushes a campaña no lo activan por defecto.
+
+
+### F15 — Integración real de los ficheros locales (8 casos nuevos)
+
+- Suite nueva: `tests/unit/test_dossier_batch_phase15_integration.py`. Usa `guardar_lote_dossiers`, `_events`, `_state`, `_leer_historial`, bloqueo de procesos y append/fsync reales. Solo sustituye la red SUPRA por respuestas GET deterministas; no ejecuta POST.
+- Cobertura: readback verificado tras reabrir journal, replay sin IDs nuevos, GET parcial, endpoint cambiado, dossier alterado, recibo alterado después del commit, fallo de escritura del marcador, legacy sin recibo y borrado del historial local.
+- **NOT_EXECUTED:** estos 8 casos en el checkout integral: no se certifica PASS. El sandbox F14 reejecutado 38/38 PASS y compileall PASS, pero usa journal simulado. Este cierre no permite elevar G0 ni cerrar el P0 semántico.
+- Punto siguiente: ejecutar los 8 casos junto con las suites F13/F14/GUI en Windows y CI de PR; refutar y corregir fallos, sin mezclar en main.
