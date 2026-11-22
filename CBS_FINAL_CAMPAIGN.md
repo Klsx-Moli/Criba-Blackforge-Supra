@@ -508,3 +508,29 @@ git diff --check
 - **STATICALLY_INSPECTED:** La prueba de callbacks Phase09 exigía dos workers al pulsar dos veces el MISMO sheet; ahora ese comportamiento es inseguro y se sustituye por una aserción de un solo worker y segundo intento bloqueado como UNKNOWN. La fixture usa directorio temporal real, no un fake guardar_dossier que ya no es la escritura productiva.
 - **STATICALLY_INSPECTED:** test_gui_inventar.py interceptaba guardar_dossier, que el lote nuevo ya no invoca, y su fake de _execute_supra_dossiers no aceptaba batch_id. Se adapta para comprobar persistencia real mediante cargar_dossier y aceptar ese argumento sin ejecutar red.
 - Estos cambios siguen **NOT_EXECUTED** en PySide6/Qt y checkout completo: son adaptación de expectativas e instrumentación, no nuevos PASS. El scheduler global y la integración visual requieren validación.
+
+
+## Fase 14 — Reconciliación remota GET-only tras reinicio
+
+Base: `eed004dd557f7afa9e6f84d045a637d380d8c6fb`; implementación incremental en la rama de campaña. No se modifican ASTRA, BLACKFORGE, main ni handoff.
+
+- **F14-01 P1 / STATICALLY_INSPECTED:** el journal Phase13 aceptaba `REMOTE_READBACK_OBSERVED` por una etiqueta sin receipt persistido. Ahora los eventos nuevos incluyen identidad, endpoint, fingerprint y procedencia, y `_state` revalida la evidencia; las etiquetas legadas sin recibos permanecen UNKNOWN.
+- **F14-02 P1 / STATICALLY_INSPECTED:** un tail truncado podía saltarse temporalmente y reaparecer como corrupción tras el siguiente append. La lectura nueva falla cerrada y preserva bytes; reparación manual pendiente, sin truncar el archivo ni tratar corrupción como PASS.
+- **F14-03 P1 / STATICALLY_INSPECTED:** se registra el endpoint junto al intento remoto y se exige el mismo origen antes del worker y de los GET de recuperación. Historial remoto antiguo sin endpoint no obtiene acreditación retroactiva.
+- **F14-04 / FIX:** `dossier_batch_recovery.reconciliar_lote_por_get` hace un GET por dossier esperado, sin POST ni retries. Valida proyecto, postura, stage, receipt scope, identidades, fingerprint, PERSISTED_STATE/VERIFIED_FROM_ARTIFACT, NOT_EXECUTED y NOT_VALIDATED. Si falla un GET o un guardado del journal, el lote sigue UNKNOWN.
+- **F14-05 / FIX:** comando explícito desde `criba-blackforge`: `python -m criba.dossier_batch_recovery --batch-id ID --dry-run`. Sin `--dry-run` solo registra readback totalmente confirmado. No se activa automáticamente al abrir Shadow.
+- **VERIFIED_BY_ME, ISOLATED_SEAM:** 19 tests unitarios de recuperación ejecutados en sandbox con journal/HTTP simulados, 19 PASS; inspección y compilación dirigida del módulo. **NOT_EXECUTED:** suite con código completo de SQLite/JSONL, PySide6 GUI, Ruff/mypy/CI, Windows, servicio SUPRA real e inferencias. Las pruebas fuente se publican para ejecución en checkout íntegro, no se atribuyen a CI.
+- El servidor puede declarar persistencia sin prueba criptográfica externa: este contrato verifica coherencia de los datos observados, no identidad física del servidor ni validación científica. No hay atomicidad transaccional entre SQLite, JSONL y POST.
+
+### Siguiente acción exacta: Fase 15
+
+Ejecutar checkout integral en entorno con red/Git, corregir regressions de F08–F14, tests con MockTransport, proceso/restart, corrupción, migración, interfaz Qt y control de hash/ramas. Ninguna promoción a main ni aprobación G0. G0=NO_GO, P0_SEMANTIC=OPEN.
+
+Comandos de validación (desde `criba-blackforge`):
+
+```sh
+python -m pytest -q tests/unit/test_dossier_batch_phase13.py tests/unit/test_dossier_batch_recovery_phase14.py tests/unit/test_shadow_supra_stale_callback_phase09.py tests/unit/test_gui_inventar.py
+python -m compileall -q src/criba/dossier_batch.py src/criba/dossier_batch_recovery.py src/criba/ui/actions.py
+python -m ruff check src/criba/dossier_batch.py src/criba/dossier_batch_recovery.py tests/unit/test_dossier_batch_phase13.py tests/unit/test_dossier_batch_recovery_phase14.py
+git diff --check
+```

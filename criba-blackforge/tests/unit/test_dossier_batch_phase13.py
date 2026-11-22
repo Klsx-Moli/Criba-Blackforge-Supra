@@ -160,7 +160,10 @@ def test_readback_requires_all_dossiers_and_remains_unknown_on_bad_report(tmp_pa
     key = b.guardar_lote_dossiers(dossiers(), tmp_path)["batch_id"]
     b.marcar_envio_incierto(key, tmp_path, endpoint="https://supra.test")
     with pytest.raises(ValueError, match="entire batch"):
-        b.marcar_readback_observado(key, [{"dossier_id": "d1-1", "project_id": "p1", "read": {}}], tmp_path)
+        b.marcar_readback_observado(
+        key, [{"dossier_id": "d1-1", "project_id": "p1", "read": {}}],
+        tmp_path, endpoint="https://supra.test"
+    )
     assert b.guardar_lote_dossiers(dossiers(attempt=2), tmp_path)["remote_state"] == "UNKNOWN"
     b.marcar_readback_observado(
         key, [readback(d) for d in dossiers()], tmp_path, endpoint="https://supra.test"
@@ -212,9 +215,9 @@ def test_readback_other_dossier_or_project_rejected(tmp_path):
 
 def test_readback_same_ids_but_wrong_content_fingerprint_rejected(tmp_path):
     key = b.guardar_lote_dossiers(dossiers(), tmp_path)["batch_id"]
-    b.marcar_envio_incierto(key, tmp_path)
+    b.marcar_envio_incierto(key, tmp_path, endpoint="https://supra.test")
     forged = [readback(d) for d in dossiers()]
     forged[0]["read"]["receipt"]["payload_fingerprint"] = "sha256:" + "0" * 64
     with pytest.raises(ValueError, match="bind"):
-        b.marcar_readback_observado(key, forged, tmp_path)
+        b.marcar_readback_observado(key, forged, tmp_path, endpoint="https://supra.test")
     assert b.guardar_lote_dossiers(dossiers(attempt=2), tmp_path)["remote_state"] == "UNKNOWN"
