@@ -500,10 +500,7 @@ def on_inventar(win: Any) -> None:
     # The cloud interpreter can silently choose a different critic from env.
     # Do not send a second request to an invisible or retired model.
     if (selected is not None and isinstance(chosen, (tuple, list))
-            and len(chosen) == 2 and chosen[0] == "openai_compatible"
-            and selected.itemData(
-                selected.currentIndex(), Qt.ItemDataRole.UserRole + 1
-            ) == "hermes"):
+            and len(chosen) == 2 and chosen[0] == "openai_compatible"):
         critic = os.environ.get("CRIBA_CRITIC_MODEL", "").strip()
         if critic and critic != str(chosen[1]):
             show_error(
@@ -515,10 +512,8 @@ def on_inventar(win: Any) -> None:
             return
     # Model catalogs do not attest free pricing or subscription quota.
     # A Hermes catalog choice must be authorized per run before ANY mutator.
-    if (selected is not None
-            and selected.itemData(
-                selected.currentIndex(), Qt.ItemDataRole.UserRole + 1
-            ) == "hermes"):
+    if (selected is not None and isinstance(chosen, (tuple, list))
+            and len(chosen) == 2 and chosen[0] == "openai_compatible"):
         consent_identity = (
             selected.currentIndex(), selected.currentData(), win.problem,
             os.environ.get("CRIBA_EXTERNAL_BASE_URL", ""),
@@ -550,10 +545,11 @@ def on_inventar(win: Any) -> None:
                 os.environ.get("CRIBA_CRITIC_MODEL", ""),
                 *_invention_controls(win),
             )
+            current_data = selected.currentData()
             still_hermes = (
-                selected.itemData(
-                    selected.currentIndex(), Qt.ItemDataRole.UserRole + 1
-                ) == "hermes"
+                isinstance(current_data, (tuple, list))
+                and len(current_data) == 2
+                and current_data[0] == "openai_compatible"
             )
         except (RuntimeError, ValueError):
             current_identity, still_hermes = None, False
