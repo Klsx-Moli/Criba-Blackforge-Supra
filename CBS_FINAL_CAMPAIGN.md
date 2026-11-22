@@ -227,6 +227,44 @@ Comando desde checkout `criba-blackforge`:
 python -m pytest -q tests/unit/test_semantic_pair_preflight.py tests/unit/test_k3_semantic_binding_phase05.py tests/unit/test_k3_receipt_integrity.py tests/unit/test_k3_ledger_gate.py tests/unit/test_k3_transport_journal.py tests/unit/test_model_identity_preflight.py
 ```
 
-## Siguiente acción exacta
+## Siguiente acción exacta (histórica, al cierre de fase 06)
 
 Fase 07 — Consolidación de permisos y preflight G0. Reconciliar las dos versiones de prerregistro y `VERSIONES_EFECTIVAS_G0.md` con hashes reales; crear checklist única de autorizaciones con estado explícito del propietario, sin asignar firmas ni defaults arbitrarios. Si el contrato S0/S1 continúa siendo injusto y no hay modelo efectivo/fuentes/juez independiente/verificación local, documentar NO-GO y posponer llamadas; avanzar tareas offline productivas sin bloquear toda la campaña. Revisar que `pilot_gate.py` no permita promocionar un threshold con falsos datos, y que `K3` y `physical_calls` no se traten como autenticidad. No tocar ASTRA, BLACKFORGE, runtime productivo ni main. No inferencias ni gasto.
+
+## Fase 07 — Consolidación de G0, manifiesto y autorización (NO-GO)
+
+Baseline GitHub: `a385ecf774d394c8988493afbe8fc658957179c7`. Resultado: verificación de **integridad de fuentes y lista de permisos** completada en laboratorio aislado. NO se ha aprobado G0 ni realizado ninguna llamada a un modelo. El P0 semántico continúa abierto.
+
+### Reconciliación ejecutada
+
+- Raw SHA256 exacto comprobado para `semantic_lab.py` = `e0692a16559309e34a47af4c6dd8987695df1d978c2da6cd1d0956ae40623ca6`; `semantic_cases.py` = `af9e945eaa558d28be9a123d63c59380b11636bbff28dd389b46d048415aedfa`; `pilot_cases.json` = `fad4b6fc0ac3a421d3475864ed7daef37be38cfa03c3551c7ff5b46a234c4c14`; `pilot_gate.py` = `69d1d283b2be5cb9334a8c4c46416fe7d42a4667572a3a69c1858c402a276abe`.
+- Los cuatro coinciden con las versiones EFECTIVAS de `VERSIONES_EFECTIVAS_G0.md`; el prerregistro inicial cita `ef07d195...` para lab, versión histórica no efectiva. No se han editado los documentos archivados ni ASTRA.
+- `semantic_cases.cases()` contiene 58 variantes development, 12 raíces. Manifiesto: 18 variantes, 3 raíces, 5 SUPPORT/11 REJECT/2 UNRESOLVED. **18/18 digest(case)**, IDs, etiquetas y versión development coinciden. Agenda exacta A/B/C: 16/36/108, prefijos, IDs específicos de A, identidades de slots y repeticiones. No hay reserved ni referencias independientes; los digest incluyen etiquetas autorales, no truth.
+- El documento `VERSIONES_EFECTIVAS_G0.md` es válido como checkpoint histórico, pero sus descripciones del puente de crítica, storage y runtime ya no son declaraciones confirmadas para la rama de campaña: fases 02 y 05 cambiaron los dos primeros; fase 04 encontró que la comprobación productiva remota solo valida alias. No promover documentación histórica a evidencia de integración vigente.
+
+### Nueva herramienta fail-closed
+
+`criba-blackforge/benchmarks/innovation/g0_authorization_preflight.py` crea un reporte offline de integridad y 13 decisiones G0. Comprueba SHA de bytes, manifiesto por contenido, módulo Python importado efectivamente desde el árbol inspeccionado y agenda. Si falta archivo, cambia hash, se mueve la identidad del caso, hay duplicación, cambia referencia o falta un slot, informa FAILED/NOT_ACCESSIBLE y se mantiene NO-GO. **Siempre** retorna decision=NO_GO, authorization=NOT_GRANTED_BY_THIS_TOOL, G0=DRAFT_NOT_APPROVED, P0=OPEN, phase_A/B/C=NOT_AUTHORIZED, provider_consumption=null. Un archivo que afirme `approved: true` no autentica al propietario. No conecta runtime, red o proveedores; sin credenciales. La aprobación futura debe venir de autorización explícita comprobable con prerequisitos materiales resueltos, fuera de este checker.
+
+`docs/research/semantic-correspondence/g0-draft/G0_DECISION_MATRIX.md` registra la matriz, condiciones y plan de continuidad. El resultado de `pilot_gate.summarize` ante **16 registros sintéticos fabricados** con las etiquetas del propio manifiesto es THRESHOLDS_MET_ONLY y 16 supuestas llamadas físicas; no acredita ninguna inferencia. La herramienta nueva se mantiene NO-GO incluso si el gate muestra umbrales perfectos. Las fases B/C nunca se autorizan por aprobar A.
+
+### Ejecución directa y mutation reasoning
+
+- En `/mnt/data/cbs_final_phase07_sandbox` con los mismos cuatro archivos exactos del remoto y los componentes aislados de fases 01–06: **242 passed** = 208 previas + 34 nuevas, última ejecución 4.54 s. SHA de blobs Git nuevos: script `74724174908e508b11776c72dd2cd8b2aafb3292`; tests `7a85c7513d1a7007173636adf15fa192db8f6fed`; matriz `976cdf3ae1d072981e46bd77dd83788f5ee70d8f`. Las tres cargas remotas verificadas con SHA exacto. `compileall` dirigido PASS, git diff --no-index --check sin diagnósticos; git diff --no-index rc=1 significa archivos diferentes, no fallo de whitespace.
+- 12 mutaciones individuales: **10 detectadas, 2 sobrevivientes** por controles redundantes: quitar comprobación explícita de `len(rows)==18` aún es bloqueado por los conteos y contraste de agenda; quitar igualdad de `reference` aún deja verificación por digest que incluye la etiqueta. Mutación compuesta que desactiva referencia y digest: detectada (2 fallos). Mutación compuesta tamaño+conteo también sobrevive porque `gate.references` y agenda protegen el contrato; no es prueba de ausencia de cobertura. Se declara el resultado real, no 12/12.
+- Sandbox no es clon completo. **NOT_EXECUTED**: suite íntegra del monorepo, tests Qt, CI de commit (sin check runs), Ruff, mypy y Windows. Tests productivos del contrato completo siguen pendientes. No se ha realizado inferencia, gasto, firma G0, merge ni despliegue.
+
+Comando offline desde el checkout completo `criba-blackforge`:
+
+```sh
+python -m benchmarks.innovation.g0_authorization_preflight
+python -m pytest -q tests/unit/test_g0_authorization_preflight.py tests/unit/test_semantic_pair_preflight.py tests/unit/test_k3_semantic_binding_phase05.py tests/unit/test_k3_receipt_integrity.py tests/unit/test_k3_ledger_gate.py tests/unit/test_k3_transport_journal.py tests/unit/test_model_identity_preflight.py
+```
+
+### Condición de salida
+
+**Fase 07 terminada en su alcance de inventario y comprobación; autorización G0 = NO_GO.** No se buscará firma del propietario para ejecutar A/B/C mientras S0/S1, referencias, jueces, identidad física y transporte productivo sigan pendientes. El avance funcional offline sigue independiente de G0.
+
+## Siguiente acción exacta
+
+Fase 08: inspeccionar y reproducir la ruta productiva de estados PROPUESTA/PENDIENTE/ABSTENER/ERROR/UNRESOLVED en `openai_compatible.py`, `InterpretationResult`, `JuezInterprete`, `InterpreteStore`, `invention_service`, Shadow, exportadores y consumidores SUPRA. Probar respuestas parciales, crítica fallida, error de red, retry oculto, resultado obsoleto, caché legacy, ausencia de evidencia y múltiples ejecuciones. Crear sentinelas que fallen ante promoción silenciosa de UNKNOWN/PENDIENTE a éxito, sin cambiar ASTRA, scoring científico ni BLACKFORGE; reparar lo que pueda verificarse en GitHub y conservar lo que requiere ejecución Windows. No inferencias ni gasto, no main merge ni publicaciones.
