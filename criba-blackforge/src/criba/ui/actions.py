@@ -1570,6 +1570,124 @@ def _on_supra_dossiers_failed(
     show_error(win, "SUPRA", message)
 
 
+def _reconciliar_lote_supra_get(batch_id: str) -> dict[str, Any]:
+    """Explicit GET-only reconciliation of the *active* batch, never POST.
+
+    Unlike 'recover latest SUPRA', this uses the bound local batch_id and the
+    journal origin, not LIST ordering or an unrelated latest remote project.
+    """
+    from ..dossier_batch_recovery import reconciliar_lote_por_get
+    from ..integrations import SupraClient
+
+    with SupraClient() as client:
+        return reconciliar_lote_por_get(batch_id, client)
+
+
+def _supra_batch_get_current(
+    win: Any, token: object, sheet: dict[str, Any], batch_id: str,
+    run_id: Any, problem: Any,
+) -> bool:
+    return (
+        getattr(win, "_supra_batch_recovery_token", None) is token
+        and getattr(win, "invent_sheet", None) is sheet
+        and sheet.get("run_id") == run_id
+        and sheet.get("dossier_batch_id") == batch_id
+        and getattr(win, "problem", None) == problem
+    )
+
+
+def _on_supra_batch_get_done(
+    win: Any, result: Any, *, token: object, sheet: dict[str, Any],
+    batch_id: str, run_id: Any, problem: Any,
+) -> None:
+    if not _supra_batch_get_current(win, token, sheet, batch_id, run_id, problem):
+        return
+    win._supra_batch_recovery_token = None
+    from .supra_batch_status import present_batch_recovery
+
+    # A response for another batch has no presentation authority here.
+    if not isinstance(result, dict) or result.get("batch_id") != batch_id:
+        result = {"status": "UNKNOWN"}
+    view = present_batch_recovery(result)
+    sheet["dossier_recovery_view_state"] = view["state"]
+    sheet["dossier_fresh_get_status"] = view["fresh_get_status"]
+    if view["state"] in ("FRESH_JOURNALED", "HISTORICAL_ONLY"):
+        sheet["dossier_remote_state"] = "READBACK_OBSERVED"
+    win._dossier_workflow_report = None
+    win.refs["ideaSummary"].setText(view["summary"])
+    set_chip(win.refs["ideaEstadoChip"], view["chip"], "exploracion")
+    status_label = getattr(getattr(win, "right_panel", None), "supra_result_status", None)
+    if status_label is not None:
+        status_label.setText(view["chip"])
+    candidates = getattr(win, "candidates", None)
+    if candidates is not None:
+        candidates.supra_output.setPlainText(
+            json.dumps(result, ensure_ascii=False, indent=2, default=str)
+        )
+        candidates.output_tabs.setCurrentWidget(candidates.supra_output)
+    _activity(win, "cyan" if view["state"] == "FRESH_JOURNALED" else "amber",
+              "SUPRA lote GET-only: " + view["state"] +
+              ". Recibo de planificación, no validación ni ejecución del mecanismo.")
+
+
+def _on_supra_batch_get_failed(
+    win: Any, message: str, *, token: object, sheet: dict[str, Any],
+    batch_id: str, run_id: Any, problem: Any,
+) -> None:
+    if not _supra_batch_get_current(win, token, sheet, batch_id, run_id, problem):
+        return
+    win._supra_batch_recovery_token = None
+    from .supra_batch_status import present_batch_recovery
+
+    view = present_batch_recovery(None)
+    sheet["dossier_recovery_view_state"] = view["state"]
+    sheet["dossier_fresh_get_status"] = "GET_FAILED"
+    win._dossier_workflow_report = None
+    win.refs["ideaSummary"].setText(view["summary"])
+    set_chip(win.refs["ideaEstadoChip"], view["chip"], "exploracion")
+    status_label = getattr(getattr(win, "right_panel", None), "supra_result_status", None)
+    if status_label is not None:
+        status_label.setText(view["chip"])
+    _activity(win, "amber", "SUPRA lote GET-only falló: sin nueva confirmación remota.")
+    show_error(win, "Recuperación de lote SUPRA", message)
+
+
+def _start_supra_batch_get(
+    win: Any, sheet: dict[str, Any], batch_id: str,
+) -> None:
+    """A second click on a pending batch performs only a bound GET reconciliation."""
+    if (
+        getattr(win, "_supra_batch_recovery_token", None) is not None
+        and getattr(win, "_supra_batch_recovery_sheet", None) is sheet
+        and getattr(win, "_supra_batch_recovery_id", None) == batch_id
+    ):
+        return
+    token = object()
+    win._supra_restore_token = None
+    win._supra_batch_recovery_token = token
+    win._supra_batch_recovery_sheet = sheet
+    win._supra_batch_recovery_id = batch_id
+    run_id = sheet.get("run_id")
+    problem = getattr(win, "problem", None)
+    win.refs["ideaSummary"].setText(
+        "Lote SUPRA previamente reservado · comprobando recibos mediante GET "
+        "sin reenvío · evidencia NO VALIDADA · mecanismo NO EJECUTADO"
+    )
+    set_chip(win.refs["ideaEstadoChip"], "SUPRA · comprobando GET", "exploracion")
+    context = {
+        "token": token, "sheet": sheet, "batch_id": batch_id,
+        "run_id": run_id, "problem": problem,
+    }
+    worker = Worker(lambda: _reconciliar_lote_supra_get(batch_id))
+    worker.signals.done.connect(
+        lambda report: _on_supra_batch_get_done(win, report, **context)
+    )
+    worker.signals.fail.connect(
+        lambda message: _on_supra_batch_get_failed(win, message, **context)
+    )
+    _start_worker(win, worker)
+
+
 def _entry_para_desarrollo(win: Any, sheet: dict[str, Any]) -> tuple[int, dict[str, Any]] | None:
     """Propuesta válida visible o, si no, la primera válida del lote."""
     entries = list(sheet.get("entries") or [])
@@ -1843,9 +1961,20 @@ def on_desarrollar_supra(win: Any) -> None:
     sheet["dossier_batch_id"] = batch["batch_id"]
     sheet["dossier_remote_state"] = batch["remote_state"]
     if batch["remote_state"] != "NOT_ATTEMPTED":
-        show_error(win, "SUPRA",
-                   "Lote previamente enviado o de resultado UNKNOWN. No se reenvía: "
-                   "recupera y verifica cada proyecto remoto antes de actuar.")
+        if (
+            getattr(win, "_supra_submission_token", None) is not None
+            and getattr(win, "_supra_submission_sheet", None) is sheet
+        ):
+            show_error(win, "SUPRA",
+                       "Lote UNKNOWN con envío ya reservado; el worker original "
+                       "sigue activo. No se ejecuta otra operación remota.")
+            return
+        if batch["remote_state"] in ("UNKNOWN", "READBACK_OBSERVED"):
+            # Explicit second click = GET-only reconciliation for this batch.
+            # Never enter the submission/POST path for a reserved run_id.
+            _start_supra_batch_get(win, sheet, batch["batch_id"])
+            return
+        show_error(win, "SUPRA", "Estado de lote no autorizable para reenvío.")
         return
     try:
         endpoint = SupraClientConfig.from_env().endpoint.rstrip("/")
@@ -1856,6 +1985,7 @@ def on_desarrollar_supra(win: Any) -> None:
         show_error(win, "SUPRA", f"No se autorizó el envío del lote: {exc}")
         return
     sheet["dossier_remote_state"] = "UNKNOWN"
+    win._supra_batch_recovery_token = None
     candidates = getattr(win, "candidates", None)
     if candidates is not None:
         candidates.dossier_output.setPlainText(
@@ -1880,6 +2010,7 @@ def on_desarrollar_supra(win: Any) -> None:
     win._supra_restore_token = None
     submission_token = object()
     win._supra_submission_token = submission_token
+    win._supra_submission_sheet = sheet
     expected_run_id = sheet.get("run_id")
     worker = Worker(
         lambda: _execute_supra_dossiers(
@@ -2030,6 +2161,9 @@ def _on_supra_restore_failed(
 def on_restore_latest_supra(win: Any) -> None:
     """Start non-blocking recovery after launcher connected the real endpoint."""
     restore_token = object()
+    # Restore-latest and batch-specific reconciliation are different queries:
+    # the most recently requested UI surface wins, without deleting evidence.
+    win._supra_batch_recovery_token = None
     win._supra_restore_token = restore_token
     expected_sheet = getattr(win, "invent_sheet", None)
     expected_packet = getattr(win, "packet", None)
@@ -2507,6 +2641,7 @@ def _on_supra_health_failed(win: Any, message: str) -> None:
 def on_supra(win: Any) -> None:
     """Panel SUPRA backed by the same canonical client used for execution."""
     win._supra_restore_token = None
+    win._supra_batch_recovery_token = None
     win.nav["navSupra"].setChecked(True)
     win.content_label.setText("SUPRA Taskmaster")
     win.content_sub.setText("Comprobando servicio real…")
