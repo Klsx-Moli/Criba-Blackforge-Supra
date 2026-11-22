@@ -74,7 +74,12 @@ def _events(path: Path) -> list[dict[str, Any]]:
     """Fail closed on a torn/corrupt journal, preserving bytes for recovery."""
     if not path.exists():
         return []
-    lines = path.read_bytes().splitlines(keepends=True)
+    raw = path.read_bytes()
+    # A JSON-complete but unterminated tail is not a fsynced JSONL event.
+    # The F26 forensic reader already refuses it; production must agree.
+    if raw and not raw.endswith(b"\n"):
+        raise ValueError("batch journal unterminated final JSONL record")
+    lines = raw.splitlines(keepends=True)
     result: list[dict[str, Any]] = []
     for index, line in enumerate(lines):
         try:
@@ -298,6 +303,59 @@ def _save_under_lock(directory: Path, key: str,
         batch["committed"] = True
     return {"batch_id": key, "dossiers": json.loads(_canonical(dossiers)),
             "remote_state": batch["remote"]}
+
+
+def comprobar_autorizacion_envio_dossier(
+    dossier: dict[str, Any], directory: Path | None = None, *,
+    batch_dispatch_id: str | None = None,
+    endpoint: str | None = None,
+) -> None:
+    """Enforce the shared journal boundary for all product POST entrypoints.
+
+    Standalone callers may send only dossiers not owned by a PREPARED batch.
+    A batch worker must first have durably claimed its single dispatch, then
+    submit exactly a dossier from the original intent to the bound endpoint.
+    Read-only check: it neither claims a dispatch nor authorizes retries.
+    Recheck immediately before POST because health performs external I/O.
+    """
+    if not isinstance(dossier, dict) or not _exact(dossier.get("dossier_id")):
+        raise ValueError("invalid dossier identity at remote dispatch boundary")
+    identity = dossier["dossier_id"]
+    run_id = dossier.get("run_id")
+    directory = sd._dossiers_dir(directory)
+    with sd._historial_exclusive(directory):
+        state = _state(_events(directory / JOURNAL))
+        owners = []
+        for key, item in state.items():
+            originals = item["intent"]["dossiers"]
+            if (any(d["dossier_id"] == identity for d in originals)
+                    or (_exact(run_id) and item["intent"]["run_id"] == run_id)):
+                owners.append((key, item))
+        if not owners:
+            if batch_dispatch_id is not None:
+                raise ValueError("claimed batch lacks submitted dossier")
+            return
+        if batch_dispatch_id is None:
+            raise ValueError("batch-managed dossier cannot use standalone POST")
+        if len(owners) != 1 or owners[0][0] != batch_dispatch_id:
+            raise ValueError("batch dispatch identity or lineage mismatch")
+        _key, batch = owners[0]
+        if (not batch["committed"] or batch["remote"] != "UNKNOWN"
+                or not batch["dispatch_started"]
+                or batch["dispatch_policy"] != DISPATCH_POLICY
+                or not _exact(endpoint)
+                or batch["endpoint"] != _endpoint_identity(endpoint)):
+            raise ValueError("batch worker has no valid claimed dispatch authority")
+        original = next(
+            (d for d in batch["intent"]["dossiers"] if d["dossier_id"] == identity),
+            None,
+        )
+        if original is None or _canonical(original) != _canonical(dossier):
+            raise ValueError("submitted dossier differs from original batch intent")
+        stored, ambiguous, _ = sd._leer_historial(directory / "dossiers.jsonl")
+        if (identity in ambiguous or identity not in stored
+                or sd._contexto(original) != sd._contexto(stored[identity])):
+            raise ValueError("batch-managed dossier history missing or changed")
 
 
 def guardar_lote_dossiers(dossiers: list[dict[str, Any]],
