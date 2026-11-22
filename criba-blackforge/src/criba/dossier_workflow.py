@@ -276,7 +276,8 @@ class DossierWorkflow:
     def submit(self, dossier: dict[str, Any], project_id: str | None = None, *,
                use_model: bool = False, provider: str | None = None, model: str | None = None,
                domain: str = "criba_blackforge", allow_disruptive: bool = True,
-               objective: str | None = None) -> Outcome:
+               objective: str | None = None,
+               expected_endpoint: str | None = None) -> Outcome:
         value = self.validate(dossier)
         target = project_id or "astram2-" + hashlib.sha256(value["dossier_id"].encode()).hexdigest()[:32]
         target = self.bindings.project_id(target)
@@ -292,6 +293,14 @@ class DossierWorkflow:
             kwargs["provider"] = provider
         if model is not None:
             kwargs["model"] = model
+        if (expected_endpoint is not None
+                and (not isinstance(client.config.endpoint, str)
+                     or client.config.endpoint.rstrip("/") != expected_endpoint)):
+            raise WorkflowError(
+                "CLI_ENDPOINT_CHANGED", "pre_post",
+                "El origen SUPRA cambió después de la reserva; no hacer POST.",
+                project_id=target, remote_unknown=True,
+            )
         try:
             post = client.run_project(**kwargs)
         except ValueError as exc:

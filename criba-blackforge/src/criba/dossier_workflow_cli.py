@@ -38,6 +38,114 @@ def make_workflow(endpoint: str | None) -> DossierWorkflow:
     return DossierWorkflow(client_factory=factory)
 
 
+
+def _send_one_journal_bound(
+    workflow: DossierWorkflow, args: argparse.Namespace,
+) -> tuple[dict[str, Any], int]:
+    """One explicitly authorized FIRST CLI dispatch, never a blind retry.
+
+    CLI does not have the atomic batch-orchestration capability to submit a
+    multi-dossier batch. Do not reserve part of that batch: that would make
+    all remaining originals permanently unsendable. Reject standalone drafts
+    rather than constructing a new run identity for a repeat POST.
+    """
+    from . import dossier_batch as journal
+    from . import supra_dossier as sd
+    from .dossier_batch_recovery import reconciliar_lote_por_get
+
+    dossier = workflow.load_local(args.dossier_id)
+    run_id, problem = dossier.get("run_id"), dossier.get("problema")
+    if not journal._exact(run_id) or not journal._exact(problem):
+        raise WorkflowError(
+            "CLI_JOURNAL_LINEAGE_REQUIRED", "preflight",
+            "CLI send exige run_id y problema exactos en un PREPARED original.",
+        )
+    found = journal.buscar_lote_por_sesion(run_id, problem)
+    if (found is None or not found["committed"]
+            or found["dossiers"] != [args.dossier_id]):
+        raise WorkflowError(
+            "CLI_SINGLE_BATCH_REQUIRED", "preflight",
+            "CLI send solo admite un PREPARED committed de un dossier; "
+            "para lotes múltiples usar Shadow y recuperar por GET.",
+        )
+    if found["remote_state"] != "NOT_ATTEMPTED":
+        raise WorkflowError(
+            "CLI_REMOTE_ALREADY_RESERVED", "preflight",
+            "Lote reservado previamente: no repetir POST; recuperar por GET.",
+            remote_unknown=found["remote_state"] != "READBACK_OBSERVED",
+        )
+    if not args.confirm_first_send:
+        raise WorkflowError(
+            "CLI_CONFIRMATION_REQUIRED", "preflight",
+            "Repetir con --confirm-first-send para autorizar su primer POST.",
+        )
+    expected_project = (
+        "astram2-" + __import__("hashlib").sha256(
+            args.dossier_id.encode("utf-8")
+        ).hexdigest()[:32]
+    )
+    if args.project_id is not None and args.project_id != expected_project:
+        raise WorkflowError(
+            "CLI_PROJECT_ID_MISMATCH", "preflight",
+            "El project_id debe ser el ID determinista del dossier original.",
+        )
+    # The caller cannot choose a new mutable POST payload or a new identity.
+    client = workflow.http()
+    origin = journal._endpoint_identity(client.config.endpoint)
+    reservation = journal.reservar_primer_envio_preparado(
+        found["batch_id"], run_id, problem, endpoint=origin,
+    )
+    payloads = reservation["dossiers"]
+    if len(payloads) != 1 or payloads[0]["dossier_id"] != args.dossier_id:
+        raise WorkflowError(
+            "CLI_JOURNAL_CHANGED", "reserve",
+            "La reserva no coincide con el dossier original; GET-only.",
+            remote_unknown=True,
+        )
+    # Marker persists before even health. A crash here leaves UNKNOWN,
+    # never NOT_ATTEMPTED and never authorizes an automatic POST retry.
+    original_payloads = journal.reclamar_inicio_envio_remoto(
+        reservation["batch_id"], payloads, endpoint=origin,
+    )
+    if len(original_payloads) != 1:
+        raise WorkflowError(
+            "CLI_JOURNAL_CHANGED", "dispatch",
+            "La reclamación no conserva el lote original.",
+            remote_unknown=True,
+        )
+    result = workflow.submit(
+        original_payloads[0], expected_project,
+        use_model=args.use_model, provider=args.provider, model=args.model,
+        domain=args.domain, allow_disruptive=not args.no_disruptive,
+        expected_endpoint=origin,
+    )
+    # Successful POST and a workflow-local GET are insufficient to declare
+    # journaled success. This second GET uses the strict v2 evidence contract.
+    verified = reconciliar_lote_por_get(
+        reservation["batch_id"], client, registrar=True,
+        expected_run_id=run_id, expected_problem=problem,
+    )
+    if (verified.get("status") != "READBACK_OBSERVED"
+            or verified.get("fresh_get_status") != "VERIFIED_FROM_ARTIFACT"
+            or verified.get("journal_recorded") is not True):
+        return ({
+            "operation_status": "REMOTE_UNKNOWN_READBACK_UNCONFIRMED",
+            "batch_id": reservation["batch_id"], "project_id": expected_project,
+            "remote_outcome_unknown": True, "authorizes_retry": False,
+            "scientific_status": "NOT_VALIDATED",
+            "mechanism_execution": "NOT_EXECUTED",
+        }, 2)
+    report = result.report()
+    report.update({
+        "operation_status": "PLANNING_RECEIPT_JOURNALED_ONLY",
+        "batch_id": reservation["batch_id"], "remote_outcome_unknown": False,
+        "authorizes_retry": False,
+        "scientific_status": "NOT_VALIDATED",
+        "mechanism_execution": "NOT_EXECUTED",
+    })
+    return report, 0
+
+
 def main(argv: Sequence[str] | None = None, *,
          workflow_factory: Callable[[str | None], DossierWorkflow] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="criba dossier")
@@ -50,6 +158,10 @@ def main(argv: Sequence[str] | None = None, *,
     send = commands.add_parser("send")
     send.add_argument("--dossier-id", required=True)
     send.add_argument("--project-id", default=None)
+    send.add_argument(
+        "--confirm-first-send", action="store_true",
+        help="Autoriza EXCLUSIVAMENTE el primer POST de un lote local de un dossier.",
+    )
     send.add_argument("--use-model", action="store_true", help="Opt-in con autorización de coste/scope")
     send.add_argument("--provider", default=None)
     send.add_argument("--model", default=None)
@@ -77,10 +189,7 @@ def main(argv: Sequence[str] | None = None, *,
             if args.command == "prepare":
                 result = workflow.prepare(read_object(args.entry), args.problem)
             elif args.command == "send":
-                result = workflow.submit(workflow.load_local(args.dossier_id), args.project_id,
-                    use_model=args.use_model, provider=args.provider, model=args.model,
-                    domain=args.domain, allow_disruptive=not args.no_disruptive).report()
-                result["operation_status"] = "CONFIRMED_PLANNING_DELIVERY"
+                result, return_code = _send_one_journal_bound(workflow, args)
             elif args.command == "recover":
                 result = (workflow.recover_latest() if args.latest else workflow.recover(args.project_id)).report()
             elif args.command == "export":
@@ -88,7 +197,7 @@ def main(argv: Sequence[str] | None = None, *,
             else:
                 result = workflow.import_bundle(read_object(args.file))
             emit(result, args.output)
-        return 0
+        return return_code if args.command == "send" else 0
     except WorkflowError as exc:
         emit({"operation_status": "WORKFLOW_ERROR", "error": exc.to_dict()}, args.output)
         return 2
