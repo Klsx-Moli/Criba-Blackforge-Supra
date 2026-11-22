@@ -241,6 +241,130 @@ def reconciliar_lote_por_get(
             "journal_recorded": registrar or batch["remote"] == "READBACK_OBSERVED"}
 
 
+
+def inspeccionar_lote_parcial_por_get(
+    batch_id: str, client: Any, directory: Path | None = None,
+    *, registrar: bool = False, expected_run_id: str | None = None,
+    expected_problem: str | None = None,
+) -> dict[str, Any]:
+    """Sweep exact projects by GET; never infer missing POSTs or batch success.
+
+    Each row describes THIS inspection only; historical partial receipts are
+    not fresh GET. registrar=True fsyncs individual positive planning receipts,
+    not the complete-batch v2 marker. A crash may interrupt the sweep while
+    preserving earlier positive rows. No POST or automatic remote retries.
+    """
+    directory = journal.sd._dossiers_dir(directory)
+
+    def refusal(reason: str, expected: int = 0) -> dict[str, Any]:
+        return {
+            "batch_id": batch_id, "status": "UNKNOWN", "reason": reason,
+            "expected": expected, "fresh_verified": 0, "journal_partials": 0,
+            "rows": [], "full_batch_recorded": False,
+            "scientific_status": "NOT_VALIDATED",
+            "mechanism_execution": "NOT_EXECUTED",
+        }
+
+    with journal.sd._historial_exclusive(directory):
+        states = journal._state(journal._events(directory / journal.JOURNAL))
+        batch = states.get(batch_id)
+        if batch is None:
+            raise ValueError("partial batch_id not in journal")
+        if not batch["committed"] or batch["remote"] not in (
+            "UNKNOWN", "READBACK_OBSERVED",
+        ):
+            return refusal("BATCH_NOT_REMOTELY_RESERVED")
+        original = batch["intent"]["dossiers"]
+        if ((expected_run_id is not None
+             and batch["intent"]["run_id"] != expected_run_id)
+                or (expected_problem is not None
+                    and batch["intent"]["problema"] != expected_problem)):
+            return refusal("INTENT_LINEAGE_MISMATCH", len(original))
+        endpoint = batch["endpoint"]
+        fingerprint = batch["intent"]["fingerprint"]
+        history, ambiguous, _ = journal.sd._leer_historial(directory / "dossiers.jsonl")
+        if any(
+            d["dossier_id"] in ambiguous
+            or d["dossier_id"] not in history
+            or journal.sd._contexto(d) != journal.sd._contexto(history[d["dossier_id"]])
+            for d in original
+        ):
+            return refusal("LOCAL_HISTORY_MISMATCH", len(original))
+    current_endpoint = _field(_field(client, "config"), "endpoint")
+    if not endpoint:
+        return refusal("ENDPOINT_NOT_BOUND", len(original))
+    if (not isinstance(current_endpoint, str)
+            or endpoint != current_endpoint.rstrip("/")):
+        return refusal("ENDPOINT_MISMATCH", len(original))
+    rows: list[dict[str, Any]] = []
+    for dossier in original:
+        identity = dossier["dossier_id"]
+        try:
+            lookup = client.get_project(_expected_project(identity))
+        except Exception:
+            # Includes HTTP 404: a failed GET is not proof that no POST ran.
+            rows.append({
+                "dossier_id": identity, "get_status": "GET_UNAVAILABLE_UNKNOWN",
+            })
+            continue
+        verified = _readback(dossier, lookup)
+        if verified is None:
+            rows.append({
+                "dossier_id": identity, "get_status": "UNBOUND_READBACK_UNKNOWN",
+            })
+            continue
+        recorded = False
+        if registrar:
+            try:
+                recorded = journal.registrar_readback_parcial(
+                    batch_id, verified, directory, endpoint=endpoint,
+                )
+            except (OSError, ValueError):
+                # Fresh response was verified, but persistence is not confirmed.
+                rows.append({
+                    "dossier_id": identity,
+                    "get_status": "JOURNAL_WRITE_UNCONFIRMED",
+                })
+                continue
+        rows.append({
+            "dossier_id": identity,
+            "get_status": "FRESH_PLANNING_RECEIPT_VERIFIED",
+            "partial_written_now": recorded,
+        })
+    # The journal or local originals can change during network I/O. Always
+    # recheck after sweep; no freshness result survives a lineage change.
+    with journal.sd._historial_exclusive(directory):
+        state = journal._state(journal._events(directory / journal.JOURNAL))
+        current = state.get(batch_id)
+        if (current is None or not current["committed"]
+                or current["remote"] not in ("UNKNOWN", "READBACK_OBSERVED")
+                or current["endpoint"] != endpoint
+                or current["intent"]["fingerprint"] != fingerprint):
+            return refusal("JOURNAL_CHANGED_DURING_GET", len(original))
+        history, ambiguous, _ = journal.sd._leer_historial(directory / "dossiers.jsonl")
+        if any(
+            d["dossier_id"] in ambiguous
+            or d["dossier_id"] not in history
+            or journal.sd._contexto(d) != journal.sd._contexto(history[d["dossier_id"]])
+            for d in current["intent"]["dossiers"]
+        ):
+            return refusal("LOCAL_HISTORY_CHANGED_DURING_GET", len(original))
+        historical_count = len(current["partial_readbacks"])
+        complete = current["remote"] == "READBACK_OBSERVED"
+    return {
+        "batch_id": batch_id, "status": "PARTIAL_DIAGNOSTIC_ONLY",
+        "reason": "NO_FULL_BATCH_PROMOTION", "expected": len(original),
+        "fresh_verified": sum(
+            row["get_status"] == "FRESH_PLANNING_RECEIPT_VERIFIED"
+            for row in rows
+        ),
+        "journal_partials": historical_count, "rows": rows,
+        "full_batch_recorded": complete,
+        "scientific_status": "NOT_VALIDATED",
+        "mechanism_execution": "NOT_EXECUTED",
+    }
+
+
 def main(argv: list[str] | None = None) -> int:
     """Explicit, read-only reconciliation CLI; it never submits a project."""
     import argparse
