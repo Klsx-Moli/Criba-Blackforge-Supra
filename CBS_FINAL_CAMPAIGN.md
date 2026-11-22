@@ -631,3 +631,14 @@ git diff --check
 
 - Dos sentinels adicionales ejecutan sys.executable en subprocess independiente: un journal v2 fsynced se reabre como READBACK_OBSERVED sin reenvíos ni alteración de bytes, y otro journal con JSONL truncado falla cerrado en el nuevo proceso, preservando el tail corrupto.
 - La suite F19 consta de 13 funciones y 16 casos expandidos (incluidos 4 CLI parametrizados). La ejecución íntegra real continúa NOT_EXECUTED; no confundir pruebas publicadas con pruebas ejecutadas.
+
+
+## Fase 20 — Shadow: recuperación del lote exacto y estados epistemológicos
+
+- Base: `d7deaeb0ddf26453edf4aa12b9e35deff593d84b`. Rama única `campaign/cbs-final-32-40`; no main/ASTRA/handoff.
+- **P1 / STATICALLY_INSPECTED:** la recuperación previa `_load_latest_supra` usa LIST/GET del último proyecto, no el `dossier_batch_id` UNKNOWN del sheet. Un segundo clic en «Desarrollar con SUPRA» solo devolvía aviso, sin GET del lote correcto. Ahora se habilita acción explícita GET-only para lotes UNKNOWN/READBACK_OBSERVED, preservando el bloqueo de una segunda invocación mientras el POST original esté activo.
+- **P1 / STATICALLY_INSPECTED:** `_on_supra_dossiers_done` presentaba «workflow completado» con solo un diccionario `read`, sin exigir escritura local v2. El worker productivo emite `journal_recorded` únicamente tras `marcar_readback_observado`; la UI exige acuse del mismo batch e identidades de dossiers y recibos GET estructurados. Sin acuse, muestra journal SIN RECIBO verificable y no promociona `supra_runs`.
+- **Contrato de presentación, sin PySide6:** `ui/supra_batch_status.py` clasifica `FRESH_JOURNALED`, `FRESH_NOT_JOURNALED`, `HISTORICAL_ONLY`, `UNKNOWN`. Los tres estados sólo describen recibos de planificación, jamás mecanismo ejecutado ni validación científica. Campos ausentes, tipos bool en contadores, contadores parciales, marcadores contradictorios y estado no conocido fallan a UNKNOWN.
+- **Callbacks:** identidad de token, `sheet is`, `run_id`, `batch_id` y `problem`. Duplicados GET bloqueados mientras corre la misma solicitud; abandonar sesión o recuperar el último proyecto invalida el GET antiguo. Nunca se invoca POST en reconciliación.
+- **Tests:** 24 casos de proyección headless reproducidos localmente (24/24 PASS, Python 3.13), más 11 pruebas de cableado Qt publicadas (no ejecutadas por falta de PySide6). Fases 09 y GUI Inventar actualizadas para no exigir falsos resultados de un worker simulado sin journal.
+- **EVIDENCE_PENDING:** tests oficiales contra checkout real, Qt Windows, suite completa, Ruff, mypy, CI. G0 NO-GO y P0 semántico OPEN.
