@@ -164,14 +164,16 @@ def default_model_settings() -> ModelSettings:
     return ModelSettings(active_profile_id=profile.id, profiles=[profile])
 
 
-def load_model_settings(path: Path | None = None) -> ModelSettings:
-    """Load settings; malformed or missing files degrade to disabled defaults."""
+def load_model_settings_bytes(raw_bytes: bytes | None) -> ModelSettings:
+    """Decode one captured file snapshot without reopening any path.
 
-    target = path or model_config_path()
-    if not target.is_file():
+    The reader remains intentionally tolerant. Callers intending to WRITE
+    must first enforce the strict, lossless schema check independently.
+    """
+    if raw_bytes is None:
         return default_model_settings()
     try:
-        raw = json.loads(target.read_text(encoding="utf-8"))
+        raw = json.loads(raw_bytes.decode("utf-8"))
         if not isinstance(raw, dict):
             raise TypeError("La configuración de modelos debe ser un objeto JSON.")
         profiles_raw = raw.get("profiles", [])
@@ -197,7 +199,16 @@ def load_model_settings(path: Path | None = None) -> ModelSettings:
         if active is not None:
             settings.active_profile_id = active.id
         return settings
-    except (OSError, ValueError, TypeError, json.JSONDecodeError):
+    except (ValueError, TypeError, UnicodeError):
+        return default_model_settings()
+
+
+def load_model_settings(path: Path | None = None) -> ModelSettings:
+    """Load settings; malformed or missing files degrade to disabled defaults."""
+    target = path or model_config_path()
+    try:
+        return load_model_settings_bytes(target.read_bytes())
+    except OSError:
         return default_model_settings()
 
 
