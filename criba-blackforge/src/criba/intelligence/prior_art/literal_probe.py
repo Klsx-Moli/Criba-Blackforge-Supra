@@ -196,7 +196,7 @@ def probe_literal_mechanism(
                 ("title", doc.title, ""),
             ]
             fields.extend(
-                ("fragment", fragment.text, fragment.locator if isinstance(fragment.locator, str) else "")
+                ("fragment", fragment.text, fragment.locator)
                 for fragment in doc.fragments
             )
             for field, text, locator in fields:
