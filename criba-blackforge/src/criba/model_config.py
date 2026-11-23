@@ -214,7 +214,11 @@ def save_model_settings(settings: ModelSettings, path: Path | None = None) -> Pa
     # configuration. Users must explicitly choose the real destination path.
     if target.is_symlink():
         raise OSError("model settings destination is a symlink")
-    payload = json.dumps(settings.to_dict(), ensure_ascii=False, indent=2)
+    # JSON specification forbids NaN/Infinity. Reject malformed in-memory
+    # numeric settings before creating any temporary or replacing a valid file.
+    payload = json.dumps(
+        settings.to_dict(), ensure_ascii=False, indent=2, allow_nan=False,
+    )
     descriptor, filename = tempfile.mkstemp(
         prefix=f".{target.name}.", suffix=".tmp", dir=target.parent,
     )
