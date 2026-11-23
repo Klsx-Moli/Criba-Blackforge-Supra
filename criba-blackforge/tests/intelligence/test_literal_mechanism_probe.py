@@ -161,10 +161,15 @@ def test_f42_invalid_scan_budget_is_rejected(limit: object) -> None:
 def test_f42_duplicate_doc_id_cannot_pad_number_of_candidates() -> None:
     documents = [_doc("same", abstract=_MECHANISM), _doc("same", title=_MECHANISM)]
     result = probe_literal_mechanism(_candidate(), {"science": _source(documents)})
-    assert len(result.candidates) == 1
-    assert result.documents_scanned == 1
-    assert result.documents_unscanned == 1
-    assert result.status == "POTENTIAL_LITERAL_OVERLAP"
+    reversed_result = probe_literal_mechanism(
+        _candidate(), {"science": _source(list(reversed(documents)))},
+    )
+    # Both ambiguous variants are uninspected, regardless of source order.
+    assert result == reversed_result
+    assert result.candidates == ()
+    assert result.documents_scanned == 0
+    assert result.documents_unscanned == 2
+    assert result.status == "INDETERMINATE"
 
 
 def test_f42_sources_and_documents_reordering_does_not_change_output() -> None:
@@ -178,3 +183,21 @@ def test_f42_sources_and_documents_reordering_does_not_change_output() -> None:
         _candidate(), {"patents": second, "science": first_reordered},
     ).to_dict()
     assert reordered == baseline
+
+
+def test_f42_two_valid_same_source_hits_are_order_invariant() -> None:
+    a = _doc("doc-A", abstract=_MECHANISM)
+    b = _doc("doc-B", title=_MECHANISM)
+    forward = probe_literal_mechanism(
+        _candidate(), {"science": _source([a, b])},
+    ).to_dict()
+    reverse = probe_literal_mechanism(
+        _candidate(), {"science": _source([b, a])},
+    ).to_dict()
+    assert forward == reverse
+    assert [hit["doc_id"] for hit in forward["candidates"]] == ["doc-A", "doc-B"]
+
+
+def test_f42_excessive_requested_scan_budget_is_rejected() -> None:
+    with pytest.raises(ValueError, match="max_documents"):
+        probe_literal_mechanism(_candidate(), {}, max_documents=1000)
