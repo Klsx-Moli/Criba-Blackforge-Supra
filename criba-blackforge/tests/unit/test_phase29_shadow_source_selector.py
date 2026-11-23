@@ -947,6 +947,12 @@ def test_f36_ollama_reads_exact_snapshotted_config_path(
 
     monkeypatch.setattr(config_module, "load_model_settings_bytes", watched_decoder)
     monkeypatch.setattr(
+        config_module, "load_model_settings",
+        lambda *_args, **_kwargs: pytest.fail(
+            "Ollama activation must not reopen the shared settings path"
+        ),
+    )
+    monkeypatch.setattr(
         QMessageBox, "question",
         lambda *_args, **_kwargs: QMessageBox.StandardButton.Yes,
     )
