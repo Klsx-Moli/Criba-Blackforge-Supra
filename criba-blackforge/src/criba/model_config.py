@@ -212,8 +212,13 @@ def load_model_settings_bytes(raw_bytes: bytes | None) -> ModelSettings:
         if not profiles:
             return default_model_settings()
         enabled = raw["enabled"] if isinstance(raw.get("enabled"), bool) else False
-        selected = _text(raw.get("active_profile_id"), "", limit=120)
-        if enabled and selected not in {profile.id for profile in profiles}:
+        selected_raw = raw.get("active_profile_id")
+        selected = _text(selected_raw, "", limit=120)
+        if enabled and (
+            not isinstance(selected_raw, str)
+            or selected_raw != selected
+            or selected not in {profile.id for profile in profiles}
+        ):
             # Never substitute the FIRST model for an unknown intended model
             # when generation is enabled; it could be another GGUF/provider.
             return default_model_settings()
