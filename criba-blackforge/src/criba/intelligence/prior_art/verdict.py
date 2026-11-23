@@ -43,12 +43,38 @@ class PriorArtVerdictEngine:
             or skeptic.verdict not in ("requires_experiment", "survives_with_conditions")
         ):
             raise ValueError("SKEPTIC_VERDICT_INVALID")
-        ordered_results = tuple(sorted(results.items(), key=lambda item: item[0]))
+        # The skeptic normally validates these producers, but this public
+        # engine also accepts direct calls. In particular ok="false" is a
+        # truthy string: never promote that fake success to source coverage.
+        ordered_results = tuple(
+            sorted(
+                results.items(),
+                key=lambda item: item[0] if isinstance(item[0], str) else "",
+            )
+        )
         for source_id, result in ordered_results:
             if not isinstance(source_id, str) or not isinstance(result, SourceQueryResult):
                 raise TypeError("results must map source IDs to SourceQueryResult instances")
+            if not source_id or source_id != source_id.strip():
+                raise ValueError("SOURCE_ID_INVALID")
             if result.source_id != source_id:
                 raise ValueError("result source_id must match its mapping key")
+            if not isinstance(result.query_text, str) or not result.query_text.strip():
+                raise ValueError("SOURCE_QUERY_INVALID")
+            if type(result.ok) is not bool:
+                raise TypeError("SOURCE_OK_NOT_BOOLEAN")
+            if not isinstance(result.documents, list):
+                raise TypeError("SOURCE_DOCUMENTS_NOT_LIST")
+            for document in result.documents:
+                if not isinstance(document, EvidenceDocument):
+                    raise TypeError("SOURCE_DOCUMENT_TYPE_INVALID")
+                if (
+                    not isinstance(document.doc_id, str)
+                    or not document.doc_id
+                    or document.doc_id != document.doc_id.strip()
+                    or document.source_id != source_id
+                ):
+                    raise ValueError("SOURCE_DOCUMENT_IDENTITY_INVALID")
 
         structural_gaps = [
             f"source_failure:{source_id}"
