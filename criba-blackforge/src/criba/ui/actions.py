@@ -1698,6 +1698,22 @@ def _editable_model_settings_bytes(raw_bytes: bytes | None) -> bool:
     return True
 
 
+def _bounded_shared_model_bytes(path: Any) -> bytes | None:
+    """Read a shared models.json snapshot; never follow links or unbounded files."""
+    if path.is_symlink():
+        raise ValueError("shared model config is a symlink")
+    try:
+        with path.open("rb") as stream:
+            raw = stream.read(1_048_577)
+    except FileNotFoundError:
+        if path.is_symlink():
+            raise ValueError("shared model config is a dangling symlink")
+        return None
+    if len(raw) > 1_048_576:
+        raise ValueError("shared model config exceeds 1 MiB")
+    return raw
+
+
 def _activate_ollama_choice(win: Any, model_id: str) -> bool:
     """Explicit user selection writes a new local profile, never provider secrets."""
     from ..model_config import (
@@ -1708,8 +1724,8 @@ def _activate_ollama_choice(win: Any, model_id: str) -> bool:
     # file or another chosen model must invalidate the consent before save.
     config_path = model_config_path()
     try:
-        before_bytes = config_path.read_bytes() if config_path.is_file() else None
-    except OSError:
+        before_bytes = _bounded_shared_model_bytes(config_path)
+    except (OSError, ValueError):
         return False
     if not _editable_model_settings_bytes(before_bytes):
         return False
@@ -1756,8 +1772,8 @@ def _activate_ollama_choice(win: Any, model_id: str) -> bool:
         current_path = model_config_path()
         if current_path != config_path or config_path.is_symlink():
             return False
-        current_bytes = config_path.read_bytes() if config_path.is_file() else None
-    except (OSError, RuntimeError):
+        current_bytes = _bounded_shared_model_bytes(config_path)
+    except (OSError, ValueError, RuntimeError):
         return False
     if current_selection != selection or current_bytes != before_bytes:
         # Does not claim an atomic cross-process transaction; never knowingly
