@@ -577,3 +577,58 @@ def test_f40_historical_match_from_same_source_still_survives_round_boundary() -
     )
     assert assessment.verdict == PriorArtVerdict.PARTIAL_PRIOR_ART.value
     assert assessment.matches == [historical]
+
+
+@pytest.mark.parametrize("different_body", [False, True])
+def test_f41_duplicate_document_id_never_counts_as_independent_source_evidence(
+    different_body: bool,
+) -> None:
+    """Duplicate IDs, even identical bodies, are not two source documents."""
+    candidate = _candidate()
+    results = {
+        "science": SourceQueryResult(
+            source_id="science", query_text="thermal management", ok=True,
+            documents=[EvidenceDocument(
+                doc_id="same-id", source_id="science", title="original",
+                provenance=ProvenanceRecord(
+                    source_id="science", url="https://science.invalid/doc",
+                ),
+            )],
+        )
+    }
+    skeptic = PriorArtSkeptic().review(candidate, results)
+    duplicate = EvidenceDocument(
+        doc_id="same-id", source_id="science",
+        title="different" if different_body else "original",
+        provenance=ProvenanceRecord(
+            source_id="science", url="https://science.invalid/doc",
+        ),
+    )
+    results["science"].documents.append(duplicate)
+    with pytest.raises(ValueError, match="SOURCE_DOCUMENT_ID_COLLISION"):
+        PriorArtVerdictEngine().assess(
+            candidate, results, skeptic, matches=[],
+        )
+
+
+def test_f41_same_document_id_in_different_sources_is_not_a_collision() -> None:
+    """Source-scoped IDs are valid: science/doc1 != code/doc1."""
+    candidate = _candidate()
+    results = {
+        source_id: SourceQueryResult(
+            source_id=source_id, query_text="thermal management", ok=True,
+            documents=[EvidenceDocument(
+                doc_id="same-id", source_id=source_id,
+                provenance=ProvenanceRecord(
+                    source_id=source_id,
+                    url=f"https://{source_id}.invalid/doc",
+                ),
+            )],
+        )
+        for source_id in ("science", "code")
+    }
+    skeptic = PriorArtSkeptic().review(candidate, results)
+    assessment = PriorArtVerdictEngine().assess(
+        candidate, results, skeptic, matches=[],
+    )
+    assert assessment.verdict == PriorArtVerdict.SURVIVED_SEARCH.value
