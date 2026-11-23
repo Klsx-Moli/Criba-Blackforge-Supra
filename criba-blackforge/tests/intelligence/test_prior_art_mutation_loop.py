@@ -236,7 +236,7 @@ def test_mutation_loop_accepts_survived_search_and_may_mutate() -> None:
 def test_mutation_loop_respects_max_rounds() -> None:
     """The loop must not exceed max_prior_art_rounds."""
     protocol = AdversarialSearchProtocol(
-        candidate_id="cand_test",
+        candidate_id=_CandidateFactory.candidate().candidate_id,
         max_prior_art_rounds=1,
         max_mutations_per_candidate=0,
     )
@@ -264,7 +264,7 @@ def test_mutation_loop_respects_max_rounds() -> None:
 def test_mutation_loop_respects_mutation_budget() -> None:
     """The loop must not exceed max_mutations_per_candidate."""
     protocol = AdversarialSearchProtocol(
-        candidate_id="cand_test",
+        candidate_id=_CandidateFactory.candidate().candidate_id,
         max_prior_art_rounds=3,
         max_mutations_per_candidate=1,
     )
@@ -290,3 +290,76 @@ def test_mutation_loop_respects_mutation_budget() -> None:
 
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-q"]))
+
+
+@pytest.mark.parametrize("mismatch", ["assessment", "protocol"])
+def test_f41_cross_candidate_replay_rejected_before_search(
+    mismatch: str, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A prior match for candidate A cannot be replayed as candidate B."""
+    candidate = _CandidateFactory.candidate()
+    scout = _CrossDomainScoutForLoop()
+    results = _results_with_docs()
+    skeptic = PriorArtSkeptic().review(candidate, results)
+    match = PriorArtMatch(doc=results["dummy"].documents[0], similarity=0.9)
+    initial = PriorArtVerdictEngine().assess(
+        candidate, results, skeptic, matches=[match],
+    )
+    protocol = AdversarialSearchProtocol(
+        candidate_id=candidate.candidate_id, max_prior_art_rounds=1,
+    )
+    if mismatch == "assessment":
+        initial.candidate_id = "foreign-candidate"
+    else:
+        protocol = AdversarialSearchProtocol(
+            candidate_id="foreign-candidate", max_prior_art_rounds=1,
+        )
+
+    monkeypatch.setattr(
+        scout, "cross_search",
+        lambda *_a, **_kw: pytest.fail("mismatch must not launch a search"),
+    )
+    with pytest.raises(ValueError, match="CANDIDATE_LINEAGE_MISMATCH"):
+        run_prior_art_mutation_loop(
+            candidate=candidate, initial_assessment=initial,
+            protocol=protocol, scout=scout,
+        )
+
+
+@pytest.mark.parametrize("mutation", [
+    "survived_with_matches", "partial_without_matches", "survived_with_gaps",
+])
+def test_f41_initial_assessment_contradictions_block_replay(
+    mutation: str, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """False coverage and inconsistent initial evidence fail before I/O."""
+    candidate = _CandidateFactory.candidate()
+    scout = _CrossDomainScoutForLoop()
+    results = _results_with_docs()
+    skeptic = PriorArtSkeptic().review(candidate, results)
+    initial = PriorArtVerdictEngine().assess(
+        candidate, results, skeptic, matches=[],
+    )
+    match = PriorArtMatch(doc=results["dummy"].documents[0], similarity=0.9)
+    if mutation == "survived_with_matches":
+        initial.matches.append(match)
+        expected = "INITIAL_MATCHES_CONTRADICTION"
+    elif mutation == "partial_without_matches":
+        initial.verdict = PriorArtVerdict.PARTIAL_PRIOR_ART.value
+        expected = "INITIAL_MATCHES_CONTRADICTION"
+    else:
+        initial.coverage_limitations = ("source_failure:dummy",)
+        expected = "INITIAL_COVERAGE_CONTRADICTION"
+
+    protocol = AdversarialSearchProtocol(
+        candidate_id=candidate.candidate_id, max_prior_art_rounds=1,
+    )
+    monkeypatch.setattr(
+        scout, "cross_search",
+        lambda *_a, **_kw: pytest.fail("invalid replay must not contact sources"),
+    )
+    with pytest.raises(ValueError, match=expected):
+        run_prior_art_mutation_loop(
+            candidate=candidate, initial_assessment=initial,
+            protocol=protocol, scout=scout,
+        )
