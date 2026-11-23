@@ -73,6 +73,11 @@ class PriorArtVerdictEngine:
         # contradictory consumer input. Reject it rather than promote it.
         if skeptic.verdict == "requires_experiment" and not coverage_limitations:
             raise ValueError("SKEPTIC_VERDICT_CONTRADICTION")
+        # A one-shot iterator is exhausted by the validation pass; sorting
+        # it afterwards would silently erase every match and yield a false
+        # SURVIVED_SEARCH. The documented contract is a replayable Sequence.
+        if isinstance(matches, (str, bytes, bytearray)) or not isinstance(matches, Sequence):
+            raise TypeError("matches must be a replayable sequence")
         if any(not isinstance(match, PriorArtMatch) for match in matches):
             raise TypeError("matches must contain PriorArtMatch instances")
         for match in matches:
