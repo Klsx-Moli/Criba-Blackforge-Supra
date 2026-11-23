@@ -120,3 +120,18 @@ def test_writes_do_not_silently_replace_model_config_symlinks(
         save_model_settings(_settings("should-not-replace-link"), linked)
     assert linked.is_symlink()
     assert target.read_bytes() == before
+
+
+@pytest.mark.parametrize("invalid", [float("nan"), float("inf"), float("-inf")])
+def test_nonfinite_profile_numbers_cannot_corrupt_shared_json(
+    tmp_path, invalid,
+) -> None:
+    destination = tmp_path / "models.json"
+    save_model_settings(_settings("baseline"), destination)
+    original = destination.read_bytes()
+    malformed = _settings("new")
+    malformed.profiles[0].temperature = invalid
+    with pytest.raises(ValueError, match="Out of range float values"):
+        save_model_settings(malformed, destination)
+    assert destination.read_bytes() == original
+    assert list(tmp_path.glob(".models.json.*.tmp")) == []
