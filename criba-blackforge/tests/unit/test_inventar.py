@@ -6,7 +6,14 @@ import json
 
 import pytest
 
-from criba.intelligence.contracts import SourceQueryResult
+import criba.inventar as inventar_module
+from criba.intelligence.contracts import (
+    EvidenceDocument,
+    InventionCandidate,
+    PriorArtAssessment,
+    ProvenanceRecord,
+    SourceQueryResult,
+)
 from criba.intelligence.sources.protocol import IntelligenceSource, SourceContext
 from criba.intelligence.sources.transport import OfflineBlocked, Transport, TransportBudget
 from criba.inventar import append_ledger, invent
@@ -717,3 +724,99 @@ def test_un_solo_interprete_por_ejecucion(monkeypatch) -> None:
     )
     assert len(sheet["entries"]) == 3
     assert calls == {"constructed": 1, "proposed": 3}
+
+
+class _F41CompleteSource(_OfflineSource):
+    """A source with a document and provenance, but NO semantic comparator."""
+
+    def __init__(self, source_id: str, kind: str) -> None:
+        super().__init__(source_id, kind)
+        self.calls = 0
+
+    def search(self, query: str, limit: int = 5) -> SourceQueryResult:
+        self.calls += 1
+        return SourceQueryResult(
+            source_id=self.SOURCE_ID, query_text=query, ok=True,
+            documents=[
+                EvidenceDocument(
+                    doc_id=f"record-{self.SOURCE_ID}",
+                    source_id=self.SOURCE_ID,
+                    title="Previously published mechanism",
+                    abstract="Shows a mechanism possibly identical to the candidate",
+                    provenance=ProvenanceRecord(
+                        source_id=self.SOURCE_ID,
+                        url=f"https://{self.SOURCE_ID}.invalid/paper",
+                        method="api",
+                    ),
+                )
+            ],
+        )
+
+
+def _f41_candidate() -> InventionCandidate:
+    return InventionCandidate(
+        candidate_id="c_f41", title="Mechanism from evidence",
+        description="Candidate explicitly overlaps retrieved documents",
+        mechanism="a mechanism requiring actual prior-art comparison",
+    )
+
+
+def test_f41_inventar_does_not_claim_no_prior_art_without_a_matcher() -> None:
+    """Retrieval with real-looking citations is not a semantic comparison."""
+    science = _F41CompleteSource("science", "science")
+    patents = _F41CompleteSource("patents", "patent")
+    result = inventar_module._assess_candidate(
+        _f41_candidate(), [science, patents],
+    )
+    assert science.calls == 1
+    assert patents.calls == 1
+    assert result["verdict"] == "UNRESOLVED"
+    assert result["rounds"] == 0
+    assert result["mutations"] == 0
+    assert "prior-art-match-not-executed" in result["detail"]
+    # Keep the internal earlier status visible rather than rewriting history.
+    assert result["assessments"] == ["SURVIVED_SEARCH"]
+    assert result["queries"]
+    assert inventar_module._estado_antecedentes(result) == "busqueda_incompleta"
+
+
+def test_f41_legacy_positive_verdict_with_later_error_is_not_displayed_as_success() -> None:
+    historical = {
+        "verdict": "SURVIVED_SEARCH",
+        "detail": "mutation-loop-fail-closed: DOCUMENT_ID_CONTENT_COLLISION",
+        "queries": ["mechanism"],
+    }
+    assert inventar_module._estado_antecedentes(historical) == "busqueda_incompleta"
+
+
+def test_f41_later_mutation_failure_never_restores_earlier_favorable_assessment(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A later failed loop must override even a PARTIAL_PRIOR_ART initial state."""
+    science = _F41CompleteSource("science", "science")
+    patents = _F41CompleteSource("patents", "patent")
+
+    def synthetic_partial(self, candidate, results, skeptic, *, matches):
+        return PriorArtAssessment(
+            candidate_id=candidate.candidate_id,
+            verdict="PARTIAL_PRIOR_ART",
+            queries_executed=("mechanism",),
+        )
+
+    monkeypatch.setattr(
+        inventar_module.PriorArtVerdictEngine, "assess", synthetic_partial,
+    )
+
+    def denied_mutation(**_kwargs):
+        raise ValueError("DOCUMENT_ID_CONTENT_COLLISION")
+
+    monkeypatch.setattr(
+        inventar_module, "run_prior_art_mutation_loop", denied_mutation,
+    )
+    result = inventar_module._assess_candidate(
+        _f41_candidate(), [science, patents],
+    )
+    assert result["verdict"] == "UNRESOLVED"
+    assert result["assessments"] == ["PARTIAL_PRIOR_ART"]
+    assert "DOCUMENT_ID_CONTENT_COLLISION" in result["detail"]
+    assert inventar_module._estado_antecedentes(result) == "busqueda_incompleta"
