@@ -65,6 +65,7 @@ class PriorArtVerdictEngine:
                 raise TypeError("SOURCE_OK_NOT_BOOLEAN")
             if not isinstance(result.documents, list):
                 raise TypeError("SOURCE_DOCUMENTS_NOT_LIST")
+            seen_doc_ids: set[str] = set()
             for document in result.documents:
                 if not isinstance(document, EvidenceDocument):
                     raise TypeError("SOURCE_DOCUMENT_TYPE_INVALID")
@@ -75,6 +76,11 @@ class PriorArtVerdictEngine:
                     or document.source_id != source_id
                 ):
                     raise ValueError("SOURCE_DOCUMENT_IDENTITY_INVALID")
+                if document.doc_id in seen_doc_ids:
+                    # Even an identical duplicate is not independent evidence.
+                    # Different bodies under one ID are worse: ambiguous lineage.
+                    raise ValueError("SOURCE_DOCUMENT_ID_COLLISION")
+                seen_doc_ids.add(document.doc_id)
 
         structural_gaps = [
             f"source_failure:{source_id}"
