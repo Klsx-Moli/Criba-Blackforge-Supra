@@ -211,7 +211,28 @@ def load_model_settings_bytes(raw_bytes: bytes | None) -> ModelSettings:
             profiles.append(profile)
         if not profiles:
             return default_model_settings()
-        enabled = raw["enabled"] if isinstance(raw.get("enabled"), bool) else False
+        # Preserve and repair legacy profiles for editing, but do not RUN
+        # from ambiguous IDs that the tolerant loader had to normalize.
+        ids_in_file = [
+            item.get("id") if isinstance(item, dict) else None
+            for item in profiles_raw
+        ]
+        exact_ids = (
+            len(ids_in_file) == len(profiles)
+            and all(
+                isinstance(ident, str)
+                and bool(ident)
+                and ident == ident.strip()
+                and len(ident) <= 120
+                for ident in ids_in_file
+            )
+            and len(set(ids_in_file)) == len(ids_in_file)
+        )
+        enabled = (
+            raw["enabled"]
+            if isinstance(raw.get("enabled"), bool) and exact_ids
+            else False
+        )
         selected_raw = raw.get("active_profile_id")
         selected = _text(selected_raw, "", limit=120)
         if enabled and (
