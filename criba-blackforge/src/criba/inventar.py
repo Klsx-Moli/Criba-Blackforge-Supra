@@ -222,6 +222,21 @@ def _assess_candidate(
     report = skeptic.review(candidate, results)
     assessment = verdict_engine.assess(candidate, results, report, matches=[])
 
+    # No candidate-mechanism ↔ document matcher is executed in this path:
+    # the list of matches is literally empty, not a verified zero-overlap
+    # result. Do not expose SURVIVED_SEARCH as "no nearby prior art" and do
+    # not spend additional search rounds just to repeat an untested claim.
+    if assessment.verdict == "SURVIVED_SEARCH":
+        return {
+            "verdict": "UNRESOLVED",
+            "queries": list(assessment.queries_executed[:8]),
+            "rounds": 0,
+            "mutations": 0,
+            "assessments": [assessment.verdict],
+            "detail": "prior-art-match-not-executed: sources were retrieved but "
+                      "no mechanism-to-document comparison ran",
+        }
+
     try:
         mutation = run_prior_art_mutation_loop(
             candidate=candidate,
@@ -229,19 +244,26 @@ def _assess_candidate(
             protocol=protocol,
             scout=scout,
         )
+        # This path has no match extractor. Even after future changes to
+        # mutation_loop, a bare empty-match SURVIVED_SEARCH is not evidence
+        # of mechanism comparison until it is explicitly wired and tested.
+        comparison_unverified = mutation.verdict == "SURVIVED_SEARCH"
         return {
-            "verdict": mutation.verdict,
+            "verdict": "UNRESOLVED" if comparison_unverified else mutation.verdict,
             "queries": list(mutation.queries_executed[:8]),
             "rounds": mutation.rounds_completed,
             "mutations": mutation.mutations_completed,
             "assessments": list(mutation.assessments_by_round),
-            "detail": "",
+            "detail": (
+                "prior-art-match-not-executed: no documented comparison"
+                if comparison_unverified else ""
+            ),
         }
     except ValueError as exc:
-        # Fail-closed del loop (UNRESOLVED inicial u otro contrato): el
-        # veredicto de la evaluación directa es el resultado honesto.
+        # A later failed round cannot inherit a positive earlier verdict.
+        # Keep the prior assessment visible as trace, not as the final claim.
         return {
-            "verdict": assessment.verdict,
+            "verdict": "UNRESOLVED",
             "queries": list(assessment.queries_executed[:8]),
             "rounds": 0,
             "mutations": 0,
@@ -256,6 +278,10 @@ def _estado_antecedentes(assessment: dict[str, Any]) -> str:
     verdict = assessment.get("verdict")
     detail = str(assessment.get("detail") or "")
     queries = assessment.get("queries") or []
+    # Historical dossiers may have a positive verdict plus a later failed
+    # mutation. Failure metadata is authoritative over the optimistic label.
+    if detail.startswith(("mutation-loop-fail-closed", "prior-art-match-not-executed")):
+        return "busqueda_incompleta"
     if verdict == "PARTIAL_PRIOR_ART":
         return "antecedente_cercano_encontrado"
     if verdict == "SURVIVED_SEARCH":
