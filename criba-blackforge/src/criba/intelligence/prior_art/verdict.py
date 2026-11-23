@@ -109,6 +109,18 @@ class PriorArtVerdictEngine:
         for match in matches:
             if not isinstance(match.doc, EvidenceDocument):
                 raise TypeError("PriorArtMatch.doc must be EvidenceDocument")
+            # A match may be carried forward across mutation rounds. Its
+            # doc_id need not occur in this round, but its source must remain
+            # within the same source universe. Arbitrary external documents
+            # must not create PARTIAL_PRIOR_ART.
+            if (
+                not isinstance(match.doc.source_id, str)
+                or match.doc.source_id not in results
+                or not isinstance(match.doc.doc_id, str)
+                or not match.doc.doc_id
+                or match.doc.doc_id != match.doc.doc_id.strip()
+            ):
+                raise ValueError("MATCH_SOURCE_IDENTITY_INVALID")
             similarity = match.similarity
             if (
                 isinstance(similarity, bool)
