@@ -907,3 +907,23 @@ def test_f35_ollama_modal_cannot_redirect_verified_config_path(
     assert selector.currentData() == ("ollama_catalog", "f35:redirect")
     assert not redirected.exists(), "unreviewed profile must never be written"
     assert (old_path.read_bytes() if old_path.exists() else None) == previous
+
+
+@pytest.mark.parametrize("state", ["oversized", "symlink"])
+def test_f35_ollama_shared_file_snapshot_refuses_unbounded_or_linked_paths(
+    tmp_path, state
+):
+    path = tmp_path / "models.json"
+    if state == "oversized":
+        path.write_bytes(b"x" * 1_048_577)
+        expected_error = "exceeds 1 MiB"
+    else:
+        real = tmp_path / "real-models.json"
+        save_model_settings(default_model_settings(), real)
+        try:
+            path.symlink_to(real)
+        except (OSError, NotImplementedError):
+            pytest.skip("symlinks unavailable on this Windows environment")
+        expected_error = "symlink"
+    with pytest.raises(ValueError, match=expected_error):
+        actions._bounded_shared_model_bytes(path)
