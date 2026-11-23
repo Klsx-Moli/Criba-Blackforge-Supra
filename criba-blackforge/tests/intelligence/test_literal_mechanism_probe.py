@@ -1,8 +1,6 @@
 """F42: literal-overlap screening is real, bounded, and never scientific proof."""
 from __future__ import annotations
 
-from dataclasses import replace
-
 import pytest
 
 from criba.intelligence.contracts import (
