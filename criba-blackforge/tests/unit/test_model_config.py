@@ -119,6 +119,7 @@ def test_duplicate_profile_ids_are_repaired(tmp_path) -> None:
     assert [profile.name for profile in loaded.profiles] == ["Primero", "Segundo"]
     assert len({profile.id for profile in loaded.profiles}) == 2
     assert loaded.active_profile() is loaded.profiles[0]
+    assert loaded.enabled is False, "duplicate model identity cannot execute"
 
 
 def test_model_settings_snapshot_decoder_matches_file_reader_without_reopening(
@@ -223,3 +224,37 @@ def test_model_settings_disabled_legacy_unknown_id_remains_editable() -> None:
     assert not settings.enabled
     assert len(settings.profiles) == 1
     assert settings.active_profile().model == "edit-me"
+
+
+@pytest.mark.parametrize("bad_id", [" p ", "", [], None])
+def test_model_settings_reader_keeps_invalid_legacy_profiles_editable_but_disabled(
+    bad_id,
+) -> None:
+    payload = {
+        "schema_version": 1,
+        "enabled": True,
+        "active_profile_id": "p",
+        "profiles": [{"id": bad_id, "model": "legacy-editable"}],
+    }
+    parsed = load_model_settings_bytes(
+        json.dumps(payload, ensure_ascii=False).encode("utf-8")
+    )
+    assert parsed.enabled is False
+    assert parsed.profiles
+    assert parsed.profiles[0].model == "legacy-editable"
+
+
+def test_model_settings_duplicate_profile_ids_never_enable_arbitrary_first_model() -> None:
+    raw = {
+        "schema_version": 1,
+        "enabled": True,
+        "active_profile_id": "same",
+        "profiles": [
+            {"id": "same", "model": "weights-A"},
+            {"id": "same", "model": "weights-B"},
+        ],
+    }
+    parsed = load_model_settings_bytes(json.dumps(raw).encode("utf-8"))
+    assert parsed.enabled is False
+    assert [p.model for p in parsed.profiles] == ["weights-A", "weights-B"]
+    assert len({p.id for p in parsed.profiles}) == 2
