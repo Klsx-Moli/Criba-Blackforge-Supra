@@ -33,6 +33,11 @@ class PriorArtVerdictEngine:
             raise TypeError("skeptic must be a PriorArtSkepticReport")
         if skeptic.candidate_id != candidate.candidate_id:
             raise ValueError("skeptic candidate_id must match candidate")
+        # This verdict engine is public and is also called directly by the
+        # mutation loop. A rejecting or fabricated skeptic report must never
+        # be upgraded to SURVIVED_SEARCH merely because citations exist.
+        if skeptic.verdict not in {"requires_experiment", "survives_with_conditions"}:
+            raise ValueError("SKEPTIC_VERDICT_INVALID")
         ordered_results = tuple(sorted(results.items(), key=lambda item: item[0]))
         for source_id, result in ordered_results:
             if not isinstance(source_id, str) or not isinstance(result, SourceQueryResult):
@@ -59,6 +64,10 @@ class PriorArtVerdictEngine:
         coverage_limitations = tuple(
             sorted({*skeptic.evidence_gaps, *structural_gaps})
         )
+        # A report claiming experimental gaps while listing none is a
+        # contradictory consumer input. Reject it rather than promote it.
+        if skeptic.verdict == "requires_experiment" and not coverage_limitations:
+            raise ValueError("SKEPTIC_VERDICT_CONTRADICTION")
         if any(not isinstance(match, PriorArtMatch) for match in matches):
             raise TypeError("matches must contain PriorArtMatch instances")
         ordered_matches = sorted(
