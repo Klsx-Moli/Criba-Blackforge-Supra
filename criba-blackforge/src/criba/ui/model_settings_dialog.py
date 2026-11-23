@@ -31,7 +31,8 @@ from PySide6.QtWidgets import (
 
 from ..model_config import (
     ModelProfile,
-    load_model_settings,
+    default_model_settings,
+    load_model_settings_bytes,
     model_config_path,
     save_model_settings,
 )
@@ -69,7 +70,12 @@ class ModelSettingsDialog(QDialog):
             self._settings_open_bytes,
             self._settings_open_safe,
         ) = _read_shared_settings_snapshot()
-        self.settings = load_model_settings(self._settings_open_path)
+        # Never re-read a path after capturing the write-eligibility bytes.
+        # An unsafe file remains visible as disabled defaults, but cannot save.
+        self.settings = (
+            load_model_settings_bytes(self._settings_open_bytes)
+            if self._settings_open_safe else default_model_settings()
+        )
         self.pool = QThreadPool.globalInstance()
         self._loading = False
         self._current_profile_id = ""
