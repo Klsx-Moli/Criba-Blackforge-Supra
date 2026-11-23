@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import json
 
+import pytest
+
 from criba.model_config import (
     ModelProfile,
     ModelSettings,
@@ -147,3 +149,45 @@ def test_model_settings_snapshot_reader_is_tolerant_only_for_reads() -> None:
         assert not result.enabled
         assert result.active_profile() is not None
     assert not load_model_settings_bytes(None).enabled
+
+
+@pytest.mark.parametrize("raw", [
+    # Previously json.loads kept the LAST enabled key, silently activating.
+    b'{"schema_version":1,"enabled":false,"enabled":true,'
+    b'"active_profile_id":"p","profiles":[{"id":"p","model":"unsafe"}]}',
+    b'{"schema_version":1,"enabled":true,"enabled":false,'
+    b'"active_profile_id":"p","profiles":[{"id":"p","model":"unsafe"}]}',
+    # Duplicate profile attributes were also silently normalized.
+    b'{"schema_version":1,"enabled":true,'
+    b'"active_profile_id":"p","profiles":[{"id":"p","model":"a","model":"b"}]}',
+    # Python's default JSON decoder accepts non-standard numeric constants.
+    b'{"schema_version":1,"enabled":true,'
+    b'"active_profile_id":"p","profiles":[{"id":"p","temperature":NaN}]}',
+    b'{"schema_version":1,"enabled":true,'
+    b'"active_profile_id":"p","profiles":[{"id":"p","timeout":Infinity}]}',
+    b'{"schema_version":1,"enabled":true,'
+    b'"active_profile_id":"p","profiles":[{"id":"p","timeout":-Infinity}]}',
+    # Future or malformed schema versions may not be normalized to v1 and run.
+    b'{"schema_version":2,"enabled":true,'
+    b'"active_profile_id":"p","profiles":[{"id":"p"}]}',
+    b'{"schema_version":true,"enabled":true,'
+    b'"active_profile_id":"p","profiles":[{"id":"p"}]}',
+    b'{"schema_version":"1","enabled":true,'
+    b'"active_profile_id":"p","profiles":[{"id":"p"}]}',
+])
+def test_model_settings_reader_never_activates_ambiguous_json(raw) -> None:
+    """F39: malformed or version-unknown configs do not authorize a model."""
+    parsed = load_model_settings_bytes(raw)
+    assert parsed.enabled is False
+    assert parsed.active_profile() is not None
+
+
+def test_legacy_model_settings_without_schema_remain_readable() -> None:
+    """Preserve known backwards compatibility, don't force a migration."""
+    legacy = (
+        b'{"enabled":true,"active_profile_id":"legacy",'
+        b'"profiles":[{"id":"legacy","model":"local:legacy"}]}'
+    )
+    parsed = load_model_settings_bytes(legacy)
+    assert parsed.enabled is True
+    assert parsed.active_profile().model == "local:legacy"
