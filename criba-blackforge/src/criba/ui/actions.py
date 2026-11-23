@@ -1717,7 +1717,8 @@ def _bounded_shared_model_bytes(path: Any) -> bytes | None:
 def _activate_ollama_choice(win: Any, model_id: str) -> bool:
     """Explicit user selection writes a new local profile, never provider secrets."""
     from ..model_config import (
-        ModelProfile, load_model_settings, model_config_path, save_model_settings,
+        ModelProfile, load_model_settings_bytes, model_config_path,
+        save_model_settings,
     )
 
     # Snapshot the shared file before a Qt modal nested event loop. A changed
@@ -1738,9 +1739,9 @@ def _activate_ollama_choice(win: Any, model_id: str) -> bool:
         return False
     if selection[1] != ("ollama_catalog", model_id):
         return False
-    # Parse from the same path whose bytes were snapshotted for consent.
-    # A concurrent CRIBA_MODEL_CONFIG override must not load B then save A.
-    settings = load_model_settings(config_path)
+    # Parse exactly the bytes authorized before the Qt consent dialog.
+    # Reopening even the SAME path can load newer bytes than the snapshot.
+    settings = load_model_settings_bytes(before_bytes)
     existing = next(
         (p for p in settings.profiles
          if p.backend == "ollama" and p.endpoint.rstrip("/") ==
