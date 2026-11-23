@@ -7,11 +7,12 @@ CrossDomainScout -> PriorArtSkeptic -> PriorArtVerdictEngine.
 """
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from copy import deepcopy
 from dataclasses import dataclass
 
 from ..contracts import (
+    EvidenceDocument,
     InventionCandidate,
     PriorArtAssessment,
     PriorArtMatch,
@@ -52,6 +53,30 @@ def _mutate_query(candidate: InventionCandidate, round_idx: int) -> QueryVariant
     return QueryVariant(text=mutated_text + suffix, origin="mutation")
 
 
+def _material_document_identity(doc: EvidenceDocument) -> tuple[object, ...]:
+    """Stable content fields for SAME source/doc_id, excluding retrieval time.
+
+    This is an intra-run collision sentinel, not a content authenticity proof.
+    Legacy dict provenance is read defensively without promoting it to FACT.
+    """
+    provenance = doc.provenance
+    if isinstance(provenance, Mapping):
+        provenance_url = provenance.get("url", "")
+        provenance_hash = provenance.get("raw_hash", "")
+    else:
+        provenance_url = getattr(provenance, "url", "")
+        provenance_hash = getattr(provenance, "raw_hash", "")
+    return (
+        doc.source_id, doc.doc_id, doc.title, doc.kind, doc.published,
+        doc.url, doc.abstract,
+        tuple(
+            (getattr(fragment, "text", None), getattr(fragment, "locator", None))
+            for fragment in doc.fragments
+        ),
+        provenance_url, provenance_hash,
+    )
+
+
 def _execute_round(
     candidate: InventionCandidate,
     scout: CrossDomainScout,
@@ -63,6 +88,20 @@ def _execute_round(
 ) -> PriorArtAssessment:
     """Ejecuta un round de busqueda + esceptico + veredicto sobre un variante."""
     results = scout.cross_search(variant, limit_per_source=5)
+    # A prior-round match is allowed even when not retrieved again. But if a
+    # later round reuses the SAME (source_id, doc_id) with different material
+    # content, silently carrying the older match gives ambiguous lineage.
+    # Fail closed without requiring a previous document to reappear.
+    for prior_match in prior_matches:
+        source_result = results.get(prior_match.doc.source_id)
+        if source_result is None:
+            continue
+        for current_doc in source_result.documents:
+            if current_doc.doc_id == prior_match.doc.doc_id and (
+                _material_document_identity(current_doc)
+                != _material_document_identity(prior_match.doc)
+            ):
+                raise ValueError("DOCUMENT_ID_CONTENT_COLLISION")
     report = skeptic.review(candidate, results)
     return verdict_engine.assess(candidate, results, report, matches=list(prior_matches))
 
