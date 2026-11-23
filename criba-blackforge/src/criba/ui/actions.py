@@ -1753,6 +1753,9 @@ def _activate_ollama_choice(win: Any, model_id: str) -> bool:
             return False
     try:
         current_selection = (selector.currentIndex(), selector.currentData())
+        current_path = model_config_path()
+        if current_path != config_path or config_path.is_symlink():
+            return False
         current_bytes = config_path.read_bytes() if config_path.is_file() else None
     except (OSError, RuntimeError):
         return False
@@ -1765,7 +1768,9 @@ def _activate_ollama_choice(win: Any, model_id: str) -> bool:
     settings.enabled = True
     settings.active_profile_id = profile.id
     try:
-        save_model_settings(settings)
+        # Do not re-resolve the environment-controlled path after consent.
+        # Otherwise A's verified state can overwrite unreviewed file B.
+        save_model_settings(settings, config_path)
     except OSError:
         return False
     return True
