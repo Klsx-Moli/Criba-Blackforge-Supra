@@ -522,3 +522,58 @@ def test_f40_direct_verdict_valid_coverage_still_survives_search() -> None:
         candidate, results, skeptic, matches=[],
     )
     assert assessed.verdict == PriorArtVerdict.SURVIVED_SEARCH.value
+
+
+@pytest.mark.parametrize("source_id,doc_id", [
+    ("foreign", "doc"),
+    ("", "doc"),
+    (None, "doc"),
+    ("science", ""),
+    ("science", " doc "),
+    ("science", None),
+])
+def test_f40_foreign_or_ambiguous_match_cannot_claim_partial_prior_art(
+    source_id, doc_id,
+) -> None:
+    """A historical match must at least share the active source universe."""
+    candidate = _candidate()
+    results = {
+        "science": SourceQueryResult(
+            source_id="science", query_text="thermal management", ok=True,
+            documents=[EvidenceDocument(
+                doc_id="doc_current", source_id="science",
+                provenance=ProvenanceRecord(source_id="science"),
+            )],
+        )
+    }
+    report = PriorArtSkeptic().review(candidate, results)
+    match = PriorArtMatch(
+        doc=EvidenceDocument(doc_id=doc_id, source_id=source_id),
+        similarity=0.7,
+    )
+    with pytest.raises(ValueError, match="MATCH_SOURCE_IDENTITY_INVALID"):
+        PriorArtVerdictEngine().assess(candidate, results, report, matches=[match])
+
+
+def test_f40_historical_match_from_same_source_still_survives_round_boundary() -> None:
+    """Do not break mutation_loop's deliberately carried historical matches."""
+    candidate = _candidate()
+    results = {
+        "science": SourceQueryResult(
+            source_id="science", query_text="round 2 variation", ok=True,
+            documents=[EvidenceDocument(
+                doc_id="new-round-document", source_id="science",
+                provenance=ProvenanceRecord(source_id="science"),
+            )],
+        ),
+    }
+    report = PriorArtSkeptic().review(candidate, results)
+    historical = PriorArtMatch(
+        doc=EvidenceDocument(doc_id="round-1-document", source_id="science"),
+        similarity=0.7,
+    )
+    assessment = PriorArtVerdictEngine().assess(
+        candidate, results, report, matches=[historical],
+    )
+    assert assessment.verdict == PriorArtVerdict.PARTIAL_PRIOR_ART.value
+    assert assessment.matches == [historical]
