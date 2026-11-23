@@ -12,7 +12,7 @@ Inspección productiva: `inventar._assess_candidate` recuperaba `SourceQueryResu
 
 **Metadatos y límites:** no se comparan `metadata`, ni textos concatenados entre campos; mecanismo de 4 a 128 tokens y máximo 32768 caracteres, 64 documentos inspeccionados, 20 fragmentos por documento, 32768 caracteres por campo, source_id máximo 128, doc_id máximo 256, locator máximo 256; un presupuesto suministrado mayor de 64 se rechaza. Los documentos ambiguos con `doc_id` duplicado en la misma fuente se declaran *no inspeccionados* sin escoger cuerpo por orden. Orden de fuentes y documentos determinista.
 
-**Contrato de salida deliberadamente trivaluado:** 
+**Contrato de salida deliberadamente trivaluado:**
 - `POTENTIAL_LITERAL_OVERLAP`: uno o varios documentos contienen literalmente la frase completa (no garantiza que afirmen, apliquen o respalden el mecanismo; también cubre citas/negaciones).
 - `NO_LITERAL_OVERLAP_IN_SCANNED_TEXT`: ninguna coincidencia en los campos concretos y dentro del presupuesto; **no** es ausencia de prior art ni evaluación semántica negativa.
 - `INDETERMINATE`: mecanismo corto/largo, fuentes fallidas, campos de procedencia ausentes, ambigüedades documentales o presupuesto incompleto, sin promover lo desconocido a cero.
