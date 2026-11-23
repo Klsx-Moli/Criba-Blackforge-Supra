@@ -858,3 +858,58 @@ def test_f41_inventar_rejects_future_positive_mutation_without_matcher(
     assert result["assessments"][-1] == "SURVIVED_SEARCH"
     assert result["detail"].startswith("prior-art-match-not-executed")
     assert inventar_module._estado_antecedentes(result) == "busqueda_incompleta"
+
+
+class _F42LiteralSource(_F41CompleteSource):
+    def search(self, query: str, limit: int = 5) -> SourceQueryResult:
+        result = super().search(query, limit)
+        result.documents[0].abstract = _f41_candidate().mechanism
+        return result
+
+
+def test_f42_inventar_reports_traceable_literal_candidates_without_claiming_prior_art() -> None:
+    """End-to-end production call uses the probe but never promotes a hit."""
+    science = _F42LiteralSource("science", "science")
+    patents = _F41CompleteSource("patents", "patent")
+    result = inventar_module._assess_candidate(_f41_candidate(), [science, patents])
+    assert science.calls == 1
+    assert patents.calls == 1
+    assert result["verdict"] == "UNRESOLVED"
+    assert result["rounds"] == 0
+    assert result["detail"].startswith("prior-art-match-not-executed")
+    literal = result["literal_probe"]
+    assert literal["status"] == "POTENTIAL_LITERAL_OVERLAP"
+    assert literal["materiality_assessed"] is False
+    assert literal["candidates"] == [
+        {"source_id": "science", "doc_id": "record-science",
+         "field": "abstract", "locator": ""},
+    ]
+    assert _f41_candidate().mechanism not in str(literal)
+
+
+def test_f42_inventar_with_no_exact_literal_hit_is_still_unresolved() -> None:
+    science = _F41CompleteSource("science", "science")
+    patents = _F41CompleteSource("patents", "patent")
+    result = inventar_module._assess_candidate(_f41_candidate(), [science, patents])
+    assert result["literal_probe"]["status"] == "NO_LITERAL_OVERLAP_IN_SCANNED_TEXT"
+    assert result["verdict"] == "UNRESOLVED"
+    assert result["literal_probe"]["materiality_assessed"] is False
+    assert inventar_module._estado_antecedentes(result) == "busqueda_incompleta"
+
+
+def test_f42_inventar_partial_source_failure_cannot_conceal_unknown() -> None:
+    class FailedLiteralSource(_F42LiteralSource):
+        def search(self, query: str, limit: int = 5) -> SourceQueryResult:
+            result = super().search(query, limit)
+            result.ok = False
+            return result
+
+    science = _F42LiteralSource("science", "science")
+    patents = FailedLiteralSource("patents", "patent")
+    result = inventar_module._assess_candidate(_f41_candidate(), [science, patents])
+    assert result["verdict"] == "UNRESOLVED"
+    assert result["literal_probe"]["sources_failed"] == 1
+    assert result["literal_probe"]["materiality_assessed"] is False
+    assert result["literal_probe"]["status"] == "POTENTIAL_LITERAL_OVERLAP"
+    # A literal cue in one source never overrides a failure in another.
+    assert inventar_module._estado_antecedentes(result) == "busqueda_incompleta"
