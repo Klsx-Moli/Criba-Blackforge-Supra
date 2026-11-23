@@ -32,10 +32,29 @@ from PySide6.QtWidgets import (
 from ..model_config import (
     ModelProfile,
     load_model_settings,
+    model_config_path,
     save_model_settings,
 )
 from ..model_runtime import test_model_profile
-from .actions import Worker, _start_worker
+from .actions import Worker, _editable_model_settings_bytes, _start_worker
+
+
+def _read_shared_settings_snapshot() -> tuple[Path, bytes | None, bool]:
+    """Return path/bytes/write-safety without silently normalizing old state."""
+    target = model_config_path()
+    try:
+        if target.is_symlink():
+            return target, None, False
+        with target.open("rb") as stream:
+            raw = stream.read(1_048_577)
+        if len(raw) > 1_048_576:
+            return target, None, False
+    except FileNotFoundError:
+        # The absence of a file is fine only if it is not an unresolved link.
+        return target, None, not target.is_symlink()
+    except OSError:
+        return target, None, False
+    return target, raw, _editable_model_settings_bytes(raw)
 
 
 class ModelSettingsDialog(QDialog):
@@ -45,7 +64,12 @@ class ModelSettingsDialog(QDialog):
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
-        self.settings = load_model_settings()
+        (
+            self._settings_open_path,
+            self._settings_open_bytes,
+            self._settings_open_safe,
+        ) = _read_shared_settings_snapshot()
+        self.settings = load_model_settings(self._settings_open_path)
         self.pool = QThreadPool.globalInstance()
         self._loading = False
         self._current_profile_id = ""
@@ -502,8 +526,24 @@ class ModelSettingsDialog(QDialog):
         self.settings.enabled = self.use_model.isChecked()
         if profile is not None:
             self.settings.active_profile_id = profile.id
+        # A modal editor must not turn unknown/future/corrupt disk content
+        # into default model settings, or overwrite another process's edit.
+        current_path, current_bytes, current_safe = _read_shared_settings_snapshot()
+        if (
+            not self._settings_open_safe
+            or not current_safe
+            or current_path != self._settings_open_path
+            or current_bytes != self._settings_open_bytes
+        ):
+            QMessageBox.warning(
+                self, "Modelos IA · cambios externos",
+                "La configuración de modelos es ambigua o cambió desde "
+                "que abriste esta ventana. No se ha guardado nada. "
+                "Cierra y vuelve a abrir para revisar la versión actual.",
+            )
+            return
         try:
-            destination = save_model_settings(self.settings)
+            destination = save_model_settings(self.settings, self._settings_open_path)
         except OSError as exc:
             QMessageBox.warning(self, "Modelos IA", f"No se pudo guardar:\n{exc}")
             return
