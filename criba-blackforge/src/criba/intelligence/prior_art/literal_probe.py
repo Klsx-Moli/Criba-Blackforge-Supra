@@ -9,6 +9,7 @@ from __future__ import annotations
 import hashlib
 import re
 import unicodedata
+from collections import Counter
 from collections.abc import Mapping
 from dataclasses import asdict, dataclass
 from typing import Any
@@ -91,8 +92,11 @@ def probe_literal_mechanism(
         raise TypeError("candidate must be InventionCandidate")
     if not isinstance(results, Mapping):
         raise TypeError("results must be a mapping")
-    if type(max_documents) is not int or max_documents < 1:
-        raise ValueError("max_documents must be a positive integer")
+    if (
+        type(max_documents) is not int
+        or not 1 <= max_documents <= _MAX_DOCUMENTS
+    ):
+        raise ValueError("max_documents must be a positive integer at most 64")
 
     mechanism = candidate.mechanism if isinstance(candidate.mechanism, str) else ""
     phrase = _tokens(mechanism[:_MAX_TEXT_CHARS])
@@ -110,7 +114,7 @@ def probe_literal_mechanism(
     scanned = 0
     unscanned = 0
     failures = 0
-    seen_ids: set[tuple[str, str]] = set()
+    processed = 0
     for source_id, result in sorted(
         results.items(),
         key=lambda item: item[0] if isinstance(item[0], str) else "",
@@ -128,10 +132,24 @@ def probe_literal_mechanism(
         if not result.documents:
             failures += 1
             continue
-        for doc in result.documents:
-            if scanned >= max_documents:
-                unscanned += 1
-                continue
+        # Never select an arbitrary body when a source repeats the same ID.
+        # This is a preflight for the standalone probe (the verdict engine
+        # has its own source-ID collision guard).
+        identity_counts = Counter(
+            doc.doc_id for doc in result.documents
+            if isinstance(doc, EvidenceDocument) and isinstance(doc.doc_id, str)
+        )
+        ordered_docs = sorted(
+            result.documents,
+            key=lambda doc: doc.doc_id
+            if isinstance(doc, EvidenceDocument) and isinstance(doc.doc_id, str)
+            else "",
+        )
+        for index, doc in enumerate(ordered_docs):
+            if processed >= max_documents:
+                unscanned += len(ordered_docs) - index
+                break
+            processed += 1
             if not isinstance(doc, EvidenceDocument):
                 unscanned += 1
                 continue
@@ -140,7 +158,8 @@ def probe_literal_mechanism(
             if (
                 key is None or not doc.doc_id
                 or doc.doc_id != doc.doc_id.strip()
-                or doc.source_id != source_id or key in seen_ids
+                or doc.source_id != source_id
+                or identity_counts[doc.doc_id] != 1
                 or not isinstance(provenance, ProvenanceRecord)
                 or provenance.source_id != source_id
                 or not isinstance(provenance.url, str)
@@ -160,7 +179,6 @@ def probe_literal_mechanism(
             ):
                 unscanned += 1
                 continue
-            seen_ids.add(key)
             scanned += 1
             fields = [
                 ("abstract", doc.abstract, ""),
