@@ -90,6 +90,32 @@ def run_prior_art_mutation_loop(
     P10-T09 falla cerrado sobre gaps; el loop solo re-busca variantes mutadas
     cuando la cobertura es suficiente (sin limitaciones).
     """
+    # Three independently supplied IDs describe ONE scientific candidate.
+    # Do not start a source search using an assessment (and its prior matches)
+    # from another candidate, even if the assessment claims a valid verdict.
+    if not isinstance(candidate, InventionCandidate):
+        raise TypeError("candidate must be InventionCandidate")
+    if not isinstance(initial_assessment, PriorArtAssessment):
+        raise TypeError("initial_assessment must be PriorArtAssessment")
+    if not isinstance(protocol, AdversarialSearchProtocol):
+        raise TypeError("protocol must be AdversarialSearchProtocol")
+    if not isinstance(scout, CrossDomainScout):
+        raise TypeError("scout must be CrossDomainScout")
+    if (
+        candidate.candidate_id != initial_assessment.candidate_id
+        or candidate.candidate_id != protocol.candidate_id
+    ):
+        raise ValueError("CANDIDATE_LINEAGE_MISMATCH")
+    # UNRESOLVED remains a separate explicit fail-closed boundary below.
+    if initial_assessment.verdict != PriorArtVerdict.UNRESOLVED.value:
+        if initial_assessment.coverage_limitations:
+            raise ValueError("INITIAL_COVERAGE_CONTRADICTION")
+        if initial_assessment.verdict == PriorArtVerdict.SURVIVED_SEARCH.value:
+            if initial_assessment.matches:
+                raise ValueError("INITIAL_MATCHES_CONTRADICTION")
+        if initial_assessment.verdict == PriorArtVerdict.PARTIAL_PRIOR_ART.value:
+            if not initial_assessment.matches:
+                raise ValueError("INITIAL_MATCHES_CONTRADICTION")
     if initial_assessment.verdict == PriorArtVerdict.UNRESOLVED.value:
         raise ValueError(
             f"P10-T10 refuses to mutate from UNRESOLVED assessment "
