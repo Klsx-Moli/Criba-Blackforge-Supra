@@ -8,6 +8,7 @@ CrossDomainScout -> PriorArtSkeptic -> PriorArtVerdictEngine.
 from __future__ import annotations
 
 from collections.abc import Sequence
+from copy import deepcopy
 from dataclasses import dataclass
 
 from ..contracts import (
@@ -135,11 +136,19 @@ def run_prior_art_mutation_loop(
     skeptic = PriorArtSkeptic()
     verdict_engine = PriorArtVerdictEngine()
 
+    if not isinstance(initial_assessment.matches, list) or any(
+        not isinstance(match, PriorArtMatch) for match in initial_assessment.matches
+    ):
+        raise TypeError("INITIAL_MATCHES_INVALID")
+
     rounds_completed = 0
     mutations_completed = 0
     all_queries: list[str] = list(initial_assessment.queries_executed)
     assessments: list[str] = [initial_assessment.verdict]
-    current_matches = tuple(initial_assessment.matches)
+    # The assessment and its documents are mutable dataclasses. Preserve a
+    # private snapshot for multi-round replay so a caller cannot rewrite an
+    # earlier match while cross_search is running.
+    current_matches = tuple(deepcopy(initial_assessment.matches))
     current_verdict = initial_assessment.verdict
 
     while protocol.can_execute(
