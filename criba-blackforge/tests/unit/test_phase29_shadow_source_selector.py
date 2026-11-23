@@ -961,8 +961,12 @@ def test_f36_ollama_reads_exact_snapshotted_config_path(
         i for i in range(selector.count())
         if selector.itemData(i) == ("ollama_catalog", "f36:identity")
     )
+    # Direct invocation isolates the exact load in _activate_ollama_choice.
+    # A header/label refresh cannot accidentally make this sentinel green.
+    blocked = selector.blockSignals(True)
     selector.setCurrentIndex(index)
-    assert config_path in seen_paths
-    assert selector.currentData() == "local_llama"
+    selector.blockSignals(blocked)
+    assert actions._activate_ollama_choice(win, "f36:identity")
+    assert seen_paths == [config_path]
     stored = real_loader(config_path)
     assert stored.active_profile().model == "f36:identity"
