@@ -1738,7 +1738,9 @@ def _activate_ollama_choice(win: Any, model_id: str) -> bool:
         return False
     if selection[1] != ("ollama_catalog", model_id):
         return False
-    settings = load_model_settings()
+    # Parse from the same path whose bytes were snapshotted for consent.
+    # A concurrent CRIBA_MODEL_CONFIG override must not load B then save A.
+    settings = load_model_settings(config_path)
     existing = next(
         (p for p in settings.profiles
          if p.backend == "ollama" and p.endpoint.rstrip("/") ==
