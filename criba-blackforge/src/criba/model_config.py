@@ -11,6 +11,7 @@ from __future__ import annotations
 import json
 import math
 import os
+import tempfile
 import uuid
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
@@ -201,16 +202,35 @@ def load_model_settings(path: Path | None = None) -> ModelSettings:
 
 
 def save_model_settings(settings: ModelSettings, path: Path | None = None) -> Path:
-    """Persist settings atomically and return the destination path."""
+    """Atomically replace settings using a UNIQUE per-writer temporary file.
 
+    This prevents two desktop processes from clobbering the same .tmp path.
+    It does NOT provide compare-and-swap or prevent a later valid writer from
+    replacing a newer version: cross-process edit conflicts remain unresolved.
+    """
     target = path or model_config_path()
     target.parent.mkdir(parents=True, exist_ok=True)
-    temporary = target.with_suffix(target.suffix + ".tmp")
-    temporary.write_text(
-        json.dumps(settings.to_dict(), ensure_ascii=False, indent=2),
-        encoding="utf-8",
+    # Do not silently replace a symlink which might point to another model
+    # configuration. Users must explicitly choose the real destination path.
+    if target.is_symlink():
+        raise OSError("model settings destination is a symlink")
+    payload = json.dumps(settings.to_dict(), ensure_ascii=False, indent=2)
+    descriptor, filename = tempfile.mkstemp(
+        prefix=f".{target.name}.", suffix=".tmp", dir=target.parent,
     )
-    os.replace(temporary, target)
+    temporary = Path(filename)
+    try:
+        with os.fdopen(descriptor, "w", encoding="utf-8") as stream:
+            stream.write(payload)
+            stream.flush()
+            os.fsync(stream.fileno())
+        if target.is_symlink():
+            raise OSError("model settings destination changed to symlink")
+        os.replace(temporary, target)
+    finally:
+        # Do not remove another writer's temp, only our own. After replace,
+        # this path no longer exists. Preserve the previous target on failure.
+        temporary.unlink(missing_ok=True)
     return target
 
 
