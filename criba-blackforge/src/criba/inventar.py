@@ -1028,6 +1028,12 @@ def append_ledger(sheet: dict[str, Any], ledger_dir: Path | None = None) -> Path
                 "verdict": e["prior_art"]["verdict"],
                 "queries": e["prior_art"]["queries"],
                 "detail": e["prior_art"]["detail"],
+                # F42: keep the diagnostic screening trace in JSONL. Missing
+                # data remain None, never an invented zero/negative result.
+                "literal_probe": e["prior_art"].get("literal_probe"),
+                "prior_art_assessments": e["prior_art"].get("assessments"),
+                "prior_art_rounds": e["prior_art"].get("rounds"),
+                "prior_art_mutations": e["prior_art"].get("mutations"),
             }
             for e in sheet["entries"]
         ],
