@@ -62,7 +62,6 @@ def test_two_parallel_saves_use_distinct_temps_and_valid_final_json(
     assert completed == [destination, destination]
     assert len(seen) == 2
     assert seen[0] != seen[1], "each writer must have its own temporary path"
-    assert all(not (tmp_path / p).exists() for p in (".models.json.writer-a.tmp",))
     assert list(tmp_path.glob(".models.json.*.tmp")) == []
 
     raw = json.loads(destination.read_text(encoding="utf-8"))
