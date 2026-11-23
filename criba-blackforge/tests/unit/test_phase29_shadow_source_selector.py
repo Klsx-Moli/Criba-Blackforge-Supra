@@ -937,14 +937,15 @@ def test_f36_ollama_reads_exact_snapshotted_config_path(
     save_model_settings(default_model_settings(), config_path)
     import criba.model_config as config_module
 
-    real_loader = config_module.load_model_settings
-    seen_paths = []
+    expected_bytes = config_path.read_bytes()
+    real_decoder = config_module.load_model_settings_bytes
+    seen_snapshots = []
 
-    def watched_loader(path=None):
-        seen_paths.append(path)
-        return real_loader(path)
+    def watched_decoder(data):
+        seen_snapshots.append(data)
+        return real_decoder(data)
 
-    monkeypatch.setattr(config_module, "load_model_settings", watched_loader)
+    monkeypatch.setattr(config_module, "load_model_settings_bytes", watched_decoder)
     monkeypatch.setattr(
         QMessageBox, "question",
         lambda *_args, **_kwargs: QMessageBox.StandardButton.Yes,
@@ -967,6 +968,6 @@ def test_f36_ollama_reads_exact_snapshotted_config_path(
     selector.setCurrentIndex(index)
     selector.blockSignals(blocked)
     assert actions._activate_ollama_choice(win, "f36:identity")
-    assert seen_paths == [config_path]
-    stored = real_loader(config_path)
+    assert seen_snapshots == [expected_bytes]
+    stored = real_decoder(config_path.read_bytes())
     assert stored.active_profile().model == "f36:identity"
