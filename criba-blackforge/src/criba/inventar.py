@@ -38,6 +38,7 @@ from .catalog import methods as catalog_methods
 from .intelligence.contracts import InventionCandidate, SourceQueryResult
 from .intelligence.evidence_context import fts_query, retrieve_evidence_context
 from .intelligence.prior_art.lattice import build_query_lattice
+from .intelligence.prior_art.literal_probe import probe_literal_mechanism
 from .intelligence.prior_art.mutation_loop import run_prior_art_mutation_loop
 from .intelligence.prior_art.protocol import AdversarialSearchProtocol
 from .intelligence.prior_art.scouts import CrossDomainScout
@@ -221,11 +222,13 @@ def _assess_candidate(
     skeptic = PriorArtSkeptic()
     report = skeptic.review(candidate, results)
     assessment = verdict_engine.assess(candidate, results, report, matches=[])
+    literal_probe = probe_literal_mechanism(candidate, results).to_dict()
 
-    # No candidate-mechanism ↔ document matcher is executed in this path:
+    # No verified materiality-level candidate-mechanism ↔ document matcher is executed in this path:
     # the list of matches is literally empty, not a verified zero-overlap
-    # result. Do not expose SURVIVED_SEARCH as "no nearby prior art" and do
-    # not spend additional search rounds just to repeat an untested claim.
+    # result. The literal probe only produces review cues (never matches).
+    # Do not expose SURVIVED_SEARCH as "no nearby prior art" or spend
+    # additional search rounds to repeat an untested materiality claim.
     if assessment.verdict == "SURVIVED_SEARCH":
         return {
             "verdict": "UNRESOLVED",
@@ -233,8 +236,9 @@ def _assess_candidate(
             "rounds": 0,
             "mutations": 0,
             "assessments": [assessment.verdict],
-            "detail": "prior-art-match-not-executed: sources were retrieved but "
-                      "no mechanism-to-document comparison ran",
+            "literal_probe": literal_probe,
+            "detail": "prior-art-match-not-executed: no materiality comparison; "
+                      "literal overlap probe is screening only",
         }
 
     try:
@@ -244,18 +248,20 @@ def _assess_candidate(
             protocol=protocol,
             scout=scout,
         )
-        # This path has no match extractor. Even after future changes to
-        # mutation_loop, a bare empty-match SURVIVED_SEARCH is not evidence
-        # of mechanism comparison until it is explicitly wired and tested.
-        comparison_unverified = mutation.verdict == "SURVIVED_SEARCH"
+        # A lexical screening hit is NOT proof of material mechanism
+        # identity. No production matcher attests either favorable verdict.
+        comparison_unverified = mutation.verdict in {
+            "SURVIVED_SEARCH", "PARTIAL_PRIOR_ART",
+        }
         return {
             "verdict": "UNRESOLVED" if comparison_unverified else mutation.verdict,
             "queries": list(mutation.queries_executed[:8]),
             "rounds": mutation.rounds_completed,
             "mutations": mutation.mutations_completed,
             "assessments": list(mutation.assessments_by_round),
+            "literal_probe": literal_probe,
             "detail": (
-                "prior-art-match-not-executed: no documented comparison"
+                "prior-art-match-not-executed: no materiality comparison"
                 if comparison_unverified else ""
             ),
         }
@@ -268,6 +274,7 @@ def _assess_candidate(
             "rounds": 0,
             "mutations": 0,
             "assessments": [assessment.verdict],
+            "literal_probe": literal_probe,
             "detail": f"mutation-loop-fail-closed: {exc}",
         }
 
