@@ -7,6 +7,7 @@ from criba.model_config import (
     ModelSettings,
     active_model_label,
     load_model_settings,
+    load_model_settings_bytes,
     model_config_path,
     save_model_settings,
 )
@@ -116,3 +117,33 @@ def test_duplicate_profile_ids_are_repaired(tmp_path) -> None:
     assert [profile.name for profile in loaded.profiles] == ["Primero", "Segundo"]
     assert len({profile.id for profile in loaded.profiles}) == 2
     assert loaded.active_profile() is loaded.profiles[0]
+
+
+def test_model_settings_snapshot_decoder_matches_file_reader_without_reopening(
+    tmp_path, monkeypatch,
+) -> None:
+    target = tmp_path / "models.json"
+    settings = ModelSettings(
+        enabled=True,
+        profiles=[ModelProfile(
+            id="snapshot-stable", model="local:latest",
+            name="Snapshot name", temperature=0.0,
+        )],
+        active_profile_id="snapshot-stable",
+    )
+    save_model_settings(settings, target)
+    captured = target.read_bytes()
+    expected = load_model_settings(target).to_dict()
+
+    # The exact captured bytes remain usable after the path vanishes.
+    target.unlink()
+    assert load_model_settings_bytes(captured).to_dict() == expected
+    assert load_model_settings(target).enabled is False
+
+
+def test_model_settings_snapshot_reader_is_tolerant_only_for_reads() -> None:
+    for invalid in (b"not-json", b"\xff", b"[]", b'{"profiles": []}'):
+        result = load_model_settings_bytes(invalid)
+        assert not result.enabled
+        assert result.active_profile() is not None
+    assert not load_model_settings_bytes(None).enabled
