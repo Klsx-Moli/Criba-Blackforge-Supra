@@ -1,9 +1,11 @@
 """P10-T09: deterministic prior-art verdicts from bounded evidence."""
 from __future__ import annotations
 
+import math
 from collections.abc import Mapping, Sequence
 
 from ..contracts import (
+    EvidenceDocument,
     InventionCandidate,
     PriorArtAssessment,
     PriorArtMatch,
@@ -73,6 +75,17 @@ class PriorArtVerdictEngine:
             raise ValueError("SKEPTIC_VERDICT_CONTRADICTION")
         if any(not isinstance(match, PriorArtMatch) for match in matches):
             raise TypeError("matches must contain PriorArtMatch instances")
+        for match in matches:
+            if not isinstance(match.doc, EvidenceDocument):
+                raise TypeError("PriorArtMatch.doc must be EvidenceDocument")
+            similarity = match.similarity
+            if (
+                isinstance(similarity, bool)
+                or not isinstance(similarity, (int, float))
+                or (isinstance(similarity, float) and not math.isfinite(similarity))
+                or not 0 <= similarity <= 1
+            ):
+                raise ValueError("MATCH_SIMILARITY_INVALID")
         ordered_matches = sorted(
             matches,
             key=lambda match: (
