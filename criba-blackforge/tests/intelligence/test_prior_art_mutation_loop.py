@@ -363,3 +363,120 @@ def test_f41_initial_assessment_contradictions_block_replay(
             candidate=candidate, initial_assessment=initial,
             protocol=protocol, scout=scout,
         )
+
+
+@pytest.mark.parametrize("mutate_field", ["title", "abstract", "url"])
+def test_f41_reused_document_id_cannot_change_material_content(
+    mutate_field: str, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Same source+ID, different content is an unresolved lineage collision."""
+    candidate = _CandidateFactory.candidate()
+    scout = _CrossDomainScoutForLoop()
+    observed = _results_with_docs()
+    skeptic = PriorArtSkeptic().review(candidate, observed)
+    match = PriorArtMatch(doc=observed["dummy"].documents[0], similarity=0.7)
+    initial = PriorArtVerdictEngine().assess(
+        candidate, observed, skeptic, matches=[match],
+    )
+    repeated = _results_with_docs()
+    setattr(
+        repeated["dummy"].documents[0], mutate_field,
+        "forged-new-content",
+    )
+    monkeypatch.setattr(
+        scout, "cross_search",
+        lambda *_a, **_kw: repeated,
+    )
+    protocol = AdversarialSearchProtocol(
+        candidate_id=candidate.candidate_id, max_prior_art_rounds=1,
+    )
+    with pytest.raises(ValueError, match="DOCUMENT_ID_CONTENT_COLLISION"):
+        run_prior_art_mutation_loop(
+            candidate=candidate, initial_assessment=initial,
+            protocol=protocol, scout=scout,
+        )
+
+
+def test_f41_same_id_same_content_replay_remains_valid(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A re-retrieval with only a different timestamp must not be rejected."""
+    candidate = _CandidateFactory.candidate()
+    scout = _CrossDomainScoutForLoop()
+    observed = _results_with_docs()
+    skeptic = PriorArtSkeptic().review(candidate, observed)
+    match = PriorArtMatch(doc=observed["dummy"].documents[0], similarity=0.7)
+    initial = PriorArtVerdictEngine().assess(
+        candidate, observed, skeptic, matches=[match],
+    )
+    repeated = _results_with_docs()
+    repeated["dummy"].documents[0].provenance = {
+        "url": "https://example.com/patent/1",
+        "retrieved_at": "2099-01-01T00:00:00Z",
+    }
+    monkeypatch.setattr(scout, "cross_search", lambda *_a, **_kw: repeated)
+    protocol = AdversarialSearchProtocol(
+        candidate_id=candidate.candidate_id, max_prior_art_rounds=1,
+    )
+    result = run_prior_art_mutation_loop(
+        candidate=candidate, initial_assessment=initial,
+        protocol=protocol, scout=scout,
+    )
+    assert result.verdict == PriorArtVerdict.PARTIAL_PRIOR_ART.value
+    assert result.rounds_completed == 1
+
+
+def test_f41_replay_uses_snapshot_when_caller_mutates_original_match(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """An adversarial callback cannot rewrite the historical matched document."""
+    candidate = _CandidateFactory.candidate()
+    scout = _CrossDomainScoutForLoop()
+    observed = _results_with_docs()
+    skeptic = PriorArtSkeptic().review(candidate, observed)
+    match = PriorArtMatch(doc=observed["dummy"].documents[0], similarity=0.7)
+    initial = PriorArtVerdictEngine().assess(
+        candidate, observed, skeptic, matches=[match],
+    )
+    fresh = _results_with_docs()
+
+    def mutate_original_then_return(*_args: Any, **_kwargs: Any):
+        initial.matches[0].doc.title = "external post-handoff mutation"
+        return fresh
+
+    monkeypatch.setattr(scout, "cross_search", mutate_original_then_return)
+    protocol = AdversarialSearchProtocol(
+        candidate_id=candidate.candidate_id, max_prior_art_rounds=1,
+    )
+    result = run_prior_art_mutation_loop(
+        candidate=candidate, initial_assessment=initial,
+        protocol=protocol, scout=scout,
+    )
+    assert initial.matches[0].doc.title == "external post-handoff mutation"
+    assert result.verdict == PriorArtVerdict.PARTIAL_PRIOR_ART.value
+
+
+def test_f41_invalid_match_container_rejected_before_source_calls(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    candidate = _CandidateFactory.candidate()
+    scout = _CrossDomainScoutForLoop()
+    observed = _results_with_docs()
+    skeptic = PriorArtSkeptic().review(candidate, observed)
+    initial = PriorArtVerdictEngine().assess(
+        candidate, observed, skeptic,
+        matches=[PriorArtMatch(doc=observed["dummy"].documents[0])],
+    )
+    initial.matches = (match for match in initial.matches)
+    monkeypatch.setattr(
+        scout, "cross_search",
+        lambda *_a, **_kw: pytest.fail("invalid input must not contact sources"),
+    )
+    protocol = AdversarialSearchProtocol(
+        candidate_id=candidate.candidate_id, max_prior_art_rounds=1,
+    )
+    with pytest.raises(TypeError, match="INITIAL_MATCHES_INVALID"):
+        run_prior_art_mutation_loop(
+            candidate=candidate, initial_assessment=initial,
+            protocol=protocol, scout=scout,
+        )
