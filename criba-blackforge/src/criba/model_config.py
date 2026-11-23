@@ -172,10 +172,32 @@ def load_model_settings_bytes(raw_bytes: bytes | None) -> ModelSettings:
     """
     if raw_bytes is None:
         return default_model_settings()
+
+    def unique_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+        obj: dict[str, Any] = {}
+        for key, value in pairs:
+            if key in obj:
+                raise ValueError("duplicated model configuration JSON key")
+            obj[key] = value
+        return obj
+
+    def reject_nonfinite(value: str) -> Any:
+        raise ValueError(f"nonfinite model configuration JSON constant: {value}")
+
     try:
-        raw = json.loads(raw_bytes.decode("utf-8"))
+        raw = json.loads(
+            raw_bytes.decode("utf-8"),
+            object_pairs_hook=unique_object,
+            parse_constant=reject_nonfinite,
+        )
         if not isinstance(raw, dict):
             raise TypeError("La configuración de modelos debe ser un objeto JSON.")
+        # Keep missing schema_version readable for legacy profiles, but
+        # NEVER enable a future, boolean or malformed explicit schema.
+        if "schema_version" in raw and (
+            type(raw["schema_version"]) is not int or raw["schema_version"] != 1
+        ):
+            return default_model_settings()
         profiles_raw = raw.get("profiles", [])
         profiles: list[ModelProfile] = []
         seen_ids: set[str] = set()
