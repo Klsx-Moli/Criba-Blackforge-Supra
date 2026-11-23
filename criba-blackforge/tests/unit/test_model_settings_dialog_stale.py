@@ -146,3 +146,53 @@ def test_model_dialog_snapshot_rejects_oversized_file(tmp_path, monkeypatch):
     observed_path, _data, writable = _read_shared_settings_snapshot()
     assert observed_path == target
     assert writable is False
+
+
+def test_dialog_edits_captured_bytes_not_a_second_disk_read(
+    app, tmp_path, monkeypatch,
+):
+    """A disk mutation after snapshot must not silently change the editor."""
+    import criba.ui.model_settings_dialog as dialog_module
+
+    target = tmp_path / "models.json"
+    monkeypatch.setenv("CRIBA_MODEL_CONFIG", str(target))
+    first = default_model_settings()
+    first.profiles[0].name = "first-snapshot"
+    first.profiles[0].model = "fixture-A"
+    save_model_settings(first, target)
+    captured_bytes = target.read_bytes()
+    assert dialog_module._read_shared_settings_snapshot()[2] is True
+
+    # The real file changes just AFTER the read-only snapshot is captured.
+    # Previously, ModelSettingsDialog then re-opened the path and edited B.
+    real_reader = dialog_module._read_shared_settings_snapshot
+
+    def snapshot_then_replace():
+        captured = real_reader()
+        changed = default_model_settings()
+        changed.profiles[0].name = "second-file"
+        changed.profiles[0].model = "fixture-B"
+        save_model_settings(changed, target)
+        return captured
+
+    monkeypatch.setattr(
+        dialog_module, "_read_shared_settings_snapshot", snapshot_then_replace,
+    )
+    dialog = ModelSettingsDialog()
+    try:
+        assert dialog.settings.active_profile().name == "first-snapshot"
+        assert dialog.settings.active_profile().model == "fixture-A"
+        # No client of this editor may save after the concurrent change.
+        monkeypatch.setattr(dialog_module, "_read_shared_settings_snapshot", real_reader)
+        warnings = []
+        monkeypatch.setattr(
+            QMessageBox, "warning",
+            lambda _d, title, msg: warnings.append((title, msg)),
+        )
+        dialog._save()
+        assert dialog.result() != dialog.DialogCode.Accepted
+        assert warnings
+        assert target.read_bytes() != captured_bytes
+    finally:
+        dialog.close()
+        app.processEvents()
