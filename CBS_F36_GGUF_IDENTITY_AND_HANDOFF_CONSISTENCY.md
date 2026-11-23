@@ -27,3 +27,12 @@ ESTADO: STATICALLY_INSPECTED; nuevo test PySide6 NOT_EXECUTED. Sin compare-and-s
 F31 Windows: 46 FAIL / 2786 PASS / 20 SKIP (REPORTED_BY_AGENT). F32–F36 cambios publicados, tests y CI actuales NO EXECUTED/NO RUNS. F28 conteo físico P1 OPEN. GGUF identidad real P1 OPEN. G0 NO-GO científico y P0 semántico OPEN. No declarar AUDIT COMPLETE ni GO.
 
 Próximo: reconciliar F34 Windows de Ernie, comprobar F35/F36 en worktree nuevo de SHA exacto; solicitar primero evidencia read-only de los cuatro archivos locales antes de cualquier transferencia. Mantener main, ASTRA, Uvicorn y worktrees ajenos intactos.
+
+
+## F36-I03 — P2: valores no finitos no pueden persistirse en el perfil compartido
+
+STATICALLY_INSPECTED: model_config.save_model_settings usaba json.dumps(..., indent=2) sin allow_nan=False; la librería Python serializa NaN, Infinity y -Infinity por defecto, pese a que no son JSON válido para el contrato del perfil. El lector defensivo puede normalizarlos al reabrir, ocultando una configuración original inválida y afectando reproducibilidad.
+
+FIX F36: json.dumps(..., allow_nan=False) antes de mkstemp y os.replace. Tres pruebas parametrizadas en test_model_config_atomic_writer.py verifican que NaN/±Infinity lanzan ValueError sin tocar el destino anterior ni dejar temporales. Implementado, NOT_EXECUTED en Windows.
+
+FALSE_COVERAGE sentinel F36-I02: la prueba llama directamente _activate_ollama_choice bajo selección Qt controlada y exige seen_paths == [config_path], no solo la inclusión del path entre llamadas accidentales de refresco UI.
