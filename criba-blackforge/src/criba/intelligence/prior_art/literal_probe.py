@@ -43,8 +43,9 @@ def _contains_exact(tokens: tuple[str, ...], pattern: tuple[str, ...]) -> bool:
     # NUL cannot occur inside any regex-normalized token. Separators on
     # BOTH ends preserve word boundaries while Python's substring search
     # avoids repeated O(n * phrase_length) tuple comparisons.
-    needle = "\\0" + "\\0".join(pattern) + "\\0"
-    haystack = "\\0" + "\\0".join(tokens) + "\\0"
+    separator = chr(0)
+    needle = separator + separator.join(pattern) + separator
+    haystack = separator + separator.join(tokens) + separator
     return needle in haystack
 
 
