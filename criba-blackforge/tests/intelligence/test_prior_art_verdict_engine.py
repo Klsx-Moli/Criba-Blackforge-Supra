@@ -314,3 +314,63 @@ def test_valid_skeptic_with_real_gaps_remains_unresolved_after_f38() -> None:
         candidate, results, skeptic, matches=[],
     )
     assert assessment.verdict == PriorArtVerdict.UNRESOLVED.value
+
+
+@pytest.mark.parametrize("similarity", [
+    float("nan"), float("inf"), float("-inf"), -0.1, 1.1,
+    True, False, "0.5", None, [],
+])
+def test_verdict_engine_rejects_unbounded_or_untyped_match_similarity(
+    similarity,
+) -> None:
+    """F39: a forged score must not be accepted as scientific evidence."""
+    scout = CrossDomainScout([
+        _Source("science", "science"),
+        _Source("code", "code"),
+    ])
+    candidate = _candidate()
+    results = scout.cross_search(QueryVariant("thermal management"))
+    skeptic = PriorArtSkeptic().review(candidate, results)
+    invalid_match = PriorArtMatch(
+        doc=results["science"].documents[0], similarity=similarity,
+    )
+    with pytest.raises(ValueError, match="MATCH_SIMILARITY_INVALID"):
+        PriorArtVerdictEngine().assess(
+            candidate, results, skeptic, matches=[invalid_match],
+        )
+
+
+@pytest.mark.parametrize("similarity", [0, 0.0, 0.5, 1, 1.0])
+def test_verdict_engine_retains_valid_similarity_boundaries(
+    similarity,
+) -> None:
+    scout = CrossDomainScout([
+        _Source("science", "science"),
+        _Source("code", "code"),
+    ])
+    candidate = _candidate()
+    results = scout.cross_search(QueryVariant("thermal management"))
+    skeptic = PriorArtSkeptic().review(candidate, results)
+    valid_match = PriorArtMatch(
+        doc=results["science"].documents[0], similarity=similarity,
+    )
+    assessment = PriorArtVerdictEngine().assess(
+        candidate, results, skeptic, matches=[valid_match],
+    )
+    assert assessment.verdict == PriorArtVerdict.PARTIAL_PRIOR_ART.value
+    assert assessment.matches == [valid_match]
+
+
+def test_verdict_engine_rejects_malformed_match_document() -> None:
+    scout = CrossDomainScout([
+        _Source("science", "science"),
+        _Source("code", "code"),
+    ])
+    candidate = _candidate()
+    results = scout.cross_search(QueryVariant("thermal management"))
+    skeptic = PriorArtSkeptic().review(candidate, results)
+    with pytest.raises(TypeError, match="PriorArtMatch.doc"):
+        PriorArtVerdictEngine().assess(
+            candidate, results, skeptic,
+            matches=[PriorArtMatch(doc={"foreign": True})],
+        )
