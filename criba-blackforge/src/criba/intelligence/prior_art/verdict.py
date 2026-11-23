@@ -36,7 +36,10 @@ class PriorArtVerdictEngine:
         # This verdict engine is public and is also called directly by the
         # mutation loop. A rejecting or fabricated skeptic report must never
         # be upgraded to SURVIVED_SEARCH merely because citations exist.
-        if skeptic.verdict not in {"requires_experiment", "survives_with_conditions"}:
+        if (
+            not isinstance(skeptic.verdict, str)
+            or skeptic.verdict not in ("requires_experiment", "survives_with_conditions")
+        ):
             raise ValueError("SKEPTIC_VERDICT_INVALID")
         ordered_results = tuple(sorted(results.items(), key=lambda item: item[0]))
         for source_id, result in ordered_results:
