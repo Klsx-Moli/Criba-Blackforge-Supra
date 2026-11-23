@@ -927,3 +927,42 @@ def test_f35_ollama_shared_file_snapshot_refuses_unbounded_or_linked_paths(
         expected_error = "symlink"
     with pytest.raises(ValueError, match=expected_error):
         actions._bounded_shared_model_bytes(path)
+
+
+def test_f36_ollama_reads_exact_snapshotted_config_path(
+    win, monkeypatch
+):
+    """An open-time file A must be loaded from A, not a dynamic env default."""
+    config_path = Path(os.environ["CRIBA_MODEL_CONFIG"])
+    save_model_settings(default_model_settings(), config_path)
+    import criba.model_config as config_module
+
+    real_loader = config_module.load_model_settings
+    seen_paths = []
+
+    def watched_loader(path=None):
+        seen_paths.append(path)
+        return real_loader(path)
+
+    monkeypatch.setattr(config_module, "load_model_settings", watched_loader)
+    monkeypatch.setattr(
+        QMessageBox, "question",
+        lambda *_args, **_kwargs: QMessageBox.StandardButton.Yes,
+    )
+    selector = win.topcards.interpreter_selector
+    blocked = selector.blockSignals(True)
+    selector.setCurrentIndex(selector.findData("source:ollama"))
+    selector.blockSignals(blocked)
+    actions._on_source_catalog(
+        win, "ollama",
+        SourceCatalog("ollama", (ModelChoice("ollama", "f36:identity"),), "fixture"),
+    )
+    index = next(
+        i for i in range(selector.count())
+        if selector.itemData(i) == ("ollama_catalog", "f36:identity")
+    )
+    selector.setCurrentIndex(index)
+    assert config_path in seen_paths
+    assert selector.currentData() == "local_llama"
+    stored = real_loader(config_path)
+    assert stored.active_profile().model == "f36:identity"
