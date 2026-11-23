@@ -408,3 +408,117 @@ def test_verdict_engine_rejects_non_sequence_matches(invalid) -> None:
         PriorArtVerdictEngine().assess(
             candidate, results, skeptic, matches=invalid,
         )
+
+
+@pytest.mark.parametrize("bad_ok", ["false", "true", 0, 1, None, []])
+def test_f40_direct_verdict_rejects_nonboolean_source_success(
+    bad_ok,
+) -> None:
+    """Mutating ok after a valid skeptic must never create false coverage."""
+    candidate = _candidate()
+    results = {
+        source_id: SourceQueryResult(
+            source_id=source_id, query_text="thermal management", ok=True,
+            documents=[
+                EvidenceDocument(
+                    doc_id=f"doc_{source_id}", source_id=source_id,
+                    title="fixture", provenance=ProvenanceRecord(
+                        source_id=source_id,
+                        url=f"https://{source_id}.invalid/evidence",
+                        method="api",
+                    ),
+                ),
+            ],
+        )
+        for source_id in ("science", "code")
+    }
+    skeptic = PriorArtSkeptic().review(candidate, results)
+    assert skeptic.verdict == "survives_with_conditions"
+    results["science"].ok = bad_ok
+    with pytest.raises(TypeError, match="SOURCE_OK_NOT_BOOLEAN"):
+        PriorArtVerdictEngine().assess(candidate, results, skeptic, matches=[])
+
+
+@pytest.mark.parametrize("bad_docs", [None, "text", {"doc_id": "fake"}, [object()]])
+def test_f40_direct_verdict_rejects_corrupt_document_collection(
+    bad_docs,
+) -> None:
+    candidate = _candidate()
+    results = {
+        "science": SourceQueryResult(
+            source_id="science", query_text="thermal management", ok=True,
+            documents=[EvidenceDocument(
+                doc_id="doc_ok", source_id="science",
+                provenance=ProvenanceRecord(source_id="science"),
+            )],
+        ),
+    }
+    skeptic = PriorArtSkeptic().review(candidate, results)
+    results["science"].documents = bad_docs
+    expected = (
+        "SOURCE_DOCUMENT_TYPE_INVALID"
+        if isinstance(bad_docs, list)
+        else "SOURCE_DOCUMENTS_NOT_LIST"
+    )
+    with pytest.raises(TypeError, match=expected):
+        PriorArtVerdictEngine().assess(candidate, results, skeptic, matches=[])
+
+
+@pytest.mark.parametrize("bad_source,bad_doc_id", [
+    ("foreign", "same"), ("", "same"), ("science", ""),
+    ("science", " a "), (None, "same"),
+])
+def test_f40_direct_verdict_rejects_forged_document_lineage(
+    bad_source, bad_doc_id,
+) -> None:
+    candidate = _candidate()
+    results = {
+        "science": SourceQueryResult(
+            source_id="science", query_text="thermal management", ok=True,
+            documents=[EvidenceDocument(
+                doc_id="same", source_id="science",
+                provenance=ProvenanceRecord(source_id="science"),
+            )],
+        ),
+    }
+    skeptic = PriorArtSkeptic().review(candidate, results)
+    results["science"].documents[0].source_id = bad_source
+    results["science"].documents[0].doc_id = bad_doc_id
+    with pytest.raises(ValueError, match="SOURCE_DOCUMENT_IDENTITY_INVALID"):
+        PriorArtVerdictEngine().assess(candidate, results, skeptic, matches=[])
+
+
+def test_f40_direct_verdict_rejects_missing_query_even_if_skeptic_is_old() -> None:
+    candidate = _candidate()
+    results = {
+        "science": SourceQueryResult(
+            source_id="science", query_text="thermal management", ok=True,
+            documents=[EvidenceDocument(
+                doc_id="doc_ok", source_id="science",
+                provenance=ProvenanceRecord(source_id="science"),
+            )],
+        ),
+    }
+    skeptic = PriorArtSkeptic().review(candidate, results)
+    results["science"].query_text = ""
+    with pytest.raises(ValueError, match="SOURCE_QUERY_INVALID"):
+        PriorArtVerdictEngine().assess(candidate, results, skeptic, matches=[])
+
+
+def test_f40_direct_verdict_valid_coverage_still_survives_search() -> None:
+    candidate = _candidate()
+    results = {
+        source_id: SourceQueryResult(
+            source_id=source_id, query_text="thermal management", ok=True,
+            documents=[EvidenceDocument(
+                doc_id=f"doc_{source_id}", source_id=source_id,
+                provenance=ProvenanceRecord(source_id=source_id),
+            )],
+        )
+        for source_id in ("science", "code")
+    }
+    skeptic = PriorArtSkeptic().review(candidate, results)
+    assessed = PriorArtVerdictEngine().assess(
+        candidate, results, skeptic, matches=[],
+    )
+    assert assessed.verdict == PriorArtVerdict.SURVIVED_SEARCH.value
