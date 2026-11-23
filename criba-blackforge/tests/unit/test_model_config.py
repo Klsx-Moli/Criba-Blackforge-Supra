@@ -191,3 +191,35 @@ def test_legacy_model_settings_without_schema_remain_readable() -> None:
     parsed = load_model_settings_bytes(legacy)
     assert parsed.enabled is True
     assert parsed.active_profile().model == "local:legacy"
+
+
+@pytest.mark.parametrize("active_id", [None, "", "foreign-profile", [], " p "])
+def test_model_settings_missing_or_foreign_active_id_fails_closed(
+    active_id,
+) -> None:
+    """F39: an unknown requested model is not permission to run the first."""
+    payload = {
+        "schema_version": 1,
+        "enabled": True,
+        "profiles": [{"id": "p", "model": "sensitive-local-gguf"}],
+    }
+    if active_id is not None:
+        payload["active_profile_id"] = active_id
+    result = load_model_settings_bytes(
+        json.dumps(payload, ensure_ascii=False).encode("utf-8")
+    )
+    assert result.enabled is False
+    assert result.active_profile() is not None
+    assert result.active_profile().model != "sensitive-local-gguf"
+
+
+def test_model_settings_disabled_legacy_unknown_id_remains_editable() -> None:
+    payload = {
+        "enabled": False,
+        "active_profile_id": "removed",
+        "profiles": [{"id": "known", "model": "edit-me"}],
+    }
+    settings = load_model_settings_bytes(json.dumps(payload).encode("utf-8"))
+    assert not settings.enabled
+    assert len(settings.profiles) == 1
+    assert settings.active_profile().model == "edit-me"
