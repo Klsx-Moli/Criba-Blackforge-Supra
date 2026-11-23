@@ -868,3 +868,42 @@ def test_f32_local_profile_matching_v1_endpoint_override_is_compatible(
         settings.active_profile().model,
         settings.active_profile().endpoint,
     )
+
+
+@pytest.mark.parametrize("existing_config", [False, True])
+def test_f35_ollama_modal_cannot_redirect_verified_config_path(
+    win, app, tmp_path, monkeypatch, existing_config
+):
+    """An approval for models.json at A may never replace models.json at B."""
+    old_path = Path(os.environ["CRIBA_MODEL_CONFIG"])
+    if existing_config:
+        save_model_settings(default_model_settings(), old_path)
+    previous = old_path.read_bytes() if old_path.exists() else None
+    redirected = tmp_path / "unreviewed-other-config.json"
+
+    selector = win.topcards.interpreter_selector
+    blocked = selector.blockSignals(True)
+    selector.setCurrentIndex(selector.findData("source:ollama"))
+    selector.blockSignals(blocked)
+    actions._on_source_catalog(
+        win, "ollama",
+        SourceCatalog("ollama", (ModelChoice("ollama", "f35:redirect"),), "catalog"),
+    )
+    index = next(
+        i for i in range(selector.count())
+        if selector.itemData(i) == ("ollama_catalog", "f35:redirect")
+    )
+
+    def mutate_config_path_during_consent(*_args, **_kwargs):
+        monkeypatch.setenv("CRIBA_MODEL_CONFIG", str(redirected))
+        return QMessageBox.StandardButton.Yes
+
+    monkeypatch.setattr(
+        QMessageBox, "question", mutate_config_path_during_consent,
+    )
+    selector.setCurrentIndex(index)
+    app.processEvents()
+
+    assert selector.currentData() == ("ollama_catalog", "f35:redirect")
+    assert not redirected.exists(), "unreviewed profile must never be written"
+    assert (old_path.read_bytes() if old_path.exists() else None) == previous
