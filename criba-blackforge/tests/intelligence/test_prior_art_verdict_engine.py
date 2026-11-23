@@ -374,3 +374,37 @@ def test_verdict_engine_rejects_malformed_match_document() -> None:
             candidate, results, skeptic,
             matches=[PriorArtMatch(doc={"foreign": True})],
         )
+
+
+def test_verdict_engine_rejects_one_shot_matches_instead_of_erasing_them() -> None:
+    """F39 mutation: a generator was consumed by type checking before sort."""
+    scout = CrossDomainScout([
+        _Source("science", "science"),
+        _Source("code", "code"),
+    ])
+    candidate = _candidate()
+    results = scout.cross_search(QueryVariant("thermal management"))
+    skeptic = PriorArtSkeptic().review(candidate, results)
+    valid = PriorArtMatch(
+        doc=results["science"].documents[0], similarity=0.9,
+    )
+    one_shot = (match for match in [valid])
+    with pytest.raises(TypeError, match="replayable sequence"):
+        PriorArtVerdictEngine().assess(
+            candidate, results, skeptic, matches=one_shot,
+        )
+
+
+@pytest.mark.parametrize("invalid", [None, "not-a-sequence", b"bad"])
+def test_verdict_engine_rejects_non_sequence_matches(invalid) -> None:
+    scout = CrossDomainScout([
+        _Source("science", "science"),
+        _Source("code", "code"),
+    ])
+    candidate = _candidate()
+    results = scout.cross_search(QueryVariant("thermal management"))
+    skeptic = PriorArtSkeptic().review(candidate, results)
+    with pytest.raises(TypeError, match="replayable sequence"):
+        PriorArtVerdictEngine().assess(
+            candidate, results, skeptic, matches=invalid,
+        )
