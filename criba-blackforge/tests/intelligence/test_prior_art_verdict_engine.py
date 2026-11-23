@@ -249,3 +249,68 @@ def test_verdict_engine_fails_closed_when_the_skeptic_report_hides_missing_prove
 
     assert assessment.verdict == PriorArtVerdict.UNRESOLVED.value
     assert assessment.coverage_limitations == ("missing_provenance:science:doc_science",)
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    ["reject", "rejected", "PROVEN_NEW", "UNKNOWN", "", None, []],
+)
+def test_verdict_engine_rejects_fabricated_or_negative_skeptic_verdicts(
+    mutation,
+) -> None:
+    """F38 sentinel: genuine citations must not turn REJECT into support."""
+    scout = CrossDomainScout([
+        _Source("science", "science"),
+        _Source("code", "code"),
+    ])
+    candidate = _candidate()
+    results = scout.cross_search(QueryVariant("thermal management"))
+    legitimate = PriorArtSkeptic().review(candidate, results)
+    assert legitimate.verdict == "survives_with_conditions"
+    assert legitimate.evidence_gaps == ()
+
+    forged = type(legitimate)(
+        **{**legitimate.to_dict(), "verdict": mutation},
+    )
+    with pytest.raises(ValueError, match="SKEPTIC_VERDICT_INVALID"):
+        PriorArtVerdictEngine().assess(
+            candidate, results, forged, matches=[],
+        )
+
+
+def test_verdict_engine_rejects_skeptic_with_unexplained_experiment_verdict() -> None:
+    """A hidden reason for 'requires experiment' is UNKNOWN, not zero gaps."""
+    scout = CrossDomainScout([
+        _Source("science", "science"),
+        _Source("code", "code"),
+    ])
+    candidate = _candidate()
+    results = scout.cross_search(QueryVariant("thermal management"))
+    report = PriorArtSkeptic().review(candidate, results)
+    contradictory = type(report)(
+        **{**report.to_dict(), "verdict": "requires_experiment"},
+    )
+    with pytest.raises(ValueError, match="SKEPTIC_VERDICT_CONTRADICTION"):
+        PriorArtVerdictEngine().assess(
+            candidate, results, contradictory, matches=[],
+        )
+
+
+def test_valid_skeptic_with_real_gaps_remains_unresolved_after_f38() -> None:
+    scout = CrossDomainScout([
+        _Source("science", "science"),
+        _Source("code", "code"),
+    ])
+    candidate = _candidate()
+    results = scout.cross_search(QueryVariant("thermal management"))
+    results["science"] = SourceQueryResult(
+        source_id="science", query_text="thermal management",
+        ok=True, documents=[],
+    )
+    skeptic = PriorArtSkeptic().review(candidate, results)
+    assert skeptic.verdict == "requires_experiment"
+    assert skeptic.evidence_gaps
+    assessment = PriorArtVerdictEngine().assess(
+        candidate, results, skeptic, matches=[],
+    )
+    assert assessment.verdict == PriorArtVerdict.UNRESOLVED.value
