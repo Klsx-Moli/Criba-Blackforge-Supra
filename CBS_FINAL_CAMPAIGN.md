@@ -883,3 +883,13 @@ git diff --check
 - Rectificación histórica F01-02: `Storage.record_event` YA tenía `BEGIN IMMEDIATE` en `main` antes de la campaña; Ernie añadió timeout/busy_timeout, no esa sentencia. No reabrir por error de atribución.
 - Informe `CBS_F36_GGUF_IDENTITY_AND_HANDOFF_CONSISTENCY.md`. F31 Windows NO-GO (46 FAIL/2786 PASS/20 SKIP, REPORTED_BY_AGENT), F32–F36 aún requieren ejecución de sus regresiones. CI de campaña 0 ejecuciones comprobadas anteriormente; no declarar PASS de suites, G0 científico NO-GO y P0 semántico OPEN.
 - Siguiente gate: verificación Windows F34/F35/F36 en SHA fijo y lectura de diff local iso-fixid sin mutarlo; reconciliar y pedir autorización si se quiere transferir. No main merge, force-push, reset, clean, despliegue ni gasto en inferencia.
+
+
+## Fase 37 — Snapshot inmutable para lectura de configuración compartida (IMPLEMENTED / EVIDENCE_PENDING)
+
+- Base F36 `7a496e22bbefc45b11b936968801540fa75382ee`. En `model_config.py`, nuevo parser `load_model_settings_bytes(raw_bytes)` sin I/O: conserva lectura tolerante de `load_model_settings(path)`, que ahora reutiliza la misma ruta de normalización con una lectura única.
+- P1 F37-01: `ModelSettingsDialog` y `_activate_ollama_choice` habían capturado y validado bytes A pero reabrían el archivo para analizar contenido B. En carrera de reemplazo, podían interpretar distinto contenido del validado. Ahora ambos construyen sus settings DESDE los bytes originales protegidos, sin segunda lectura; guardado mantiene la comprobación final por bytes y la ruta fijada.
+- Tests nuevos: dos en `test_model_config.py` de paridad/replay/entradas corruptas; uno en `test_model_settings_dialog_stale.py` que modifica archivo justo tras capturar A y exige mostrar A/no guardar; el sentinel Ollama vigila bytes exactos del decoder y falla si se invoca el loader de fichero. `STATICALLY_INSPECTED`, `NOT_EXECUTED` en Windows.
+- Informe técnico `CBS_F37_IMMUTABLE_MODEL_SETTINGS_SNAPSHOT.md` (riesgo/cadena producer→snapshot→parser→UI→save + pruebas de regresión).
+- **No CAS aún**: sigue existiendo TOCTOU entre el recheck antes de guardar y `os.replace`. Los temporales únicos F35 no eliminan ese riesgo. Identidad física GGUF en worktree `iso-fixid-20261122` SIN COMMIT permanece sin transferir y no se declara corregida. F28 físicos, G0 NO-GO, P0 OPEN.
+- F31 Windows de Ernie fue 46 FAIL / 2786 PASS / 20 SKIP, sin suite nueva ejecutada aquí. Siguiente gate: ejecución F33–F37 en un nuevo worktree Windows con SHA exacto, luego clasificación de fallos por test, CI/mypy/Ruff y reconciliación del trabajo local no publicado sin sobrescribirlo.
