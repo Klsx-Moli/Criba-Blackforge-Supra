@@ -913,3 +913,41 @@ def test_f42_inventar_partial_source_failure_cannot_conceal_unknown() -> None:
     assert result["literal_probe"]["status"] == "POTENTIAL_LITERAL_OVERLAP"
     # A literal cue in one source never overrides a failure in another.
     assert inventar_module._estado_antecedentes(result) == "busqueda_incompleta"
+
+
+def test_f42_literal_probe_is_preserved_in_append_only_ledger(tmp_path) -> None:
+    """Producer -> Inventar sheet -> JSONL must retain screening provenance."""
+    sheet = invent(
+        "permisos por operación", seed=42, rounds=1,
+        batch_size=6, top=2, offline=True,
+        methods=_methods(), sources=_sources(),
+    )
+    science = _F42LiteralSource("science", "science")
+    patents = _F41CompleteSource("patents", "patent")
+    prior = inventar_module._assess_candidate(_f41_candidate(), [science, patents])
+    assert prior["literal_probe"]["status"] == "POTENTIAL_LITERAL_OVERLAP"
+    sheet["entries"][0]["prior_art"] = prior
+    sheet["entries"][0]["estado_antecedentes"] = inventar_module._estado_antecedentes(prior)
+
+    path = append_ledger(sheet, ledger_dir=tmp_path)
+    record = json.loads(path.read_text(encoding="utf-8").splitlines()[-1])
+    entry = record["entries"][0]
+    assert entry["verdict"] == "UNRESOLVED"
+    assert entry["literal_probe"] == prior["literal_probe"]
+    assert entry["literal_probe"]["materiality_assessed"] is False
+    assert entry["prior_art_assessments"] == ["SURVIVED_SEARCH"]
+    assert entry["prior_art_rounds"] == 0
+    assert entry["prior_art_mutations"] == 0
+    assert entry["estado_antecedentes"] == "busqueda_incompleta"
+
+
+def test_f42_legacy_ledger_does_not_invent_missing_literal_screening(tmp_path) -> None:
+    sheet = invent(
+        "q", seed=3, rounds=1, batch_size=4, top=2,
+        offline=True, methods=_methods(), sources=_sources(),
+    )
+    assert "literal_probe" not in sheet["entries"][0]["prior_art"]
+    path = append_ledger(sheet, ledger_dir=tmp_path)
+    entry = json.loads(path.read_text(encoding="utf-8").splitlines()[-1])["entries"][0]
+    assert entry["literal_probe"] is None
+    assert entry["prior_art_assessments"] is None
