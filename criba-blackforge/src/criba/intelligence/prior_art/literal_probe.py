@@ -38,10 +38,14 @@ def _tokens(text: str) -> tuple[str, ...]:
 
 
 def _contains_exact(tokens: tuple[str, ...], pattern: tuple[str, ...]) -> bool:
-    width = len(pattern)
-    if width > len(tokens):
+    if not pattern or len(pattern) > len(tokens):
         return False
-    return any(tokens[i : i + width] == pattern for i in range(len(tokens) - width + 1))
+    # NUL cannot occur inside any regex-normalized token. Separators on
+    # BOTH ends preserve word boundaries while Python's substring search
+    # avoids repeated O(n * phrase_length) tuple comparisons.
+    needle = "\\0" + "\\0".join(pattern) + "\\0"
+    haystack = "\\0" + "\\0".join(tokens) + "\\0"
+    return needle in haystack
 
 
 @dataclass(frozen=True)
@@ -121,6 +125,9 @@ def probe_literal_mechanism(
     ):
         if (
             not isinstance(source_id, str)
+            or not source_id
+            or source_id != source_id.strip()
+            or len(source_id) > 128
             or not isinstance(result, SourceQueryResult)
             or result.source_id != source_id
             or type(result.ok) is not bool
@@ -158,6 +165,7 @@ def probe_literal_mechanism(
             if (
                 key is None or not doc.doc_id
                 or doc.doc_id != doc.doc_id.strip()
+                or len(doc.doc_id) > 256
                 or doc.source_id != source_id
                 or identity_counts[doc.doc_id] != 1
                 or not isinstance(provenance, ProvenanceRecord)
@@ -174,6 +182,8 @@ def probe_literal_mechanism(
                     not isinstance(fragment, EvidenceFragment)
                     or not isinstance(fragment.text, str)
                     or len(fragment.text) > _MAX_TEXT_CHARS
+                    or not isinstance(fragment.locator, str)
+                    or len(fragment.locator) > 256
                     for fragment in doc.fragments
                 )
             ):
