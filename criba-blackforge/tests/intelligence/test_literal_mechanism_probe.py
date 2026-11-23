@@ -201,3 +201,31 @@ def test_f42_two_valid_same_source_hits_are_order_invariant() -> None:
 def test_f42_excessive_requested_scan_budget_is_rejected() -> None:
     with pytest.raises(ValueError, match="max_documents"):
         probe_literal_mechanism(_candidate(), {}, max_documents=1000)
+
+
+@pytest.mark.parametrize("bad_source", ["", " science ", "x" * 129])
+def test_f42_untrusted_source_id_never_becomes_attributed_evidence(
+    bad_source: str,
+) -> None:
+    d = _doc(source=bad_source, abstract=_MECHANISM)
+    outcome = probe_literal_mechanism(
+        _candidate(), {bad_source: _source([d], source_id=bad_source)},
+    )
+    assert outcome.status == "INDETERMINATE"
+    assert outcome.sources_failed == 1
+    assert outcome.candidates == ()
+
+
+@pytest.mark.parametrize("field", ["doc_source", "doc_id", "fragment_locator"])
+def test_f42_invalid_document_or_locator_does_not_enter_ledger(field: str) -> None:
+    d = _doc(abstract=_MECHANISM)
+    if field == "doc_source":
+        d.source_id = "foreign"
+    elif field == "doc_id":
+        d.doc_id = "x" * 257
+    else:
+        d.fragments = [EvidenceFragment(text="fragment", locator="x" * 257)]
+    payload = probe_literal_mechanism(_candidate(), {"science": _source([d])})
+    assert payload.status == "INDETERMINATE"
+    assert payload.documents_unscanned == 1
+    assert payload.candidates == ()
