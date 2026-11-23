@@ -37,12 +37,12 @@ Esto prueba la carrera del archivo temporal, pero NO ejecuta el módulo del repo
 
 **Defecto:** `_activate_ollama_choice` guardaba `config_path = model_config_path()`, comparaba los bytes de A antes/después del modal Qt, pero llamaba `save_model_settings(settings)` **sin pasar la ruta**. El save reconsultaba `CRIBA_MODEL_CONFIG`; si el entorno cambiaba durante el diálogo, podía escribir otro destino sin verificar.
 
-**Fix:** antes de activar, el código valida `model_config_path()==config_path`, rechaza symlinks y llama `save_model_settings(settings, config_path)` con ruta fija. Se mantiene el guard de selección y bytes. Tests parametrizados con archivo inicial existente/no existente y cambio de variable de entorno **durante** el `QMessageBox.question`. Deberían fallar en F34 y proteger F35. **NOT_EXECUTED**.
+**Fix:** antes de activar, el código valida `model_config_path()==config_path`, rechaza symlinks y llama `save_model_settings(settings, config_path)` con ruta fija. Se mantiene el guard de selección y bytes. La lectura inicial/posterior se limita a 1 MiB y rechaza symlinks. Tests parametrizados con archivo inicial existente/no existente, cambio de variable de entorno **durante** el `QMessageBox.question` y sentinels de archivo excesivo/symlink. Deberían fallar en F34 y proteger F35. **NOT_EXECUTED**.
 
 ## Límites y falsación residual
 
 1. **OPEN P1**: comprobación de snapshot + `os.replace` NO constituye CAS/lock transaccional entre procesos. Sigue existiendo ventana TOCTOU posterior a la última comparación: un segundo editor puede reemplazar el archivo y luego ser sobrescrito. Requiere compare-and-swap real con lock cross-platform + versionado y tests multi-proceso antes de declarar conflicto resuelto.
-2. **OPEN**: `_activate_ollama_choice` lee archivos potencialmente grandes antes del check; a diferencia del diálogo general todavía no tiene límite de lectura 1 MiB ni un snapshot de filesystem inmutable. Requiere acotación en un siguiente ciclo.
+2. **MITIGADO F35 / EVIDENCE_PENDING**: `_activate_ollama_choice` leía archivos completos antes del check. `_bounded_shared_model_bytes` limita a 1 MiB + 1 byte y rechaza symlinks antes/después del consentimiento; dos sentinels publicados, NOT_EXECUTED. La fotografía no congela el filesystem durante la escritura: esa ventana TOCTOU sigue abierta.
 3. **OPEN**: la identidad real de GGUF en `model_runtime._assert_requested_model` no está probada mediante `/props.model_path`. El handoff remoto `4297b63971927d5254f6099479a3eccbeaf876f2` reconoce que el fix/test están **sin commitear en worktree local** separado. NO tocar ese worktree ni considerar el fix integrado.
 4. No se han ejecutado llamadas HTTP a Hermes/Ollama, no se ha afirmado precio gratuito, ni se ha promovido resultado científico o banco local.
 5. F31 Windows tuvo 46 FAIL / 2786 PASS / 20 SKIP, según Ernie; F34 pruebas correctoras y F35 siguen EVIDENCE_PENDING. No declarar green ni AUDIT COMPLETE.
