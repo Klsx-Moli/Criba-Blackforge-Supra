@@ -780,9 +780,12 @@ def test_f41_inventar_does_not_claim_no_prior_art_without_a_matcher() -> None:
     assert inventar_module._estado_antecedentes(result) == "busqueda_incompleta"
 
 
-def test_f41_legacy_positive_verdict_with_later_error_is_not_displayed_as_success() -> None:
+@pytest.mark.parametrize("positive_verdict", ["SURVIVED_SEARCH", "PARTIAL_PRIOR_ART"])
+def test_f41_legacy_positive_verdict_with_later_error_is_not_displayed_as_success(
+    positive_verdict: str,
+) -> None:
     historical = {
-        "verdict": "SURVIVED_SEARCH",
+        "verdict": positive_verdict,
         "detail": "mutation-loop-fail-closed: DOCUMENT_ID_CONTENT_COLLISION",
         "queries": ["mechanism"],
     }
@@ -819,4 +822,39 @@ def test_f41_later_mutation_failure_never_restores_earlier_favorable_assessment(
     assert result["verdict"] == "UNRESOLVED"
     assert result["assessments"] == ["PARTIAL_PRIOR_ART"]
     assert "DOCUMENT_ID_CONTENT_COLLISION" in result["detail"]
+    assert inventar_module._estado_antecedentes(result) == "busqueda_incompleta"
+
+
+def test_f41_inventar_rejects_future_positive_mutation_without_matcher(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Future mutation-loop 'success' may not revive an unexecuted matcher."""
+    from criba.intelligence.prior_art.mutation_loop import MutationResult
+
+    science = _F41CompleteSource("science", "science")
+    patents = _F41CompleteSource("patents", "patent")
+
+    def synthetic_partial(self, candidate, results, skeptic, *, matches):
+        return PriorArtAssessment(
+            candidate_id=candidate.candidate_id,
+            verdict="PARTIAL_PRIOR_ART", queries_executed=("mechanism",),
+        )
+
+    monkeypatch.setattr(
+        inventar_module.PriorArtVerdictEngine, "assess", synthetic_partial,
+    )
+    monkeypatch.setattr(
+        inventar_module, "run_prior_art_mutation_loop",
+        lambda **_kwargs: MutationResult(
+            verdict="SURVIVED_SEARCH", rounds_completed=1,
+            mutations_completed=0, queries_executed=("mechanism",),
+            assessments_by_round=("PARTIAL_PRIOR_ART", "SURVIVED_SEARCH"),
+        ),
+    )
+    result = inventar_module._assess_candidate(
+        _f41_candidate(), [science, patents],
+    )
+    assert result["verdict"] == "UNRESOLVED"
+    assert result["assessments"][-1] == "SURVIVED_SEARCH"
+    assert result["detail"].startswith("prior-art-match-not-executed")
     assert inventar_module._estado_antecedentes(result) == "busqueda_incompleta"
